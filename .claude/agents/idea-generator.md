@@ -78,6 +78,20 @@ contract is in `AGENTS.md`. Read both before acting, and follow them exactly.
   This test is algebraic and costs no compute; it is the cheapest answer to
   "is this actually new," and it belongs in the proposal, not in the
   experiment.
+- **Search (representation, operation set) pairs, not projections of the
+  group.** Search bias 6 in `agents/idea-generator.md`: on a prime-order
+  subgroup no lossy projection propagates deterministically under translation
+  (IDEA-20260806-c5d183, KN-FIND-ffe1df Theorem C), and the lossy objects
+  under an operation set Σ are the block systems of ⟨Σ⟩
+  (IDEA-20260901-863e36). Pair a point representation (RQ-ECDLP-623a32's
+  R1–R3 classes) with a named operation set other than translation, place
+  the candidate in the partial-action / branching / coordinate-dependent
+  trichotomy, run the lossy-projection test against that named operation
+  set, and price it by orbit-canonicalisation cost or by the (L, b) meter of
+  IDEA-20260802-002. Index calculus is Class I, partial-action
+  (IDEA-20260806-c5d183); a factor base that escapes KN-OPEN-020 must say
+  how. Handoff block:
+  `docs/object-frame-ideation.md`.
 - **Premature closure is a failure mode, symmetrically with overclaiming.**
   "This target is exhaustively studied" is a hypothesis about the search, not
   a theorem about the problem (`KN-LIT-7594`, `KN-TECH-056`). You may not

@@ -1,0 +1,218 @@
+{
+  "id": "MEAS-TASK-20260810-2a0a37-002",
+  "task_id": "TASK-20260810-2a0a37",
+  "role": "executor",
+  "recorded_at": "2026-08-31T17:20:00Z",
+  "covering_manifest": true,
+  "covering_manifest_note": "SC-3: this manifest is DESIGNATED THE COVERING MANIFEST by this task's card and by this field. Its artifact_provenance list covers EVERY declared artifact of the task and every other manifest of the task appears as an entry in it. Its own digest is SELF (a self-referential digest is impossible and is recorded as SELF).",
+  "purpose": "Resolve BY MEASUREMENT the named contradiction between two committed records about the C toolchain (RQ-AES-001 constraints vs GOAL-AES-001 next_action), and record the machine-readable toolchain/throughput envelope. Infrastructure and inventory only. NO CRYPTANALYSIS: this receipt attempts no key recovery, computes no distinguisher, and asserts nothing about AES security at any round count; it is expressly NOT a completion (GOAL-AES-002 non_completion_criteria (vi)).",
+  "no_cryptanalysis_statement": "This receipt is a benchmark and an inventory. It is not a completion of GOAL-AES-002 and licenses no claim about AES at any round count.",
+
+  "measurement_sessions": {
+    "sessions": [
+      "session-1 (api_direct/, 2026-08-31 ~15:30-15:48Z): RUN-1 attempt, RUN-2 x86 compile probes, run_measurements.py RUN-1 infrastructure failure recorded",
+      "session-2 (api_direct-run2/, 2026-08-31 ~15:48-16:12Z): RUN-1 corrected inventory, RUN-2 arm64 builds/bench, RUN-3 pure-Python benchmark",
+      "session-3 (api_direct-run3/, 2026-08-31 ~16:12-16:50Z): repair v2/v3/v4 of the arm64 benchmark and the v4 verification run",
+      "session-4 (this session, start 2026-08-31T17:15:35Z): NO new benchmark runs; this session computed derived quantities from the preserved run records, wrote this covering manifest and the execution report, and wrote the SC-1 stamps. Maximum_runs=3 was met by sessions 1-3; no further run was performed."
+    ],
+    "session_receipts": [
+      "api_direct/inference-receipt.json",
+      "api_direct-run2/inference-receipt.json",
+      "api_direct-run3/inference-receipt.json"
+    ]
+  },
+
+  "items": {
+    "i_gcc_exists": {
+      "label": "measured",
+      "finding": "gcc exists on PATH but is Apple clang 17.0.0 masquerading under the gcc name, targeting arm64-apple-darwin25.6.0. It is NOT gcc 13.3.0, and it is not an x86-64 toolchain.",
+      "value": {
+        "gcc_present": true,
+        "gcc_path": "/usr/bin/gcc",
+        "reported_version": "Apple clang version 17.0.0 (clang-1700.0.13.5); Target: arm64-apple-darwin25.6.0; Thread model: posix; InstalledDir: /Library/Developer/CommandLineTools/usr/bin",
+        "dumpmachine": "arm64-apple-darwin25.6.0"
+      },
+      "run_records": ["run1-inventory.json (steps gcc --version, gcc -dumpmachine)"],
+      "exact_command": ["/usr/bin/gcc", "--version"],
+      "raw_output": "Apple clang version 17.0.0 (clang-1700.0.13.5)\nTarget: arm64-apple-darwin25.6.0\nThread model: posix\nInstalledDir: /Library/Developer/CommandLineTools/usr/bin\n"
+    },
+
+    "ii_maes_compiles_and_runs": {
+      "label": "measured",
+      "finding": "A program using -maes DOES NOT COMPILE on this host. -maes is an x86-64-only option and clang rejects it outright for the arm64 target. Compilation with -march=armv8.6-a+crypto of x86-intrinsic code (wmmintrin.h) also fails. An arm64-native program using the ARMv8 crypto extension (vaeseq/vaesmcq) with -march=armv8.6-a+crypto DOES compile and the binary RUNS (returncode 0 on bench/selftest/vec) — but the v1..v4 benchmark programs all FAILED the FIPS-197 known-answer selftest and the openssl cross-check, so no accelerated throughput number from them is valid (see item iii).",
+      "value": {
+        "maes_compiles": false,
+        "maes_runs": null,
+        "maes_exact_reason": "clang: error: unsupported option '-maes' for target 'arm64-apple-darwin25.6.0'",
+        "arm64_crypto_compiles": true,
+        "arm64_crypto_binary_runs": true,
+        "arm64_crypto_flags": "-march=armv8.6-a+crypto",
+        "arm64_bench_correctness": "INVALID — selftest match=NO against the FIPS-197 AES-128 KAT; 0/8 vectors agree with the openssl CLI (run2r-v4-verify.json). The correct composition of ARM AESE/AESMC was not established within this task's run budget."
+      },
+      "run_records": ["run1-inventory.json (steps: compile WITH x86 flag -maes; compile WITH -march=armv8.6-a+crypto; compile WITHOUT flags)", "run2-arm64-compile.json", "run2r-v4-verify.json"],
+      "exact_command": ["/usr/bin/gcc", "-O3", "-maes", "-o", "/tmp/measure_env_2a0a37_xmaes", "<repo>/.../measure_envelope.c"],
+      "raw_output": "clang: error: unsupported option '-maes' for target 'arm64-apple-darwin25.6.0'  (returncode 1)\n--- arm64 crypto build: returncode 0, binary runs; v4 selftest: SELFTEST ct=e4fd44298233442c41e2efa7b4d227d9 fips197_expected=69c4e0d86a7b0430d8cdb78070b4c55a match=NO"
+    },
+
+    "iii_aes_ni_throughput": {
+      "label": "invalid_measurement",
+      "finding": "No valid hardware-AES throughput figure exists for this task. The measured host has no x86-64 AES-NI at all (item ii); the arm64 crypto-extension benchmark compiled and ran but produced ciphertexts that fail the FIPS-197 known-answer test and disagree with the openssl CLI on all 8 cross-check vectors (while the pure-Python implementation agrees 4/4, run3-python.json), so its throughput numbers are the throughput of a WRONG cipher and are classified invalid_measurement. They are preserved below for the record, NOT as usable figures, and none of them may be used to size any budget.",
+      "value": {
+        "single_core_median_fresh_key_incl_schedule_evals_per_sec_per_core_arm64_v4_INVALID": 7336684.0,
+        "single_core_median_dep_chain_arm64_v4_INVALID": 156005000.0,
+        "single_core_ind_4chain_arm64_v4_INVALID": 15401200000.0,
+        "multi_core_measured_14_process_scaling_factor_fresh_mode_arm64_v4_INVALID": 8.574447829080738,
+        "noacc_control_single_core_fresh_arm64_v4_INVALID": 12379300.0,
+        "noacc_control_dep_arm64_v4_INVALID": 160629700.0,
+        "open_issue": "the composition of ARM AESE (which applies SubBytes+ShiftRows+XOR roundkey) with AESMC (MixColumns) was never made to reproduce FIPS-197 within 4 program versions and 3 benchmark runs; a successor task with fresh run budget is required before ANY hardware-AES throughput may be quoted for budgeting on this host."
+      },
+      "run_records": ["run2-aesni.json", "run2-arm64-compile.json", "run2-repaired.json", "run2r-v4-verify.json"],
+      "exact_command": ["/tmp/mea_acc", "bench", "fresh", "20000000", "3"],
+      "raw_output": "RESULT mode=fresh N=20000000 rep=1 elapsed_s=1.931652 rate=1.035383e+07 acc=31d0b727c43fd431 (.. rep=2 4.347957e+06 .. rep=3 7.336684e+06; median 7.336684e+06; INVALID: fails KAT)"
+    },
+
+    "iv_pure_python_throughput": {
+      "label": "measured",
+      "finding": "Valid. A fresh, self-contained pure-Python AES-128 implementation (tables built from the AES definition, not pasted) was cross-checked against the openssl CLI on 4 vectors and agrees 4/4 before any timing was taken.",
+      "value": {
+        "fresh_key_incl_schedule_median_evals_per_sec_per_core": 11061.1924,
+        "fresh_key_reps_evals_per_sec_per_core": [10804.8535, 11061.1924, 11236.6495],
+        "amortised_fixed_key_median_evals_per_sec_per_core": 13379.8132,
+        "amortised_reps_evals_per_sec_per_core": [13379.8132, 13577.3561, 13176.3517],
+        "cross_check": "4/4 agree with openssl CLI (run3-python.json pure_python_cross_check.all_agree_openssl = true)"
+      },
+      "run_records": ["run3-python.json"],
+      "exact_command": ["python3 run_measurements_v4.py (RUN-3: reps of n=500 fresh and n=1000 amortised, time.perf_counter, single core)"],
+      "raw_output": "rep1 n=500 0.046275s -> 10804.8535/s; rep2 0.045203s -> 11061.1924/s; rep3 0.044497s -> 11236.6495/s; median 11061.1924 evals/s/core (fresh, key schedule charged per evaluation, CM-1 AEU-128 shape)"
+    },
+
+    "v_usable_ram": {
+      "label": "measured",
+      "finding": "Physical RAM 51,539,607,552 bytes (48 GiB). Usable-at-measurement-time from vm_stat, computed by the CONSERVATIVE convention (free + speculative + purgeable pages at 16 KiB page size), was 150,126,592 bytes (0.14 GiB) at the moment of the snapshot; the snapshot is a point sample under a loaded host, not a stable capacity figure, and alternative conventions (adding inactive/compressed pages) give larger figures.",
+      "value": {
+        "physical_bytes": 51539607552,
+        "physical_gb": 51.54,
+        "usable_ram_estimate_bytes_conservative_vm_stat_snapshot": 150126592,
+        "usable_ram_estimate_gb_conservative": 0.15,
+        "method": "free + speculative + purgeable pages from vm_stat times 16384-byte page size; conservative point snapshot at measurement time"
+      },
+      "run_records": ["run1-inventory.json (sysctl hw.memsize; vm_stat)"],
+      "exact_command": ["sysctl hw.memsize; vm_stat"],
+      "raw_output": "hw.memsize: 51539607552\nvm_stat: Pages free: 5198 / speculative: 3965 / purgeable: 3546 (16 KiB pages) plus active/inactive/wired/compressor lines, full text in run1-inventory.json"
+    },
+
+    "vi_ceiling": {
+      "label": "derived (from measured item iv only; every multi-core figure is derived-under-an-assumption, stated in the field itself)",
+      "basis": "Pure-Python fresh-key throughput 11061.1924 AES-128 evaluations/s/core (CM-1 AEU-128 shape: key schedule charged per evaluation), median of 3 reps, valid cross-check. All multi-core numbers below are DERIVED UNDER THE ASSUMPTION OF LINEAR SCALING IN CORES; multi-core scaling was NOT measured in this task for any valid implementation (the only measured 14-process scaling datum, 8.57x on 14 processes, comes from the INVALID arm64 v4 build and is itself unusable). Per-task budget = 1600 s wall clock (GOAL-AES-002 campaign_budget sizing_basis, executor producer line). Campaign total_wall_clock_seconds is null (UNBOUNDED) since BUDGET-AMEND-20260828-16e34c; the prior finite value 22500 s is superseded and is shown only as the pre-amendment reference line.",
+      "value": {
+        "per_task_single_core_log2_aes_evals": 24.077,
+        "per_task_4_core_linear_assumed_log2_aes_evals": 26.077,
+        "per_task_14_core_linear_assumed_log2_aes_evals": 27.884,
+        "per_task_14_core_linear_assumed_aes_evals_decimal": 488600000000,
+        "campaign_pre_amendment_reference_22500s_14_core_linear_assumed_log2": 31.698,
+        "campaign_current_status": "unbounded (null); no finite campaign ceiling in AES evaluations is derivable from a null budget; any later campaign-level ceiling must be re-derived from the per-task figure and the batch count actually dispatched",
+        "scaling_assumption_stated_in_field": "multi-core scaling is ASSUMED LINEAR and was NOT measured for any valid implementation in this task; every multi-core number above is derived-under-an-assumption"
+      },
+      "derivation_shown": "log2(11061.1924 evals/s/core x 1600 s) = log2(1.769791e7) = 24.077 AES-128 evaluations per single-core 1600 s task. +log2(4) = 26.077 at 4 cores; +log2(14) = 27.884 at 14 cores (host has 14 logical CPUs, run1-inventory.json hw.ncpu=14). Pre-amendment campaign line: 11061.1924 x 22500 x 14 = 3.4843e9 -> log2 = 31.698."
+    }
+  },
+
+  "contradiction_resolution": {
+    "record_a": "ledger/questions/RQ-AES-001.yaml constraints: 'gcc 13.3.0 with -maes, python3 with pycryptodome 3.23.0, and the openssl CLI are available' (4 CPU cores, 15 GB RAM, no GPU, no sage)",
+    "record_b": "ledger/goals/GOAL-AES-001.yaml next_action: GF(2^8) census leg blocked because 'neither numpy nor a small C program is installed'",
+    "neither_record_edited": true,
+    "finding": "ON THE EXACT POINT OF DISAGREEMENT — whether a usable C toolchain with AES acceleration exists — the measurement SUPPORTS NEITHER RECORD AS WRITTEN, and resolves the contradiction against Record A on its specific claim: (1) a C compiler exists under the name gcc (supports the C-compiler-exists half of Record A against Record B); (2) it is NOT gcc 13.3.0 (Record A's version string is wrong on this host, measured: Apple clang 17.0.0, arm64-apple-darwin25.6.0); (3) -maes DOES NOT COMPILE, so Record A's 'with -maes ... available' is MEASURED FALSE on this host; (4) an arm64-native AES-accelerated compile-and-run path exists (-march=armv8.6-a+crypto, compiles, runs), but no correct (FIPS-197/openssl-agreeing) accelerated benchmark was produced within this task's run budget, so no accelerated throughput is available for budgeting; (5) Record B is MEASURED FALSE on its numpy half (numpy 2.4.4 importable, run1-inventory.json) and its C-compiler half (a C compiler exists), so the census-leg blocking premise as written is wrong on both named dependencies; (6) pycryptodome, which Record A lists as available, is MEASURED ABSENT (ModuleNotFoundError: No module named 'Crypto').",
+    "on_what_the_receipt_is_silent": "This receipt is SILENT on: whether the GOAL-AES-001 census leg is feasible (its memory/work profile was not measured here); on any hardware-AES throughput figure (invalid measurement, item iii); on multi-core scaling for any valid implementation (not measured); on everything about AES cryptanalysis at any round count (no cryptanalysis performed); on gcc 13.3.0/x86-64/AES-NI on any host other than the one measured (the host identity is recorded in run1-inventory.json: Darwin 25.6.0, Apple M4 Pro, Mac16,7).",
+    "correction_of_record_status": "This receipt is the correction of record. Neither RQ-AES-001 nor GOAL-AES-001 is edited; a successor Coordinator decision record is the proper channel for any ledger consequence."
+  },
+
+  "agreement_with_prior_receipt": {
+    "prior_receipt": "coordination/goals/GOAL-AES-002/throughput_receipt.json (MEAS-GOAL-AES-002-001, undispatched 2026-08-01 session)",
+    "prior_receipt_status": "INPUT, NOT ANSWER; not copied; none of its numbers is restated as this task's own",
+    "field_by_field": [
+      {"field": "gcc exists and compiles AES-NI (-maes)", "agreement": "DISAGREES", "detail": "MEAS-GOAL-AES-002-001 records an x86-64 gcc 13.3.0 with -maes -msse4.1 compiling and running; this task measures -maes as not compiling on this host (clang 17.0.0, arm64-apple-darwin25.6.0). The two receipts describe different toolchains; the difference is recorded, not adjudicated here."},
+      {"field": "AES-NI single-core throughput", "agreement": "NOT COMPARABLE", "detail": "The prior receipt's hardware throughput figure rests on the toolchain this task could not reproduce on this host; this task's accelerated figure is INVALID (KAT failure), so there is no valid pair of numbers to compare."},
+      {"field": "pure-Python throughput", "agreement": "NOT STATED BY PRIOR", "detail": "MEAS-GOAL-AES-002-001 records no pure-Python figure; this task's pure-Python measurement is new and independent."},
+      {"field": "multi-core scaling", "agreement": "AGREES ON THE WARNING", "detail": "The prior receipt declares four-core scaling assumed-not-measured; this task likewise has no valid measured multi-core scaling and labels every multi-core ceiling derived-under-an-assumption in the field itself."},
+      {"field": "usable RAM", "agreement": "NOT STATED BY PRIOR", "detail": "The prior receipt records no RAM measurement."}
+    ]
+  },
+
+  "r5_anti_laundering_clause_verbatim": "R5. THE ANTI-LAUNDERING CLAUSE. Any record, in any location, that states a margin MUST in the SAME SENTENCE (i) name the reference as exhaustive key search at the stated key size under CM-1, and (ii) declare the published-state-of-the-art comparison UNADJUDICABLE in this environment. Transcribing a definitional-reference margin as a state-of-the-art margin — in a headline, an evidence record, a decision, a synthesis, a status line, a cross-reference, a knowledge entry, a PR title or a commit message — is a CLAIM-TIER VIOLATION and is handled exactly as docs/claims-and-verification.md handles dropping a conditional qualifier: as an assertion above what the record supports. OPERATIONALLY, under docs/inventor-protocol.md section 5: every ideation and closure deliverable under this question sets `dominated_by: \"unresolvable in this environment: no primary source reachable; every recalled frontier row is unverified-from-memory\"` and NEVER `null`, because `null` asserts the frontier was checked row by row and it cannot be. `sota_delta` records the DEFINITIONAL-REFERENCE delta, explicitly labelled as such, plus the word `unadjudicable` for the published frontier.",
+
+  "budget_block": {
+    "reference_implementation": "TASK-20260801-810 budget block",
+    "sc1_stamp_files": [
+      "stamps.json (session-1 start stamp)",
+      "stamps/stamp-01-start.json (session-1 directory stamp)",
+      "stamp-2-source-artifacts.json (session-1 section boundary stamp)",
+      "SC1-stamps.json (session-3 start stamp)",
+      "stamps/stamp-04-session4-start.json (session-4 start stamp)",
+      "stamps/stamp-05-session4-deliverables.json (session-4 section-boundary stamp; its PROJECTED utc/elapsed_s are corrected by stamps/stamp-07-session4-stamp05-correction.json, a new record, per immutability)",
+      "stamps/stamp-06-session4-final.json (session-4 final stamp, halted_on_budget=false)",
+      "stamps/stamp-07-session4-stamp05-correction.json (SC-10 correction of stamp-05's projected timing)"
+    ],
+    "per_session_declared_wall_clock_seconds": 1600,
+    "session_1_halted_on_budget": "see stamps.json; no halt recorded in the preserved files",
+    "session_2_halted_on_budget": "not recorded in a preserved stamp file; see api_direct-run2/inference-receipt.json",
+    "session_3_halted_on_budget": "step budget exhausted, not wall clock (api_direct-run3/inference-receipt.json stop_reason=step_budget_exhausted); that stop is infrastructure signal, never a negative mathematical result (AGENTS.md rule 5)",
+    "session_4_halted_on_budget": false,
+    "work_dropped": "Session-3 exhausted its step budget before writing envelope-receipt.json and execution-report.md; that dropped work was picked up by session-4 without new benchmark runs. Within this task overall, the work NOT attempted and named OPEN AND UNATTEMPTED is: a correct arm64 hardware-AES benchmark (4 program versions attempted, all failing the FIPS-197 KAT; run budget exhausted), measured multi-core scaling for any valid implementation, and any measurement on a host other than the one measured.",
+    "compute_seconds_note_sc2": "SC-2: compute time is reported separately (run records carry wall_seconds_observed_by_driver per step; e.g. run2-aesni.json 9.26 s bench, 4.45 s multiprocess; run3-python.json sub-second) and is NOT offered as evidence of budget compliance. The charged figure is authoring-inclusive session elapsed, per session start stamp."
+  },
+
+  "kind_vocabulary_closed": ["SOURCE_CODE", "MACHINE_READABLE_MANIFEST", "PROSE_REPORT", "LEDGER_AND_COORDINATION_RECORD"],
+
+  "artifact_provenance": [
+    {"path": "envelope-receipt.json", "kind": "MACHINE_READABLE_MANIFEST", "sha256": "SELF", "comment_block_inference_stanza": true, "covered_by_this_manifest_inference_block": true, "note": "the covering manifest itself; a self-referential digest is impossible and is recorded as SELF; it carries this inference stanza block in its own text"},
+    {"path": "execution-report.md", "kind": "PROSE_REPORT", "sha256": "computed_by_the_snapshot_task_after_this_file_is_written (not yet knowable at authoring time; named as such, SC-10)", "comment_block_inference_stanza": false, "covered_by_this_manifest_inference_block": true, "note": "prose report; carries the R5 clause and the SC-4 constraint block; a prose artifact cannot carry a comment-block stanza and states so honestly (SC-3)"},
+    {"path": "measure_envelope.c", "kind": "SOURCE_CODE", "sha256": "b80df6d80cde811161ccdc4d3b054efc8eb62c46d112514e0e49ec0104a056dc", "comment_block_inference_stanza": true, "covered_by_this_manifest_inference_block": true, "note": "x86-64 AES-NI benchmark source (declared deliverable); compile probes in run1-inventory.json"},
+    {"path": "measure_envelope_arm64.c", "kind": "SOURCE_CODE", "sha256": "34f82773a71f1d6bd8b66a62535c565a499ff78a66895e00c266beb9d07e0620", "comment_block_inference_stanza": true, "covered_by_this_manifest_inference_block": true, "note": "arm64 crypto build v1; compile+run evidence run2-arm64-compile.json; correctness INVALID (KAT fail)"},
+    {"path": "measure_envelope_arm64_v2.c", "kind": "SOURCE_CODE", "sha256": "43eec604848820051b5d3967dbbc5d589e75a38a32bcdbd821747bd1715f64e5", "comment_block_inference_stanza": true, "covered_by_this_manifest_inference_block": true, "note": "arm64 repair v2; retained immutable"},
+    {"path": "measure_envelope_arm64_v3.c", "kind": "SOURCE_CODE", "sha256": "efdd4942a87bde032be5bc13e249bee29b33a3ed4f6269ddfad3383093d9e0a6", "comment_block_inference_stanza": true, "covered_by_this_manifest_inference_block": true, "note": "arm64 repair v3; run2-repaired.json; correctness INVALID"},
+    {"path": "measure_envelope_arm64_v4.c", "kind": "SOURCE_CODE", "sha256": "2c2f4f5716f7896fec584b654015a98085fce5daf0f16269c2ccee8a8c962772", "comment_block_inference_stanza": true, "covered_by_this_manifest_inference_block": true, "note": "arm64 repair v4; run2r-v4-verify.json; correctness INVALID (selftest match=NO, 0/8 vs openssl)"},
+    {"path": "run_measurements.py", "kind": "SOURCE_CODE", "sha256": "60831c56c36a71e0243994ff2081a8ffb3ce5807e27a36965373caa2d5a24030", "comment_block_inference_stanza": true, "covered_by_this_manifest_inference_block": true, "note": "driver v1; RUN-1 infrastructure failure recorded (FileNotFoundError /proc/cpuinfo, Linux assumption)"},
+    {"path": "run_measurements_v2.py", "kind": "SOURCE_CODE", "sha256": "92e77b3e38595f97fabcd3ce9cdb3b6a71385d098a49b515f99c0afd11273003", "comment_block_inference_stanza": true, "covered_by_this_manifest_inference_block": true, "note": "driver v2"},
+    {"path": "run_measurements_v3.py", "kind": "SOURCE_CODE", "sha256": "b394d237d296d586be2f2b8bcac56ddd7cc5f2f6a34ad86e1386d44a60829831", "comment_block_inference_stanza": true, "covered_by_this_manifest_inference_block": true, "note": "driver v3"},
+    {"path": "run_measurements_v4.py", "kind": "SOURCE_CODE", "sha256": "1bb9971b87c6dfc59ab9ec2cff2ae08ec5d64911d681d4061e579a218144ea4c", "comment_block_inference_stanza": true, "covered_by_this_manifest_inference_block": true, "note": "driver v4; produced run1-inventory.json, run2-aesni.json, run3-python.json"},
+    {"path": "run1-inventory.json", "kind": "MACHINE_READABLE_MANIFEST", "sha256": "303edc86d7392b21c4a7ca04684c6d08df0a954b870fb96d695cfb71862a5380", "comment_block_inference_stanza": false, "covered_by_this_manifest_inference_block": true, "note": "raw run record, covered as an entry here (SC-3); a JSON data file carries no comment block and states so honestly"},
+    {"path": "run2-aesni.json", "kind": "MACHINE_READABLE_MANIFEST", "sha256": "11d5d511d5c1b72f349324bf50daeadaf98bb933e85680957b441eed5917b78f", "comment_block_inference_stanza": false, "covered_by_this_manifest_inference_block": true, "note": "raw run record; accelerated numbers INVALID (see item iii)"},
+    {"path": "run2-arm64-compile.json", "kind": "MACHINE_READABLE_MANIFEST", "sha256": "f73f3b34303b299bca994438ade4a0eb5ccfba424e9d14e730f4956e38457927", "comment_block_inference_stanza": false, "covered_by_this_manifest_inference_block": true, "note": "raw run record"},
+    {"path": "run2-repaired.json", "kind": "MACHINE_READABLE_MANIFEST", "sha256": "390ba6137f29d56b4d45247c1e34ce934cdfcc8150d1b5637a702f39c9fe080d", "comment_block_inference_stanza": false, "covered_by_this_manifest_inference_block": true, "note": "raw run record"},
+    {"path": "run2r-v4-verify.json", "kind": "MACHINE_READABLE_MANIFEST", "sha256": "d734a3573de455343091dcd6001fdca6301b9071bcd7b56721a7cc709d2a4231", "comment_block_inference_stanza": false, "covered_by_this_manifest_inference_block": true, "note": "raw run record; the KAT-failure verdict for the accelerated path"},
+    {"path": "run3-python.json", "kind": "MACHINE_READABLE_MANIFEST", "sha256": "c54300624f679093ec81fa53369b5a5c5571c5b7121f647f8498521d9a9097cc", "comment_block_inference_stanza": false, "covered_by_this_manifest_inference_block": true, "note": "raw run record; the VALID pure-Python measurement and its 4/4 openssl cross-check"},
+    {"path": "stamps.json", "kind": "LEDGER_AND_COORDINATION_RECORD", "sha256": "741d080af8354099ce2027fb175bfafb3f65e33a0921db8cbaee3ce4c751d1fb", "comment_block_inference_stanza": false, "covered_by_this_manifest_inference_block": true, "note": "SC-1 stamp record (session-1)"},
+    {"path": "stamps/stamp-01-start.json", "kind": "LEDGER_AND_COORDINATION_RECORD", "sha256": "7d9f39c0222a01dc44828ad6e532f02699d7dce822ab2087cddf6c2054095da0", "comment_block_inference_stanza": false, "covered_by_this_manifest_inference_block": true, "note": "SC-1 stamp record"},
+    {"path": "stamp-2-source-artifacts.json", "kind": "LEDGER_AND_COORDINATION_RECORD", "sha256": "0bfa73fb41e9817da0fb8b6ef98d1f2cd42cd53fbb20e5e3a74e827a6567b5a4", "comment_block_inference_stanza": true, "covered_by_this_manifest_inference_block": true, "note": "SC-1 section-boundary stamp"},
+    {"path": "SC1-stamps.json", "kind": "LEDGER_AND_COORDINATION_RECORD", "sha256": "931a9432da705f3552c6b70b1e9c0da190bc4a373732cb2e455f481407302330", "comment_block_inference_stanza": false, "covered_by_this_manifest_inference_block": true, "note": "SC-1 stamp record (session-3)"},
+    {"path": "stamps/stamp-04-session4-start.json", "kind": "LEDGER_AND_COORDINATION_RECORD", "sha256": "95d80b7ae587c27a60d943599991d48e68b0d8423bcc1b1e65a3384ffce29731", "comment_block_inference_stanza": false, "covered_by_this_manifest_inference_block": true, "note": "SC-1 stamp record (session-4, this session)"},
+    {"path": "stamps/stamp-05-session4-deliverables.json", "kind": "LEDGER_AND_COORDINATION_RECORD", "sha256": "computed_by_the_snapshot_task_after_this_file_is_written (not yet knowable; SC-10)", "comment_block_inference_stanza": false, "covered_by_this_manifest_inference_block": true, "note": "SC-1 section-boundary stamp (session-4); its projected utc/elapsed_s are corrected by stamps/stamp-07-session4-stamp05-correction.json"},
+    {"path": "stamps/stamp-06-session4-final.json", "kind": "LEDGER_AND_COORDINATION_RECORD", "sha256": "computed_by_the_snapshot_task_after_this_file_is_written (not yet knowable; SC-10)", "comment_block_inference_stanza": false, "covered_by_this_manifest_inference_block": true, "note": "SC-1 final stamp (session-4); halted_on_budget=false"},
+    {"path": "stamps/stamp-07-session4-stamp05-correction.json", "kind": "LEDGER_AND_COORDINATION_RECORD", "sha256": "computed_by_the_snapshot_task_after_this_file_is_written (not yet knowable; SC-10)", "comment_block_inference_stanza": false, "covered_by_this_manifest_inference_block": true, "note": "SC-10 correction record: stamp-05's projected timing superseded by clock-read values; correction by new record, per immutability"},
+    {"path": "api_direct/inference-receipt.json", "kind": "MACHINE_READABLE_MANIFEST", "sha256": "133b7672cee0f94002d6b6466cea207ebf38d61248b7c3957ee79049d2062c39", "comment_block_inference_stanza": false, "covered_by_this_manifest_inference_block": true, "note": "runtime session receipt (session-1); part of the task's declared artifacts"},
+    {"path": "api_direct/tool-journal.json", "kind": "MACHINE_READABLE_MANIFEST", "sha256": "c995460bf256d6c40852e7b6ea6f65b4087c9d46d6954577265e6293bcf61df0", "comment_block_inference_stanza": false, "covered_by_this_manifest_inference_block": true, "note": "runtime tool journal (session-1)"},
+    {"path": "api_direct/transcript.jsonl", "kind": "MACHINE_READABLE_MANIFEST", "sha256": "8cf151453d67d45baca24040dca1216e16dc18fa2c026d42258f9fc45cd6d202", "comment_block_inference_stanza": false, "covered_by_this_manifest_inference_block": true, "note": "runtime transcript (session-1)"},
+    {"path": "api_direct-run2/inference-receipt.json", "kind": "MACHINE_READABLE_MANIFEST", "sha256": "c5da461b0191b9553904323c36ce691182ca0eb40154f2cb8d55e39409590071", "comment_block_inference_stanza": false, "covered_by_this_manifest_inference_block": true, "note": "runtime session receipt (session-2)"},
+    {"path": "api_direct-run2/tool-journal.json", "kind": "MACHINE_READABLE_MANIFEST", "sha256": "7ea778bb3d3bb9b6ae95fafff51f7dab3a8d032e779954186ae752ca7299a875", "comment_block_inference_stanza": false, "covered_by_this_manifest_inference_block": true, "note": "runtime tool journal (session-2)"},
+    {"path": "api_direct-run2/transcript.jsonl", "kind": "MACHINE_READABLE_MANIFEST", "sha256": "111b5d3d109f7cea70373e5f988140ad5ea29a1237929c092e295c0b3a4068e5", "comment_block_inference_stanza": false, "covered_by_this_manifest_inference_block": true, "note": "runtime transcript (session-2)"},
+    {"path": "api_direct-run3/inference-receipt.json", "kind": "MACHINE_READABLE_MANIFEST", "sha256": "dfe0881338c37a6dc8e4dd74ad19fccc201a47f176e9027611dbb638a1e9f041", "comment_block_inference_stanza": false, "covered_by_this_manifest_inference_block": true, "note": "runtime session receipt (session-3); stop_reason=step_budget_exhausted"},
+    {"path": "api_direct-run3/tool-journal.json", "kind": "MACHINE_READABLE_MANIFEST", "sha256": "fc089ccef3273b55e043540264287d0132bd5f37524b15478f456f57bf2aa9e0", "comment_block_inference_stanza": false, "covered_by_this_manifest_inference_block": true, "note": "runtime tool journal (session-3)"},
+    {"path": "api_direct-run3/transcript.jsonl", "kind": "MACHINE_READABLE_MANIFEST", "sha256": "c59d566c60219c4f732b020b2b28d5d59d49b4421e827803104856386174297", "comment_block_inference_stanza": false, "covered_by_this_manifest_inference_block": true, "note": "runtime transcript (session-3)"}
+  ],
+
+  "comment_block_inference_stanza_of_this_manifest": {
+    "authoring_note": "SC-3 requires the stanza in the artifact's own text. JSON has no comment syntax; the stanza is carried here as a structured block inside the manifest's own text, which is the JSON-native form of a comment-block stanza.",
+    "authored_by_task": "TASK-20260810-2a0a37 (sessions 1-4; this manifest written by session 4)",
+    "authored_by_role": "executor",
+    "handoff_inference_policy": "executor-implementation",
+    "handoff_reasoning_effort": "null (policy default)",
+    "fallback_used": false,
+    "degraded_allowed": false,
+    "degraded_requirements": [],
+    "resolved_model_id": "sessions 1-3: accounts/fireworks/models/glm-5p3 (api_direct, per their inference receipts); session 4: null (not surfaced by this runtime; unverified configuration until a doctor --probe confirms a backend serves it)",
+    "resolved_runtime": "sessions 1-3: api_direct; session 4: claude-code session (api_direct-equivalent tool set)",
+    "bedrock_selected_configured_probed_or_contacted": false,
+    "bedrock_note": "NOT selected, configured, probed or contacted, and never may be (AGENTS.md rule 16; task constraint SC-11)",
+    "claim_tier_of_this_artifact": "infrastructure measurement only; no margin, no cryptanalytic claim, nothing about AES at any round count; this receipt is expressly NOT a completion (GOAL-AES-002 non_completion_criteria (vi))"
+  }
+}

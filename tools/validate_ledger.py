@@ -53,6 +53,12 @@ import yaml
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BASELINE_PATH = os.path.join(REPO, "tools", "validate_ledger_baseline.txt")
+
+# Certificate kinds a run may CLAIM, each of which carries a verification duty
+# (certificate.verified must be true). A run that claims nothing records
+# `kind: none`, which is accepted without a certificate and is not listed here.
+# Authoritative prose: docs/claims-and-verification.md.
+CERTIFICATE_KINDS = ("discrete_log", "decomposition", "key_recovery")
 LEGACY_LEDGER_INVENTORY = os.path.join(
     REPO, "tools", "legacy_ledger_inventory.yaml"
 )
@@ -623,7 +629,24 @@ def check_run(path: str, ctx: Ctx, supersessions: dict[str, dict] | None = None)
     result = body.get("result") or {}
     cert = result.get("certificate") or {}
     kind = cert.get("kind")
-    if kind in ("discrete_log", "decomposition"):
+    # CERTIFICATE_KINDS is the single source of truth for which claim kinds a
+    # run may assert; `none` (a pure measurement run) is accepted separately
+    # because it carries no verification duty. `key_recovery` was added here
+    # for the AES line of work (RQ-AES-002 BLK-1).
+    #
+    # DISCLOSED COST OF THIS WORDING. The rejection message below deliberately
+    # still names only discrete_log|decomposition|none and is therefore NO
+    # LONGER AN EXHAUSTIVE ENUMERATION of what is accepted -- it under-reports
+    # `key_recovery`. That is intentional and load-bearing, not an oversight:
+    # tools/validate_ledger_baseline.txt suppresses errors by EXACT LINE MATCH
+    # and 112 of its grandfathered entries end in this exact literal, so any
+    # rewording of it simultaneously stales all 112 entries and emits 112
+    # freshly-worded errors. The baseline is prune-only, so it cannot absorb
+    # them. Keep this string byte-for-byte until a Coordinator-authorized
+    # baseline regeneration retires those 112 entries; the accepted vocabulary
+    # is CERTIFICATE_KINDS above and docs/claims-and-verification.md, not this
+    # message. See DEC-20260901-1fc2f5 and TASK-20260901-eb81f4.
+    if kind in CERTIFICATE_KINDS:
         if cert.get("verified") is not True:
             ctx.err(path, f"run claims a {kind} but certificate.verified "
                           f"is not true")
@@ -1202,8 +1225,40 @@ GOAL_RANDOM_ID = re.compile(rf"^GOAL-[A-Z0-9]+-{SUFFIX_RANDOM}$")
 # campaign budget ran out WITHOUT a completion criterion being met, so it makes
 # no success claim and needs no quorum. Using it to retire a goal that did meet
 # a criterion, in order to avoid the quorum, is a contract violation.
-GOAL_STATUSES = {"draft", "active", "paused", "blocked", "completed",
-                 "cancelled", "closed_at_budget"}
+# PAUSING A GOAL IS NOT PERMITTED. `paused` and `blocked` were removed from
+# this set on user instruction (2026-09-04): a campaign that hits an impediment
+# stays `active` and carries that impediment as a record, so the harness keeps
+# returning to it instead of parking it.
+#
+# `blocked` is refused alongside `paused` deliberately. It is the same idling
+# under another name, and leaving it available would have made the rule
+# cosmetic — the next session that wanted to stop a goal would simply have
+# written `blocked` instead.
+#
+# WHAT THIS DOES NOT RELAX. Pausing was carrying two honesty guarantees, and
+# removing the status does not remove either of them:
+#   - An infrastructure or budget impediment is STILL never negative
+#     mathematical evidence (AGENTS.md rule 3) and still never a research
+#     conclusion. It is recorded as an impediment on an active goal.
+#   - A `review-breakthrough` that cannot be served STILL may not be downgraded
+#     to a lower review tier. The goal stays active; the CLAIM stays
+#     un-promoted. "Never pause" is not permission to close, to promote, or to
+#     review at a tier the policy forbids.
+# An exhausted campaign budget likewise does not become licence to keep
+# spending: it requires a committed Coordinator budget decision before the next
+# batch. Terminal retirement remains available via `closed_at_budget` and
+# `cancelled`, both of which assert no success and both of which are deliberate
+# Coordinator acts rather than the automatic response to an impediment.
+GOAL_STATUSES = {"draft", "active", "completed", "cancelled",
+                 "closed_at_budget"}
+GOAL_STATUSES_REFUSED = {
+    "paused": ("pausing a goal is not permitted; keep status: active and record "
+               "the blocker under `impediments` with a concrete clearing "
+               "condition"),
+    "blocked": ("blocking a goal is not permitted; it is pausing under another "
+                "name. Keep status: active and record the blocker under "
+                "`impediments` with a concrete clearing condition"),
+}
 GOAL_REQUIRED = ["id", "title", "objective", "question_ids", "status",
                  "completion_criteria", "pause_conditions", "next_action",
                  "owner"]
@@ -1661,6 +1716,45 @@ def check_goal_symlinks(ctx: Ctx) -> None:
                 pending.append(entry.path)
 
 
+# ECC goals have an UNLIMITED campaign budget, on user instruction
+# (2026-09-04). The area set and the field list are declared once, in
+# orchestration/research-priority.yaml, and read through tools/ecc_priority.py
+# -- never re-derived here and never inferred from an identifier prefix.
+#
+# Only `active` and `draft` goals are checked. A terminal goal's budget is
+# history; rewriting it would be a retroactive edit of a closed campaign, not a
+# policy fix.
+#
+# What unlimited does NOT mean: `max_concurrent` stays bounded (it is machine
+# headroom, not a research budget), and removing the batch ceiling does not
+# remove the duty to rank -- never dispatch a task you cannot rank ahead of
+# doing nothing.
+def check_ecc_budget_is_unlimited(path, goal, status, ctx: Ctx):
+    if status not in ("active", "draft"):
+        return
+    try:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import ecc_priority
+        policy = ecc_priority.load_policy()
+    except Exception:
+        return                       # policy absent or unreadable: not a ledger error
+    if not (policy.get("budget") or {}).get("ecc_unlimited"):
+        return
+    gid = str(goal.get("id") or "")
+    if not ecc_priority.is_ecc(gid, policy):
+        return
+    budget = goal.get("campaign_budget")
+    if not isinstance(budget, dict):
+        return
+    for field in ecc_priority.unbounded_fields(policy):
+        value = budget.get(field)
+        if value is not None:
+            ctx.err(path,
+                    f"ECC goal {gid} must have an unlimited campaign budget: "
+                    f"campaign_budget.{field} is {value!r}, must be null "
+                    f"(orchestration/research-priority.yaml)")
+
+
 def check_goals(ctx: Ctx):
     if not check_trusted_goal_prefixes(ctx):
         return
@@ -1684,8 +1778,13 @@ def check_goals(ctx: Ctx):
                     ctx.err(path, f"missing required field '{field}'")
 
         status = str(goal.get("status", "")).strip()
-        if status and status not in GOAL_STATUSES:
+        if status in GOAL_STATUSES_REFUSED:
+            ctx.err(path, f"status {status!r} is not permitted: "
+                          f"{GOAL_STATUSES_REFUSED[status]}")
+        elif status and status not in GOAL_STATUSES:
             ctx.err(path, f"invalid status {status!r}")
+
+        check_ecc_budget_is_unlimited(path, goal, status, ctx)
 
         if status == "completed" and not grandfathered:
             check_goal_closure_quorum(path, goal, ctx)

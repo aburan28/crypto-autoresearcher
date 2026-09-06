@@ -143,6 +143,85 @@ class ParseTests(unittest.TestCase):
             self.assertEqual(len(bad), 1, bad)
             self.assertIn("ledger/b.yaml", bad[0])
 
+    # A record the schema-supersession registry retired and replaced is not a
+    # hidden defect -- it is a disclosed one, already routed to a record that
+    # parses. Seven such records held `main` red on ten consecutive merges,
+    # with neither other route open: editing them is what the registry exists
+    # to forbid, and the baseline may only ever shrink. The exemption is
+    # therefore VERIFIED rather than trusted, and these pin both directions.
+
+    def _registry(self, repo, **over):
+        entry = {
+            "kind": "ledger",
+            "superseded_path": "ledger/old.yaml",
+            "superseded_sha256": mh._sha256_of(os.path.join(repo.path, "ledger/old.yaml")),
+            "superseding_path": "ledger/corrections/old.v2.yaml",
+            "superseding_sha256": mh._sha256_of(
+                os.path.join(repo.path, "ledger/corrections/old.v2.yaml")),
+        }
+        entry.update(over)
+        import yaml
+        repo.write("tools/schema_supersession_registry.yaml",
+                   yaml.safe_dump({"schema": "schema-supersession-registry-v1",
+                                   "records": [entry]}))
+        repo.commit()
+        mh.SCHEMA_SUPERSESSION_REGISTRY = os.path.join(
+            repo.path, "tools", "schema_supersession_registry.yaml")
+
+    def _scene(self, repo, *, replacement="value: fine\n"):
+        repo.write("ledger/old.yaml", "broken: [unterminated\n")
+        repo.write("ledger/corrections/old.v2.yaml", replacement)
+        repo.commit()
+
+    def _run(self, repo):
+        keep = mh.SCHEMA_SUPERSESSION_REGISTRY
+        try:
+            return mh.check_parses(mh.tracked_files())
+        finally:
+            mh.SCHEMA_SUPERSESSION_REGISTRY = keep
+
+    def test_superseded_record_with_a_parsing_replacement_is_exempt(self) -> None:
+        with _Repo() as r:
+            self._scene(r)
+            self._registry(r)
+            self.assertEqual(self._run(r), [])
+
+    def test_exemption_dies_if_the_broken_original_was_touched(self) -> None:
+        with _Repo() as r:
+            self._scene(r)
+            self._registry(r, superseded_sha256="0" * 64)
+            bad = self._run(r)
+            self.assertEqual(len(bad), 1, bad)
+            self.assertIn("ledger/old.yaml", bad[0])
+
+    def test_exemption_dies_if_the_replacement_was_touched(self) -> None:
+        with _Repo() as r:
+            self._scene(r)
+            self._registry(r, superseding_sha256="0" * 64)
+            bad = self._run(r)
+            self.assertEqual(len(bad), 1, bad)
+
+    def test_exemption_dies_if_the_replacement_does_not_parse(self) -> None:
+        # The whole justification is that the content survives in a readable
+        # record. A replacement that does not parse is not a replacement.
+        with _Repo() as r:
+            self._scene(r, replacement="also: [broken\n")
+            self._registry(r)
+            bad = "\n".join(self._run(r))
+            # BOTH are reported: the original loses its exemption, and the
+            # replacement is a broken record in its own right.
+            self.assertIn("ledger/old.yaml", bad)
+            self.assertIn("ledger/corrections/old.v2.yaml", bad)
+
+    def test_an_unregistered_broken_record_is_still_reported(self) -> None:
+        with _Repo() as r:
+            self._scene(r)
+            r.write("ledger/unrelated.yaml", "nope: [broken\n")
+            self._registry(r)
+            bad = self._run(r)
+            self.assertEqual(len(bad), 1, bad)
+            self.assertIn("ledger/unrelated.yaml", bad[0])
+
     def test_malformed_json_queue_is_caught(self) -> None:
         with _Repo() as r:
             r.write("coordination/goals/G/batches/B/dispatch_queue.json",
