@@ -899,6 +899,72 @@ class LeaseTests(unittest.TestCase):
         self.assertEqual(parsed.isoformat(), "2026-08-16T00:00:00+00:00")
 
 
+class ZeroComputeBudgetTests(unittest.TestCase):
+    """A task may bound its compute at zero; anything above zero stays bounded.
+
+    Both directions matter. Relaxing this for a task that *does* run something
+    would remove the only ceiling on it, so every test that pins the relaxation
+    is paired with one pinning the rule it must not weaken.
+    """
+
+    def validate(self, budget: dict[str, Any]) -> None:
+        record = handoff()
+        record["budget"] = budget
+        dispatch.validate_handoff({"handoff": record, "role": "coordinator"},
+                                  "queue.tasks[0]")
+
+    def test_experiment_maximum_runs_zero_may_leave_ceilings_null(self) -> None:
+        # GOAL-ECDLP-001 BATCH-e6c1c9 TASK-20260901-833888, exactly as committed.
+        self.validate({
+            "wall_clock_seconds": None,
+            "memory_gb": None,
+            "maximum_runs": 1,
+            "experiment_maximum_runs": 0,
+        })
+
+    def test_maximum_runs_zero_may_leave_ceilings_null(self) -> None:
+        # GOAL-MD5-001 BATCH-ebac02 declares zero compute the other way.
+        self.validate({
+            "wall_clock_seconds": None,
+            "memory_gb": None,
+            "maximum_runs": 0,
+        })
+
+    def test_compute_bearing_task_accepts_advisory_wall_clock(self) -> None:
+        self.validate({"wall_clock_seconds": None, "memory_gb": 1, "maximum_runs": 1})
+
+    def test_compute_bearing_task_still_requires_a_memory_ceiling(self) -> None:
+        with self.assertRaisesRegex(dispatch.DispatchError, "memory_gb"):
+            self.validate({
+                "wall_clock_seconds": 60,
+                "memory_gb": None,
+                "maximum_runs": 1,
+            })
+
+    def test_zero_compute_does_not_admit_a_negative_run_count(self) -> None:
+        with self.assertRaisesRegex(dispatch.DispatchError, "maximum_runs"):
+            self.validate({
+                "wall_clock_seconds": None,
+                "memory_gb": None,
+                "maximum_runs": -1,
+                "experiment_maximum_runs": 0,
+            })
+
+    def test_zero_compute_does_not_admit_a_nonsense_ceiling(self) -> None:
+        # Declaring zero runs permits omitting a ceiling, never asserting a
+        # false one: a stated ceiling is still checked.
+        with self.assertRaisesRegex(dispatch.DispatchError, "wall_clock_seconds"):
+            self.validate({
+                "wall_clock_seconds": -5,
+                "memory_gb": None,
+                "maximum_runs": 0,
+            })
+
+    def test_missing_run_estimate_is_advisory(self) -> None:
+        # Missing run-count estimates do not claim zero compute or stop work.
+        self.validate({"wall_clock_seconds": 60, "memory_gb": 1})
+
+
 class InferencePolicyTests(unittest.TestCase):
     """The optional `inference` block is checked against the policy contract."""
 

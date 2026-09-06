@@ -124,8 +124,10 @@ documents: their aliases and hash bindings are propagated to the terminal
 corrected target. Exact-ID search accepts both the canonical ID and those
 legacy aliases; `get_source` remains canonical-ID-only by design.
 
-The staging rules cover modern typed hypotheses, questions, proposals, flat
-and sharded goals, goal checkpoint shards, and subgoals. Checkpoint source IDs
+The staging rules cover modern typed hypotheses, questions, proposals, handoffs,
+flat and sharded goals, goal checkpoint shards, and subgoals. Handoffs use
+`handoff:TASK-...` source IDs, include registered schema corrections with both
+hash bindings, and explicitly carry no result evidence. Checkpoint source IDs
 use both the goal directory and immutable shard filename, for example
 `goal-checkpoint:GOAL-ECDLP-001:BATCH-ef31ab-close-20260808`; the body batch ID
 is not unique enough to address a shard.
