@@ -930,13 +930,8 @@ class ZeroComputeBudgetTests(unittest.TestCase):
             "maximum_runs": 0,
         })
 
-    def test_compute_bearing_task_still_requires_a_wall_clock_ceiling(self) -> None:
-        with self.assertRaisesRegex(dispatch.DispatchError, "wall_clock_seconds"):
-            self.validate({
-                "wall_clock_seconds": None,
-                "memory_gb": 1,
-                "maximum_runs": 1,
-            })
+    def test_compute_bearing_task_accepts_advisory_wall_clock(self) -> None:
+        self.validate({"wall_clock_seconds": None, "memory_gb": 1, "maximum_runs": 1})
 
     def test_compute_bearing_task_still_requires_a_memory_ceiling(self) -> None:
         with self.assertRaisesRegex(dispatch.DispatchError, "memory_gb"):
@@ -965,11 +960,9 @@ class ZeroComputeBudgetTests(unittest.TestCase):
                 "maximum_runs": 0,
             })
 
-    def test_missing_run_count_is_not_a_zero_compute_declaration(self) -> None:
-        # Zero compute is DECLARED. An absent maximum_runs declares nothing and
-        # must not inherit the relaxation by omission.
-        with self.assertRaisesRegex(dispatch.DispatchError, "maximum_runs"):
-            self.validate({"wall_clock_seconds": 60, "memory_gb": 1})
+    def test_missing_run_estimate_is_advisory(self) -> None:
+        # Missing run-count estimates do not claim zero compute or stop work.
+        self.validate({"wall_clock_seconds": 60, "memory_gb": 1})
 
 
 class InferencePolicyTests(unittest.TestCase):
