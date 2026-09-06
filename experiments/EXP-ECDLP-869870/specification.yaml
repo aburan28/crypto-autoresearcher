@@ -1,0 +1,448 @@
+experiment:
+  id: EXP-ECDLP-869870
+  id_allocation_provenance: >-
+    Minted by the top-level session with `python3 tools/allocate_id.py
+    --next experiment --area ECDLP`, confirmed free with `--check`, and
+    relayed to the coordinator in the in-session design handoff for
+    RQ-ECDLP-78dbc5 on 2026-09-06. Not derived by scanning state.
+  hypothesis_id: H-ECDLP-3550b8
+  derived_from_idea: IDEA-20260906-aed829
+  question_id: RQ-ECDLP-78dbc5
+  goal_id: null
+  version: 1
+  status: review_required
+  approved_by: null
+  frozen: false
+  execution_authorized: false
+  designed_by: coordinator
+  designed_at: '2026-09-06'
+  approval_note: >-
+    DESIGNED, NOT APPROVED. Designing an experiment is not approving it
+    (AGENTS.md "ECC comes first", item 3). Execution, compute spend and any
+    handoff record wait on the user's approval decision and a Coordinator
+    decision record; until then this contract confers no execution
+    authority and no run under it can be evidence.
+
+  title: >-
+    THE BASIN-PARTITION COVERAGE INSTRUMENT, STAGES 1-3: exact basin
+    multisets at N in {2^20, 2^22, 2^24} and sampled coverage at 2^30, the
+    Borel slope and cutoff, the unselected law, the oracle top-T share
+    against C_max(a), the published Bernstein-Lange weight against the
+    oracle as a function of N/T, a relabelling null, a sigma-noise decay,
+    the N-independence tell, and a certified generic-versus-curve transfer
+    arm -- gated on reproducing Bernstein-Lange's Section 4 case study and
+    Table 4.1
+
+  objective: >-
+    Build and validate the instrument every other record in the
+    RQ-ECDLP-78dbc5 lane is scored against: measure the coverage constant
+    of a Bernstein-Lange distinguished-point table as a sum of disjoint
+    exact basin sizes; test the pre-registered closed forms (B1)-(B4) of
+    H-ECDLP-3550b8 against exact and sampled measurements; place the
+    published selection weight relative to the oracle ceiling as a function
+    of precomputation ratio; audit the instrument with a relabelling null,
+    a noise-decay sweep, the N-independence tell and a generic-versus-curve
+    comparison with certificates; and refuse to report any arm until the
+    published-weight arm reproduces the primary-source figures. The
+    deliverable is a table of measured constants with confidence intervals
+    and the model's values beside them, never mixed.
+
+  definitions:
+    N: order of the group / size of the set
+    T: nominal table size N^{1/3} rounded to 64 (2^20), 128 (2^22), 256 (2^24), 1024 (2^30)
+    W: expected walk length between DPs, W = sqrt(a N / T); theta = 1/W
+    a: T W^2 / N in {1/8, 1/4, 1/2, 1}; the paper's alpha = sqrt(a)
+    r: >-
+      pool ratio N/T of the paper: the number of DISTINCT distinguished
+      points generated divided by T, generation continuing until r T
+      distinct DPs are found, every walk charged to P and credited to its
+      DP; at r = 1 the paper's procedure (generate until T distinct DPs,
+      discarding duplicates and continuing) is reproduced literally
+    P: precomputation cost, the sum of all generation walk lengths, capped walks at the cap
+    B(d): basin of DP d, the set of x whose forward orbit reaches d before any other DP
+    C(X): exact coverage of a stored set X, sum over d in X of |B(d)| / N
+    C_hat(X): sampled coverage, fraction of M uniform-start walks whose terminal DP is in X
+    global oracle: the top-T DPs by exact basin size over ALL DPs (including in-degree-0 basins of size 1)
+    generated-set oracle: the top-T by exact basin size among DPs reached by the generation walks
+    scaled cost: (total walk steps over M single-walk trials) / (hits) / sqrt(N/T), the paper's main-computation metric
+    m: number of uniform-start walks in the unselected-law arm, in T*{1/4, 1/2, 1, 2, 4, 8, 16}
+    sigma: multiplicative Gaussian noise level injected into the ranking statistic, in {0, 0.5, 1, 2, 4, 8}
+    cap: 8W (paper) and 20W (cap-loss arm)
+
+  instrument:
+    generic_walk: >-
+      f(x) = mix64(x XOR K) mod N with a fixed 64-bit mixer and walk-key
+      seed K; DP predicate hash64(x) < floor(2^64 / W) with an independent
+      key; certificate kind none (nothing is solved).
+    curve_walk: >-
+      One toy prime-order short-Weierstrass curve E/F_p, p about 2^24,
+      #E = N prime, found by search over small (a, b) with point counting,
+      recorded as TOY-P24-<hash>; r-adding walk f(X) = X + M_{j(X)},
+      j(X) = hash(x(X)) mod r, r in {16, 32}, M_j = [m_j]P with seeded
+      known m_j, independent of every target; DP predicate on hash(x(X));
+      online walks from Q + [c]P with uniform c; a hit at d with
+      accumulated scalar s gives k = log d - c - s mod N.
+    certificates: >-
+      Curve arm only: every online hit emits certificate kind discrete_log
+      (curve_id, P, Q, k), re-verified by the run wrapper with an
+      independent scalar multiplication [k]P == Q and against the seeded
+      logarithm; a failure is completed_invalid.
+    exact_basins: >-
+      For N in {2^20, 2^22, 2^24} (generic) and on the curve (N about
+      2^24): for every x, the first DP reached and the distance, by
+      vectorised forward iteration with pointer jumping under cap 8W and
+      separately under 20W; from it the basin size of every DP, the cycle
+      mass (points on DP-free cycles), the capped mass, and the depth
+      profile within each basin (kept as histograms for IDEA-20260906-05ffb8's
+      depth law; not analysed here). On the curve the group is enumerated
+      as [i]P, i in [0, N), with x-coordinates in a sorted array for index
+      lookup.
+    charging: >-
+      Group operations counted (one per walk step); restart scalar
+      multiplications and lookups counted separately; wall clock recorded,
+      never a decision variable; bits per entry frozen at 2 ceil(log2 N)
+      (identifier plus logarithm) and reported.
+
+  inputs:
+    stage_plan: >-
+      STAGE 1 (generic exact, N = 2^20, 5 seeds, a in {1/8, 1/4, 1/2, 1}):
+      the cheapest valid discriminator -- one array pass per (seed, a):
+      slope and cutoff (STEP 2), unselected law at every m (STEP 3), global
+      top-T share against C_max(a) (STEP 3), all selection rules at r in
+      {1, 2, 4, 8, 16} with exact coverage (STEP 4), relabelling null and
+      sigma decay (STEP 6); the fixture REPORTED at this theta. STAGE 2
+      (generic exact, N in {2^22, 2^24}, 5 seeds each, same cells; the
+      FIXTURE GATE at 2^24 is BLOCKING for everything reported from 2^24
+      upward; the HEUR-BLT-2 regression at T_gen = 16 T; M = 40000 sampled
+      walks per (seed, a) reused across every table for the exact-versus-
+      sampled cross-check). STAGE 3 (generic sampled, N = 2^30, 3 seeds,
+      same a and r grid, M = 40000 per (seed, a); the fixture at the scale
+      closest to the paper's; N-independence). STAGE 4 (curve, N about
+      2^24, 3 seeds, a in {1/4, 1/2}, r_walk in {16, 32}): exact basins on
+      the curve; the published-weight arm and the unselected control at
+      N/T in {1, 2, 8} with M = 40000 certified online walks per cell;
+      two-sample KS of the exact basin multisets against the generic
+      instrument at matched (N, a, seed index). STAGE 5: analysis run.
+    selection_rules: >-
+      (i) BASELINE: the published Bernstein-Lange weight S_d + 4 W h_d;
+      (ii) count-only h_d (the c -> infinity limit); (iii) UNSELECTED:
+      uniform-random T of the generated set; (iv) generated-set oracle;
+      (v) global oracle; plus at r = 1 the paper's literal N = T procedure
+      (which coincides with storing all T distinct generated DPs). Ties
+      broken by a seeded permutation. IDEA-20260906-05ffb8's c-sweep, R2
+      and R3 are NOT run here (designed separately); the depth histograms
+      are stored for it.
+    unselected_law_arm: >-
+      For m in T*{1/4, 1/2, 1, 2, 4, 8, 16} uniform-start walks (cap 8W),
+      the deduplicated set of terminal DPs and its EXACT coverage against
+      C_rand(a_m) = 1 - (1 + 2 m W^2/N)^{-1/2}; also its number of distinct
+      DPs against the (B4) walk count, which is the same law read the other
+      way.
+    fixture_procedure: >-
+      For rule (i) at (a, r) in {(1/4, 2), (1/2, 1), (1/2, 2), (1/2, 8),
+      (1, 1), (1, 2), (1, 8)}: M = 40000 single-walk trials per seed, cap
+      8W; scaled cost pooled over seeds beside the published 1.79 (Section
+      4 case study, alpha = 1/2, N = 2T), 2.14, 1.62, 1.38 (Table 4.1,
+      alpha = 0.707), 2.01, 1.62, 1.50 (alpha = 1); scaled precomputation
+      P/sqrt(NT) beside 1.24 (case study), 0.85, 1.90, 15.7, 1.34, 3.66,
+      36.9. THE GATE (blocking at N >= 2^24): every scaled cost within
+      0.10 of its published value and every scaled precomputation within
+      12%. At 2^20 and 2^22 the fixture is reported with the O(theta)
+      residual; the residual's trend across 2^20, 2^22, 2^24 is itself a
+      metric.
+    null_and_decay: >-
+      RELABELLING NULL: permute the ranking statistic among the generated
+      DPs before selection, re-select, and compare the exact coverage with
+      the UNSELECTED control (must agree within CI; exactly within the
+      seed-to-seed spread at N <= 2^24). SIGMA DECAY: multiply each DP's
+      statistic by (1 + sigma Z) with Z standard normal (clipped at 0),
+      sigma in {0, 0.5, 1, 2, 4, 8}; exact coverage of the top-T must be
+      non-increasing in sigma from the rule value toward the unselected
+      value; a curve flat in sigma voids the cell.
+    heuristic_validation: >-
+      HEUR-BLT-1: two-sample Kolmogorov-Smirnov between the exact basin
+      multisets of the generic walk and the curve walk at N about 2^24,
+      matched a and seed index, alpha = 0.01; largest basin per seed against
+      the Borel(1 - theta) N/W-sample order-statistic 99% band. HEUR-BLT-2:
+      at N = 2^24, T_gen = 16 T, regress the observed hit count of each DP
+      on its exact basin size (slope T_gen/N predicted, intercept 0,
+      variance/mean in [0.9, 1.1]); the most-hit DP's basin within the top
+      1% of basins.
+
+  controls:
+    - "published Bernstein-Lange weight S_d + 4 W h_d at identical (T, W, r, cap, bits): the selection BASELINE and the fixture arm"
+    - "count-only selection as the c -> infinity limit"
+    - "UNSELECTED: uniform-random T DPs from the generated set (the null-object level every rule is measured above)"
+    - "the paper's literal N = T procedure at r = 1"
+    - "Pollard rho with distinguished points and no table on the same instances at the same single-walk budget (the floor; sampled only)"
+    - "generated-set oracle and global oracle (ceilings; not algorithms)"
+    - "RELABELLING NULL of the ranking statistic: must equal UNSELECTED within CI at every cell"
+    - "SIGMA-NOISE DECAY of the ranking statistic: coverage must fall monotonically to the unselected level"
+    - "generic keyed random function versus r-adding curve walk (r in {16, 32}) at matched parameters: same constants within CI; KS on exact basin multisets"
+    - "N-INDEPENDENCE across 2^20, 2^22, 2^24, 2^30 after the reported O(theta) trend"
+    - "PRIMARY-SOURCE FIXTURE at the seven published cells, blocking at N >= 2^24"
+    - "cap 20W beside cap 8W to price the cap loss; cycle mass reported per cell"
+    - "exact-versus-sampled coverage cross-check at every exact cell (M = 40000; the residual must be inside the Wilson interval)"
+
+  independent_variables:
+    - "N in {2^20, 2^22, 2^24} exact, 2^30 sampled; curve about 2^24 exact"
+    - "a in {1/8, 1/4, 1/2, 1}"
+    - "r = N/T in {1, 2, 4, 8, 16}"
+    - "selection rule in {published weight, count, unselected, generated-set oracle, global oracle}"
+    - "m in T*{1/4, 1/2, 1, 2, 4, 8, 16} (unselected law)"
+    - "sigma in {0, 0.5, 1, 2, 4, 8}"
+    - "cap in {8W, 20W}"
+    - "walk in {keyed random function, r-adding curve walk r = 16, r = 32}"
+    - "seed"
+
+  metrics:
+    primary:
+      - "log-log slope of the basin-size survival function on 10 <= n <= W^2/4, per (N, a, seed); dimensionless; least squares with bootstrap CI"
+      - "fitted cutoff n_c of the basin-size density, reported as n_c theta^2 / 2; dimensionless"
+      - "exact unselected coverage at each m divided by C_rand(a_m); dimensionless; seed spread"
+      - "exact global top-T share divided by C_max(a) at each (N, a); dimensionless"
+      - "scaled main-computation cost and scaled precomputation of the published-weight arm at the seven fixture cells beside the published values; the gate verdict per N"
+      - "exact coverage of the published weight divided by the generated-set oracle at r in {1, 2, 4, 8, 16}, per (N, a); monotonicity and the r = 8 value"
+      - "relabelling-null coverage minus unselected coverage per cell; Wilson / seed-spread CI"
+      - "coverage versus sigma per cell; monotonicity flag"
+      - "generic-minus-curve constant at matched cells; KS statistic and p-value on exact basin multisets"
+      - "N-drift of every constant between 2^24 and 2^30 after the O(theta) trend fitted on 2^20, 2^22, 2^24"
+    secondary:
+      - "cycle mass and capped mass per cell at 8W and 20W"
+      - "sampled coverage C_hat per table beside exact coverage; residual"
+      - "online group operations per solved target and the implied T L^2 / N per cell"
+      - "P per pool in group operations and scaled by sqrt(N T); the (B4) model value beside it"
+      - "number of generation walks needed for r T distinct DPs versus (r + r^2 a/2) T"
+      - "HEUR-BLT-2 regression slope, intercept, dispersion; most-hit-DP rank"
+      - "largest basin per seed versus the order-statistic band"
+      - "depth-profile histograms per basin-size bin (stored, not analysed)"
+      - "bits per entry (frozen, reported); restart and lookup counts"
+      - "certificate pass count on the curve arm (must equal hit count)"
+      - "oracle online constant sqrt(a)/C_measured beside (B3) at each a"
+
+  heuristic_under_test: "HEUR-BLT-1 and HEUR-BLT-2 (both; H-ECDLP-3550b8), alongside the main measurement"
+
+  preregistered_prediction:
+    quantity: >-
+      The basin-size law, the unselected coverage law, the oracle top-T
+      share, the oracle online constant, the precomputation law, and the
+      published weight's position relative to the oracle as a function of
+      N/T, on the generic instrument and the curve, at the grid above.
+    formula: >-
+      Written verbatim from IDEA-20260906-aed829 (B1)-(B3) and this design's
+      (B4), with x = n/W^2 and a = T W^2/N.
+      BASIN LAW: |B(d)| is Borel(1 - theta), P(n) = e^{-(1-theta) n}
+      ((1-theta) n)^{n-1} / n!, asymptotically (2 pi)^{-1/2} n^{-3/2}
+      exp(-n theta^2/2): survival slope -1/2 within 0.10 at N >= 2^24;
+      cutoff n_c theta^2/2 in [0.5, 2].
+      (B1) UNSELECTED LAW: C_rand(a_m) = 1 - (1 + 2 a_m)^{-1/2}, a_m =
+      m W^2/N; 0.423 at a_m = 1; ratio measured/predicted in [0.90, 1.10]
+      at N >= 2^24.
+      (B2) ORACLE CEILING: C_max(a) = erfc( sqrt(x*/2) ), x* solving
+      2 x*^{-1/2} e^{-x*/2} - sqrt(2 pi) erfc( sqrt(x*/2) ) = a sqrt(2 pi);
+      a = 1: x* = 0.19, C_max = 0.66; a = 1/2: 0.40, 0.52; a = 1/4: 0.74,
+      0.39; a = 1/8: 1.2, 0.27; ratio measured/predicted in [0.90, 1.05].
+      (B3) ORACLE ONLINE COST at T = N^{1/3}: L sqrt(T/N) = sqrt(a)/C_max(a)
+      = 1.51 (a = 1), 1.35 (1/2), 1.28 (1/4), 1.30 (1/8); at fixed L,
+      T_oracle = 1.64 N/L^2.
+      (B4) PRECOMPUTATION: walks to r T distinct DPs m = (r + r^2 a/2) T;
+      P/sqrt(NT) = sqrt(a) r (1 + r a/2): 1.25 / 0.88 / 2.12 / 17.0 / 1.50
+      / 4.00 / 40.0 at the seven fixture cells, expected 1-12% above the
+      published 1.24 / 0.85 / 1.90 / 15.7 / 1.34 / 3.66 / 36.9 (the
+      headline cell 1.25 versus 1.24 is the closest; the direction of the
+      residual is itself a tail check on the cap and duplicate handling).
+      FIXTURE: published-weight scaled cost 1.79 / 2.14 / 1.62 / 1.38 /
+      2.01 / 1.62 / 1.50 within 0.10 at N >= 2^24; the N/T = 8 cells within
+      0.05 of the model 1.35 / 1.51.
+      ESTIMATION LOSS: C_rule/C_oracle(generated set) increasing in r with
+      CI-separated steps between 2 and 8, above 0.97 at r = 8; at
+      (a, r) = (1/4, 2) about 0.27/0.39 = 0.69 (the headline gap).
+      NULLS: relabelled minus unselected zero within CI; sigma decay
+      monotone. TRANSFER: curve minus generic zero within CI for r_walk in
+      {16, 32}. N-INDEPENDENCE: no drift between 2^24 and 2^30 beyond CI.
+    source: >-
+      Derived in IDEA-20260906-aed829 (B1)-(B3) and in this design (B4) from
+      the Borel asymptotic -- UNVERIFIED derivations of this batch pending a
+      validator (IDEA-20260906-ac100b carries the proof-shaped form);
+      published values from Bernstein-Lange Section 4 and Table 4.1 (primary
+      text read by the coordinator 2026-09-06, scratchpad bl2012.txt).
+      Scratch (SCRATCH_SUMMARY.md, internal, unverified): top-T share 0.636-
+      0.638 at N = 2^21, a = 1 against the model 0.66, cited as a pointer
+      only. Written before any run; never tuned to data; a change requires a
+      versioned protocol_amendment and executed runs are never re-scored.
+
+  scale_relevance:
+    tier: toy
+    justification: >-
+      Toy scale: curve at p about 2^24; generic instrument up to N = 2^30
+      (not a field; labelled toy by the same ceiling). Every conclusion is a
+      measurement of a constant inside the generic model (S T^2 =
+      Omega~(eps N), KN-LIT-013); the exponent 1/3 does not move;
+      N-independence across 2^20..2^30 is the only transfer evidence and
+      extrapolation to cryptographic N is an assumption stated per evidence
+      record. The idea record's 2^34 and 2^40 cells are DEFERRED to a
+      successor contract and are not claimed here.
+    correspondence: null
+
+  tail_checks:
+    - "The largest basin per (N, a, seed) against the Borel(1 - theta) N/W-sample order-statistic 99% band; more than one of five seeds outside the band is a tail failure of HEUR-BLT-1."
+    - "The most-hit DP at T_gen = 16 T must lie in the top 1% of basins in 95% of cells (HEUR-BLT-2 tail)."
+    - "The smallest ratio (measured/predicted) across all (B1) cells and the largest across all (B2) cells, reported individually with cell identity."
+    - "The single fixture cell with the largest residual from its published value, reported individually; the N/T = 1 cells are expected to carry the largest O(theta) residual because the paper notes the duplicate-discard bias toward short walks."
+    - "Cycle mass at 8W versus 20W per cell; a cell whose 20W coverage differs from 8W by more than 0.01 has its cap loss reported and excluded from the model comparison."
+    - "Any exact coverage exceeding the global oracle share: reported with cell identity and fails the run (impossible by disjointness)."
+    - "Curve arm: certificate pass count equals hit count exactly."
+
+  replication:
+    seeds: [1, 2, 3, 4, 5]
+    independent_instances: 5
+  seed_policy: >-
+    Walk-key seed s in {1, 2, 3, 4, 5} with target/online seed 100 + s,
+    tie-break permutation 400 + s, relabelling stream 300 + s, noise stream
+    500 + s; 5 seeds at N in {2^20, 2^22, 2^24}; 3 seeds (s in {1, 2, 3}) at
+    2^30 and on the curve, with curve-search seed 1000. Every arm at the same
+    s shares the walk, the generated pool and the M online walks so that
+    rules differ only in the selection. Seeds are recorded in every
+    manifest; a duplicated or missing seed invalidates the cell.
+
+  budget:
+    wall_clock_seconds_per_run: 3600
+    total_cpu_hours: 16
+    maximum_memory_gb: 8
+    maximum_runs: 40
+    maximum_workers: 1
+  budget_note: >-
+    Sized to the work. Exact basins at 2^24 need about 5 int32 arrays of
+    16M entries (about 0.4 GB) and about 25 pointer-jumping passes per
+    (a, cap) -- minutes; four a values and two caps per seed. Generation at
+    r = 16, a = 1, N = 2^30 needs (16 + 128) T = about 1.5e5 walks of about
+    1024 steps (1.5e8 steps); M = 40000 online walks per (seed, a) are
+    computed once and reused across every table. The curve arm enumerates
+    16M points and applies one point addition to each in pure Python
+    (about 3 minutes per (a, r_walk)) plus 40000 certified online walks per
+    cell. Runs: 5 (2^20) + 5 (2^22) + 5 (2^24) + 3 (2^30) + 1 + 3 (curve) +
+    2 (analysis) = 24, with 16 spare for recorded infrastructure re-runs.
+    The 8 GB figure is the schema floor.
+
+  stopping_rules:
+    - "STAGE 1 first: if at N = 2^20 the survival slope is outside [-0.7, -0.3] or the top-T share is outside 0.8-1.1 of C_max(a) in a majority of seeds, the model comparison is flagged and Stages 2-3 run as measurement-only cells."
+    - "FIXTURE GATE at N = 2^24 is evaluated before any 2^24 or 2^30 rule arm is reported; on failure, Stages 3-4 are run only if budget remains and every cell from 2^24 upward is recorded invalid-for-interpretation."
+    - "Any exact coverage above the global oracle share stops the run as completed_invalid."
+    - "Any certificate failure on the curve arm stops that run as completed_invalid."
+    - "A relabelling null differing from unselected beyond CI at N <= 2^24 (where both are exact and the difference is the seed spread) stops interpretation of that seed's cells."
+    - "Stop at maximum_runs or total_cpu_hours, whichever binds first; a cell not reached is reported as not run."
+    - "Wall clock 3600 s per run; exceedance is failed_infrastructure and re-planned with a smaller shard, never interpreted."
+
+  invalidation_rules:
+    - "Execution while status is not approved or execution_authorized is false: no run is evidence."
+    - "Timeout, crash, memory exhaustion or dependency failure: failed_infrastructure, NEVER negative mathematical evidence (AGENTS.md rule 5)."
+    - "Fixture gate failure at 2^24: the 2^24 and 2^30 run sets are INVALID as not comparable to the paper; not negative."
+    - "Any exact coverage above the global oracle share: invalid (implementation error)."
+    - "Relabelling null differing from unselected beyond CI: instrument broken; nothing reported from that cell."
+    - "Confusing the global oracle (all DPs) with the generated-set oracle (reached DPs) in any reported number: invalid cell."
+    - "Duplicated or missing seeds, an incomplete manifest, or raw/summary disagreement: invalid."
+    - "Any curve-arm solve without a verified: true certificate, or a certificate failing the independent or seeded-log check: completed_invalid."
+    - "Any post-hoc change to the grids, tolerances or pre-registered forms: versioned protocol_amendment required; executed runs never re-scored."
+
+  success_criterion: >-
+    INSTRUMENT VALIDATED when, at N = 2^24 (exact) and N = 2^30 (sampled)
+    with 5 and 3 seeds respectively: (V1) the published-weight arm passes
+    the fixture gate at every one of the seven cells; (V2) the relabelling
+    null equals the unselected control within CI at every cell and the
+    sigma decay is monotone non-increasing at every cell; (V3) no exact
+    coverage exceeds the global oracle share and every sampled coverage
+    lies within its Wilson interval of the exact value; (V4) the curve
+    walk at r_walk = 32 gives constants within CI of the generic instrument
+    and the KS test does not reject at alpha = 0.01 in a majority of seeds;
+    (V5) no constant drifts between 2^24 and 2^30 beyond CI after the
+    O(theta) trend. MODEL SUPPORTED (in addition) when: (M1) the survival
+    slope is within 0.10 of -1/2 and the cutoff within [0.5, 2] at
+    N >= 2^24; (M2) the (B1) ratio is in [0.90, 1.10] at every m; (M3) the
+    (B2) ratio is in [0.90, 1.05] at every a; (M4) the published weight's
+    coverage over the generated-set oracle rises monotonically in r with
+    CI-separated steps between 2 and 8 and exceeds 0.97 at r = 8; (M5) the
+    N/T = 8 fixture cells are within 0.05 of 1.35 / 1.51. V1-V5 met -> the
+    measured constants (C_max(a), C_rule/C_oracle(r), the oracle online
+    constant, the estimation-loss gap 0.69 at the headline point or its
+    measured value) are citable at claim_tier toy and every lane record is
+    scored against them. V1-V5 met and M1-M5 met -> H-ECDLP-3550b8
+    supported at toy scale. V1-V5 met but any M fails -> the instrument
+    stands and the specific closed form is withdrawn as a prediction, with
+    the measured law reported in its place. Any V failing -> invalid or
+    not comparable, as the rule states; nothing downstream is reported.
+
+  falsification_criterion: >-
+    The MODEL is falsified (with the instrument intact, V1-V5 met) if: the
+    survival slope is outside [-0.6, -0.4] or the cutoff outside a factor 2
+    of 2 W^2 at N >= 2^24 (Borel wrong for this walk; (B1)-(B3) withdrawn
+    as predictions); or the (B1) ratio is outside [0.90, 1.10] at N >= 2^24
+    with cap and cycle mass insufficient to explain it (HEUR-BLT-2 fails);
+    or the published weight's gap to the generated-set oracle does not
+    close with r (contradicts size-biased Poisson hits and Table 4.1
+    itself; routed to review as a contradiction). The INSTRUMENT is
+    invalid, not the model, if: the fixture gate fails at 2^24 (not
+    comparable to the paper); any exact coverage exceeds the global oracle
+    share (implementation error); the relabelling null differs from the
+    unselected control beyond CI; or constants drift with N beyond CI (no
+    asymptotic constant is being measured and no extrapolation is
+    licensed). A curve-versus-generic difference beyond CI is a WALK-
+    QUALITY FINDING reported separately, not a falsification of either.
+
+  required_artifacts:
+    - "experiments/EXP-ECDLP-869870/runs/RUN-*/manifest.yaml with exact command, git commit and dirty-tree state, environment, requested policy, resolved model identifier and fallback flag, seeds, wall clock, peak_rss_bytes"
+    - "experiments/EXP-ECDLP-869870/runs/RUN-*/raw-result.json with the exact basin-size multiset (as a compressed histogram plus the top 1000 sizes) per (N, a, cap, seed), cycle and capped mass, the generated pool (DP, h_d, S_d, exact basin size) per (a, r, seed), every selected table's identity hash and exact coverage, the M online walks' terminal DPs, and for the curve arm every certificate"
+    - "experiments/EXP-ECDLP-869870/runs/RUN-*/summary.json with every primary and secondary metric per cell, Wilson and bootstrap intervals, the fixture table beside the published values and the gate verdict, the KS statistics, the regression outputs"
+    - "the curve record (p, a, b, N, P, curve_id) with the point-counting verification"
+    - "depth-profile histograms per basin-size bin per (N, a, seed) stored for IDEA-20260906-05ffb8"
+    - "the analysis run's constants table: measured value with CI, model value, ratio, per (N, a, r, rule), with MEASURED and MODELED never in one column"
+    - "the instrument implementation at a path declared in the executor handoff, recorded by commit in every manifest; one code path for all rules with rule selection by configuration"
+    - "certificates kind discrete_log, verified: true, verifier_commit recorded, for every curve-arm hit; kind none stated explicitly for generic runs"
+
+  cost_model:
+    measured_vs_modeled: >-
+      MEASURED: every exact coverage, every sampled coverage, every count.
+      MODELED: (B1)-(B4), C_max(a), the oracle constants -- labelled with
+      formula and source, in their own column.
+    optimistic_assumptions:
+      - "A walk step is one group operation (the unit is stated, not converted to field operations or time)."
+      - "Restart scalar multiplications and lookups are excluded from L as the paper excludes them; counted and reported."
+      - "Precomputation memory is not charged (the paper's own distinction), stated."
+      - "The closed forms hide O(theta) corrections; the N sweep exposes them rather than absorbing them."
+    memory_accounting: >-
+      Table bits = T x 2 ceil(log2 N), frozen and reported; exact-basin
+      arrays are instrument memory, reported as peak_rss_bytes and
+      reconciled against the analytic 5 x 4 x N bytes at 2^24.
+    hidden_overhead: None claimed; the instrument produces numbers, not an attack.
+    standardized_parameter_sets: >-
+      The seven fixture cells (a, N/T) in {(1/4, 2), (1/2, 1), (1/2, 2),
+      (1/2, 8), (1, 1), (1, 2), (1, 8)} at N in {2^24, 2^30}; no
+      cryptographic set is costed.
+
+  interpretation:
+    - >-
+      Every conclusion is claim_tier toy and is a constant-factor
+      measurement under the generic S T^2 ceiling (KN-LIT-013); it moves no
+      exponent and names no non-generic structure; it is scoped to the
+      tested walks, N, a, r, cap and solver.
+    - >-
+      The exact top-T share and the exact estimation-loss ratios are
+      MEASUREMENTS that stand regardless of the Borel model; only the
+      closed forms are at risk from a model failure.
+    - >-
+      The choice of W is part of the optimisation and is reported as a
+      frontier point, never as a T reduction; the paper's Figure 4.3
+      ordering (extra precomputation beats alpha-tuning) is not contested.
+    - >-
+      The generic arm solves and certifies nothing; only curve-arm cells
+      may be quoted as solved logarithms.
+
+  assigned_to: executor
+  review_required: true
+  review_note: >-
+    Claim-relevant producer; on approval the dispatch card must carry
+    review_required: true with a dependent Validator task (blind
+    re-derivation of C_max(1/4) and of the exact top-T share at 2^24 from
+    the statement of the quantities, blind to the producer's
+    implementation and to IDEA-20260906-ac100b's derivation) and a Red
+    Team task on the fixture procedure (cap, distinct-DP pool, duplicate
+    handling at N = T) and the null design.
