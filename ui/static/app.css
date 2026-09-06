@@ -133,7 +133,11 @@ button { font: inherit; color: inherit; }
 .faint { color: var(--ink-faint); }
 .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .spread { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
-.stack { display: flex; flex-direction: column; gap: 14px; }
+.stack { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+/* A flex item's default `min-width: auto` refuses to shrink below its content,
+   so a wide table inside a panel pushed the whole page sideways even though
+   the table sat in an `.scroll-x` that was willing to scroll it. */
+.stack > *, .grid > * { min-width: 0; }
 .clamp2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
   overflow: hidden; }
 .clamp3 { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
@@ -174,6 +178,7 @@ tbody tr:last-child td { border-bottom: 0; }
 table td:nth-child(1), table td:nth-child(2) { white-space: nowrap; }
 table td .tag { max-width: 210px; overflow: hidden; text-overflow: ellipsis;
   display: inline-block; }
+.col-title { max-width: 640px; }
 /* A table with many tag columns: tighter cells and shorter tag caps, so its
    minimum width stays inside the page at ordinary widths. */
 table.dense th, table.dense td { padding: 6px 8px; }
@@ -281,8 +286,12 @@ mark { background: var(--warn-soft); color: inherit; border-radius: 2px; padding
 .area-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap;
   padding: 0 2px 7px; border-bottom: 1px solid var(--line); }
 .area-name { font-weight: 700; font-size: 13px; letter-spacing: .01em; }
+/* A fixed max-width is a MINIMUM for a flex item, which is why a long goal
+   title in an area heading pushed the findings page wider than the phone it
+   was on -- the one view that scrolled sideways. Capped by the container. */
 .ellipsis { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: inline-block;
-  vertical-align: bottom; max-width: 420px; }
+  vertical-align: bottom; max-width: min(420px, 100%); min-width: 0; }
+.area-head .row { min-width: 0; }
 .stack-bar { display: flex; width: 110px; height: 8px; border-radius: 4px; overflow: hidden;
   background: var(--bg-sunken); flex: none; }
 .stack-bar i { display: block; height: 100%; }
@@ -332,11 +341,124 @@ select.field { padding: 5px 8px; }
 .md hr { border: 0; border-top: 1px solid var(--line); margin: 14px 0; }
 .md strong { font-weight: 600; }
 
+/* A collapsible panel of filter chips. The summary reads as a panel head at
+   every width; only its initial open state depends on the screen. */
+.facets > summary { list-style: none; cursor: pointer; display: flex; align-items: center;
+  gap: 10px; padding: 10px 14px; font: 600 11px/1.4 var(--sans); text-transform: uppercase;
+  letter-spacing: .07em; color: var(--ink-soft); }
+.facets > summary::-webkit-details-marker { display: none; }
+.facets > summary .faint { text-transform: none; letter-spacing: 0; font-weight: 400;
+  font-family: var(--mono); font-size: 11px; }
+.facets > summary::after { content: "\25BE"; margin-left: auto; color: var(--ink-faint); }
+.facets[open] > summary { border-bottom: 1px solid var(--line); }
+.facets[open] > summary::after { content: "\25B4"; }
+.facets > summary:hover { background: var(--bg-hover); }
+
+/* ---------- narrow screens ----------
+   The desktop shell is a 208px sidebar beside the content. Reflowed naively
+   that sidebar becomes a full column of chrome -- brand, six nav rows, build
+   state, two buttons -- and on a 390px phone it filled the entire first
+   screen, so every page opened on navigation rather than on content.
+
+   Below 820px it becomes a sticky top bar instead: brand and controls on one
+   line, the nav a single horizontally scrolling row. That is ~110px of
+   chrome rather than ~720px, and it stays put while the page scrolls. */
 @media (max-width: 820px) {
   .shell { grid-template-columns: 1fr; }
-  .sidebar { position: static; height: auto; flex-direction: row; flex-wrap: wrap;
-    align-items: center; }
-  .brand, .nav-sep, .sidebar-foot { width: 100%; }
-  .nav-item { width: auto; }
-  .content { padding: 14px; }
+  .sidebar {
+    position: sticky; top: 0; z-index: 6; height: auto;
+    flex-direction: row; flex-wrap: wrap; align-items: center; gap: 8px;
+    padding: 8px 12px; border-right: 0; border-bottom: 1px solid var(--line);
+  }
+  .brand { flex: 1 1 auto; padding: 0; min-width: 0; }
+  .brand b { font-size: 14px; }
+  .brand span { display: inline; margin: 0; }
+  /* The controls ride up beside the brand; the read-only note is ambient and
+     costs a line it cannot earn on a phone (its title still carries it). */
+  .sidebar-foot { order: 2; flex: 0 0 auto; margin: 0; padding: 0; border-top: 0;
+    flex-direction: row; align-items: center; gap: 8px; }
+  .sidebar-foot .foot-note { display: none; }
+  #build-state { white-space: nowrap; }
+  /* One scrolling row rather than six stacked ones. */
+  #nav { order: 3; width: 100%; display: flex; gap: 4px; overflow-x: auto;
+    scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  #nav::-webkit-scrollbar { display: none; }
+  .nav-item { width: auto; flex: 0 0 auto; gap: 6px; padding: 7px 10px; }
+  .nav-sep { width: 100%; margin: 4px 2px 0; }
+
+  .topbar { padding: 8px 12px; gap: 8px; }
+  /* iOS zooms the whole page when a focused input is under 16px. */
+  .search input { font-size: 16px; padding: 9px 10px 9px 30px; }
+  .search kbd, #crumb { display: none; }
+  .content { padding: 12px; }
+  /* Research prose carries unbreakable tokens -- `S_{m+1}(x_1,...,x_m,x_R)`,
+     a 40-character identifier -- and one of them in an open problem's
+     statement pushed the page sideways. Overflowing TEXT has no element box,
+     which is why it survived every element-level check. */
+  #view { overflow-wrap: break-word; }
+
+  /* A title and its note do not share a line at this width; they collide. */
+  .panel-head { flex-direction: column; align-items: flex-start; gap: 3px; padding: 10px 12px; }
+  .panel-body { padding: 12px; }
+  .spread { flex-wrap: wrap; }
+  /* Grid leaves a dead cell when the count does not divide; flex fills it. */
+  .stat-row { display: flex; flex-wrap: wrap; }
+  .stat { flex: 1 1 104px; }
+  /* Comfortable thumb targets, and inputs that do not overflow the row. */
+  .chip { padding: 7px 11px; }
+  .btn { padding: 7px 11px; }
+  .field, input.field { width: 100%; min-width: 0; }
+  table th, table td { padding: 7px 8px; }
+  .detail > aside { min-width: 0; }
+  .md { font-size: 13.5px; }
+}
+
+/* Phones proper. The tables stay tables -- a run's status, tier and dates are
+   read against each other, and stacking each row into a card loses exactly
+   that -- so they scroll inside their panel, which `.scroll-x` already does.
+   What changes is everything around them. */
+@media (max-width: 560px) {
+  .content { padding: 10px; }
+  .stack { gap: 12px; }
+  .grid { grid-template-columns: minmax(0, 1fr) !important; }
+  .detail { grid-template-columns: 1fr; }
+  .brand span { display: none; }
+  .stat .v { font-size: 18px; }
+  .stat { flex: 1 1 88px; padding: 9px 10px; }
+  h2 { font-size: 16px !important; }
+  .lede { font-size: 13px; }
+  /* A 175px label column against a 560px screen leaves no bar to read. */
+  .bar { min-width: 60px; }
+  /* Identifier, status and title survive; kind, area, date and the citation
+     count are carried by the identifier or are secondary to knowing what a
+     record is. */
+  .col-secondary { display: none; }
+  /* Without a cap the title takes its max-content width and pushes the table
+     four times wider than the phone. Capped by the viewport, the three
+     surviving columns very nearly fit it. */
+  .col-title { max-width: 38vw; }
+  /* A column is as wide as its widest row, and one goal checkpoint identifier
+     or one `open_batch_dispatch` status sets that for all hundred rows. */
+  table td .tag { max-width: 96px; }
+  table th, table td { padding: 6px; }
+  /* Three columns of known relative worth: a fixed layout divides the width
+     it has instead of demanding the width its content wants, so this table
+     fits any phone rather than nearly fitting one. Only `.record-table` is
+     reduced to three columns here, so only it can take a fixed layout. */
+  table.record-table { table-layout: fixed; width: 100%; }
+  table.record-table th:first-child, table.record-table td:first-child {
+    width: 31%; max-width: none; white-space: normal; overflow-wrap: anywhere; }
+  /* An identifier is nowrap everywhere else, which in a fixed column meant a
+     long one ran under the next cell. Here it wraps rather than truncates:
+     the tail of `DEC-20260906-69749a` is what distinguishes it. */
+  table.record-table td:first-child .id-link { white-space: normal; }
+  table.record-table .col-title { width: 43%; max-width: none; }
+  .banner { font-size: 12px; }
+  /* A 120px label column leaves a value ribbon barely wider than the label.
+     Stacked, an observation or a scope statement gets the whole width. */
+  .kv, .kv.glance { grid-template-columns: minmax(0, 1fr); gap: 1px 0; }
+  .kv dt { margin-top: 7px; }
+  .kv dt:first-of-type { margin-top: 0; }
+  pre.raw { font-size: 11px; padding: 10px; }
+  .md pre { font-size: 11px; }
 }

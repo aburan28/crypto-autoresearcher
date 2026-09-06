@@ -491,24 +491,32 @@ function areaCell(r) {
     r.ecc ? h('span', { class: 'tag acc' }, r.area) : r.area);
 }
 
+// On a phone the record table is ~1,220px wide, so the title -- the column
+// that says what a record IS -- sat off-screen behind kind, area, date and a
+// citation count. Those four are marked secondary and drop out below 560px,
+// which leaves identifier, status and title fitting without a sideways
+// scroll. Nothing is lost that the identifier does not already carry: a
+// record's kind and area are its first two segments.
+const SECONDARY = 'col-secondary';
+
 function recordTable(records, opts = {}) {
   if (!records.length) return h('div', { class: 'empty' }, 'nothing matches');
-  return h('table', {},
+  return h('table', { class: 'record-table' },
     h('thead', {}, h('tr', {},
-      h('th', {}, 'id'), h('th', {}, 'kind'), h('th', {}, 'status'),
-      h('th', {}, 'title'), opts.compact ? null : h('th', {}, 'area'),
-      h('th', {}, 'date'),
-      opts.compact ? null : h('th', { title: 'records citing this one' }, 'in'))),
+      h('th', {}, 'id'), h('th', { class: SECONDARY }, 'kind'), h('th', {}, 'status'),
+      h('th', {}, 'title'), opts.compact ? null : h('th', { class: SECONDARY }, 'area'),
+      h('th', { class: SECONDARY }, 'date'),
+      opts.compact ? null : h('th', { class: SECONDARY, title: 'records citing this one' }, 'in'))),
     h('tbody', {}, records.map((r) => h('tr', {},
       h('td', {}, idLink(r.id)),
-      h('td', { class: 'faint mono', style: 'font-size:11px' }, kindLabel(r)),
+      h('td', { class: `faint mono ${SECONDARY}`, style: 'font-size:11px' }, kindLabel(r)),
       h('td', {}, (r.kind === 'DEC' ? decisionTag(r.status) : statusTag(r.status))
         || h('span', { class: 'faint' }, '—')),
-      h('td', { style: 'max-width:640px' },
+      h('td', { class: 'col-title' },
         h('div', { class: 'clamp2' }, r.title || h('span', { class: 'faint' }, '(no title)'))),
-      opts.compact ? null : h('td', {}, areaCell(r)),
-      h('td', { class: 'mono faint', style: 'white-space:nowrap' }, fmtDate(r.date)),
-      opts.compact ? null : h('td', { class: 'mono faint' }, r.backlinks || '')))));
+      opts.compact ? null : h('td', { class: SECONDARY }, areaCell(r)),
+      h('td', { class: `mono faint ${SECONDARY}`, style: 'white-space:nowrap' }, fmtDate(r.date)),
+      opts.compact ? null : h('td', { class: `mono faint ${SECONDARY}` }, r.backlinks || '')))));
 }
 
 const resolve = (ids) => ids.map((id) => state.byId.get(id)).filter(Boolean);
@@ -542,6 +550,24 @@ function distribution(map, opts = {}) {
         h('i', { style: `width:${(n / total) * 100}%;background:${colour}` })),
       h('span', { class: 'mono faint', style: 'flex:0 0 52px;text-align:right' }, n));
   }));
+}
+
+/** True on a phone-width screen. Read at render time: a layout that changes
+ *  under the reader mid-session is worse than one that is merely narrow. */
+const narrowScreen = () => matchMedia('(max-width: 820px)').matches;
+
+/** A panel of filter chips, collapsible.
+ *
+ *  The records browser carries sixty area chips; on a phone that is twenty
+ *  rows of filters standing between the reader and the records they came
+ *  for. So it opens collapsed there and expanded on a wide screen, where the
+ *  chips cost a couple of rows and are worth seeing.
+ */
+function facetPanel(note, gap, children) {
+  return h('details', { class: 'panel facets', open: !narrowScreen() },
+    h('summary', {}, h('span', {}, 'Filters'),
+      note ? h('span', { class: 'faint' }, note) : null),
+    h('div', { class: 'panel-body stack', style: `gap:${gap}px` }, children));
 }
 
 /** A labelled row of toggle chips. `pressed(key)` says which are on. */
@@ -1162,7 +1188,7 @@ function findingsTab(d, params) {
   const counts = d.counts;
   const tiers = Object.entries(counts.by_claim_tier).filter(([k]) => k !== '(unstated)');
 
-  const facets = h('section', { class: 'panel' }, h('div', { class: 'panel-body stack', style: 'gap:10px' },
+  const facets = facetPanel('status · proof · tier · area', 10, [
     h('div', { class: 'stack', style: 'gap:6px' }, kicker('status'),
       choiceChips([
         ['current', `current ${counts.current}`],
@@ -1178,7 +1204,7 @@ function findingsTab(d, params) {
     facetRow('area named', [{ key: 'ECC', count: eccCount, title: 'any ECC area' }, ...areas],
       (k) => f.area.has(k), toggle('area'),
       (i) => h('span', {}, i.key === 'ECC' || state.meta.ecc_areas.includes(i.key)
-        ? h('span', { class: 'tag acc', style: 'margin-right:4px' }, 'ECC') : null, `${i.key} ${i.count}`))));
+        ? h('span', { class: 'tag acc', style: 'margin-right:4px' }, 'ECC') : null, `${i.key} ${i.count}`))]);
 
   const search = h('input', { class: 'mono field', placeholder: 'filter findings…', value: f.q,
     oninput: (e) => { f.q = e.target.value; draw(); } });
@@ -1353,14 +1379,14 @@ function evidenceTab(d, params) {
   };
   const ec = d.evidence_counts;
   const top = (map, n) => Object.entries(map).slice(0, n).map(([key, count]) => ({ key, count }));
-  const facets = h('section', { class: 'panel' }, h('div', { class: 'panel-body stack', style: 'gap:10px' },
+  const facets = facetPanel('direction · strength · tier · proof', 10, [
     facetRow('points at', ['supports', 'weakens', 'mixed', 'neutral'].map((key) => ({ key, count: ec.polarity[key] || 0,
       title: key === 'neutral' ? 'says nothing about any hypothesis' : key === 'mixed' ? 'revises, partially corroborates, or cuts both ways' : '' })),
       (k) => f.polarity.has(k), toggle('polarity'),
       (i) => h('span', {}, tag(i.key, POLARITY_TONE[i.key]), ` ${i.count}`)),
     facetRow('strength', top(ec.strength, 10), (k) => f.strength.has(k), toggle('strength')),
     facetRow('claim tier', top(ec.claim_tier, 8), (k) => f.tier.has(k), toggle('tier')),
-    facetRow('proof status', top(ec.proof_status, 6), (k) => f.proof.has(k), toggle('proof'))));
+    facetRow('proof status', top(ec.proof_status, 6), (k) => f.proof.has(k), toggle('proof'))]);
   const search = h('input', { class: 'mono field', placeholder: 'filter evidence…', value: f.q,
     oninput: (e) => { f.q = e.target.value; shown = 100; draw(); } });
   draw();
@@ -1734,7 +1760,7 @@ async function viewRecords(params) {
 
   fill(root, h('div', { class: 'stack' },
     snapshotBanner(),
-    h('section', { class: 'panel' }, h('div', { class: 'panel-body stack', style: 'gap:12px' },
+    facetPanel('kind · knowledge · area · status', 12, [
       facetRow('kind', facets.kinds, (k) => f.kind.has(k), toggle('kind'),
         (i) => `${i.label} ${i.count.toLocaleString()}`),
       // A knowledge entry's family lives in the same column as an area, so
@@ -1745,7 +1771,7 @@ async function viewRecords(params) {
         h('span', {}, i.ecc ? h('span', { class: 'tag acc', style: 'margin-right:4px' }, 'ECC') : null,
           `${i.key} ${i.count}`)),
       facetRow('status', facets.statuses.slice(0, 40), (k) => f.status.has(k), toggle('status'),
-        (i) => `${i.key} ${i.count.toLocaleString()}`))),
+        (i) => `${i.key} ${i.count.toLocaleString()}`)]),
     note,
     h('div', { class: 'spread' },
       h('div', { class: 'row' }, meta, bodiesChip),
