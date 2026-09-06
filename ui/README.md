@@ -48,6 +48,12 @@ bodies is opt-in and loads per-kind excerpt shards on demand — the whole
 set is ~3.8 MB gzipped and two thirds of it is the literature corpus,
 which most searches do not need.
 
+Knowledge entries are the one exception, and a deliberate one: a markdown
+entry's body *is* the entry, and a finding's page that showed a title and a
+link to GitHub was not a page. Each `data/records/KN-*.json` carries the
+entry's body (~16 MB across ~8,000 entries, fetched one page at a time);
+YAML records still carry only their parsed form.
+
 ## Publishing
 
 `.github/workflows/pages.yml` builds and deploys on every push to `main`
@@ -77,6 +83,57 @@ because they are navigation, not summary.
 
 It reads `ledger/`, `experiments/` and `knowledge/` directly. It is not a
 second source of truth and holds nothing of its own.
+
+## The views, in the order a reader asks
+
+- **Overview** — what the program has established, what it is working on,
+  and what is still open, with the program's own loop as a row of counts
+  (questions → proposals → hypotheses → experiments → runs → evidence →
+  decisions → findings). Each count carries the qualifier that keeps it
+  honest: how many hypotheses reached a verdict, how many experiments ever
+  ran, how much evidence points anywhere.
+- **Findings** — the promoted findings (`knowledge/findings/`), each with
+  its proof status, claim tier and the statement excerpted from its own
+  body; the hypotheses that reached a verdict; every evidence record with a
+  direction; the obstructions recorded as measurements; and the open
+  problems. This is the board for "what did it find?".
+- **Goals** and a goal page with its record trail: every finding, evidence
+  record, decision, hypothesis and experiment that cites the goal, grouped.
+- **Experiments**, with run tallies by terminal status.
+- **Records** — a faceted browser over everything, by kind, area, knowledge
+  family and status, with opt-in full-text search.
+- **Integrity** — what is broken, flagged and never fixed.
+
+A record page leads with an *at a glance* block — the fields that say what
+the record is (an evidence record's direction, strength, tier and proof
+status; a decision's verdict, targets and knowledge promotion; a hypothesis'
+statement and status) — above the full parsed tree. A knowledge entry page
+renders the entry itself.
+
+### Findings, exactly
+
+`knowledge/findings/` and `knowledge/open-problems/` are parsed exactly, like
+goals: ~130 small markdown files whose front matter a reader will act on.
+The statement shown on a card is excerpted from the entry's own body — the
+section its author labelled as the finding, and within it a blockquote if
+there is one, which is the corpus convention for "the finding, in one
+sentence" — clipped, never paraphrased. A finding names its goal in about
+half the corpus; the rest are attributed through the evidence or decision
+that promoted them, and the board says "goals named", not "owner".
+
+Evidence `direction` has four values in the schema and about forty spellings
+in the records (`supports_with_caveat`, `weakening_scoped`,
+`refutes_own_prior_reading`). The board folds them into four for grouping
+and colour — *supports*, *weakens*, *mixed*, *neutral* — and always shows the
+author's exact word beside the colour. Most evidence is neutral and most
+hypotheses never reach a verdict; the counts say so.
+
+An **obstruction** is a negative result recorded as a measurement
+(`evidence.obstruction` in `templates/research-records.md`): what blocks an
+approach, as a quantity over a stated scope. It lives nested inside an
+evidence record, below what the shallow scan can see, so the few dozen
+records that carry one are parsed exactly and listed with whether the
+reversal — the block read as a resource — was examined.
 
 ## What it will not do
 
@@ -159,7 +216,10 @@ immutable, must never be renamed, and are most of this program's history.
 The second segment of an identifier is an area token for most kinds but a
 **date** for `DEC-`, `IDEA-`, `TASK-` and `CORR-`, and a bare token for
 `BATCH-`. Both `ui/scan.py:RECORD_ID_RE` and `ui/static/app.js:ID_RE`
-encode that; they must stay in step.
+encode that; they must stay in step. For `KN-` it is the entry's **family**
+(`FIND`, `OPEN`, `TECH`, `LIT`): families are not research areas and get
+their own facet, so 7,900 literature entries no longer sit in the area
+filter under an area called `LIT`.
 
 ## The data contract
 
@@ -174,8 +234,9 @@ browser does.
 | `data/overview.json` | portfolio summary, ECC-first goals, recent records |
 | `data/goals.json` | the goal board |
 | `data/goals/<id>.json` | one goal: checkpoints, criteria, impediments, bound records |
-| `data/records/<id>.json` | parsed body, link ids in and out, source path |
+| `data/records/<id>.json` | parsed body, link ids in and out, source path; a knowledge entry also carries `markdown` |
 | `data/experiments.json` | contracts with run tallies by terminal status |
+| `data/findings.json` | findings with excerpts and attribution, hypothesis verdicts, evidence rows with direction and polarity, obstructions, open problems |
 | `data/integrity.json` | unparseable records, duplicate ids, dangling refs, goal flags |
 | `data/search/<KIND>.json` | body excerpts for full-text search, per kind |
 | `POST api/refresh` | live server only: re-read the corpus from disk |
