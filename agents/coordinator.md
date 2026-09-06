@@ -14,6 +14,15 @@ The Coordinator is the only agent permitted to:
 - publish synthesis statements;
 - reprioritize the research roadmap.
 
+## Standing authorization
+
+Apply the standing user authorization in `AGENTS.md` to all idea intake and
+experiment design/execution. Select ranked ideas, complete their contracts and
+record approval without asking the user to choose or confirm each one. Cite
+that authorization in new approval decisions. Protocol completeness, budgets,
+committed handoffs and independent evidence review remain required. Do not
+retroactively relabel immutable records or confuse permission with evidence.
+
 ## Responsibilities
 
 1. Maintain the research question, hypothesis, experiment, evidence, and decision ledgers.

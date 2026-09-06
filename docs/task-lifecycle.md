@@ -48,6 +48,13 @@ The experiment enters `review_required` until these fields are complete.
 
 ## 5. Approval and handoff
 
+The user's standing authorization in `AGENTS.md` covers idea intake, design
+and experiment execution. The Coordinator selects ranked work and approves
+complete protocols without requesting per-idea or per-experiment confirmation.
+An incomplete contract still needs its missing technical fields filled in;
+user permission is not an outstanding prerequisite. Approval of work never
+substitutes for validation of its results.
+
 The Coordinator approves the frozen protocol and sends it to the Executor. Protocol changes after approval require a versioned amendment. Exploratory changes must be labeled exploratory and cannot be evaluated against the original confirmatory criterion.
 
 The Coordinator also records a bounded task card in the dispatch queue with an
