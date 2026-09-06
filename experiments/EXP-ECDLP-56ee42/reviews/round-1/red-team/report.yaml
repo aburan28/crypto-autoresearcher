@@ -1,0 +1,591 @@
+red_team_report:
+  id: RT-20260904-a897dc-r1
+  id_note: >-
+    Task-scoped report identifier (not a minted ledger ID via
+    tools/allocate_id.py). This is a review work product under write_scope,
+    not a ledger record, run record, or knowledge item; it creates no run
+    and executes no stage of EXP-ECDLP-56ee42 (maximum_runs: 0 honoured).
+  task_id: TASK-20260904-a897dc
+  round_plan_ref: ledger/handoffs/TASK-20260904-410404.yaml
+  joint_owned: J2 (CONTROL-C adjudication + proves_too_much; NOT J1 run-record
+    integrity, which is TASK-20260904-410404's exclusive joint)
+
+  claim_under_review: >-
+    DEC-20260904-92dec2's adjudication of EXP-ECDLP-56ee42's stage-2
+    CONTROL-C gate failure: that the frozen "removal" threshold was a
+    miscalibrated known answer (the o2-lane RT-EXP-1 reference documents
+    survival, not removal, of an unbalanced marginal artifact under a
+    matched-marginal shuffle), and that amendment v2's two-sided control
+    (C1 T4 survival band [0.70,1.10] + C2 comparator collapse <=0.5,
+    blocking) correctly discriminates a working NULL-2 shuffle from a
+    broken one, so that stage 3 may proceed once the not-yet-run C2
+    calibration passes.
+
+  # ---------------------------------------------------------------------
+  # PER-ATTACK-STEP FINDINGS (a)-(e), per TASK-20260904-410404's J2
+  # attack_plan, treated as a floor and extended where a break was found
+  # that the plan did not anticipate.
+  # ---------------------------------------------------------------------
+  per_attack_step_findings:
+
+    a_o2_ratio_recomputation:
+      method: >-
+        Recomputed (SHUF-1)/(unshuffled-1) ["(G-1) survival ratio", the
+        quantity the DEC names] and the plain SHUF/unshuffled ratio for
+        popcount, digitsum and P2 dlog-int [old ctrl], directly from the
+        eight raw G values printed in
+        analysis/o2-sum-compatible-filters/reviews/RT-EXP-1-RESULT.md
+        section 2 (p = 523..65539). Script:
+        step_a_o2_ratio_recompute.py (this directory); output in
+        step_a_and_e_output.txt.
+      results:
+        digitsum_G_minus_1_ratio_range: '[0.7870, 0.9766]'
+        digitsum_DEC_quoted_range: '0.79-0.98'
+        digitsum_verdict: MATCHES (within rounding)
+        popcount_G_minus_1_ratio_range: '[0.9207, 0.9916]'
+        popcount_DEC_quoted_range: '0.97-0.99'
+        popcount_verdict: >-
+          DOES NOT MATCH. The true minimum is 0.9207 (at p = 1033), and
+          0.9627 (p = 2063) also rounds below 0.97. The DEC's stated
+          lower bound (0.97) is wrong; the correct range is approximately
+          [0.92, 0.99]. This is a misquoted o2 number under the task's
+          breaking_artifact list.
+        P2_G_minus_1_ratio_range: '[0.0002, 0.0209]'
+        P2_verdict: >-
+          Confirms collapse (98-99.98% removed), consistent with the DEC's
+          characterization and with the P2-row proves_too_much object (c
+          below): correctly classified as the collapse pattern, not
+          survival.
+        T4_observed_ratios_cross_check: >-
+          Recomputed post-shuffle-max / pre-shuffle from
+          RUN-ECDLP-56ee42-S2/raw-result.json's CONTROL-C block directly
+          (A_noDC_post_shuffle_max / A_noDC_pre_shuffle at each rung):
+          T17 0.7846, T19 0.9343, T21 0.8285, T23 0.7800, T25 0.8554,
+          T27 0.8130. Matches the DEC's quoted 0.785/0.934/0.828/0.780/
+          0.855/0.813 to 3 decimals -- ACCURATE.
+      impact_on_conclusion: >-
+        The popcount misquote does not change the qualitative reading
+        (0.9207 is still far above the C1 lower bound of 0.70, and far
+        above the "removal" threshold of 0.5), so the DEC's core survival
+        claim survives this correction. It is nonetheless a factual error
+        that must be corrected before any ledger promotion cites it
+        (AGENTS.md rule 5/10: cited numbers must be exact).
+
+    b_comment_vs_document_reading_conflict:
+      the_conflict: >-
+        rt_exp_1.py's SHUF-branch comment states "A positive alpha that
+        SURVIVES this is signal; one that does not is imbalance."
+        RT-EXP-1-RESULT.md section 2 classifies popcount/digitsum's
+        surviving-the-shuffle alpha as "imbalance", the opposite label.
+      resolution: >-
+        THE RESULT DOCUMENT'S READING IS CORRECT; the code comment's
+        polarity is backwards (a documentation bug, not a legitimate
+        alternative theory). This is provable from the script's own
+        designated ground truth, independent of any stipulated word
+        meaning: P2 dlog-int [old ctrl] is the script's designed positive
+        control for GENUINE point-structure content (it is explicitly
+        constructed as a function of the discrete-log index, not of any
+        filter value). Its alpha does NOT survive the shuffle -- it flips
+        from +0.375 (unshuffled, growing) to -0.634 (shuffled, decaying
+        toward the null) -- per step (a)'s recomputation. If "surviving
+        alpha = signal" (the comment's literal claim) were true, P2 would
+        have to be reclassified as "imbalance", contradicting its own
+        designed role as the signal exemplar. The mechanism the whole
+        battery is built to detect (real point-structure depends on
+        pairing/order and is destroyed by the shuffle; marginal imbalance
+        depends only on the value multiset and is preserved by it) forces
+        the opposite polarity from the comment: NOT surviving = signal,
+        surviving = imbalance. This matches the result document exactly.
+      is_the_DEC_lean_justified: >-
+        The DEC's conclusion (lean on the result document) is correct,
+        but its stated justification ("the two readings reconcile only if
+        'signal' in the comment means an indication of marginal
+        imbalance") is not a coherent reconciliation -- it makes the
+        comment's own contrastive pair ("signal" vs "imbalance") both
+        denote the same thing, which guts the sentence rather than
+        resolving it. The stronger, checkable justification is the
+        internal contradiction with P2's designated role given above.
+        Recommend the DEC's evidence bullet be superseded with this
+        argument rather than the stipulated-meaning version.
+
+    c_broken_shuffle_scenarios:
+      no_op_identity_permutation:
+        definition: 'sigma = identity; post-shuffle sequence == pre-shuffle sequence, for every arm, deterministically.'
+        T4_ratio: '1.0 (exact, for every rung; no data dependency)'
+        comparator_ratio: '1.0 (exact, for every rung; no data dependency)'
+        C1_T4_survival_band_0.70_1.10: ACCEPT (1.0 is inside the band)
+        C2_comparator_collapse_le_0.50: REJECT (1.0 > 0.5)
+        combined_two_sided_gate: REJECT (C2 is blocking; overall correctly rejects)
+        matches_required_failure_signature: 'YES -- robust and deterministic, no data or interpretation dependency.'
+      max_preserving_permutation:
+        definitional_ambiguity_found: >-
+          "Permutes all values except the maximum" is UNDERSPECIFIED for
+          any statistic with ties at its maximum value, and BOTH T4
+          (values in {0,1,2,3}; the value 3 is held by roughly n/4 points)
+          and the COMPARATOR (values in {0,1}; the value 1 is held by
+          only 8-50 points per rung, see step (e)) have such ties. Two
+          readings were tested; they diverge.
+        reading_1_fix_all_tied_max_positions:
+          description: 'every position holding the maximum VALUE is left fixed; only the remaining positions are permuted among themselves.'
+          comparator_ratio: >-
+            1.0 EXACT for every rung (the comparator's only "1"s are
+            already at the max value 1, so under this reading none of
+            them move; only 0-valued positions get shuffled, which has
+            no effect on a binary indicator's own value sequence).
+          T4_ratio: >-
+            Not simulated (would require an n up to ~1.3e8 FFT that hit
+            this sandbox's memory ceiling for the comparator case, see
+            step_ce_sparse_null_shuffle_sim.py note below); analytically,
+            fixing the ~n/4 max-valued points while randomizing the
+            remaining ~3n/4 is still a substantial randomization and is
+            expected to remain close to a genuine full shuffle's ratio,
+            i.e. inside [0.70, 1.10] -- ANALYTIC, not measured, flagged
+            as such.
+          C1: 'ACCEPT (T4, analytic)'
+          C2: 'REJECT (comparator ratio exactly 1.0 > 0.5)'
+          combined: 'REJECT -- matches the required failure signature.'
+        reading_2_fix_one_arbitrary_max_tied_position:
+          description: >-
+            the more literal singular reading of "the maximum": exactly
+            one index holding the max value is fixed; ALL other positions
+            (including the other tied-max positions) are permuted.
+          method: >-
+            Synthetic control, NOT the real instrument: placed m "ones"
+            uniformly at random among n positions, using the EXACT
+            (n, m) pairs measured for the comparator at 5 of the 6 ladder
+            rungs (step (e)), as a stand-in for "no genuine dlog
+            structure" (the null the whole C2 test is trying to
+            distinguish from a real collapse). Compared (i) max over 8
+            genuine full random permutations [mirrors the frozen NULL-2
+            protocol exactly] to (ii) max over 8 draws of "fix one of the
+            m ones, permute the rest". Script
+            step_ce_sparse_null_shuffle_sim.py; output in
+            step_a_and_e_output.txt. T27 (n = 1.34e8) was killed by this
+            sandbox's memory limit on both the full-shuffle and fix-one
+            arms; this is a disclosed infrastructure limitation (AGENTS.md
+            rule 3), not evidence, and is not counted below.
+          measured_ratios_5_of_6_rungs: >-
+            T17 (m=32): full-shuffle-max8 ratio 1.0772, fix-one-max8 ratio
+            1.1142. T19 (m=8): full 1.0077, fix-one 1.0083. T21 (m=24):
+            full 0.9868, fix-one 0.9835. T23 (m=8): full 1.0160, fix-one
+            1.0115. T25 (m=50): full 1.0825, fix-one 1.0548.
+          finding: >-
+            At the comparator's actual measured sparsity (m = 8 to 50
+            "hit" points), a GENUINE, fully-random matched-marginal
+            shuffle (the working-NULL-2 stand-in) and the max-preserving,
+            fix-one-of-m broken shuffle are STATISTICALLY
+            INDISTINGUISHABLE -- both cluster at ratio ~0.98-1.11, i.e.
+            both are comfortably ABOVE the C2 threshold of 0.5 in every
+            tested rung. Under this reading, the two-sided control does
+            technically still reject the max-preserving object (ratio >
+            0.5 in all 5 tested cases, so C2 fails it as required) --
+            but it rejects the max-preserving object AND a working
+            full shuffle FOR THE SAME REASON, by the same margin. The
+            literal proves-too-much check (does the logic ACCEPT a
+            known-false object) therefore PASSES on this reading too, but
+            for a reason that undercuts the control's purpose (see next
+            item).
+          C1: 'not applicable to this synthetic comparator-only control'
+          C2: 'REJECT max-preserving (ratio > 0.5 in all 5 tested rungs)'
+          combined: 'REJECT -- matches the required failure signature on its face.'
+
+      finding_beyond_the_plan_orthogonal_to_proves_too_much: >-
+        The literal proves-too-much test asks only whether the logic
+        ACCEPTS a known-false object; on both readings tested it does
+        not, so the plan's stated check passes. The synthetic simulation
+        above surfaces a DIFFERENT and more consequential problem the
+        plan did not pose: a CORRECTLY WORKING full shuffle applied to a
+        comparator this sparse (8-50 hits out of 1.3e5-1.3e8 points) ALSO
+        produces a ratio comfortably above 0.5 in the tested null
+        scenario -- i.e. C2 is likely to REJECT a working NULL-2 too,
+        not just a broken one. C2 cannot be trusted as a discriminator
+        when it would fail regardless of ground truth. This is stated as
+        a plausible, synthetic-control-supported risk, not a proof about
+        the real instrument (the real pre-shuffle x-coordinates were not
+        available -- see step (e) -- so whether the true configuration
+        happens to carry enough dlog correlation to collapse further than
+        this null scenario cannot be ruled in or out from what is
+        committed). It is exactly the kind of break the round plan did
+        not anticipate and is reported per agents/red-team.md's
+        instruction to value it over the anticipated one.
+
+    d_o2_to_instrument_transfer_critique:
+      mechanism_exact_part: >-
+        CONFIRMED exact. Direct code comparison: rt_exp_1.py's SHUF branch
+        ("out = base.copy(); rng.shuffle(out)") and estimator.py's
+        null2_shuffle ("perm = rng.permutation(n); return v[perm]") are
+        mechanically the same operation -- a uniform random permutation of
+        the value array, which preserves the value multiset by
+        construction regardless of which PRNG algorithm drives it. The
+        DEC's "same mechanism the executor ported" claim holds.
+      magnitude_borrowed_part_and_an_additional_leap_not_disclosed: >-
+        The amendment discloses that the numeric band [0.70, 1.10] is
+        borrowed across TWO axes it names: p-scale (p <= 65539 to
+        p >= 131101) and shuffle count (1 shuffle to max-over-8, which it
+        correctly notes inflates the ratio toward 1, i.e. tightens the
+        margin against the 0.70 floor rather than loosening it). There is
+        a THIRD, larger axis the amendment does not separately name: the
+        underlying ESTIMATOR FUNCTIONAL itself differs -- o2's G is a
+        bucket-gain ratio (M * max_c,d pi_c(d)) over an M-way alphabet,
+        while this instrument's A_noDC is the largest non-DC magnitude of
+        a length-n DFT. These are different functionals of the same value
+        sequence, not the same statistic at different parameters; nothing
+        in the cited reference establishes that a numeric survival BAND
+        computed under one functional bounds the other. The qualitative
+        mechanism claim (multiset preservation implies marginal-floor
+        persistence) is functional-agnostic and stands; the specific
+        [0.70, 1.10] numbers are not obviously more than order-of-magnitude
+        guidance across this additional gap.
+      is_the_band_defensible: >-
+        As a wide, one-sided-margin qualitative floor test for T4
+        (C1) BEFORE the C2 run, yes -- with the correction from (a),
+        the true o2 reference range [0.79, 0.99] (digitsum low end) to
+        [0.92, 0.99] (popcount, corrected) sits safely inside [0.70,
+        1.10] even accounting for the cross-functional gap noted above,
+        and the measured T4 ratios (0.78-0.93) also sit safely inside it.
+        The band is NOT defensible as a precisely anchored quantitative
+        criterion, and re-anchoring should happen BEFORE trusting a C2
+        result as diagnostic, not only "after C2's calibration run" as
+        the amendment states -- because if C2's comparator is itself
+        underpowered (per (c)/(e)), a C2 pass or fail cannot be used to
+        validate or invalidate the band in either direction; the
+        comparator's power problem has to be fixed first or the
+        re-anchoring exercise measures the wrong thing.
+
+    e_comparator_level_set_balance:
+      blocking_gap_disclosed_first: >-
+        The task card names
+        experiments/EXP-ECDLP-56ee42/implementation/runs/stage-cache/ as
+        "on-disk, hash-bound in the S1 record." It is NOT on disk: checked
+        at the pinned snapshot commit 5e709a5c6 (git ls-tree -r, full
+        path list) and at current HEAD (ad681cee0; git log --all for the
+        path and for the six rung_T*_x.npy filenames) -- the stage-cache
+        directory and its .npy arrays were never committed to this
+        repository at any point in its history, and do not exist in the
+        working tree either. The exact per-rung count of REAL enumerated
+        curve points landing in each comparator fiber therefore cannot be
+        computed from committed evidence. Whether the S1 record's
+        declared x_sha256/y_sha256 hashes correspond to any array that
+        ever existed is an artifact-integrity question outside this
+        joint's scope (J1's domain per the stated constraint); this
+        finding is recorded and the dependency stated, per instruction,
+        and J2 stops there on that specific question.
+      what_was_computed_instead_exact_not_measured: >-
+        Two independent, deterministic, exact calculations that do not
+        need the missing cache: (1) the domain-level split of [0, p)
+        under estimator.py's own top_bit_fiber definition (top = 1 <<
+        (p.bit_length()-1); fiber 1 iff x >= top) -- read directly from
+        estimator.py lines 133-137, which IS committed at 5e709a5c6/HEAD;
+        (2) the EXACT number of the curve's own points landing in fiber 1,
+        computed via a Legendre-symbol classification of the handful of
+        candidate x in [top, p) against y^2 = x^3 + x + b (public
+        parameters from specification.yaml / design/ladder.json only --
+        no discrete log k touched, no subgroup enumeration, no run
+        record). Script step_e_comparator_balance.py; output in
+        step_a_and_e_output.txt.
+      results_table:
+        - {T: 17, p: 131101, N: 131113, high_fiber_points: 32, low_fiber_points: 131081, high_fraction: 0.00024406}
+        - {T: 19, p: 524309, N: 525361, high_fiber_points: 8,  low_fiber_points: 525353, high_fraction: 0.00001523}
+        - {T: 21, p: 2097169, N: 2098321, high_fiber_points: 24, low_fiber_points: 2098297, high_fraction: 0.00001144}
+        - {T: 23, p: 8388617, N: 8391797, high_fiber_points: 8,  low_fiber_points: 8391789, high_fraction: 0.00000095}
+        - {T: 25, p: 33554473, N: 33557891, high_fiber_points: 50, low_fiber_points: 33557841, high_fraction: 0.00000149}
+        - {T: 27, p: 134217757, N: 134234689, high_fiber_points: 22, low_fiber_points: 134234667, high_fraction: 0.00000016}
+      finding: >-
+        The comparator is NOT "nearly, not exactly, balanced" as
+        amendment v2's disclosed_limitations states. It is CATASTROPHICALLY
+        imbalanced: the minority fiber holds between 8 and 50 of the
+        curve's points at every rung, a fraction between 2.4e-4 and
+        1.6e-7 -- and the imbalance gets WORSE, not better, as p grows
+        across the ladder (the opposite trend from what "nearly balanced"
+        would suggest, because the ladder's primes are, by construction,
+        chosen just above a power of two, so the gap p - 2^floor(log2 p)
+        stays in the tens while p itself grows by 4x per rung). This is
+        the same species of defect (unequal level sets) that produced the
+        popcount/digitsum marginal-bias floor in the o2 lane, in a far
+        more extreme form (there, level-set fractions were within a
+        factor of a few of 1/M; here, one fiber is a few points in a
+        hundred million). This directly and unambiguously triggers the
+        amendment's own pre-declared contingency: "if the comparator is
+        marginal-dominated, the positive control must be a PLANTED
+        point-structure statistic instead."
+      per_rung_or_reason_it_cannot_be: >-
+        Quantified exactly per rung above; no rung is left unquantified.
+
+  # ---------------------------------------------------------------------
+  # PROVES-TOO-MUCH TABLE
+  # ---------------------------------------------------------------------
+  proves_too_much_table:
+    - object: 'no-op (identity) permutation'
+      known_false_because: 'a permutation that changes nothing cannot be "a control that destroys point-structure dependence"'
+      T4_ratio: 1.0
+      comparator_ratio: 1.0
+      C1_verdict: ACCEPT
+      C2_verdict: REJECT
+      combined_verdict: REJECT
+      adjudication_logic_result: CORRECTLY REJECTS (matches required failure signature; deterministic, no ambiguity)
+    - object: 'max-preserving permutation (reading 1: fix ALL positions tied at the max value)'
+      known_false_because: 'deliberately preserves alignment for every maximum-valued point, violating "every dependence on the point is destroyed"'
+      T4_ratio: 'not measured (analytic: expected inside [0.70,1.10], see step d/c)'
+      comparator_ratio: '1.0 exact (comparator''s only 1s are already at the max value; none move under this reading)'
+      C1_verdict: 'ACCEPT (T4, analytic)'
+      C2_verdict: REJECT
+      combined_verdict: REJECT
+      adjudication_logic_result: CORRECTLY REJECTS on this reading
+    - object: 'max-preserving permutation (reading 2: fix exactly ONE arbitrary max-tied position)'
+      known_false_because: 'same as above, weaker perturbation'
+      T4_ratio: 'not tested (T4 has ~n/4 tied maxima; a 1-point fix is expected negligible, analytic only)'
+      comparator_ratio: 'synthetic-null simulation, 5/6 rungs: 1.008-1.114 (indistinguishable from a genuine full shuffle''s 0.987-1.083 at the same rungs)'
+      C1_verdict: 'not applicable (comparator-only test)'
+      C2_verdict: 'REJECT in all 5 tested rungs (ratio > 0.5)'
+      combined_verdict: REJECT on its face
+      adjudication_logic_result: >-
+        Technically rejects (passes the literal proves-too-much check),
+        but for a reason that defeats C2's purpose: a genuine WORKING
+        full shuffle is rejected by the same margin in the same synthetic
+        null, so C2 does not actually discriminate this broken object
+        from a working one at the comparator's measured sparsity -- see
+        finding_beyond_the_plan_orthogonal_to_proves_too_much above.
+    - object: 'o2 P2 dlog-int [old ctrl] row (G 4.06->20.01, SHUF 1.0640->1.0030)'
+      known_false_because: 'KNOWN genuine point-structure content (P2 is defined as an explicit function of the discrete-log index)'
+      recomputed_G_minus_1_ratio_range: '[0.0002, 0.0209]'
+      required_classification: collapse pattern
+      DEC_classification: collapse pattern
+      verdict: CORRECTLY CLASSIFIED (matches required failure signature)
+
+  # ---------------------------------------------------------------------
+  # STANDARD RED-TEAM FIELDS
+  # ---------------------------------------------------------------------
+  objections:
+    - >-
+      (a) DEC-20260904-92dec2's quoted popcount o2 "G-1 survival ratio"
+      band (0.97-0.99) is inaccurate; the true range from the same cited
+      table is [0.9207, 0.9916]. Does not change the qualitative
+      conclusion but must be corrected before ledger promotion.
+    - >-
+      (b) The DEC's stated reconciliation of the rt_exp_1.py comment vs
+      the result document ("'signal' means an indication of marginal
+      imbalance") is not a coherent resolution of the sentence; a
+      stronger, checkable argument exists (internal contradiction with
+      P2's own designated role) and should replace it in any promoted
+      record.
+    - >-
+      (e) The comparator's level sets are not "nearly balanced" as
+      amendment v2 states; they are imbalanced by 4 to 7 orders of
+      magnitude (minority fiber 8-50 points out of 1.3e5-1.3e8), and the
+      imbalance worsens with p across the ladder. This is an exact,
+      reproducible finding, not an estimate.
+    - >-
+      (c) A synthetic control matched to the comparator's exact measured
+      sparsity shows a genuinely working matched-marginal shuffle and the
+      "fix-one" reading of the max-preserving broken shuffle produce
+      statistically indistinguishable ratios, both comfortably above
+      C2's 0.5 threshold. C2 is not shown to have the statistical power
+      to tell a working NULL-2 from a broken one at this comparator's
+      sparsity, and is at real risk of rejecting a working shuffle
+      outright.
+    - >-
+      Aside, flagged and NOT pursued (J1's domain): the frozen spec
+      names the NULL-2 seed schedule "SplitMix64", but estimator.py's
+      null2_shuffle passes the seed straight to numpy's default_rng
+      (PCG64-based), not a hand-rolled SplitMix64 stream (contrast with
+      null1_signs, which does implement SplitMix64 by hand). This is a
+      spec-vs-implementation fidelity question, squarely J1's run-record
+      integrity joint; the dependency is stated here and not further
+      investigated, per this task's constraint.
+
+  required_controls:
+    - >-
+      Before trusting any C2 result: replace or supplement the top-bit-
+      of-x comparator with a PLANTED point-structure statistic that has
+      substantial, non-sparse level-set mass (e.g. an explicit smooth
+      function of x with level sets each a sizeable fraction of the
+      group, closer in spirit to the o2 lane's x-based interval filters
+      than to a single power-of-two threshold bit) -- exactly the
+      contingency the amendment itself names, now triggered by the exact
+      measurement in (e).
+    - >-
+      Re-run the synthetic sparse-null simulation (or an equivalent power
+      analysis) against whatever comparator is finally chosen, BEFORE the
+      real calibration run, to confirm the chosen comparator's expected
+      collapse ratio under a correctly-working shuffle is reliably <=
+      0.5 with margin -- i.e. establish C2 has power before spending the
+      calibration run's budget on it.
+    - >-
+      Correct the popcount o2 range in any promoted record from
+      "0.97-0.99" to "0.92-0.99" (or the more precise [0.9207, 0.9916]).
+    - >-
+      Disambiguate "max-preserving permutation" in this round plan's own
+      proves_too_much object 2 for any future re-run: state explicitly
+      whether ties at the maximum value are all fixed or only one
+      arbitrary one is, since the two readings give materially different
+      diagnostic pictures for a sparse statistic.
+
+  counterexample_or_mutation: >-
+    The synthetic sparse-null simulation (step_ce_sparse_null_shuffle_sim.py)
+    is the cheapest discriminating control found: it needs only the
+    exact (n, m) pairs already computable from public curve parameters
+    (no cache, no re-enumeration, no k), and it directly tests whether
+    C2 can tell "no real structure, shuffle worked" apart from "no real
+    structure, shuffle didn't move the one thing that matters" -- it
+    cannot, at the comparator's measured sparsity.
+
+  baseline_comparison: >-
+    Not applicable in the Pollard-rho/BSGS sense -- this experiment is a
+    heuristic-validation digit-statistic measurement (no attack, no key,
+    class: heuristic-validation), and this review is of its stage-2
+    control calibration, not of a claimed asymptotic solver advantage.
+    The relevant "baseline" is the cited o2-lane RT-EXP-1 reference
+    itself, addressed in full under (a) and (d) above.
+
+  heuristic_challenges: []
+  cost_model_challenges: []
+  reduction_and_scope_challenges: []
+  proof_architecture_challenges: []
+
+  narrowest_supported_statement: >-
+    Confined to this joint (J2) only, and further confined within it: C1
+    (T4 survival band) is measured accurately, passes as reported, and is
+    a defensible wide qualitative floor test given the corrected o2
+    reference range. The mechanism-transfer claim (multiset-preserving
+    permutation implies marginal-floor persistence) is exact and
+    functional-agnostic. The no-op proves-too-much object is correctly
+    and robustly rejected by C2, deterministically. The P2 row is
+    correctly classified as collapse. What is BROKEN, narrowly: C2's
+    chosen comparator (top bit of x) is not "nearly balanced" -- it is
+    imbalanced by 4-7 orders of magnitude at every rung -- and a
+    synthetic control matched to its exact measured sparsity shows C2
+    cannot be relied on to distinguish a working NULL-2 from the
+    max-preserving broken one (both give statistically similar,
+    above-threshold ratios), and may well reject a working NULL-2
+    outright. This does NOT impugn C1, the digit-arm data (T1-T3),
+    NULL-1, POS-A/POS-B, the shuffle mechanism itself, or the executor's
+    stage 0-2 measurements -- only the specific choice of comparator used
+    to instantiate C2. No claim is made here about J1 (run-record
+    integrity), which this task did not review.
+
+  next_concrete_action: >-
+    Coordinator should treat amendment v2's C2 as NOT YET READY for its
+    blocking calibration run: design a planted point-structure comparator
+    with non-sparse level sets (per required_controls above) as an
+    amendment to the amendment, verify its expected power with a synthetic
+    check before spending the calibration run's budget, and only then
+    dispatch the C2 calibration. In parallel, correct the popcount o2
+    range and the comment/document reconciliation text in any record that
+    promotes this adjudication.
+
+  joint_verdict:
+    verdict: BROKEN
+    scope: >-
+      Narrow: C2 (comparator collapse), specifically the choice of
+      top-bit-of-x as the comparator, given its measured extreme
+      sparsity. C1, the mechanism-transfer argument, the T4 measured
+      data, the no-op proves-too-much result, and the P2 classification
+      all SUSTAIN.
+    specific_break: >-
+      The comparator's level sets are not "nearly balanced" (amendment
+      v2's own characterization) but imbalanced by 4-7 orders of
+      magnitude at every one of the six frozen rungs (minority fiber 8-50
+      points out of 1.3e5-1.3e8 total, computed exactly from public
+      curve parameters -- see step (e)). A synthetic control matched to
+      this exact sparsity shows a genuinely working NULL-2 shuffle and
+      the max-preserving broken shuffle (reading 2) produce
+      statistically indistinguishable comparator collapse ratios, both
+      comfortably above C2's 0.5 threshold -- so C2 as specified is not
+      shown to have the power to certify NULL-2, and is at real risk of
+      failing regardless of ground truth. This directly and exactly
+      triggers the amendment's own pre-declared contingency ("if the
+      comparator is marginal-dominated, the positive control must be a
+      PLANTED point-structure statistic instead").
+    does_not_extend_to: >-
+      This does not reopen F-static, does not touch H-ECDLP-a4be60's
+      status, does not assert the digit-arm (T1-T3) measurements are
+      wrong, and does not assert NULL-2's shuffle mechanism itself is
+      broken -- only that the current instrument for VERIFYING it (C2's
+      comparator) cannot do the job it is assigned.
+
+  # ---------------------------------------------------------------------
+  # BLINDNESS ATTESTATION
+  # ---------------------------------------------------------------------
+  review_attestation:
+    joints_owned: [J2]
+    independent_session: true
+    paths_read:
+      - AGENTS.md
+      - agents/red-team.md
+      - ledger/handoffs/TASK-20260904-a897dc.yaml (own task card)
+      - ledger/handoffs/TASK-20260904-410404.yaml (round plan: J2 attack_plan, proves_too_much, blindness -- read for the plan only)
+      - ledger/decisions/DEC-20260904-92dec2.yaml
+      - experiments/EXP-ECDLP-56ee42/specification.yaml
+      - experiments/EXP-ECDLP-56ee42/amendments/v2_control_c_recalibration.yaml
+      - analysis/o2-sum-compatible-filters/reviews/RT-EXP-1-RESULT.md
+      - analysis/o2-sum-compatible-filters/rt_exp_1.py
+      - knowledge/findings/KN-FIND-ffe1df.md
+      - experiments/EXP-ECDLP-56ee42/implementation/runs/RUN-ECDLP-56ee42-S2/raw-result.json
+      - experiments/EXP-ECDLP-56ee42/implementation/runs/RUN-ECDLP-56ee42-S1/raw-result.json (read only for the stage-cache path/hash references cited in the S2 record; used to confirm the cache location, not for J1's fixture/norm re-derivation)
+    paths_read_beyond_declared_inputs:
+      - >-
+        experiments/EXP-ECDLP-56ee42/implementation/estimator.py -- read
+        to resolve the exact top_bit_fiber definition (needed for step e's
+        exact level-set computation) and to compare rt_exp_1.py's SHUF
+        mechanism against null2_shuffle (step d). This file is on J1's
+        blind_from list for TASK-20260904-410404's blind re-derivation of
+        (a)/(b); that restriction applies to the OTHER task's own blind
+        re-derivation process and has no bearing on this independent J2
+        joint. Disclosed for full transparency.
+    artifact_existence_checked_but_not_read:
+      - >-
+        experiments/EXP-ECDLP-56ee42/reviews/round-1/validator/report.yaml
+        and its companion rederivation_*.py scripts -- CONFIRMED TO EXIST
+        via directory listing only; contents NOT opened, per this round's
+        mutual-blindness requirement (this is TASK-20260904-410404's, i.e.
+        the other reviewer's, deliverable).
+      - >-
+        coordination/goals/GOAL-ECDLP-001/reviews/TASK-run-experiment-56ee42-stage-review-validator/report.yaml
+        and .../TASK-run-experiment-56ee42-stage-review-redteam/report.yaml
+        -- these appear to be the prior, non-conforming ad hoc dispatch
+        the task card instructs to disregard. CONFIRMED TO EXIST via
+        directory listing only; contents NOT opened.
+    stage_cache_artifact_absence: >-
+      experiments/EXP-ECDLP-56ee42/implementation/runs/stage-cache/ does
+      NOT exist at the pinned snapshot commit 5e709a5c6 (git ls-tree -r
+      confirms it was never committed) nor at current HEAD (ad681cee0)
+      nor in the working tree. Verified by git ls-tree, git log --all
+      --diff-filter=A for the six rung_T*_x.npy names, and a filesystem
+      find; all return empty/absent. This is disclosed, not silently
+      worked around; see step (e).
+    read_sibling_reports: false
+    computations_performed: >-
+      step_a_o2_ratio_recompute.py, step_e_comparator_balance.py,
+      step_ce_sparse_null_shuffle_sim.py (all in this directory, with
+      captured output in step_a_and_e_output.txt). No stage of
+      EXP-ECDLP-56ee42 was executed; no run record was created;
+      maximum_runs: 0 honoured. The comparator-balance script uses only
+      public curve parameters (p, b) already present in
+      specification.yaml/design/ladder.json and touches no discrete log.
+    verdict: BROKEN (see joint_verdict above; scoped to C2/comparator only)
+
+  # ---------------------------------------------------------------------
+  # MODEL PROVENANCE
+  # ---------------------------------------------------------------------
+  inference:
+    requested_policy: review-adversarial
+    reasoning_effort_requested: xhigh
+    resolved_model_id: claude-sonnet-5
+    runtime: 'claude_code (subagent: red-team)'
+    independent_session: true
+    fallback_used: false
+    fallback_reason: null
+    degraded_allowed: false
+    degraded_requirements: []
+    model_verified: false
+    model_verified_reason: >-
+      python3 -m orchestration.adapter doctor --probe was not run in this
+      session; resolved_model_id is the identity this session was told it
+      is running as, not independently probe-confirmed.
+
+  artifact_paths:
+    - experiments/EXP-ECDLP-56ee42/reviews/round-1/red-team/report.yaml
+    - experiments/EXP-ECDLP-56ee42/reviews/round-1/red-team/step_a_o2_ratio_recompute.py
+    - experiments/EXP-ECDLP-56ee42/reviews/round-1/red-team/step_e_comparator_balance.py
+    - experiments/EXP-ECDLP-56ee42/reviews/round-1/red-team/step_ce_sparse_null_shuffle_sim.py
+    - experiments/EXP-ECDLP-56ee42/reviews/round-1/red-team/step_a_and_e_output.txt
