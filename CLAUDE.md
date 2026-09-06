@@ -17,11 +17,15 @@ Code specifically.
   versions of the role contracts in `agents/*.md`. Research work is done BY
   these subagents; the top-level session orchestrates and talks to the user.
   Which one runs a queued task is decided by its (`role`, `inference.policy`)
-  pair — see `/launch-research-harness` step 6 and the effort table under
+  pair — see the canonical harness lifecycle and the effort table under
   "Model policy note".
-- **Skills** (`.claude/skills/`), one per lifecycle stage:
+- **Public entry point**: `/crypto-autoresearcher-harness` routes status,
+  ideas/design, named-goal execution and the full portfolio loop through the
+  shared plugin skill. `/launch-research-harness` and
+  `/coordinate-research-goal` are compatibility aliases.
+- **Stage references** (`.claude/skills/`), used by the shared lifecycle:
   - `/propose-ideas` — ideation for a research question
-  - `/design-experiment` — hypothesis + frozen approved protocol
+  - `/design-experiment` — hypothesis + frozen protocol; approval is a separate Coordinator decision
   - `/run-experiment` — bounded execution, immutable run records
   - `/review-evidence` — validation, evidence strength, official decision
   - `/research-status` — read-only ledger overview
@@ -29,8 +33,6 @@ Code specifically.
     into a ranked, justified shortlist of next experiments; read-only, no
     ledger writes
   - `/curate-knowledge` — maintain the knowledge corpus
-  - `/coordinate-research-goal` — launch and continuously coordinate a committed
-    research goal across dispatch batches
   - `/agent-bus` — send and read messages between sessions running in separate
     chats, worktrees, containers, or runtimes
 - **State**:
