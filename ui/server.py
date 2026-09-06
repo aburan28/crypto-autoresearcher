@@ -170,6 +170,7 @@ class Handler(BaseHTTPRequestHandler):
             "overview.json": lambda: payloads.overview_payload(index),
             "goals.json": lambda: payloads.goals_payload(index),
             "experiments.json": lambda: payloads.experiments_payload(index),
+            "findings.json": lambda: payloads.findings_payload(index),
             "integrity.json": lambda: index.integrity,
         }
         if rel in simple:

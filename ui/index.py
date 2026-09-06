@@ -28,7 +28,7 @@ from typing import Any
 import yaml
 
 from . import scan
-from .scan import STRUCTURED, RawRecord, id_area, id_kind
+from .scan import RECORD_ID_RE, STRUCTURED, RawRecord, id_area, id_kind
 
 # The lifecycle order records are presented in, everywhere. Not alphabetical:
 # it is the order of CLAUDE.md "Typical loop", so a board read top to bottom
@@ -44,6 +44,14 @@ KIND_LABELS = {
     # `SG-`). They are real corpus content and get a bucket rather than being
     # dropped: a record the browser cannot reach may as well not exist.
     "OTHER": "other",
+}
+
+# A `KN-` identifier carries its FAMILY where every other kind carries a
+# research area (`KN-FIND-001`, `KN-LIT-7580`). The families are not areas and
+# must not appear in the area facet next to `ECDLP`; they get their own.
+KNOWLEDGE_FAMILIES = {
+    "FIND": "findings", "OPEN": "open problems", "TECH": "techniques",
+    "LIT": "literature", "GATHER": "gathers",
 }
 
 # What reads as a record's "title" and "status" in a list, per kind.
@@ -179,6 +187,234 @@ class Experiment:
     runs: list[dict[str, str]] = field(default_factory=list)
 
 
+# ---------------------------------------------------------------------------
+# Findings, open problems and obstructions: the program's OUTPUT.
+#
+# Goals are fully parsed because the portfolio board is load-bearing. The
+# findings board is load-bearing for the opposite reader -- the one asking
+# "what has this program actually established?" -- and gets the same
+# treatment. `knowledge/findings/` and `knowledge/open-problems/` are ~130
+# small markdown files: their front matter is parsed exactly and the claim
+# each one makes is excerpted from its body, so a board can show what was
+# found rather than only what it was called. Literature (~7,900 entries)
+# stays on the shallow tier; nobody reads a literature board.
+#
+# An obstruction is the quantified form of a negative result (AGENTS.md
+# "Closure standard"; templates/research-records.md `evidence.obstruction`):
+# what blocks an approach, as a measured number over a stated scope. It lives
+# nested inside an evidence record, below what the shallow scan can see, so
+# the few dozen records that carry one are parsed exactly.
+# ---------------------------------------------------------------------------
+
+@dataclass(slots=True)
+class Finding:
+    record_id: str
+    title: str
+    path: str
+    added: str
+    status: str                  # current | superseded | withdrawn
+    proof_status: str
+    proof_refs: int
+    confidence: str
+    evidence_level: str
+    claim_tier: str
+    tags: list[str]
+    superseded_by: str
+    withdrawn_by: str
+    refs: list[str]              # ledger identifiers named in the front matter
+    goal_ids: list[str]
+    areas: list[str]
+    excerpt: str
+    error: str | None = None     # front matter missing or unparseable
+
+
+@dataclass(slots=True)
+class OpenProblem:
+    record_id: str
+    title: str
+    path: str
+    added: str
+    status: str
+    tags: list[str]
+    refs: list[str]
+    statement: str
+    current_state: str
+    resolution: str
+    error: str | None = None
+
+
+@dataclass(slots=True)
+class Obstruction:
+    evidence_id: str
+    hypothesis_id: str
+    goal_id: str
+    direction: str
+    strength: str
+    claim_tier: str
+    statement: str
+    quantity: str
+    value: str
+    scope: str
+    measured_by: list[str]
+    resource_examined: bool | None
+    resource_reading: str
+    spawned_ids: list[str]
+
+
+_FRONT_MATTER_RE = re.compile(r"\A---[ \t]*\n(.*?)\n---[ \t]*(?:\n|\Z)", re.S)
+
+
+def split_front_matter(text: str) -> tuple[dict | None, str, str | None]:
+    """`(front_matter, markdown_body, error)`, with an EXACT parse of the block.
+
+    The shallow `scan.front_matter` reads only top-level scalars and is what
+    drives the lists; this is tier 2 for a knowledge entry, used where a
+    reader will act on the values (the findings board, a detail view).
+    """
+    m = _FRONT_MATTER_RE.match(text)
+    if not m:
+        return None, text, "no front matter"
+    body = text[m.end():]
+    try:
+        front = yaml.safe_load(m.group(1))
+    except Exception as exc:                          # noqa: BLE001 - reported, not raised
+        return None, body, f"{type(exc).__name__}: {str(exc).splitlines()[0][:160]}"
+    if not isinstance(front, dict):
+        return None, body, "front matter is not a mapping"
+    return front, body, None
+
+
+_HEADING_RE = re.compile(r"^(#{1,6})\s+(.*?)\s*#*\s*$")
+# Sections are the `#`/`##` divisions. A `###` is a subdivision of the section
+# it sits in: an entry whose "Finding" is a lead sentence followed by two
+# `###` halves has one finding, not a one-line finding and two strays.
+_SECTION_RE = re.compile(r"^(#{1,2})\s+(.*?)\s*#*\s*$")
+
+
+def md_sections(body: str) -> list[tuple[str, str]]:
+    """`[(heading, text)]` in document order; text before any heading has ''."""
+    sections: list[tuple[str, list[str]]] = [("", [])]
+    fenced = False
+    for line in body.splitlines():
+        if line.lstrip().startswith("```"):
+            fenced = not fenced
+            sections[-1][1].append(line)
+            continue
+        m = None if fenced else _SECTION_RE.match(line)
+        if m:
+            sections.append((m.group(2).strip(), []))
+        else:
+            sections[-1][1].append(line)
+    return [(heading, "\n".join(lines).strip()) for heading, lines in sections]
+
+
+_MD_STRIP = (
+    (re.compile(r"```.*?```", re.S), " "),                       # fenced code
+    (re.compile(r"!\[[^\]]*\]\([^)]*\)"), ""),                   # images
+    (re.compile(r"\[([^\]]+)\]\([^)]*\)"), r"\1"),               # links -> their text
+    (re.compile(r"`([^`]*)`"), r"\1"),
+    (re.compile(r"(\*\*|__)(.+?)\1", re.S), r"\2"),
+    (re.compile(r"(?<![\w*])\*(?!\s)(.+?)(?<!\s)\*(?![\w*])", re.S), r"\1"),
+    (re.compile(r"^[ \t]{0,3}>[ \t]?", re.M), ""),               # blockquote marks
+    (re.compile(r"^[ \t]{0,3}(?:[-*+]|\d+[.)])[ \t]+", re.M), ""),  # list marks
+)
+
+
+def md_plain(text: str) -> str:
+    """Markdown reduced to its words. Approximate on purpose: it feeds a
+    one-paragraph excerpt, not a renderer."""
+    for pattern, repl in _MD_STRIP:
+        text = pattern.sub(repl, text)
+    return text
+
+
+def md_paragraphs(text: str) -> list[str]:
+    out: list[str] = []
+    for para in re.split(r"\n\s*\n", md_plain(text)):
+        # Sub-headings are signposts, not prose; they do not belong in a claim.
+        prose = [line for line in para.splitlines() if not _HEADING_RE.match(line)]
+        flat = re.sub(r"\s+", " ", " ".join(prose)).strip()
+        if flat and not flat.startswith(("|", "---", "<!--")):
+            out.append(flat)
+    return out
+
+
+def _clip(text: str, limit: int) -> str:
+    if len(text) <= limit:
+        return text
+    cut = text[:limit].rsplit(" ", 1)[0]
+    return cut.rstrip(" ,;:(") + "…"
+
+
+# Section headings that carry an entry's own statement of itself, best first.
+# Matched by prefix after a leading "3." style number is dropped.
+FINDING_STATEMENT_HEADINGS = (
+    "finding", "the finding", "statement", "scoped claim", "key claims", "claim",
+    "result", "what this says", "summary",
+)
+OPEN_PROBLEM_STATEMENT_HEADINGS = ("statement", "the open question", "question")
+
+
+def statement_excerpt(body: str, prefer=FINDING_STATEMENT_HEADINGS, limit: int = 700) -> str:
+    """The entry's own statement of what it establishes, as plain text.
+
+    Prefers the section an author labelled as the statement, and within it a
+    blockquote if there is one -- that is the convention here for "the finding,
+    in one sentence". Falls back to the first prose paragraph. Never invents
+    a summary: everything returned is the entry's own words, clipped.
+    """
+    ranked = []
+    for pos, (heading, text) in enumerate(md_sections(body)):
+        key = re.sub(r"^\d+[.)]?\s*", "", heading).strip().lower()
+        rank = next((i for i, p in enumerate(prefer) if key.startswith(p)), len(prefer))
+        ranked.append((rank, pos, text))
+    for _, _, text in sorted(ranked):
+        quote: list[str] = []
+        for line in text.splitlines():
+            if line.lstrip().startswith(">"):
+                quote.append(re.sub(r"^[ \t]{0,3}>[ \t]?", "", line))
+            elif quote:
+                break                                 # first blockquote only
+        paragraphs = md_paragraphs("\n".join(quote)) if quote else md_paragraphs(text)
+        if not paragraphs:
+            continue
+        # Join, then clip. Authors here often open a section with a one-line
+        # framing sentence ("Two halves, of equal weight.") and put the claim
+        # in the paragraph after it; stopping at the first paragraph kept the
+        # framing and dropped the claim.
+        return _clip(" ".join(paragraphs), limit)
+    return ""
+
+
+def section_text(body: str, prefixes, limit: int = 900) -> str:
+    """Plain text of the first section whose heading starts with a prefix."""
+    for heading, text in md_sections(body):
+        key = re.sub(r"^\d+[.)]?\s*", "", heading).strip().lower()
+        if any(key.startswith(p) for p in prefixes):
+            return _clip(" ".join(md_paragraphs(text)), limit)
+    return ""
+
+
+def _first_heading(body: str) -> str:
+    for line in body.splitlines():
+        m = _HEADING_RE.match(line)
+        if m:
+            return m.group(2).strip()
+    return ""
+
+
+def _ordered_ids(text: str, exclude: str | None = None) -> list[str]:
+    """Program identifiers in `text`, first mention first, deduplicated."""
+    return [i for i in dict.fromkeys(RECORD_ID_RE.findall(text)) if i != exclude]
+
+
+def _read(path: Path) -> str:
+    try:
+        return path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return ""
+
+
 def _as_list(value: Any) -> list:
     if value is None:
         return []
@@ -203,6 +439,9 @@ class ResearchIndex:
         self.backlinks: dict[str, set[str]] = defaultdict(set)
         self.goals: list[Goal] = []
         self.experiments: list[Experiment] = []
+        self.findings: list[Finding] = []
+        self.open_problems: list[OpenProblem] = []
+        self.obstructions: list[Obstruction] = []
         self.ecc_areas: set[str] = set()
         self.ecc_error: str | None = None
         self.integrity: dict[str, list] = {}
@@ -238,6 +477,9 @@ class ResearchIndex:
 
         self._build_goals()
         self._build_experiments()
+        self._build_findings()
+        self._build_open_problems()
+        self._build_obstructions()
         self._check_integrity()
         self.start_deep_scan()
 
@@ -431,6 +673,141 @@ class ResearchIndex:
             ))
         self.experiments.sort(key=lambda e: (not e.runs, e.record_id))
 
+    # -- findings, open problems, obstructions ------------------------------
+    def _knowledge_family(self, family: str) -> list[tuple[Path, str, dict, str, str | None]]:
+        """Every entry of one `knowledge/<family>/` directory, exactly parsed:
+        `(path, text, front_matter, body, error)`."""
+        base = self.repo / "knowledge" / family
+        if not base.is_dir():
+            return []
+        out = []
+        for path in sorted(base.glob("*.md")):
+            text = _read(path)
+            front, body, error = split_front_matter(text)
+            out.append((path, text, front or {}, body, error))
+        return out
+
+    def _build_findings(self) -> None:
+        for path, text, front, body, error in self._knowledge_family("findings"):
+            record_id = _text(front.get("id")) or path.stem
+            head = self.records.get(record_id)
+            title = (_text(front.get("title"), 600) or _first_heading(body)
+                     or (head.title if head else "") or record_id)
+            refs = _ordered_ids(text[:len(text) - len(body)], exclude=record_id)
+            superseded_by = _text(front.get("superseded_by"))
+            withdrawn_by = _text(front.get("withdrawn_by"))
+            raw_status = _text(front.get("status"))
+            if withdrawn_by or raw_status.lower().startswith("withdrawn"):
+                status = "withdrawn"
+            elif superseded_by:
+                status = "superseded"
+            else:
+                status = "current"
+            goal_ids = self._attribute_goals(record_id, refs, text)
+            self.findings.append(Finding(
+                record_id=record_id,
+                title=title,
+                path=str(path.relative_to(self.repo)),
+                added=_text(front.get("added")),
+                status=status,
+                proof_status=_text(front.get("proof_status"), 60),
+                proof_refs=len(_as_list(front.get("proof_refs"))),
+                confidence=_text(front.get("confidence"), 120),
+                evidence_level=_text(front.get("evidence_level"), 120),
+                claim_tier=_text(front.get("claim_tier"), 80),
+                tags=[str(t) for t in _as_list(front.get("tags"))][:24],
+                superseded_by=superseded_by,
+                withdrawn_by=withdrawn_by,
+                refs=refs,
+                goal_ids=goal_ids,
+                # Research areas of the ledger records it names. A cited
+                # KN- entry's second segment is a family (TECH, LIT), not
+                # an area, and must not appear here as one.
+                areas=sorted({a for a in (id_area(r) for r in refs + goal_ids
+                                          if id_kind(r) != "KN") if a}),
+                excerpt=statement_excerpt(body),
+                error=error,
+            ))
+        self.findings.sort(key=lambda f: (_neg_date(f.added), f.record_id))
+
+    def _attribute_goals(self, record_id: str, refs: list[str], text: str) -> list[str]:
+        """The goals a knowledge entry belongs to.
+
+        A finding names its goal in about half the corpus. The rest are
+        reached through the evidence or decision that promoted them, which
+        carry `goal_id`, or failing that through whichever record cites the
+        entry and carries one. Reported as "goals named", not "owner": an
+        entry may mention a sibling campaign's goal in passing.
+        """
+        goals = [r for r in _ordered_ids(text) if id_kind(r) == "GOAL"]
+        for pool in (refs, sorted(self.backlinks.get(record_id, ()))):
+            if goals:
+                break
+            for other in pool:
+                record = self.records.get(other)
+                goal_id = record.fields.get("goal_id", "") if record else ""
+                if goal_id and goal_id != STRUCTURED and id_kind(goal_id) == "GOAL":
+                    goals.append(goal_id)
+        return list(dict.fromkeys(goals))
+
+    def _build_open_problems(self) -> None:
+        for path, text, front, body, error in self._knowledge_family("open-problems"):
+            record_id = _text(front.get("id")) or path.stem
+            head = self.records.get(record_id)
+            self.open_problems.append(OpenProblem(
+                record_id=record_id,
+                title=(_text(front.get("title"), 600) or _first_heading(body)
+                       or (head.title if head else "") or record_id),
+                path=str(path.relative_to(self.repo)),
+                added=_text(front.get("added")),
+                status=_text(front.get("status"), 60),
+                tags=[str(t) for t in _as_list(front.get("tags"))][:24],
+                refs=_ordered_ids(text[:len(text) - len(body)], exclude=record_id),
+                statement=statement_excerpt(body, OPEN_PROBLEM_STATEMENT_HEADINGS),
+                current_state=section_text(body, ("current state",)),
+                resolution=section_text(
+                    body, ("what would resolve", "what would close", "cheapest next step")),
+                error=error,
+            ))
+        self.open_problems.sort(key=lambda p: (p.status != "open", _neg_date(p.added), p.record_id))
+
+    def _build_obstructions(self) -> None:
+        """Exactly parse the evidence records that carry an `obstruction` block.
+
+        Cheap: the shallow scan already holds every record's text, so only the
+        few dozen that mention the key are parsed, and `full_record` caches
+        the parse for the detail view.
+        """
+        for record in self.by_kind.get("EV", []):
+            if b"obstruction:" not in record.haystack:
+                continue
+            parsed, _error = self.full_record(record.record_id)
+            body = parsed.get("evidence", parsed) if isinstance(parsed, dict) else None
+            block = body.get("obstruction") if isinstance(body, dict) else None
+            if not isinstance(block, dict) or not _text(block.get("statement")):
+                continue
+            check = block.get("resource_check")
+            check = check if isinstance(check, dict) else {}
+            examined = check.get("examined")
+            self.obstructions.append(Obstruction(
+                evidence_id=record.record_id,
+                hypothesis_id=_text(body.get("hypothesis_id"), 60),
+                goal_id=_text(body.get("goal_id"), 60),
+                direction=_text(body.get("direction"), 40),
+                strength=_text(body.get("strength"), 40),
+                claim_tier=_text(body.get("claim_tier"), 60),
+                statement=_text(block.get("statement"), 1200),
+                quantity=_text(block.get("quantity"), 600),
+                value=_text(block.get("value"), 600),
+                scope=_text(block.get("scope"), 800),
+                measured_by=[str(x) for x in _as_list(block.get("measured_by"))][:20],
+                resource_examined=examined if isinstance(examined, bool) else None,
+                resource_reading=_text(check.get("reading"), 800),
+                spawned_ids=[str(x) for x in _as_list(check.get("spawned_ids"))][:20],
+            ))
+        self.obstructions.sort(
+            key=lambda o: (_neg_date(self.records[o.evidence_id].date), o.evidence_id))
+
     # -- integrity --------------------------------------------------------
     def _check_integrity(self) -> None:
         """Flag, never fix.
@@ -524,7 +901,16 @@ class ResearchIndex:
         path = self.repo / record.path
         try:
             text = path.read_text(encoding="utf-8", errors="replace")
-            parsed = (yaml.safe_load(text), None) if path.suffix == ".yaml" else (None, None)
+            if path.suffix == ".yaml":
+                parsed = (yaml.safe_load(text), None)
+            elif path.suffix == ".md":
+                # A knowledge entry's exact form is its front matter plus its
+                # body. The body is the content -- an entry page without it
+                # is a title and nothing else -- so it travels with the record.
+                front, body, error = split_front_matter(text)
+                parsed = ({"front_matter": front or {}, "markdown": body}, error)
+            else:
+                parsed = (None, None)
         except Exception as exc:                      # noqa: BLE001
             parsed = (None, f"{type(exc).__name__}: {exc}")
         with self._lock:
@@ -559,7 +945,11 @@ class ResearchIndex:
 
     def facets(self) -> dict[str, Any]:
         kinds = Counter(r.kind for r in self.records.values())
-        areas = Counter(r.area for r in self.records.values() if r.area)
+        # A KN identifier's second segment is its family, not a research area
+        # (`KN-LIT-7580`), and 7,900 literature entries under an "area" called
+        # LIT drowned the real areas. Families get their own facet.
+        areas = Counter(r.area for r in self.records.values() if r.area and r.kind != "KN")
+        families = Counter(r.area for r in self.records.values() if r.area and r.kind == "KN")
         statuses = Counter(r.status for r in self.records.values() if r.status)
         return {
             "kinds": [
@@ -568,6 +958,9 @@ class ResearchIndex:
             "areas": [
                 {"key": a, "count": n, "ecc": a in self.ecc_areas}
                 for a, n in sorted(areas.items(), key=lambda kv: (-kv[1], kv[0]))],
+            "knowledge": [
+                {"key": f, "label": KNOWLEDGE_FAMILIES.get(f, f.lower()), "count": n}
+                for f, n in sorted(families.items(), key=lambda kv: (-kv[1], kv[0]))],
             "statuses": [
                 {"key": s, "count": n}
                 for s, n in sorted(statuses.items(), key=lambda kv: (-kv[1], kv[0]))],
