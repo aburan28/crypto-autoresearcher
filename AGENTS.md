@@ -1,5 +1,29 @@
 # Crypto Autoresearcher Agent Contract
 
+## Research budgets: progress first
+
+User instruction, 2026-09-06. Applies to this researcher across all areas and
+supersedes older instructions that stop routine work on time/CPU/batch estimates.
+Research cost estimates are advisory, may be null, and require no repeated user
+approval. The Coordinator continues justified work within the authorized research
+scope. CPU usage is measured for algorithm comparisons, not rationed by default.
+
+Only an exceptional, committed Coordinator stagnation review may activate a
+research spending cap: at least **90 days without documented progress**, explicit
+evidence and scope, a concrete next action, and a recent assessment (within seven
+days). Missing telemetry, inactivity, outages and exhausted estimates alone are
+not stagnation. New evidence or progress requires reassessment; expiry never
+automatically renews a restriction. See `docs/research-budget-policy.md` and
+`orchestration/research_budget.py`.
+
+Memory/concurrency limits and explicitly justified process watchdogs remain
+machine protection. Watchdog expiry checkpoints a task; it does not exhaust the
+campaign or require another user budget approval. Fixed scientific sample counts,
+locked execution plans, zero-run tasks, write scopes, controls, immutable records,
+independent review and the Bedrock prohibition still bind. Changing a frozen
+scientific protocol uses an additive amendment; never rewrite historical records.
+
+
 This repository defines a multi-agent operating system for reproducible ECDLP experimentation.
 
 ## Roles
@@ -270,13 +294,12 @@ or to lower a bar, and the three guarantees pausing used to carry all survive it
    `validator-breakthrough` to get a claim moving is the exact silent downgrade
    the policy layer forbids, and it is no more permitted now than before.
    What is blocked is the claim, not the campaign.
-3. **An exhausted budget is still a hard stop on spending.** It does not become
-   licence to keep going. The next batch requires a committed Coordinator
-   budget decision with a recorded rationale. Never quietly raise a budget to
-   keep a campaign turning.
+3. **Routine estimates do not stop research.** Only an exceptional restriction
+   passing the months-long stagnation policy can limit spending. Machine
+   protection remains separate; a watchdog stop is not campaign exhaustion.
 
 Terminal retirement remains available and unchanged: `completed` on a met
-criterion, `closed_at_budget` when the budget ran out without one, `cancelled`
+criterion, `closed_at_budget` only under the exceptional stagnation policy, `cancelled`
 when the campaign is abandoned. Each is a deliberate Coordinator act with a
 committed decision — never the automatic response to an impediment.
 

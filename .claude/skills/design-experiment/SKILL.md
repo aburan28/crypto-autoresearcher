@@ -9,6 +9,13 @@ description: >-
 
 # Design experiment
 
+Budget policy: follow `docs/research-budget-policy.md`. Routine time, CPU,
+run-count and batch estimates are advisory and may be null; do not demand
+repeated user budget approval. Only a documented 90-day stagnation review can
+activate research caps. Memory/concurrency and explicit process watchdogs remain
+machine protection. Preserve scientific trial counts and frozen artifacts.
+This policy supersedes older budget-exhaustion language below.
+
 Run lifecycle steps 3–5 (`docs/task-lifecycle.md`): hypothesis
 specification, experiment design, approval, and handoff.
 
@@ -39,8 +46,9 @@ specification, experiment design, approval, and handoff.
    `approved_by: coordinator` and a committed approval decision. Do not ask
    for user confirmation. Cite the standing authorization as the user approval
    basis; the Coordinator still checks protocol completeness and declared
-   resource limits before authorizing dispatch. Report the concrete approved
-   scope as a progress update, not as a permission question.
+   resource limits before authorizing dispatch. Freeze scientific tests, not
+   arbitrary CPU allowances. Report the concrete approved scope as a progress
+   update, not as a permission question.
 5. On approval, write the `handoff` record to `ledger/handoffs/` targeting
    the executor, with budget and completion gate filled in.
 6. The Coordinator runs an isolated snapshot archive task that commits the
