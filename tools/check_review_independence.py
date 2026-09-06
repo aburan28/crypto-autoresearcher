@@ -21,11 +21,42 @@ WHAT IT CHECKS.
   * a claim-changing round declares a proves-too-much control with objects;
   * a blind re-deriver's declared `sources_read` does not intersect the plan's
     `blind_from` -- the one independence property here that is fully mechanical;
-  * reviewers report verdicts on the joints they own.
+  * reviewers report verdicts on the joints they own;
+  * the reachable COMMIT-MESSAGE history of the tree a blind agent was given
+    states none of the batch's protected literals (--blind-history).
+
+WHY THE HISTORY CHECK EXISTS, AND WHAT IT COSTS. `blind_from` is a list of
+FILES, and the checks above can only see declared FILE reads. On 2026-09-05 a
+blind re-transcription was nearly contaminated by something that is not a file:
+a commit message. Reverting the commit restored the files and could not retract
+the message, so `git log --oneline` -- a routine orientation command, in nobody's
+blind list -- displayed the protected verdict twice on the branch the blind agent
+was to run in (CORR-20260905-547849). Nothing downstream could have detected it
+either: a re-derivation that agrees because it was told the answer is
+indistinguishable from one that agrees because the answer is right.
+
+This check closes that hole and only that hole.
+
+THE DECLARATION IS BY HASH, AND IT HAS TO BE. A batch running a blind phase
+declares that no control-plane file restates the protected values -- so the list
+of protected values cannot itself be a plaintext list in the batch file the blind
+agent must read to learn its assignment. `blind_phase_hygiene.protected_sha256`
+therefore holds sha256 of each protected literal; this tool tokenizes each commit
+message and hashes each token, so it can recognise a value it was never told.
+Stated plainly: that is obfuscation against a reader, NOT secrecy against a
+determined search -- the space of plausible figures is small and brute-forceable.
+It keeps the value out of the blind agent's eyes, which is all it claims.
+
+A batch that declares nothing is reported UNCHECKABLE, never passed: silence here
+would read as a guarantee. The check cannot see paraphrase, a value written to
+different precision, or a verdict described in words it was not given. It
+strengthens a declaration; it does not replace giving a blind agent a clean tree.
 
     python3 tools/check_review_independence.py --plan <handoff.yaml> \
         --reports <dir-or-file> [<dir-or-file> ...]
     python3 tools/check_review_independence.py --batch <batch-dir>
+    python3 tools/check_review_independence.py --blind-history origin/main \
+        --protected-from <batch.yaml> [--max-commits 500]
 """
 
 from __future__ import annotations
@@ -33,6 +64,7 @@ from __future__ import annotations
 import argparse
 import glob
 import os
+import re
 import sys
 
 import yaml
@@ -227,6 +259,91 @@ def check(plan: dict, reports: list[tuple[str, dict]]) -> list[str]:
     return problems
 
 
+# ---------------------------------------------------------------------------
+# blind-history check: the tree a blind agent is GIVEN, not the files it reads
+# ---------------------------------------------------------------------------
+
+# A token a commit message could carry a protected value as: a number (with
+# optional sign, decimal part and exponent) or a bare word. Hashed one by one,
+# so a value can be recognised without this tool ever being told it.
+_TOKEN_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*|-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?")
+
+
+def protected_hashes(batch_doc) -> dict[str, str]:
+    """{sha256: label} a batch declares protected for its blind phase.
+
+    Read from `blind_phase_hygiene.protected_sha256`, either as a list of
+    hex digests or as a {digest: label} mapping. Absent means the batch declared
+    nothing, which this tool reports as UNCHECKABLE -- never as a pass. A rule
+    stated only in prose cannot be enforced mechanically, and reporting it as
+    checked is the false assurance that let CORR-20260905-547849 through.
+    """
+    batch = (batch_doc or {}).get("batch") or batch_doc or {}
+    hygiene = batch.get("blind_phase_hygiene") or {}
+    if not isinstance(hygiene, dict):
+        return {}
+    declared = hygiene.get("protected_sha256")
+    if isinstance(declared, dict):
+        return {str(k).strip().lower(): str(v) for k, v in declared.items()
+                if str(k).strip()}
+    if isinstance(declared, list):
+        return {str(x).strip().lower(): "protected value" for x in declared
+                if str(x).strip()}
+    return {}
+
+
+def _token_hashes(text: str) -> dict[str, str]:
+    """{sha256: token} over every token in `text`."""
+    import hashlib
+    return {hashlib.sha256(t.encode()).hexdigest(): t
+            for t in _TOKEN_RE.findall(text)}
+
+
+def commit_messages(ref: str, max_commits: int = 500,
+                    repo: str = REPO) -> list[tuple[str, str]]:
+    """(sha, full message) for commits reachable from `ref`, newest first."""
+    import subprocess
+    # ASCII record/unit separators: neither appears in a commit message, and
+    # unlike NUL both survive text-mode subprocess arguments.
+    out = subprocess.run(
+        ["git", "-C", repo, "log", f"-{int(max_commits)}",
+         "--format=%H%x1f%B%x1e", ref],
+        capture_output=True, text=True)
+    if out.returncode != 0:
+        raise RuntimeError(f"git log {ref} failed: {out.stderr.strip()[:200]}")
+    commits = []
+    for chunk in out.stdout.split("\x1e"):
+        if "\x1f" not in chunk:
+            continue
+        sha, _, body = chunk.partition("\x1f")
+        commits.append((sha.strip(), body))
+    return commits
+
+
+def check_blind_history(ref: str, hashes: dict[str, str], max_commits: int = 500,
+                        repo: str = REPO) -> list[str]:
+    """Problems if any protected value appears in `ref`'s reachable messages.
+
+    Reports the OFFENDING COMMIT and the batch's own label for the value, never
+    the value itself -- this tool's output is read by the same people the blind
+    phase protects.
+    """
+    if not hashes:
+        return ["no protected values declared: add "
+                "blind_phase_hygiene.protected_sha256 to the batch, or this "
+                "check is UNCHECKABLE rather than passing"]
+    problems = []
+    for sha, body in commit_messages(ref, max_commits, repo):
+        hit = {d: t for d, t in _token_hashes(body).items() if d in hashes}
+        for digest in hit:
+            problems.append(
+                f"{sha[:9]} commit message states a protected value "
+                f"({hashes[digest]}) -- a blind agent given this tree can read "
+                f"it with `git log`, which is not a file read and is in no "
+                f"blind_from list")
+    return problems
+
+
 def _find_in_batch(batch: str) -> tuple[str | None, list[str]]:
     plans = [p for p in glob.glob(os.path.join(batch, "**", "*.yaml"),
                                   recursive=True)
@@ -240,7 +357,31 @@ def main() -> int:
     parser.add_argument("--reports", nargs="*", default=[],
                         help="report files or directories to scan")
     parser.add_argument("--batch", help="batch directory holding both")
+    parser.add_argument("--blind-history", metavar="REF",
+                        help="git ref whose reachable commit messages must not "
+                             "state any protected literal")
+    parser.add_argument("--protected-from", metavar="BATCH_YAML",
+                        help="batch.yaml declaring blind_phase_hygiene."
+                             "protected_literals")
+    parser.add_argument("--max-commits", type=int, default=500)
     args = parser.parse_args()
+
+    if args.blind_history:
+        if not args.protected_from:
+            print("--blind-history requires --protected-from", file=sys.stderr)
+            return 2
+        hashes = protected_hashes(_load(args.protected_from))
+        problems = check_blind_history(args.blind_history, hashes,
+                                       args.max_commits)
+        if problems:
+            for problem in problems:
+                print(f"FAIL: {problem}")
+            print(f"\n{len(problems)} blind-history problem(s) in {args.blind_history}")
+            return 1
+        print(f"PASS: {args.blind_history} states none of "
+              f"{len(hashes)} protected value(s) in its last "
+              f"{args.max_commits} reachable commit messages")
+        return 0
 
     plan_path, report_targets = args.plan, list(args.reports)
     if args.batch:

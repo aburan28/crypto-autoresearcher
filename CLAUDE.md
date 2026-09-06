@@ -1,5 +1,29 @@
 # CLAUDE.md
 
+## Research budgets: progress first
+
+User instruction, 2026-09-06. Applies to this researcher across all areas and
+supersedes older instructions that stop routine work on time/CPU/batch estimates.
+Research cost estimates are advisory, may be null, and require no repeated user
+approval. The Coordinator continues justified work within the authorized research
+scope. CPU usage is measured for algorithm comparisons, not rationed by default.
+
+Only an exceptional, committed Coordinator stagnation review may activate a
+research spending cap: at least **90 days without documented progress**, explicit
+evidence and scope, a concrete next action, and a recent assessment (within seven
+days). Missing telemetry, inactivity, outages and exhausted estimates alone are
+not stagnation. New evidence or progress requires reassessment; expiry never
+automatically renews a restriction. See `docs/research-budget-policy.md` and
+`orchestration/research_budget.py`.
+
+Memory/concurrency limits and explicitly justified process watchdogs remain
+machine protection. Watchdog expiry checkpoints a task; it does not exhaust the
+campaign or require another user budget approval. Fixed scientific sample counts,
+locked execution plans, zero-run tasks, write scopes, controls, immutable records,
+independent review and the Bedrock prohibition still bind. Changing a frozen
+scientific protocol uses an additive amendment; never rewrite historical records.
+
+
 Claude Code **runtime binding** for the autonomous, reproducible ECDLP
 research program. The program itself is runtime-neutral: the binding
 inter-agent contract is `AGENTS.md`, the role contracts are `agents/*.md`
@@ -83,7 +107,7 @@ Code specifically.
    recorded `DISSENT` still blocks closure; and closing a goal is still the
    program's strongest claim, now resting on the Coordinator decision and its
    cited evidence alone. Do not retire a goal that met a criterion under
-   `paused`/`closed_at_budget` to understate it. The rule and its enforcement
+   `closed_at_budget`/`cancelled` to understate it. The rule and its enforcement
    are retained in `tools/validate_ledger.py` and restored by setting
    `GOAL_CLOSURE_QUORUM_REQUIRED = True`. See AGENTS.md "Goal closure quorum".
 9. Pursue promising paths in good faith. Do not deliberately abandon,
@@ -94,6 +118,27 @@ Code specifically.
    summaries, rankings, provenance, and ordinary research artifacts for
    independent review; it does not store, infer, or expose private
    chain-of-thought.
+10. **Goals are never paused.** `paused` and `blocked` are not permitted
+   `GOAL-*` statuses; `tools/validate_ledger.py` refuses both by name. A
+   campaign that meets an impediment stays `active` and records it under
+   `impediments` with `what_is_blocked`, `clears_when` and a `recheck`. This is
+   a scheduling rule and relaxes nothing: an impediment is still never negative
+   mathematical evidence, an unservable `review-breakthrough` still may not be
+   downgraded (the CLAIM stays un-promoted, not the campaign parked), and an
+   exceptional stagnation restriction still requires a Coordinator decision before more
+   spending. Terminal retirement is unchanged and remains a deliberate act:
+   `completed`, `closed_at_budget`, `cancelled`. See AGENTS.md "Goals are never
+   paused".
+11. **ECC comes first, and ECC budgets are unlimited.** On user instruction
+   (2026-09-04): every ECC goal has `maximum_batches: null` and
+   `total_wall_clock_seconds: null` (enforced); ECC goals are selected before
+   all others at every selection point; and open ECC ideas — `proposed` with no
+   hypothesis or experiment citing them — are ranked work to be designed into
+   experiments. The ECC area set is declared once in
+   `orchestration/research-priority.yaml`, read via `tools/ecc_priority.py`, and
+   is **never** inferred from an identifier prefix. Unlimited removes the batch
+   ceiling, not the duty to rank; `max_concurrent` stays bounded; designing an
+   experiment is not approving it. See AGENTS.md "ECC comes first".
 
 ## Research direction
 

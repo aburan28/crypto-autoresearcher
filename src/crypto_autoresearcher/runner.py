@@ -18,6 +18,8 @@ from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any
 
+from orchestration.research_budget import enforce_research_budget
+
 from .records import (
     RecordValidationError,
     canonical_json_bytes,
@@ -372,7 +374,7 @@ def _finite_number(value: Any, name: str, *, positive: bool = False) -> float:
 
 
 def _planned_run(
-    experiment: dict[str, Any], run_id: str, wall_clock_limit: float
+    experiment: dict[str, Any], run_id: str, wall_clock_limit: float | None
 ) -> tuple[dict[str, Any] | None, set[str]]:
     execution_plan = experiment.get("execution_plan")
     if execution_plan is None:
@@ -382,7 +384,7 @@ def _planned_run(
 
     runs = execution_plan["runs"]
     maximum_runs = experiment["budget"]["maximum_runs"]
-    if len(runs) > maximum_runs:
+    if enforce_research_budget(experiment["budget"]) and maximum_runs is not None and len(runs) > maximum_runs:
         raise RecordValidationError(
             "execution_plan contains more runs than budget.maximum_runs"
         )
@@ -403,7 +405,7 @@ def _planned_run(
             f"execution_plan run {planned_id} timeout_seconds",
             positive=True,
         )
-        if planned_timeout > wall_clock_limit:
+        if wall_clock_limit is not None and planned_timeout > wall_clock_limit:
             raise RecordValidationError(
                 f"execution_plan run {planned_id} timeout_seconds exceeds "
                 "budget.wall_clock_seconds_per_run"
@@ -1109,7 +1111,7 @@ def _resource_limiter(
             memory_limit = _limit_value(address_space, memory_bytes)
             resource.setrlimit(address_space, (memory_limit, memory_limit))
         cpu_resource = getattr(resource, "RLIMIT_CPU", None)
-        if cpu_resource is not None:
+        if cpu_resource is not None and math.isfinite(cpu_seconds):
             cpu_limit = _limit_value(cpu_resource, max(1, math.ceil(cpu_seconds)))
             resource.setrlimit(cpu_resource, (cpu_limit, cpu_limit))
 
@@ -1232,17 +1234,18 @@ def _kill_monitored_processes(
 
 def _wait_for_child(
     process: subprocess.Popen[Any],
-    timeout_seconds: float,
+    timeout_seconds: float | None,
     memory_bytes: int,
     cpu_seconds_limit: float,
 ) -> tuple[int, bool, bool, bool, float, int, bool, float]:
     started = time.monotonic()
     if hasattr(os, "wait4"):
-        deadline = started + timeout_seconds
+        deadline = started + timeout_seconds if timeout_seconds is not None else math.inf
         timed_out = False
         memory_killed = False
         cpu_killed = False
         observed_peak_rss = 0
+        reaped_ru_maxrss = 0
         cpu_by_process: dict[int, float] = {}
         tracked_process_ids = {process.pid}
         parent_reaped = False
@@ -1271,7 +1274,16 @@ def _wait_for_child(
                         cpu_by_process.get(process.pid, 0.0),
                         max(0.0, usage.ru_utime + usage.ru_stime),
                     )
-                    observed_peak_rss = max(observed_peak_rss, _max_rss_bytes(usage))
+                    # ru_maxrss from a forked child includes the parent's
+                    # pre-exec RSS on Linux (fork() copies it before exec()
+                    # overwrites the image), so it is not a reliable peak for
+                    # a *small* child launched from a *large* parent. The
+                    # /proc-sampled `current_rss` above already observes the
+                    # post-exec child directly and is what memory decisions
+                    # are based on; ru_maxrss is kept only as an
+                    # informational upper bound, never folded into
+                    # observed_peak_rss. See issue #702.
+                    reaped_ru_maxrss = _max_rss_bytes(usage)
                     return_code = os.waitstatus_to_exitcode(wait_status)
                     process.returncode = return_code
 
@@ -1314,7 +1326,11 @@ def _wait_for_child(
                         cpu_by_process.get(process.pid, 0.0),
                         max(0.0, usage.ru_utime + usage.ru_stime),
                     )
-                    observed_peak_rss = max(observed_peak_rss, _max_rss_bytes(usage))
+                    # Informational only — see the comment on the matching
+                    # reap above (issue #702): a forked child's ru_maxrss can
+                    # read back the parent's pre-exec RSS, so it must never
+                    # feed observed_peak_rss / the memory-limit decision.
+                    reaped_ru_maxrss = _max_rss_bytes(usage)
                     return_code = os.waitstatus_to_exitcode(wait_status)
                     process.returncode = return_code
                     parent_reaped = True
@@ -1362,7 +1378,7 @@ def _wait_for_child(
 def _run_child(
     command: list[str],
     cwd: Path,
-    timeout_seconds: float,
+    timeout_seconds: float | None,
     memory_bytes: int,
     cpu_seconds: float,
     stdout_path: Path,
@@ -1540,13 +1556,20 @@ def run_experiment(
     canonical_json_bytes(parameters)
 
     budget = experiment["budget"]
-    wall_clock_limit = _finite_number(
-        budget["wall_clock_seconds_per_run"],
-        "budget.wall_clock_seconds_per_run",
-        positive=True,
+    try:
+        enforce_budget = enforce_research_budget(
+            budget, repo_root=repo_root, target_id=experiment["id"])
+    except ValueError as exc:
+        raise RecordValidationError(str(exc)) from exc
+    wall_clock_limit = (
+        _finite_number(budget["wall_clock_seconds_per_run"],
+                       "budget.wall_clock_seconds_per_run", positive=True)
+        if enforce_budget else None
     )
-    total_cpu_seconds = 3600 * _finite_number(
-        budget["total_cpu_hours"], "budget.total_cpu_hours", positive=True
+    total_cpu_seconds = (
+        3600 * _finite_number(budget["total_cpu_hours"],
+                             "budget.total_cpu_hours", positive=True)
+        if enforce_budget else math.inf
     )
     maximum_memory_gb = _finite_number(
         budget["maximum_memory_gb"], "budget.maximum_memory_gb", positive=True
@@ -1600,7 +1623,7 @@ def run_experiment(
         effective_timeout = _finite_number(
             timeout_seconds, "caller timeout_seconds", positive=True
         )
-        if effective_timeout > wall_clock_limit:
+        if wall_clock_limit is not None and effective_timeout > wall_clock_limit:
             raise RecordValidationError(
                 "caller timeout_seconds exceeds budget.wall_clock_seconds_per_run"
             )
@@ -1621,7 +1644,7 @@ def run_experiment(
                 "existing runs are absent from execution_plan: " + ", ".join(unplanned)
             )
     maximum_runs = budget["maximum_runs"]
-    if len(existing_runs) >= maximum_runs:
+    if maximum_runs == 0 or (enforce_budget and maximum_runs is not None and len(existing_runs) >= maximum_runs):
         raise RecordValidationError(
             f"budget.maximum_runs exhausted: {len(existing_runs)} of {maximum_runs}"
         )
@@ -1667,7 +1690,7 @@ def run_experiment(
     runs_dir.mkdir(parents=True, exist_ok=True)
     temp_dir = Path(tempfile.mkdtemp(prefix=f".{run_id}.", dir=runs_dir))
     run_directories = [path for path in runs_dir.iterdir() if path.is_dir()]
-    if len(run_directories) > maximum_runs:
+    if enforce_budget and maximum_runs is not None and len(run_directories) > maximum_runs:
         shutil.rmtree(temp_dir)
         raise RecordValidationError("budget.maximum_runs exhausted during launch reservation")
     competing_runs = [
@@ -1708,11 +1731,16 @@ def run_experiment(
         total_cpu_seconds,
     )
     wall_limit_hit = (
-        child.timed_out or process_group_wall_seconds > effective_timeout
+        child.timed_out or (effective_timeout is not None and process_group_wall_seconds > effective_timeout)
     )
 
     (temp_dir / "command.txt").write_text(command_text + "\n", encoding="utf-8")
     environment = _environment()
+    environment["research_budget_policy"] = {
+        "enforcement": "stagnation" if enforce_budget else "advisory",
+        "process_watchdog_seconds": effective_timeout,
+        "cpu_accounting": "measured",
+    }
     write_json(temp_dir / "environment.json", environment)
     write_json(temp_dir / "raw-result.json", raw_result)
     _remove_appledouble(temp_dir)

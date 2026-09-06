@@ -1,0 +1,80 @@
+correction:
+  id: CORR-20260904-36de30
+  recorded_at: '2026-09-04'
+  record_type: claim
+  corrected_record: ledger/decisions/DEC-20260904-3bb7fc.yaml
+  field: rationale[5]
+  goal_id: GOAL-ECDLP-001
+  raised_by: >-
+    The independent pre-approval review of EXP-ECDLP-96b5d3 and EXP-ECDLP-7edfd3
+    commissioned after the a1c262 round failed, written to
+    coordination/reviews/approval-siblings-20260904/validation_report.yaml. Its
+    defect-class-1 finding on EXP-ECDLP-7edfd3 contradicted the bullet. The
+    orchestrating session then read the driver source directly before recording
+    this correction, rather than relaying the reviewer's verdict.
+  prior_value: >-
+    From DEC-20260904-3bb7fc rationale[5] ("EVERY CONTRACT CARRIES A NULL OBJECT
+    WITH A NAMED, REACHABLE FAILING INPUT"), the clause concerning EXP-ECDLP-7edfd3:
+    "ARM-FROZEN fails with a between/i.i.d. ratio below 1 when per-instance
+    streams collide under the driver's MASTER_SEED + STREAM_OFFSETS + bits rule."
+  corrected_value: >-
+    THAT FAILING INPUT DOES NOT EXIST. ARM-FROZEN is a sound two-sided null --
+    that part of the bullet stands -- but the collision it names is unreachable in
+    the declared instrument, so the bullet's own standard ("a NAMED, REACHABLE
+    failing input") is not met by the example it gives. The correct statement is
+    that ARM-FROZEN's null is sound and its reachable failing input is still
+    OWED: it must be re-derived against what the driver actually does, or the
+    control must be restated against a mechanism that can fail.
+  independently_verified_here: >-
+    Read out of experiments/EXP-LPF-001/implementation/lpf001_driver.py by the
+    orchestrating session, not taken from the review. At lines 194-201,
+    `draw_seed(k)` is `int(sha256(f"{self.seed}:{self.name}:{k}").hexdigest()[:16], 16)`
+    and `generator(k)` returns `np.random.default_rng(ds)` -- A FRESH GENERATOR
+    PER DRAW INDEX. There is therefore no shared generator state between draws or
+    between instances, and a seed separation of 1 already yields independent
+    streams: two instances collide only if their (seed, name, k) triples collide
+    under SHA-256, which is not a reachable input. The bullet described a stream
+    architecture the driver does not have.
+    Separately confirmed at line 621ff: `CalibrationCell.__init__(self, bits)`
+    takes no seed and calls `generate_instance(MASTER_SEED, bits)`, so the
+    contract's "varies only the instance seed" is additionally not implementable
+    through that class as written. That is a defect in the contract, recorded
+    here only because it bears on the same bullet; it is the reviewer's finding
+    to carry, not this correction's to resolve.
+  what_is_not_corrected:
+    - >-
+      THE DECISION ITSELF IS NOT REOPENED AND NOT REVERSED. DEC-20260904-3bb7fc
+      remains a `revise` design decision that approved nothing. Its three
+      contracts were and remain status review_required with approved_by null.
+      This corrects one clause of one rationale bullet.
+    - >-
+      THE OTHER TWO EXAMPLES IN THE SAME BULLET ARE NOT CORRECTED HERE. The
+      REF-SHIFT clause was already superseded on other grounds by the a1c262
+      review and its revision (DEC-20260904-973746); the Z/N agreement-null
+      clause is disputed by the same siblings review on a different ground (that
+      the control's expected outcome is AGREEMENT, so it is an implementation-cheat
+      detector rather than a null object) and that dispute is a matter for the
+      coordinator decision that acts on the review, not for this record.
+    - >-
+      NO MATHEMATICAL CLAIM IS AFFECTED. No run exists against any of the three
+      contracts, no evidence record cites this bullet, no hypothesis status
+      depends on it, and no band, ratio or exponent is asserted or withdrawn.
+  consequences:
+    - >-
+      EXP-ECDLP-7edfd3 MAY NOT BE APPROVED ON THE STRENGTH OF THIS BULLET. Its
+      null-object requirement is unmet until a reachable failing input is named
+      against the instrument as it exists.
+    - >-
+      THE BULLET WAS PROPAGATED BEFORE IT WAS CHECKED. The orchestrating session
+      repeated the ARM-FROZEN clause in the body of pull request #737 when
+      describing DEC-20260904-3bb7fc. That text is published and is not editable
+      into truth by this record; this correction is the citable statement that
+      the clause is wrong, and any later reader of that PR body should be brought
+      here.
+    - >-
+      THE GENERAL LESSON IS THE SAME ONE THE a1c262 ROUND FOUND, IN A SECOND
+      PLACE: a control is only as good as the reachability of the input that
+      makes it fire, and asserting reachability from a plausible mental model of
+      an instrument -- rather than from its source -- produces a control that
+      cannot fail while reading as though it can. Both instances were found by
+      independent review, not by the designing session.

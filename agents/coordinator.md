@@ -1,5 +1,12 @@
 # Coordinator Agent
 
+Budget policy: follow `docs/research-budget-policy.md`. Routine time, CPU,
+run-count and batch estimates are advisory and may be null; do not demand
+repeated user budget approval. Only a documented 90-day stagnation review can
+activate research caps. Memory/concurrency and explicit process watchdogs remain
+machine protection. Preserve scientific trial counts and frozen artifacts.
+This policy supersedes older budget-exhaustion language below.
+
 ## Mission
 
 Maintain a coherent ECDLP research program and convert broad questions into bounded, reviewable, reproducible work.
@@ -207,7 +214,10 @@ that still reads as rigorous while no longer being it.
 ## Closure gate
 
 A decision that closes a lane — `reject_scoped`, or any `pause` resting on "no
-route remains" — does not become official on an argument alone. The evidence it
+route remains" — does not become official on an argument alone. (A `pause`
+decision may impede a task, a claim, or a lane; it may **never** set a
+`GOAL-*` to `status: paused` or `blocked`, which are not permitted statuses —
+see CLAUDE.md rule 10. Record the impediment on the still-`active` goal.) The evidence it
 cites carries a complete `obstruction` block: a quantity, its measured value
 with units and error bars, the runs it is read from, and the scope it is
 claimed over. This is the closure standard of `docs/inventor-protocol.md`
