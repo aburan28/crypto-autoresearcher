@@ -27,7 +27,7 @@ from typing import Any
 
 import yaml
 
-from . import scan
+from . import gitdates, scan
 from .scan import RECORD_ID_RE, STRUCTURED, RawRecord, id_area, id_kind
 
 # The lifecycle order records are presented in, everywhere. Not alphabetical:
@@ -135,6 +135,7 @@ class Record:
     size: int = 0
 
     def summary(self, index: "ResearchIndex") -> dict[str, Any]:
+        committed, last_commit = index.git.of(self.path)
         return {
             "id": self.record_id,
             "kind": self.kind,
@@ -146,6 +147,11 @@ class Record:
             "ecc": self.area in index.ecc_areas if self.area else False,
             "refs": len(self.refs),
             "backlinks": len(index.backlinks.get(self.record_id, ())),
+            # Observed, not declared: when git first saw this file, and when
+            # it last changed. Equal for an immutable record; different means
+            # it was amended in place, which is worth seeing.
+            "committed": committed,
+            "last_commit": last_commit,
         }
 
 
@@ -184,7 +190,29 @@ class Experiment:
     question_id: str
     frozen: str
     execution_authorized: str
-    runs: list[dict[str, str]] = field(default_factory=list)
+    # Which file states the contract, or "" for a directory that holds runs
+    # and no contract at all. Shown, not silently normalised: an experiment
+    # whose protocol was never committed in a machine-readable form is a
+    # fact about the corpus.
+    contract: str = ""
+    # Dates. `dated` is the contract's own assertion (approved_at, frozen_at,
+    # ...) and `date_field` names which one it came from, because "approved
+    # 2026-08-04" and "recorded 2026-08-04" are different facts. `committed`
+    # is what git observed and is never mixed with them.
+    dated: str = ""
+    date_field: str = ""
+    committed: int | None = None
+    last_commit: int | None = None
+    runs: list[dict[str, Any]] = field(default_factory=list)
+
+    @property
+    def run_span(self) -> tuple[int | None, int | None]:
+        """Earliest and latest moment any of this contract's runs is known at."""
+        stamps = [t for run in self.runs
+                  for t in (run.get("started_epoch"), run.get("finished_epoch"),
+                            run.get("committed"))
+                  if t]
+        return (min(stamps), max(stamps)) if stamps else (None, None)
 
 
 # ---------------------------------------------------------------------------
@@ -480,6 +508,7 @@ class ResearchIndex:
         self.obstructions: list[Obstruction] = []
         self.ecc_areas: set[str] = set()
         self.ecc_error: str | None = None
+        self.git = gitdates.GitDates()
         self.integrity: dict[str, list] = {}
         self.built_at: float = 0.0
         self.build_seconds: float = 0.0
@@ -496,6 +525,9 @@ class ResearchIndex:
     def build(self) -> "ResearchIndex":
         started = time.time()
         self.ecc_areas, self.ecc_error = _load_ecc_policy(self.repo)
+        # One pass over history, before anything reads a path. Cheap, and
+        # the only source of time for most of this corpus.
+        self.git = gitdates.load(self.repo)
 
         raw = scan.scan_ledger(self.repo)
         raw += scan.scan_knowledge(self.repo)
@@ -545,22 +577,56 @@ class ResearchIndex:
                 "utf-8", "replace"),
             size=len(item.text),
         )
-        # A duplicated identifier keeps its first sighting; the collision is
-        # reported under integrity rather than silently resolved.
-        if record.record_id not in self.records:
+        # A duplicated identifier resolves to the CANONICAL file, and the
+        # collision is still reported under integrity.
+        #
+        # Keeping the first sighting instead meant 31 records displayed a
+        # superseded copy under `ledger/corrections/schema-supersessions/`
+        # rather than the live record, purely because that path sorts before
+        # `ledger/evidence/`. The reader saw a v2 body, and "source" linked
+        # to the correction, under the canonical identifier.
+        existing = self.records.get(record.record_id)
+        if existing is None:
             self.records[record.record_id] = record
             self.by_kind[record.kind].append(record)
+        elif _canonical_rank(record) < _canonical_rank(existing):
+            self.records[record.record_id] = record
+            bucket = self.by_kind[record.kind]
+            bucket[bucket.index(existing)] = record
 
     def _scan_experiment_specs(self) -> list[RawRecord]:
         out = []
-        base = self.repo / "experiments"
-        if not base.is_dir():
-            return out
-        for spec in sorted(base.glob("*/specification.yaml")):
+        for _, spec in self._experiment_dirs():
+            if spec is None:
+                continue
             try:
                 out.append(scan.scan_file(spec, self.repo))
             except OSError:
                 continue
+        return out
+
+    def _experiment_dirs(self) -> list[tuple[Path, Path | None]]:
+        """`(directory, contract_file_or_None)` for every experiment on disk.
+
+        Scanning `*/specification.yaml` alone missed nineteen directories --
+        some carry `specification.json`, some only an `analysis.md` and a
+        `contract.md` -- and with them 218 runs. The page then reported
+        "2,313 runs across 254 contracts" for a corpus holding 2,531 across
+        273, which is a wrong number rather than a missing one. A directory
+        that HAS RUNS is an experiment whatever shape its contract takes.
+        """
+        base = self.repo / "experiments"
+        if not base.is_dir():
+            return []
+        out = []
+        for directory in sorted(p for p in base.iterdir() if p.is_dir()):
+            spec = next((directory / name for name in CONTRACT_NAMES
+                         if (directory / name).is_file()), None)
+            if spec is None and not any(
+                    p.is_dir() and p.name[:1] not in (".", "_")
+                    for p in (directory / "runs").glob("*")):
+                continue
+            out.append((directory, spec))
         return out
 
     # -- goals ------------------------------------------------------------
@@ -679,14 +745,12 @@ class ResearchIndex:
 
     # -- experiments ------------------------------------------------------
     def _build_experiments(self) -> None:
-        base = self.repo / "experiments"
-        if not base.is_dir():
-            return
-        for spec in sorted(base.glob("*/specification.yaml")):
-            record = self.records.get(spec.parent.name)
+        for directory, spec in self._experiment_dirs():
+            record = self.records.get(directory.name)
             fields = record.fields if record else {}
+            spec_path = str((spec or directory).relative_to(self.repo))
             runs = []
-            for run_dir in sorted((spec.parent / "runs").glob("*")):
+            for run_dir in sorted((directory / "runs").glob("*")):
                 # `runs/` holds run DIRECTORIES. A `.gitkeep` placeholder is
                 # how an experiment with no runs at all is committed, and
                 # counting it as a run made 232 unexecuted contracts look
@@ -694,20 +758,88 @@ class ResearchIndex:
                 # is shared code the runs import, not a run either.
                 if not run_dir.is_dir() or run_dir.name[:1] in (".", "_"):
                     continue
-                runs.append({"id": run_dir.name, "status": _run_status(run_dir)})
+                runs.append(self._run_facts(run_dir))
+            dated = _pick_date(fields, EXPERIMENT_DATE_FIELDS)
+            # `spec_path` is the contract file, or the DIRECTORY when no
+            # machine-readable contract exists. A directory has no commit of
+            # its own, so ask for the span of everything under it.
+            committed, last_commit = (self.git.of(spec_path) if spec is not None
+                                      else self.git.dir_span(spec_path))
             self.experiments.append(Experiment(
-                record_id=spec.parent.name,
+                record_id=directory.name,
                 title=fields.get("title", ""),
                 status=fields.get("status", ""),
-                area=id_area(spec.parent.name),
-                path=str(spec.relative_to(self.repo)),
+                contract=spec.name if spec else "",
+                area=id_area(directory.name),
+                path=spec_path,
                 hypothesis_id=fields.get("hypothesis_id", ""),
                 question_id=fields.get("question_id", ""),
                 frozen=fields.get("frozen", ""),
                 execution_authorized=fields.get("execution_authorized", ""),
+                dated=dated[1],
+                date_field=dated[0],
+                committed=committed,
+                last_commit=last_commit,
                 runs=runs,
             ))
-        self.experiments.sort(key=lambda e: (not e.runs, e.record_id))
+        # Most recent activity first, where anything is known about when.
+        # An undated contract sorts last rather than first, for the reason
+        # `_neg_date` exists: undated is oldest, not newest.
+        def sort_key(e: Experiment):
+            latest = e.run_span[1] or e.committed or 0
+            return (not e.runs, -latest, e.record_id)
+        self.experiments.sort(key=sort_key)
+
+    def _run_facts(self, run_dir: Path) -> dict[str, Any]:
+        """One run: its status, and whatever is actually known about when.
+
+        A manifest records a start time for 99 of 2,531 runs here. For the
+        rest git knows when the run's artifacts were archived, which is a
+        different fact and is labelled as one -- `committed`, never
+        `started`. A run with neither reports neither.
+        """
+        facts: dict[str, Any] = {"id": run_dir.name, "status": "no-manifest"}
+        fields: dict[str, str] = {}
+        for name in MANIFEST_NAMES:
+            manifest = run_dir / name
+            if not manifest.is_file():
+                continue
+            try:
+                _, fields = scan.shallow_fields(
+                    manifest.read_text(encoding="utf-8", errors="replace"))
+            except OSError:
+                return facts | {"status": "unreadable"}
+            facts["status"] = fields.get("status", "") or "unstated"
+            break
+
+        started = _pick_date(fields, RUN_START_FIELDS)[1]
+        finished = _pick_date(fields, RUN_FINISH_FIELDS)[1]
+        duration = None
+        for key in RUN_DURATION_FIELDS:
+            value = fields.get(key, "")
+            if value and value != STRUCTURED:
+                try:
+                    duration = round(float(value), 3)
+                except ValueError:
+                    duration = None
+                if duration is not None:
+                    break
+        committed, last_commit = self.git.dir_span(str(run_dir.relative_to(self.repo)))
+        # A start and finish that both parse give a measured elapsed time,
+        # which beats a self-reported one when they disagree -- but only when
+        # both are real timestamps, never by mixing one with a commit time.
+        start_epoch, finish_epoch = _epoch(started), _epoch(finished)
+        if duration is None and start_epoch and finish_epoch and finish_epoch >= start_epoch:
+            duration = round(finish_epoch - start_epoch, 3)
+        return facts | {
+            "started": started,
+            "finished": finished,
+            "started_epoch": start_epoch,
+            "finished_epoch": finish_epoch,
+            "duration_seconds": duration,
+            "committed": committed,
+            "last_commit": last_commit,
+        }
 
     # -- findings, open problems, obstructions ------------------------------
     def _knowledge_family(self, family: str) -> list[tuple[Path, str, dict, str, str | None]]:
@@ -1041,19 +1173,84 @@ def _short_status(fields: dict[str, str], names) -> str:
 # only one of them reports live runs as having no manifest at all.
 MANIFEST_NAMES = ("manifest.yaml", "manifest.json")
 
+# What an experiment's frozen protocol is stored as, best first.
+CONTRACT_NAMES = ("specification.yaml", "specification.json")
 
-def _run_status(run_dir: Path) -> str:
-    for name in MANIFEST_NAMES:
-        manifest = run_dir / name
-        if not manifest.is_file():
-            continue
-        try:
-            _, fields = scan.shallow_fields(
-                manifest.read_text(encoding="utf-8", errors="replace"))
-        except OSError:
-            return "unreadable"
-        return fields.get("status", "") or "unstated"
-    return "no-manifest"
+# Where time is recorded, in the order it is trusted. These are the spellings
+# this corpus actually uses; a name that appears in no record is not listed,
+# and a field that is absent yields nothing rather than a guess.
+#
+# For an experiment the order matters and is not arbitrary: `approved_at` is
+# the moment the contract became executable, which is the date a reader of a
+# board is asking about. `recorded_at` and `created_at` are weaker and come
+# after, and each is reported under its own name.
+EXPERIMENT_DATE_FIELDS = (
+    "approved_at", "approved_on", "frozen_at", "frozen_on", "designed_at",
+    "recorded_at", "created_at", "authored_at", "proposed_at",
+)
+RUN_START_FIELDS = ("started_at", "start_time", "began_at", "recorded_at")
+RUN_FINISH_FIELDS = ("finished_at", "completed_at", "ended_at", "end_time")
+RUN_DURATION_FIELDS = (
+    "wall_seconds", "wall_clock_seconds", "duration_seconds", "elapsed_seconds",
+)
+
+# An ISO-8601 instant, with or without a zone. Anything else -- a prose date,
+# a range, a null -- is not a timestamp and is left alone.
+_ISO_RE = re.compile(
+    r"^(\d{4}-\d{2}-\d{2})(?:[T ](\d{2}:\d{2})(?::(\d{2}(?:\.\d+)?))?"
+    r"\s*(Z|[+-]\d{2}:?\d{2})?)?$")
+
+
+def _pick_date(fields: dict[str, str], names: tuple[str, ...]) -> tuple[str, str]:
+    """`(field_name, value)` of the first real timestamp among `names`.
+
+    The field name travels with the value because the reader needs to know
+    WHICH date they are looking at: a contract approved on a day and one
+    merely recorded on it are different facts about it.
+    """
+    for name in names:
+        value = (fields.get(name) or "").strip()
+        if value and value != STRUCTURED and _ISO_RE.match(value):
+            return name, value
+    return "", ""
+
+
+def _epoch(value: str) -> int | None:
+    """Seconds since the epoch for an ISO-8601 instant, or None.
+
+    A timestamp with no zone is read as UTC. Every zoned stamp in this corpus
+    is already UTC (`+00:00` or `Z`), so this changes no value here; it makes
+    the fallback explicit rather than machine-dependent.
+    """
+    m = _ISO_RE.match((value or "").strip())
+    if not m:
+        return None
+    from datetime import datetime, timezone
+    text = m.group(0).replace(" ", "T")
+    if text.endswith("Z"):
+        text = text[:-1] + "+00:00"
+    try:
+        parsed = datetime.fromisoformat(text)
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return int(parsed.timestamp())
+
+
+def _canonical_rank(record: Record) -> tuple[int, int, str]:
+    """How canonical a file is for the identifier it declares. Lower wins.
+
+    The strongest signal is a filename that IS the identifier: that is how
+    every live ledger record is stored, while superseding copies carry a
+    mangled name (`ledger__evidence__EV-X-1.v2.yaml`) under
+    `ledger/corrections/`. Depth breaks the remaining ties, so a record in
+    its family's own directory beats one nested in an archive.
+    """
+    path = Path(record.path)
+    named_for_itself = path.stem != record.record_id
+    archived = "corrections" in path.parts or "archives" in path.parts
+    return (int(named_for_itself) + 2 * int(archived), len(path.parts), record.path)
 
 
 def _neg_date(value: str) -> str:

@@ -382,7 +382,76 @@ def test_evidence_status_column_uses_strength(tiny_index):
 
 def test_experiment_runs_are_counted_from_manifests(tiny_index):
     experiment = next(e for e in tiny_index.experiments if e.record_id == "EXP-ECDLP-001")
-    assert experiment.runs == [{"id": "RUN-ECDLP-001-a", "status": "completed_valid"}]
+    assert [(r["id"], r["status"]) for r in experiment.runs] == [
+        ("RUN-ECDLP-001-a", "completed_valid")]
+
+
+def test_an_experiment_is_found_by_its_runs_when_its_contract_is_not_yaml(tiny_repo):
+    """Nineteen directories on the real corpus carry `specification.json` or
+    only prose, and between them 218 runs. Scanning for `specification.yaml`
+    alone reported a run total that was wrong, not merely incomplete."""
+    other = tiny_repo / "experiments" / "EXP-JSON-001"
+    (other / "runs" / "RUN-JSON-001-a").mkdir(parents=True)
+    (other / "specification.json").write_text(
+        '{"experiment": {"id": "EXP-JSON-001", "status": "approved", "title": "JSON contract"}}')
+    (other / "runs" / "RUN-JSON-001-a" / "manifest.yaml").write_text(
+        "run:\n  id: RUN-JSON-001-a\n  status: completed_valid\n")
+    prose = tiny_repo / "experiments" / "EXP-PROSE-001"
+    (prose / "runs" / "RUN-PROSE-001-a").mkdir(parents=True)
+    (prose / "contract.md").write_text("# A contract that is only prose\n")
+    (prose / "runs" / "RUN-PROSE-001-a" / "manifest.yaml").write_text(
+        "run:\n  id: RUN-PROSE-001-a\n  status: completed_valid\n")
+
+    index = ResearchIndex(tiny_repo).build()
+    by_id = {e.record_id: e for e in index.experiments}
+    assert set(by_id) == {"EXP-ECDLP-001", "EXP-JSON-001", "EXP-PROSE-001"}
+    assert by_id["EXP-JSON-001"].contract == "specification.json"
+    assert by_id["EXP-JSON-001"].title == "JSON contract"
+    # A directory with runs and no machine-readable contract is still an
+    # experiment that ran, and says so rather than vanishing.
+    assert by_id["EXP-PROSE-001"].contract == ""
+    assert [r["id"] for r in by_id["EXP-PROSE-001"].runs] == ["RUN-PROSE-001-a"]
+    assert sum(len(e.runs) for e in index.experiments) == 3
+
+
+def test_an_empty_directory_under_experiments_is_not_an_experiment(tiny_repo):
+    (tiny_repo / "experiments" / "scratch").mkdir()
+    (tiny_repo / "experiments" / "EXP-EMPTY-001" / "runs").mkdir(parents=True)
+    (tiny_repo / "experiments" / "EXP-EMPTY-001" / "runs" / ".gitkeep").write_text("")
+    index = ResearchIndex(tiny_repo).build()
+    assert [e.record_id for e in index.experiments] == ["EXP-ECDLP-001"]
+
+
+def test_a_duplicated_identifier_resolves_to_the_canonical_file(tiny_repo):
+    """A superseding copy under `ledger/corrections/` must not displace the
+    live record: 31 records on the real corpus showed a v2 body, and linked
+    "source" at the correction, purely because that path sorts first."""
+    supersession = tiny_repo / "ledger" / "corrections" / "schema-supersessions" / "20260808"
+    supersession.mkdir(parents=True)
+    (supersession / "ledger__evidence__EV-ECDLP-001.v2.yaml").write_text(
+        "evidence:\n  id: EV-ECDLP-001\n  strength: strong\n"
+        "  scope_statement: the superseding copy\n")
+    index = ResearchIndex(tiny_repo).build()
+
+    record = index.records["EV-ECDLP-001"]
+    assert record.path == "ledger/evidence/EV-ECDLP-001.yaml"
+    assert record.title == "toy scale only"              # the canonical body
+    assert record.status == "replicated"
+    # Exactly one entry in the kind bucket, not two.
+    assert [r.record_id for r in index.by_kind["EV"]].count("EV-ECDLP-001") == 1
+    # And the collision is still reported rather than silently resolved.
+    assert any(d["id"] == "EV-ECDLP-001" for d in index.integrity["duplicate_ids"])
+
+
+def test_a_correction_only_record_is_still_reachable(tiny_repo):
+    """Resolution prefers the canonical file; it does not drop a record that
+    exists ONLY as a correction copy."""
+    supersession = tiny_repo / "ledger" / "corrections" / "schema-supersessions" / "20260808"
+    supersession.mkdir(parents=True)
+    (supersession / "ledger__evidence__EV-ONLY-001.v2.yaml").write_text(
+        "evidence:\n  id: EV-ONLY-001\n  strength: moderate\n")
+    index = ResearchIndex(tiny_repo).build()
+    assert index.records["EV-ONLY-001"].path.startswith("ledger/corrections/")
 
 
 def test_a_gitkeep_placeholder_is_not_a_run(tiny_repo):
@@ -391,6 +460,47 @@ def test_a_gitkeep_placeholder_is_not_a_run(tiny_repo):
     index = ResearchIndex(tiny_repo).build()
     experiment = next(e for e in index.experiments if e.record_id == "EXP-ECDLP-001")
     assert [r["id"] for r in experiment.runs] == ["RUN-ECDLP-001-a"]
+
+
+def test_run_timing_is_read_from_the_manifest_and_measured_when_it_can_be(tiny_repo):
+    """A run that declares a start and a finish has a duration whether or not
+    it reports one; a run that declares nothing reports nothing."""
+    runs = tiny_repo / "experiments" / "EXP-ECDLP-001" / "runs"
+    (runs / "RUN-ECDLP-001-timed").mkdir()
+    (runs / "RUN-ECDLP-001-timed" / "manifest.yaml").write_text(
+        "run:\n  id: RUN-ECDLP-001-timed\n  status: completed_valid\n"
+        "  started_at: '2026-09-04T04:45:19Z'\n"
+        "  finished_at: '2026-09-04T04:50:19Z'\n")
+    (runs / "RUN-ECDLP-001-declared").mkdir()
+    (runs / "RUN-ECDLP-001-declared" / "manifest.yaml").write_text(
+        "run:\n  id: RUN-ECDLP-001-declared\n  status: completed_valid\n"
+        "  started_at: '2026-09-04T04:45:19+00:00'\n  wall_seconds: 42.5\n")
+    index = ResearchIndex(tiny_repo).build()
+    by_id = {r["id"]: r for e in index.experiments for r in e.runs}
+
+    measured = by_id["RUN-ECDLP-001-timed"]
+    assert measured["started"] == "2026-09-04T04:45:19Z"
+    assert measured["duration_seconds"] == 300.0          # measured, not declared
+    declared = by_id["RUN-ECDLP-001-declared"]
+    assert declared["duration_seconds"] == 42.5           # the manifest's own number wins
+    assert declared["finished"] == ""
+    silent = by_id["RUN-ECDLP-001-a"]
+    assert silent["started"] == "" and silent["duration_seconds"] is None
+
+
+def test_a_prose_date_is_not_read_as_a_timestamp():
+    """`approved_at: after review` is not a date, and rendering it as one
+    would put a fiction in a date column."""
+    from ui.index import _epoch, _pick_date
+    assert _pick_date({"approved_at": "after the review"}, ("approved_at",)) == ("", "")
+    assert _pick_date({"approved_at": "null"}, ("approved_at",)) == ("", "")
+    assert _pick_date({"approved_at": "2026-08-04"}, ("approved_at",)) == ("approved_at", "2026-08-04")
+    # The field NAME travels with the value: approved and merely recorded are
+    # different facts about a contract.
+    assert _pick_date({"recorded_at": "2026-08-04"},
+                      ("approved_at", "recorded_at")) == ("recorded_at", "2026-08-04")
+    assert _epoch("2026-08-04T00:00:00Z") == _epoch("2026-08-04")     # naive reads as UTC
+    assert _epoch("not a date") is None
 
 
 def test_a_json_manifest_is_read_like_a_yaml_one(tiny_repo):
@@ -836,3 +946,140 @@ def test_a_knowledge_entry_page_carries_its_body_and_front_matter(built_site):
     bare = _json(built_site / "data" / "records" / "KN-FIND-bare01.json")
     assert bare["verified"] is False and bare["parse_error"] == "no front matter"
     assert bare["markdown"].startswith("# A bare finding")
+
+
+# ---------------------------------------------------------------------------
+# Commit dates. Most of this corpus declares no date, so git supplies one --
+# but only when history is really there to read.
+# ---------------------------------------------------------------------------
+
+from ui import gitdates                                  # noqa: E402
+
+
+def _epoch_of(iso: str) -> int:
+    from datetime import datetime
+    return int(datetime.fromisoformat(iso.replace("Z", "+00:00")).timestamp())
+
+
+def _git(repo: Path, *args: str, when: str | None = None) -> None:
+    """Run git, optionally pinning the commit's time.
+
+    Both dates are pinned: `ui/gitdates.py` reads the COMMITTER date (`%ct`),
+    which is when a commit landed in this history -- stable here because
+    `main` takes merge commits and never squashes (CLAUDE.md). Setting only
+    `--date`, the author date, leaves the committer date at "now" and every
+    fixture commit lands in the same second.
+    """
+    import os
+    import subprocess
+    env = dict(os.environ)
+    if when:
+        env["GIT_COMMITTER_DATE"] = when
+        env["GIT_AUTHOR_DATE"] = when
+    subprocess.run(["git", "-C", str(repo), *args], check=True,
+                   capture_output=True, text=True, env=env)
+
+
+@pytest.fixture()
+def git_repo(tiny_repo: Path) -> Path:
+    import subprocess
+    if subprocess.run(["git", "--version"], capture_output=True).returncode != 0:
+        pytest.skip("git is unavailable")
+    _git(tiny_repo, "init", "-q", "-b", "main")
+    _git(tiny_repo, "config", "user.email", "t@example.invalid")
+    _git(tiny_repo, "config", "user.name", "Test")
+    _git(tiny_repo, "add", "-A")
+    _git(tiny_repo, "commit", "-q", "-m", "first", when="2026-08-01T10:00:00Z")
+    (tiny_repo / "ledger" / "evidence" / "EV-ECDLP-002.yaml").write_text(
+        "evidence:\n  id: EV-ECDLP-002\n  strength: strong\n")
+    _git(tiny_repo, "add", "-A")
+    _git(tiny_repo, "commit", "-q", "-m", "second", when="2026-08-05T10:00:00Z")
+    return tiny_repo
+
+
+def test_commit_dates_are_read_from_history(git_repo):
+    dates = gitdates.load(git_repo)
+    assert dates.available and dates.error is None
+    first, last = dates.of("ledger/evidence/EV-ECDLP-001.yaml")
+    added, _ = dates.of("ledger/evidence/EV-ECDLP-002.yaml")
+    assert first and last and added
+    # Exact instants, so a drifting clock cannot make this pass by accident.
+    assert first == last == _epoch_of("2026-08-01T10:00:00Z")
+    assert added == _epoch_of("2026-08-05T10:00:00Z")
+    assert dates.of("ledger/evidence/does-not-exist.yaml") == (None, None)
+
+
+def test_an_amended_record_shows_a_later_last_commit_than_its_first(git_repo):
+    """Records are immutable, so first and last are usually equal. When they
+    differ the file was changed in place, and the page says so."""
+    goal = git_repo / "ledger" / "goals" / "GOAL-ECDLP-001.yaml"
+    goal.write_text(goal.read_text() + "  updated_at: '2026-08-09'\n")
+    _git(git_repo, "add", "-A")
+    _git(git_repo, "commit", "-q", "-m", "third", when="2026-08-09T10:00:00Z")
+    dates = gitdates.load(git_repo)
+    first, last = dates.of("ledger/goals/GOAL-ECDLP-001.yaml")
+    assert first == _epoch_of("2026-08-01T10:00:00Z")
+    assert last == _epoch_of("2026-08-09T10:00:00Z")
+
+
+def test_a_directory_span_covers_everything_under_it(git_repo):
+    """A run is a directory of artifacts, so its arrival is the first commit
+    touching any of them."""
+    dates = gitdates.load(git_repo)
+    first, last = dates.dir_span("experiments/EXP-ECDLP-001/runs/RUN-ECDLP-001-a")
+    assert first and last
+    assert first == dates.of("experiments/EXP-ECDLP-001/runs/RUN-ECDLP-001-a/manifest.yaml")[0]
+
+
+def test_a_shallow_clone_yields_no_dates_rather_than_identical_ones(git_repo, tmp_path):
+    """The failure this guards is not a missing value but a WRONG one: under
+    a depth-1 checkout every record reports the same commit time, and that
+    looks entirely plausible on a page."""
+    shallow = tmp_path / "shallow"
+    _git(git_repo, "clone", "-q", "--depth", "1", f"file://{git_repo}", str(shallow))
+    dates = gitdates.load(shallow)
+    assert dates.available is False
+    assert "shallow" in (dates.error or "")
+    assert dates.of("ledger/evidence/EV-ECDLP-001.yaml") == (None, None)
+
+
+def test_a_contract_less_experiment_is_dated_by_its_directory(git_repo):
+    """Its `path` is a directory, which has no commit of its own: the date
+    has to come from the span of everything under it."""
+    prose = git_repo / "experiments" / "EXP-PROSE-001"
+    (prose / "runs" / "RUN-PROSE-001-a").mkdir(parents=True)
+    (prose / "runs" / "RUN-PROSE-001-a" / "manifest.yaml").write_text(
+        "run:\n  id: RUN-PROSE-001-a\n  status: completed_valid\n")
+    _git(git_repo, "add", "-A")
+    _git(git_repo, "commit", "-q", "-m", "prose experiment", when="2026-08-07T10:00:00Z")
+
+    index = ResearchIndex(git_repo).build()
+    experiment = next(e for e in index.experiments if e.record_id == "EXP-PROSE-001")
+    assert experiment.contract == ""
+    assert experiment.committed == _epoch_of("2026-08-07T10:00:00Z")
+
+
+def test_a_directory_that_is_not_a_repository_reports_why(tiny_repo):
+    dates = gitdates.load(tiny_repo)
+    assert dates.available is False and dates.error
+    assert dates.of("anything") == (None, None)
+
+
+def test_experiments_payload_separates_declared_dates_from_observed_ones(tiny_index):
+    payload = payloads.experiments_payload(tiny_index)
+    row = payload["experiments"][0]
+    assert row["id"] == "EXP-ECDLP-001"
+    assert row["dated"] == "" and row["date_field"] == ""   # this contract declares none
+    timing = payload["timing"]
+    assert timing["runs"] == 1 and timing["experiments"] == 1
+    assert timing["runs_with_declared_start"] == 0
+    # The fixture is not a git repository, so the honest answer is "no dates".
+    assert timing["git"]["available"] is False and timing["git"]["error"]
+
+
+def test_the_build_reports_whether_commit_dates_were_available(built_site):
+    meta = _json(built_site / "data" / "meta.json")
+    assert "git" in meta and "available" in meta["git"]
+    experiments = _json(built_site / "data" / "experiments.json")
+    assert "timing" in experiments
+    assert experiments["timing"]["git"]["available"] == meta["git"]["available"]
