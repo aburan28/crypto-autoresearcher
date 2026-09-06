@@ -3,14 +3,15 @@ name: crypto-autoresearcher-harness
 description: >-
   Run, resume, or inspect a Crypto Autoresearcher ECDLP research campaign.
   Use when the user asks to run the harness, continue a GOAL-*, inspect
-  research status, execute an approved dispatch task, or start a new
-  evidence-gated research workflow.
-compatibility: Requires a checkout of the Crypto Autoresearcher repository and Python 3.11+.
+  research status, generate ideas, design experiments, execute a dispatch task,
+  or keep the full research harness making progress.
 metadata:
   openai/plugin: crypto-autoresearcher-harness
 ---
 
 # Crypto Autoresearcher Harness
+
+Requires a Crypto Autoresearcher checkout and Python 3.11+.
 
 Budget policy: follow `docs/research-budget-policy.md`. Routine time, CPU,
 run-count and batch estimates are advisory and may be null; do not demand
@@ -100,19 +101,31 @@ mismatch means the configured endpoint belongs to another checkout or process;
 do not use it for this task. The binding prevents accidental cross-checkout
 mixing but is not authentication and does not make peer data authoritative.
 
-## 3. Route the user's request
+## 3. Select a mode and follow its shared procedure
 
-| User intent | Required behavior |
+State the mode once. Preserve it across checkpoints and user status questions;
+a later "continue" resumes the recorded scope and next_action.
+
+| Request | Mode and boundary |
 | --- | --- |
-| `status`, `doctor`, or a general orientation request | Stay read-only. Run the preflight/status checks and summarize active goals, blockers, and next actions. |
-| `continue` or `resume` with a `GOAL-*` | Reuse only an active goal that matches the request. Render and validate its declared dispatch queue; resume from its recorded `next_action`. |
-| Run a named task or experiment | Verify that the task has an approved handoff, an exclusive write scope, a budget, stopping rules, and all completed dependencies. The Executor records observations only. |
-| Start a new experiment | Require a Coordinator-approved, frozen protocol with controls, metrics, budgets, stopping rules, and artifact paths before implementation begins. |
-| Start a new goal | Do this only when the user explicitly asks for a new campaign. The Coordinator must create the goal and bounded first batch through the repository templates and archival process. |
-| Ask for a conclusion, promotion, closure, or breakthrough claim | Require the independent reviews and promotion gates specified in `AGENTS.md`. A claimed breakthrough, closure, or contradiction requires an independent `review-breakthrough` review at `max`; it may not be degraded. |
+| Status, doctor, orientation | **status**: read-only preflight and status; use goal_portfolio_health.py --no-deepen. Report without claims, records, fetches or dispatch. |
+| Generate ideas / design experiments | **ideas/design**: read [intake](references/intake.md); archive and publish the requested proposals/designs, then stop unless execution was requested. |
+| Run/continue a named GOAL-* | **goal**: read [lifecycle](references/lifecycle.md); continue batches for that exact goal through approval, execution, review and archival. |
+| Run the harness / keep running, with no named goal | **portfolio**: read [lifecycle](references/lifecycle.md); work ranked active goals, ECC first, and move to the next when one is terminal or impeded. |
+| Run a named TASK-* or EXP-* | **task**: follow the lifecycle gates for that task and required archives/reviews; stop at that requested boundary. |
+| Start a new campaign | Create a goal only on this explicit request, then use goal mode. |
+| Conclusion, promotion, closure or breakthrough | Arrange the Coordinator and independent claim-tier review required by AGENTS.md; never infer approval from the request itself. |
 
-Never silently resume a paused or completed goal. Never turn an empty queue,
-run crash, timeout, or missing backend into a research conclusion.
+A completed batch is a checkpoint in goal/portfolio mode. Continue authorized
+work without asking again; see the lifecycle for terminal and operational exits.
+Do not reopen a terminal goal or silently substitute a different named goal.
+Impeded goals stay active. Empty queues and infrastructure failures are not
+research conclusions.
+
+The old launch-research-harness and coordinate-research-goal commands are
+compatibility aliases for this procedure. Their presence does not create a
+second workflow. Stage skills are implementation references, not additional
+front doors the user must know.
 
 If an expired claim has no inspectable runtime binding, follow
 `docs/isolated-task-recovery.md`: one bounded assessment, then an explicit
@@ -151,17 +164,24 @@ independent review, then a Coordinator-only ledger archive before a state
 transition. Use merges, never rebases, for branches carrying pushed research
 records. Do not manufacture a new task merely to fill capacity.
 
-## 5. Report a bounded, evidence-backed checkpoint
+## 5. Make progress visible, then continue within mode
 
-After a status check or completed batch, report:
+Read [progress](references/progress.md) and use the bundled read-only
+checkpoint.py for verified queue observations. After a status check or
+completed batch, report:
 
 1. The goal/task ID and its actual status.
 2. Commands/checks run and their outcome.
 3. Completed task IDs and verified archive commits, when they exist.
 4. Evidence and decision IDs, with the exact claim boundary.
 5. Any independent review still required.
-6. The single recorded next action, or a precise operational blocker and what
-   would clear it.
+6. What changed since the last checkpoint; owners of current work.
+7. The single recorded next action and responsible role, or a precise
+   operational impediment, its recheck, and what would clear it.
+8. The lane, queue path, branch and PR that another session must resume.
+
+A checkpoint does not end an authorized goal/portfolio loop. Resume the shared
+lifecycle; do not confuse a session ending with a campaign completing.
 
 Do not call an idea, a passing unit test, a snapshot, or a single toy run a
 cryptanalytic advance.

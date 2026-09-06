@@ -97,6 +97,12 @@ def main() -> int:
         [sys.executable, "tools/check_runtime_bindings.py"],
         "runtime authority bindings",
     )
+    passed &= _run(
+        repo,
+        [sys.executable, str(Path(__file__).resolve().with_name("entrypoints.py")),
+         "--repo", str(repo), "--check"],
+        "canonical harness entry points",
+    )
     if args.doctor:
         passed &= _run(
             repo,
