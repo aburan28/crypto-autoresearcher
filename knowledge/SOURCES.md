@@ -25,13 +25,13 @@ a hash it cannot is an assertion by the session that recorded it.
 | — present but carrying no `.sha256` | 1 |
 | — sought and never retrieved | 1 |
 | Seed bibliography entries | 10 |
-| Literature entries (`KN-LIT-*`) | 7866 |
+| Literature entries (`KN-LIT-*`) | 7868 |
 | — with a resolvable external identifier | 2256 |
-| — with no identifier recorded | 5610 |
+| — with no identifier recorded | 5612 |
 
 Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1326, doi 150, eprint 744, url 36. Every identifier an entry carries is kept in `sources.json`.
 
-`citation_verified` distribution: `False` 22, `True` 10, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `metadata` 1, `partial` 5, `read` 7492, `secondary_only` 1, `transcription_of_full_text_at_recorded_sha256` 2, `web` 326.
+`citation_verified` distribution: `False` 22, `True` 10, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `metadata` 1, `partial` 5, `read` 7494, `secondary_only` 1, `transcription_of_full_text_at_recorded_sha256` 2, `web` 326.
 
 ## 1. Frozen source packages
 
@@ -112,7 +112,7 @@ records that some fetch failed, and says nothing about the file that is here.
 
 ## 5. Literature citations with a resolvable identifier
 
-2256 of 7866 `KN-LIT-*` entries carry an
+2256 of 7868 `KN-LIT-*` entries carry an
 eprint, arXiv, DOI, ISBN or URL identifier.
 
 | ID | Title | Year | Identifier | Verified |
@@ -2376,7 +2376,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 
 ## 6. Literature citations with no recorded identifier
 
-5610 entries name a source this index cannot resolve to a
+5612 entries name a source this index cannot resolve to a
 retrievable location. They are listed, not dropped and not backfilled by
 guesswork (AGENTS.md rule 5): closing a row means finding the identifier
 and editing the entry, after which this table shrinks on its own.
@@ -7982,12 +7982,14 @@ and editing the entry, after which this table shrinks on its own.
 | KN-LIT-7f6a8b | Introduction to the higher dimensional setting / Isogeny Computations in Higher Dimensions (ECC 2024 autumn school and workshop) | 2024 | ECC 2024 autumn school (29 October 2024) and ECC 2024 workshop (30 October 2024), Inria / IMB, Bordeaux (lecture slides and handout) | read |
 | KN-LIT-80f208 | Explicit bounds for generic decoding algorithms for code-based cryptography | 2009 | WCC | false |
 | KN-LIT-8ce0b5 | Rank Bounds for NTT Twiddle-Factor Fault Attacks on ML-DSA (Lean 4 Machine-Checked) | 2026 | IACR ePrint 2026/1188 | partial |
+| KN-LIT-8d3618 | On Memory Effects in PWXL variants | 2026 | Cryptology ePrint Archive (note dated 2026-08-02); ePrint number inferred from filename, unconfirmed | read |
 | KN-LIT-91b680 | A Survey of Chosen-Prefix Collision Attacks | 2021 | chapter in Computational Cryptography, CUP (revised form) | read |
 | KN-LIT-93e8d7 | Error-correcting coding for digital communication | 1981 | book | false |
 | KN-LIT-a45b7b | Index Calculus in Class Groups of Plane Curves of Small Degree | 2007 | 11th Workshop on Elliptic Curve Cryptography (ECC 2007), Dublin (talk slides) | read |
 | KN-LIT-a4d0f1 | Elliptic and hyperelliptic curves with weak coverings against Weil descent attack | 2007 | 11th Workshop on Elliptic Curve Cryptography (ECC 2007), Dublin (talk slides) | read |
 | KN-LIT-b875db | Solving the Shortest Vector Problem in 2^{0.7314n+o(n)} Time via Discrete Gaussian Sampling on Superlattices | 2026 | Preprint (unrefereed; no venue, ePrint number, or DOI stated in the supplied text) | full_text_supplied |
 | KN-LIT-b9bba7 | Practical key recovery attacks on two McEliece variants | 2010 | SCC | false |
+| KN-LIT-bbc179 | Blood MERIDIAN: a blockcipher that is not a blockcipher | 2026 | Cryptology ePrint Archive (note dated 2026-08-27); ePrint number inferred from filename, unconfirmed | read |
 | KN-LIT-be0bfd | The Matrix Reloaded: Multiplication Strategies in FrodoKEM | 2021 | Proceedings of the 20th International Conference on Cryptology and Network Security (CANS 2021) | read |
 | KN-LIT-d1a453 | Recognizing the structure of permuted reducible codes | 2007 | WCC | false |
 | KN-LIT-f37d84 | Definite Orthogonal Modular Forms: Computations, Excursions, and Discoveries | 2026 | ANTS-XV proceedings (preprint form in downloads) | read |
