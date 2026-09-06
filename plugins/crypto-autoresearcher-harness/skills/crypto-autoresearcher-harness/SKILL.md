@@ -12,6 +12,13 @@ metadata:
 
 # Crypto Autoresearcher Harness
 
+Budget policy: follow `docs/research-budget-policy.md`. Routine time, CPU,
+run-count and batch estimates are advisory and may be null; do not demand
+repeated user budget approval. Only a documented 90-day stagnation review can
+activate research caps. Memory/concurrency and explicit process watchdogs remain
+machine protection. Preserve scientific trial counts and frozen artifacts.
+This policy supersedes older budget-exhaustion language below.
+
 This is a portable front door, not a second research harness. The repository's
 committed contracts remain the source of truth:
 

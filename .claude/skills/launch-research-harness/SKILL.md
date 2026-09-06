@@ -9,6 +9,13 @@ description: >-
 
 # Launch research harness
 
+Budget policy: follow `docs/research-budget-policy.md`. Routine time, CPU,
+run-count and batch estimates are advisory and may be null; do not demand
+repeated user budget approval. Only a documented 90-day stagnation review can
+activate research caps. Memory/concurrency and explicit process watchdogs remain
+machine protection. Preserve scientific trial counts and frozen artifacts.
+This policy supersedes older budget-exhaustion language below.
+
 Entry point for starting or resuming a persistent `GOAL-*` campaign. This skill
 selects the goal and binds committed state; the continuous batch loop is
 `/coordinate-research-goal`.
@@ -220,20 +227,10 @@ Confirm before dispatching workers:
 
 - Goal record is committed (or about to ride a Coordinator snapshot).
 - `dispatch_queue_path` exists and queue top-level `goal_id` matches.
-- Campaign budget still allows another batch. **ECC goals have an UNLIMITED
-  budget** — `maximum_batches` and `total_wall_clock_seconds` are `null` and a
-  finite value is a validation error, so this check is a no-op for them. It
-  still binds for non-ECC goals. Unlimited removes the batch ceiling, NOT the
-  duty to rank: never dispatch a task you cannot rank ahead of doing nothing,
-  and `max_concurrent` stays bounded by real machine headroom. Fields
-  (`maximum_batches`,
-  `total_wall_clock_seconds`, and `max_concurrent` sized to what the
-  environment can run without degrading — see "Concurrency" below). An
-  exhausted budget stops *this campaign's spending*, not the harness and not
-  the goal: record a budget impediment, leave the goal `active`, and move to
-  the next one via step 9. Never quietly raise a budget to keep a campaign
-  running — a budget extension is a Coordinator decision with a recorded
-  rationale, and "goals are never paused" is not licence to spend past one.
+- Routine time/CPU/batch estimates never block dispatch. Only an explicit
+  restriction passing the 90-day stagnation-review policy limits research
+  spending. ECC campaign budgets remain null. Rank useful work and size
+  concurrency to actual machine headroom; do not request routine budget renewals.
 - `next_action` is concrete; empty queue alone does not complete the goal.
 - `goal_lanes.py lanes <GOAL>` and `goal_lanes.py claims <queue>` (after
   `git fetch`) show which batches are open elsewhere and which tasks are
