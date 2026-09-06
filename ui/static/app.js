@@ -574,6 +574,15 @@ function choiceChips(options, current, onPick) {
 const kv = (key, value) => h('div', { style: 'display:contents' },
   h('dt', {}, key), h('dd', {}, value));
 
+/** A phone shows a summary line; a wide screen shows the block open. The
+ *  reader can toggle either. `note` is a short count or hint after the label. */
+const NARROW = matchMedia('(max-width: 820px)');
+function fold(label, body, { cls = 'panel', note = null, open = !NARROW.matches } = {}) {
+  return h('details', { class: `fold ${cls}`, open },
+    h('summary', {}, h('span', {}, label), note ? h('span', { class: 'n' }, note) : null),
+    h('div', { class: 'fold-body' }, body));
+}
+
 // ---------------------------------------------------------------------------
 // Markdown. Knowledge entries are markdown and the entry IS the content, so
 // the page renders it. Small on purpose: headings, paragraphs, lists, quotes,
@@ -694,9 +703,9 @@ function mdLink(label, href) {
 function mdTable(rows) {
   const cells = (row) => row.trim().replace(/^\||\|$/g, '').split('|').map((c) => c.trim());
   const [head, , ...body] = rows;
-  return h('table', {},
+  return h('div', { class: 'scroll-x' }, h('table', {},
     h('thead', {}, h('tr', {}, cells(head).map((c) => h('th', {}, mdInline(c))))),
-    h('tbody', {}, body.map((r) => h('tr', {}, cells(r).map((c) => h('td', {}, mdInline(c)))))));
+    h('tbody', {}, body.map((r) => h('tr', {}, cells(r).map((c) => h('td', {}, mdInline(c))))))));
 }
 
 // ---------------------------------------------------------------------------
@@ -1059,9 +1068,8 @@ async function viewFindings(params) {
       label, ' ', h('span', { class: 'n' }, count(d).toLocaleString()))));
 
   const docs = sourceUrl('docs/claims-and-verification.md');
-  const intro = h('div', { class: 'banner info' }, h('div', {},
+  const intro = fold(h('b', {}, 'What counts as a finding here'), h('div', {},
     h('div', {},
-      h('b', {}, 'What counts as a finding here. '),
       'A result is promoted from an evidence record into ', h('code', {}, 'knowledge/findings/'),
       ' by a Coordinator decision, and carries the proof status and claim tier of the evidence it rests on — never more',
       docs ? [' (', h('a', { href: docs, target: '_blank', rel: 'noreferrer' }, 'claims and verification'), ')'] : null,
@@ -1070,7 +1078,8 @@ async function viewFindings(params) {
       'Proof status: ', proofTag('certificate'), ' an explicit instance re-checked by independent code · ',
       proofTag('derivation'), ' a written, step-checkable argument · ',
       proofTag('empirical_only'), ' replicated observations only. ',
-      'Each card also says what the entry does ', h('b', {}, 'not'), ' claim, in its own words.')));
+      'Each card also says what the entry does ', h('b', {}, 'not'), ' claim, in its own words.')),
+    { cls: 'banner info' });
 
   const body = ({
     findings: findingsTab, areas: directionsTab, verdicts: verdictsTab, evidence: evidenceTab,
@@ -1093,7 +1102,7 @@ function findingsTab(d, params) {
   const summary = h('div', { class: 'faint mono' });
   const byArea = new Map(d.directions.map((r) => [r.area, r]));
   const cardGrid = (items) => h('div', { class: 'grid',
-    style: 'grid-template-columns:repeat(auto-fill,minmax(340px,1fr))' }, items.map(findingCard));
+    style: 'grid-template-columns:repeat(auto-fill,minmax(min(340px,100%),1fr))' }, items.map(findingCard));
 
   /** Findings under the area they are filed in, with the goals of that
    *  area beside the heading — so a reader sees which campaign produced
@@ -1162,7 +1171,7 @@ function findingsTab(d, params) {
   const counts = d.counts;
   const tiers = Object.entries(counts.by_claim_tier).filter(([k]) => k !== '(unstated)');
 
-  const facets = h('section', { class: 'panel' }, h('div', { class: 'panel-body stack', style: 'gap:10px' },
+  const facets = fold('Filters', h('div', { class: 'panel-body stack', style: 'gap:10px' },
     h('div', { class: 'stack', style: 'gap:6px' }, kicker('status'),
       choiceChips([
         ['current', `current ${counts.current}`],
@@ -1178,7 +1187,8 @@ function findingsTab(d, params) {
     facetRow('area named', [{ key: 'ECC', count: eccCount, title: 'any ECC area' }, ...areas],
       (k) => f.area.has(k), toggle('area'),
       (i) => h('span', {}, i.key === 'ECC' || state.meta.ecc_areas.includes(i.key)
-        ? h('span', { class: 'tag acc', style: 'margin-right:4px' }, 'ECC') : null, `${i.key} ${i.count}`))));
+        ? h('span', { class: 'tag acc', style: 'margin-right:4px' }, 'ECC') : null, `${i.key} ${i.count}`))),
+    { note: 'status · proof · tier · area' });
 
   const search = h('input', { class: 'mono field', placeholder: 'filter findings…', value: f.q,
     oninput: (e) => { f.q = e.target.value; draw(); } });
@@ -1353,14 +1363,15 @@ function evidenceTab(d, params) {
   };
   const ec = d.evidence_counts;
   const top = (map, n) => Object.entries(map).slice(0, n).map(([key, count]) => ({ key, count }));
-  const facets = h('section', { class: 'panel' }, h('div', { class: 'panel-body stack', style: 'gap:10px' },
+  const facets = fold('Filters', h('div', { class: 'panel-body stack', style: 'gap:10px' },
     facetRow('points at', ['supports', 'weakens', 'mixed', 'neutral'].map((key) => ({ key, count: ec.polarity[key] || 0,
       title: key === 'neutral' ? 'says nothing about any hypothesis' : key === 'mixed' ? 'revises, partially corroborates, or cuts both ways' : '' })),
       (k) => f.polarity.has(k), toggle('polarity'),
       (i) => h('span', {}, tag(i.key, POLARITY_TONE[i.key]), ` ${i.count}`)),
     facetRow('strength', top(ec.strength, 10), (k) => f.strength.has(k), toggle('strength')),
     facetRow('claim tier', top(ec.claim_tier, 8), (k) => f.tier.has(k), toggle('tier')),
-    facetRow('proof status', top(ec.proof_status, 6), (k) => f.proof.has(k), toggle('proof'))));
+    facetRow('proof status', top(ec.proof_status, 6), (k) => f.proof.has(k), toggle('proof'))),
+    { note: 'polarity · strength · tier · proof' });
   const search = h('input', { class: 'mono field', placeholder: 'filter evidence…', value: f.q,
     oninput: (e) => { f.q = e.target.value; shown = 100; draw(); } });
   draw();
@@ -1446,7 +1457,7 @@ async function viewGoals() {
 
   const filters = { text: '', only: 'active' };
   const grid = h('div', { class: 'grid',
-    style: 'grid-template-columns:repeat(auto-fill,minmax(310px,1fr))' });
+    style: 'grid-template-columns:repeat(auto-fill,minmax(min(310px,100%),1fr))' });
   const summary = h('div', { class: 'faint mono' });
 
   function draw() {
