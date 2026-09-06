@@ -1126,7 +1126,7 @@ function directionsTable(rows, { compact = false } = {}) {
       h('td', { style: 'max-width:380px;min-width:220px' }, r.goals.length
         ? h('div', { class: 'stack', style: 'gap:3px' },
             r.goals.slice(0, goalsShown).map((g) => h('div', { class: 'row', style: 'gap:6px;align-items:baseline;flex-wrap:nowrap' },
-              idLink(g.id), statusTag(g.status),
+              idLink(g.id), h('span', { style: 'flex:none' }, statusTag(g.status)),
               h('span', { class: 'ellipsis faint', style: 'font-size:11.5px;max-width:240px' }, g.title))),
             r.goals.length > goalsShown ? h('span', { class: 'faint', style: 'font-size:11px' },
               `+${r.goals.length - goalsShown} more`) : null)
@@ -1139,7 +1139,9 @@ function directionsTable(rows, { compact = false } = {}) {
         : h('span', { class: 'faint mono' }, '0')),
       h('td', { style: 'max-width:440px;min-width:220px' }, r.latest_finding
         ? h('div', {},
-            h('a', { href: `#/record/${r.latest_finding.id}`, class: 'clamp2', style: 'display:block;line-height:1.4' },
+            // No `display:block` here: the clamp class IS the display, and an
+            // inline display override was why long titles never clamped.
+            h('a', { href: `#/record/${r.latest_finding.id}`, class: 'clamp2', style: 'line-height:1.4' },
               r.latest_finding.title),
             h('div', { class: 'faint mono', style: 'font-size:10.5px' }, fmtDate(r.latest_finding.added)))
         : h('span', { class: 'faint' }, 'nothing established yet'))))));
