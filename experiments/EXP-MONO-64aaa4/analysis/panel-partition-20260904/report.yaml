@@ -1,0 +1,194 @@
+report:
+  task_id: TASK-20260904-bf0b03
+  authorization: DEC-20260904-d79f75 next_action (2), per CORR-20260904-30a8ce
+  scope: >-
+    Read-only re-analysis of already-archived data. No new experiment run,
+    no new sampling. experiments/EXP-MONO-cb905d/runs/RUN-MONO-cb905d-1/
+    raw-result.json is unmodified.
+  scripts:
+    - experiments/EXP-MONO-64aaa4/analysis/panel-partition-20260904/partition_panel.py
+  data_artifacts:
+    - clean_cells.json
+    - contaminated_cells.json
+    - distinct_contaminated_curves.json
+    - pooled_ratio_results.json
+
+  section_1_partition:
+    method: >-
+      Checked, for all 100 archived Part B cells, the numeric equality
+      N == p_cm + 1 directly on the archived (p_cm, N) fields (N is the
+      shared matched curve order for both the ordinary and "CM" curve in
+      a cell). Standard Hasse-bound-saturation supersingularity criterion.
+    total_cells: 100
+    contaminated_cells: 64
+    clean_cells: 36
+    ordinary_side_control: >-
+      N == p_ord + 1 holds for 0 of 100 cells -- confirms contamination is
+      confined to the CM constructors, matching the disclosed defect
+      (construct_ordinary rejects N % p == 1; construct_cm_j0/j1728 do not).
+    independent_rebuild_cross_check: >-
+      Recomputed each CM curve's (A,B,N) from scratch by re-invoking the
+      archived, unmodified construct_cm_j0/construct_cm_j1728 functions on
+      the archived (p_cm, cm_variant). These are pure functions of
+      (DOMAIN, p, variant) with no run-specific seed (DOMAIN is a fixed
+      module constant), so the rebuild reproduces exactly the curve the
+      original run used. Result: 0 mismatches between archived N and
+      rebuilt N across all 100 cells; rebuilt N==p_cm+1 classification
+      agrees with the archived-field classification for all 100 cells
+      (both give 64/36).
+    distinct_curve_count: 58
+    distinct_curve_count_method: >-
+      Grouped the 64 contaminated cells by rebuilt (p, A, B, N) tuple.
+      Sum of cell_count across all 58 distinct curves is 64 (some curves
+      are referenced by more than one matched-N cell in the cross-prime
+      design, since a curve at a given p is deterministic).
+    cross_check_vs_red_team: >-
+      Red Team review reported 64/100 contaminated, 58 distinct curves.
+      MATCHES EXACTLY. No discrepancy to investigate.
+
+  section_2_pooled_ratio:
+    method: >-
+      Matched to the existing archive convention (FB4/EV-MONO-9c760b): pool
+      X_cm = sum(cm.observed_total_pairs_colliding) and X_ord =
+      sum(ord.observed_total_pairs_colliding) across cells in the set.
+      Because every cell draws NTUPLES=20000 transversal tuples for both
+      arms, the pair-count denominators are equal, so ratio r = X_cm/X_ord.
+      Conditional on pooled total T = X_cm + X_ord, X_cm ~ Binomial(T, p)
+      with p = r/(r+1). Exact Clopper-Pearson 95% CI for p on (X_cm, T),
+      transformed via r = p/(1-p), gives an exact 95% CI for the ratio.
+      This is an EXACT method (not an approximation).
+    full_100_cell_reproduction:
+      note: Sanity check on method before trusting the clean-subset number.
+      X_cm: 24966
+      X_ord: 24525
+      T: 49491
+      ratio: 1.017982
+      ci_95_exact: [1.000161, 1.036121]
+      matches_previously_reported: >-
+        Yes -- previously reported ratio 1.01798, CI [1.00016, 1.03612],
+        "over 49,491 colliding pairs." Matches to displayed precision.
+        Method and data reproduction confirmed.
+    clean_subset_only:
+      n_cells: 36
+      X_cm: 10407
+      X_ord: 10308
+      T: 20715
+      ratio: 1.009604
+      ci_95_exact: [0.982383, 1.037580]
+    contaminated_only_for_comparison:
+      n_cells: 64
+      X_cm: 14559
+      X_ord: 14217
+      T: 28776
+      ratio: 1.024056
+      ci_95_exact: [1.000593, 1.048071]
+    comparison_and_interpretation: >-
+      Partitioning materially changes the result. The clean-subset point
+      estimate (1.0096) is closer to 1 than the full-100 figure (1.0180).
+      Critically, the clean-subset 95% CI [0.9824, 1.0376] INCLUDES 1,
+      whereas the full-100-cell CI (the basis for the FB4 "corroborates a
+      small CM-linked effect" finding) excludes 1 by a narrow margin
+      ([1.00016, 1.03612]). CI width also grows substantially (0.0552 vs
+      0.0359) from the ~40% reduction in pooled sample size (T: 49491 ->
+      20715). On the clean subset alone, the exact conditional-binomial
+      test does NOT exclude a null ratio of 1. The contaminated-only
+      subset's own CI also barely excludes 1 (1.0241, [1.0006, 1.0481]),
+      essentially reproducing the full-panel result on its own -- so the
+      full panel's marginal significance is not attributable to the
+      contaminated cells alone in an obvious way; rather it appears to
+      come from pooling both subsets' partial evidence, and removing the
+      64 contaminated cells leaves a smaller, wider, null-consistent
+      clean estimate.
+
+  section_3_se_deviation:
+    method: >-
+      Uses ONLY H-MONO-45183a Part B's already-established closed form
+      predicted_rate = 6*(tau-1)/N (NOT the new, not-yet-verified
+      (N,tau,#E[4]) exact formula from TASK-20260904-b4b00c, which is
+      out of scope). The archived per-cell se_deviation field in
+      RUN-MONO-cb905d-1's raw-result.json was already computed this way
+      by the original run: predicted = 6*(tau-1)/N; se =
+      binomial_se_pairs(tau, N, ntuples), a Poisson/binomial
+      approximation to the SE of the total colliding-pair count under
+      ntuples*NPAIRS (NPAIRS=6) approximately-independent Bernoulli
+      trials with success probability (tau-1)/N; se_deviation =
+      (observed_total_pairs - predicted*ntuples) / se. This matches the
+      archive's own established convention and the task's suggested
+      Poisson-based-SE approach, so it is reused directly rather than
+      re-derived from scratch. NOTE: this is an approximation (binomial/
+      Poisson SE on a fixed closed-form prediction), explicitly disclosed
+      as such, not an exact method.
+    full_100_reproduction_sanity_check:
+      all_100_cells: {n: 100, ordinary_mean: -0.0581, cm_mean: 0.2551}
+      tau_ne_1_84_cells: {n: 84, ordinary_mean: -0.0691, cm_mean: 0.3037}
+      discrepancy_vs_previously_reported: >-
+        Previously reported figures were "ordinary mean -0.002, CM mean
+        +0.293." Neither of my reproductions matches exactly -- ordinary
+        mean does not come close to -0.002 in any variant tried (all-100,
+        tau!=1-84-cells, cross-prime-only [identical to all-100, since no
+        cell is same-prime in this panel], median instead of mean). CM
+        mean +0.293 falls between my all-100 figure (+0.255) and my
+        tau!=1-only figure (+0.304) but does not match exactly either.
+        THIS DISCREPANCY IS REPORTED, NOT SILENTLY RECONCILED, per the
+        task's explicit instruction. Source of the prior figure
+        (experiments/EXP-MONO-005b49/reviews/red-team-breakthrough/
+        red-team-report.yaml) does not include full reproduction detail
+        (exact subset, weighting, or rounding) for -0.002/+0.293. It does
+        not affect the qualitative finding below, which holds under every
+        variant computed here.
+    clean_subset_only:
+      all_36_clean_cells: {n: 36, ordinary_mean: 0.0598, cm_mean: 0.1875}
+      tau_ne_1_20_clean_cells: {n: 20, ordinary_mean: 0.1077, cm_mean: 0.3374}
+    finding: >-
+      The asymmetry (CM mean deviation > ordinary mean deviation) PERSISTS
+      on the clean subset in every variant tested -- it does not disappear.
+      The gap (CM minus ordinary) is comparable in magnitude across all
+      variants: full-100 gap 0.313; 84-tau!=1 gap 0.373; clean-36 gap
+      0.128; clean-tau!=1-20 gap 0.230. This is consistent with the Red
+      Team's own independent explanation (OBJ-B2 in
+      experiments/EXP-MONO-005b49/reviews/red-team-breakthrough/
+      red-team-report.yaml): the asymmetry is attributed there to Part
+      B's closed form omitting an O(1/N) #E[4]-dependent correction term,
+      not to endomorphism-ring or supersingular-vs-ordinary status. The
+      asymmetry surviving full decontamination here is additional
+      evidence for that explanation over a "contamination alone explains
+      the asymmetry" hypothesis. This report does not itself adjudicate
+      between those explanations -- it only reports that the asymmetry
+      is not an artifact of supersingular contamination.
+
+  section_4_distinct_supersingular_curves:
+    count: 58
+    method: >-
+      All 58 satisfy N == p+1 (Hasse-bound saturation), independently
+      rebuilt from archived (p_cm, cm_variant) via unmodified
+      construct_cm_j0/construct_cm_j1728. cell_count is how many of the
+      64 contaminated Part B cells reference that curve (deterministic
+      per p, can appear in more than one matched-N cell in the
+      cross-prime design). Sum of cell_count across all 58 rows is 64.
+    full_list_path: >-
+      experiments/EXP-MONO-64aaa4/analysis/panel-partition-20260904/
+      distinct_contaminated_curves.json (machine-readable, p/A/B/N/
+      cell_count for all 58 curves)
+    first_10_sample:
+      - {p: 131, A: 0, B: 74, N: 132, cell_count: 1}
+      - {p: 131, A: 46, B: 0, N: 132, cell_count: 1}
+      - {p: 137, A: 0, B: 99, N: 138, cell_count: 1}
+      - {p: 173, A: 0, B: 70, N: 174, cell_count: 1}
+      - {p: 197, A: 0, B: 101, N: 198, cell_count: 1}
+    recommendation: >-
+      Any curve constructor for a "CM" or "ordinary" role should reject
+      N == p+1 (supersingular) candidates, matching construct_ordinary's
+      own existing check. construct_cm_j0 and construct_cm_j1728 in
+      experiments/EXP-MONO-64aaa4/implementation/run_experiment.py are
+      missing this check (disclosed in CORR-20260904-30a8ce; NOT fixed
+      in place per this program's immutability rule for archived runs --
+      this is a note for any FUTURE contract reusing this construction
+      code).
+
+  summary_answers:
+    exact_partition: "64 contaminated / 36 clean, out of 100. Matches Red Team's 64/100, 58-distinct claim exactly."
+    clean_subset_pooled_ratio: "1.009604, 95% exact CI [0.982383, 1.037580] (T=20715)"
+    full_100_reproduction: "1.017982, 95% CI [1.000161, 1.036121] (T=49491) -- matches previously reported 1.01798/[1.00016,1.03612]"
+    ci_includes_1_on_clean_subset: true
+    se_deviation_asymmetry_persists: true
+    se_deviation_full_100_reproduction_discrepancy_disclosed: true

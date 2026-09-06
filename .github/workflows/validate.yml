@@ -5,9 +5,57 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+
+# Keep the newest PR check instead of paying for obsolete queued revisions.
+# Main runs retain independent groups so every merged revision is checked.
+concurrency:
+  group: validate-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+defaults:
+  run:
+    shell: bash
+
 jobs:
+  runtime-regressions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: |
+            pyproject.toml
+            requirements-agent.txt
+      - name: Install offline-test dependencies
+        run: python -m pip install -e ".[dev,agent]"
+      - name: Require runtime dependencies rather than silently skipping tests
+        run: python -c "import langgraph, langchain_core, langgraph.checkpoint.sqlite"
+      - name: Runtime and CI-gate regression controls (no inference calls)
+        run: |
+          python -m pytest -q tests/test_agent_runtime.py \
+            tests/test_agent_progress.py tests/test_ci_ledger_gate.py \
+            --junitxml=runtime-regressions.xml
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: runtime-regressions-python-${{ matrix.python }}
+          path: runtime-regressions.xml
+          if-no-files-found: warn
+
   ledger-and-harness:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      BASE_SHA: ${{ github.event.pull_request.base.sha }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -16,6 +64,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: pip
+          cache-dependency-path: |
+            pyproject.toml
+            requirements-agent.txt
 
       - name: Install dependencies
         run: pip install -e ".[dev,campaign-mcp,research-loop]"
@@ -37,20 +89,24 @@ jobs:
       # here proves the corpus and every queue still build, which is the part
       # that carried information; the files themselves carried none.
       - name: Build generated artifacts
+        run: python3 tools/build_knowledge_index.py
+
+      # Check what this PR adds/changes, including non-batch proposal queues.
+      # The historical all-queue census remains in main-health; repeating that
+      # warning-only sweep on every PR costs time without gating regressions.
+      - name: Require changed dispatch queues to render
+        if: github.event_name == 'pull_request'
         run: |
-          python3 tools/build_knowledge_index.py
-          fail=0
-          for q in $(git ls-files 'coordination/goals/*/batches/*/dispatch_queue.json'); do
-            d=$(dirname "$q")
+          mkdir -p "$RUNNER_TEMP/harness-ci/queues"
+          git diff --name-only --diff-filter=ACMR -z "$BASE_SHA" HEAD -- \
+            'coordination/**/dispatch_queue.json' 'coordination/dispatch_queue.json' |
+          while IFS= read -r -d '' q; do
+            d=$(mktemp -d "$RUNNER_TEMP/harness-ci/queues/queue.XXXXXX")
+            printf '%s\n' "$q" > "$d/source.txt"
             python3 tools/research_dispatch.py "$q" \
-              --output "$d/dispatch_plan.json" --report "$d/dispatch_plan.md" \
-              || { echo "::warning::queue does not render: $q"; fail=1; }
+              --output "$d/plan.json" --report "$d/plan.md" > "$d/render.log" 2>&1 \
+              || { cat "$d/render.log" >&2; exit 1; }
           done
-          # A queue that no longer renders is a real defect, but queues are
-          # per-campaign and a stale one must not red-light every other
-          # campaign's PR -- the coupling this workflow is being changed to
-          # remove. Reported as a warning here; main-health.yml fails on it.
-          exit 0
 
       # PR: scoped to the files the branch touches. main: absolute.
       # A branch that BREAKS a record still changed it and is still caught; what
@@ -67,27 +123,23 @@ jobs:
       - name: Validate ledger, experiments, and run records
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            BASE_REF="origin/${{ github.base_ref }}"
-            BASE_WORKTREE="/tmp/validate-base-ledger"
-            git worktree remove --force "$BASE_WORKTREE" >/dev/null 2>&1 || true
+            BASE_WORKTREE="$RUNNER_TEMP/validate-base-ledger"
             trap 'git worktree remove --force "$BASE_WORKTREE" >/dev/null 2>&1 || true' EXIT
-            git worktree add "$BASE_WORKTREE" "$BASE_REF"
-            python3 tools/validate_ledger.py > /tmp/validate_head.out 2>&1 || true
+            git worktree add --detach "$BASE_WORKTREE" "$BASE_SHA"
+            LOG_DIR="$RUNNER_TEMP/harness-ci"
+            mkdir -p "$LOG_DIR"
+            HEAD_STATUS=0
+            python3 tools/validate_ledger.py > "$LOG_DIR/ledger-head.log" 2>&1 || HEAD_STATUS=$?
+            BASE_STATUS=0
             (
               cd "$BASE_WORKTREE"
-              python3 tools/validate_ledger.py > /tmp/validate_base.out 2>&1 || true
-            )
-            # validate_ledger.py emits one error per bullet line prefixed by "  - ".
-            grep '^  - ' /tmp/validate_head.out | sort -u > /tmp/validate_head.errs || true
-            grep '^  - ' /tmp/validate_base.out | sort -u > /tmp/validate_base.errs || true
-            comm -23 /tmp/validate_head.errs /tmp/validate_base.errs > /tmp/validate_new.errs || true
-            NEW_ERRORS="$(wc -l < /tmp/validate_new.errs | tr -d ' ')"
-            if [ "$NEW_ERRORS" -gt 0 ]; then
-              echo "FAIL: $NEW_ERRORS validation error(s) introduced by this PR:" >&2
-              cat /tmp/validate_new.errs >&2
-              exit 1
-            fi
-            echo "PASS: no new validation errors vs base branch"
+              python3 tools/validate_ledger.py > "$LOG_DIR/ledger-base.log" 2>&1
+            ) || BASE_STATUS=$?
+            printf 'head=%s\nbase=%s\nbase_sha=%s\n' \
+              "$HEAD_STATUS" "$BASE_STATUS" "$BASE_SHA" > "$LOG_DIR/ledger-status.txt"
+            python3 tools/ci_ledger_gate.py \
+              --head-log "$LOG_DIR/ledger-head.log" --head-status "$HEAD_STATUS" \
+              --base-log "$LOG_DIR/ledger-base.log" --base-status "$BASE_STATUS"
           else
             python3 tools/validate_ledger.py
           fi
@@ -143,7 +195,9 @@ jobs:
         run: python3 tools/check_inference_cost_policy.py
 
       - name: Check runtime role bindings have not drifted
-        run: python3 tools/check_runtime_bindings.py
+        run: |
+          python3 tools/generate_runtime_agents.py --check
+          python3 tools/check_runtime_bindings.py
 
       # Offline: fixtures build and every task's policy resolves. Running the
       # suites costs tokens, so CI checks they are well-formed, not that they pass.
@@ -152,12 +206,6 @@ jobs:
           for suite in evals/suites/*.yaml; do
             python3 -m orchestration.eval validate --suite "$suite"
           done
-
-      - name: Validate inference configuration (offline)
-        run: python3 -m orchestration.adapter doctor
-
-      - name: Check runtime role bindings have not drifted
-        run: python3 tools/check_runtime_bindings.py
 
       - name: Validate live research dispatch queue
         run: |
@@ -172,4 +220,14 @@ jobs:
         run: python3 plugins/crypto-autoresearcher-harness/tests/test_bundle.py
 
       - name: Run harness tests
-        run: python3 -m pytest -q
+        run: python3 -m pytest -q --junitxml=harness-tests.xml
+
+      - name: Preserve failure diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: harness-ci-diagnostics
+          path: |
+            ${{ runner.temp }}/harness-ci
+            harness-tests.xml
+          if-no-files-found: warn

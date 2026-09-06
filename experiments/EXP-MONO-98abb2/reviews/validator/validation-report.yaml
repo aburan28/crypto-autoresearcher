@@ -1,0 +1,595 @@
+validation_report:
+  id: VAL-20260904-c8c261
+  task_id: TASK-20260904-f8c4dd
+  experiment_id: EXP-MONO-98abb2
+  hypothesis_id: H-MONO-1297d7
+  question_id: RQ-MONO-001
+  goal_id: GOAL-MONO-001
+  run_ids: [RUN-MONO-98abb2-1]
+  reviewer_role: validator
+  joints_owned: [J1-CURVE-CONSTRUCTION-AND-CENSUS-AUDIT, J2-COINCIDENCE-ALGEBRA-AUDIT]
+  blind_rederivation_owned: true
+  reviewed_at: '2026-09-04'
+
+  scope_note: >-
+    Per TASK-20260904-f8c4dd's review_plan, this report addresses ONLY J1 and
+    J2 and the blind_rederivation requirement, both assigned to the
+    validator. J3 (correction-completeness audit) and J4 (follow-up-design
+    sufficiency check) are red-team's joints and are not addressed here
+    except where J2's own algebraic result is directly load-bearing for J3(i)
+    (in which case that dependency is named, not adjudicated). This report
+    renders no verdict on H-MONO-1297d7, on CORR-20260904-e526e0's own
+    completeness or severity call, or on claim_under_review items (a)-(e) as
+    a whole -- only on J1 and J2 as assigned.
+
+  # ==================================================================
+  # ORDER OF WORK -- MATERIAL BECAUSE blind_rederivation.required IS SET
+  # ==================================================================
+  chronology:
+    note: >-
+      Reconstructed from this session's own tool-call order. Everything in
+      the plan's blind_from set (execution_report.yaml,
+      runs/RUN-MONO-98abb2-1/raw-result.json, .../stdout.log) was opened
+      only AFTER J1's own from-scratch curve/twist/torsion computation and
+      J2's own independent census driver and algebra were written, run, and
+      recorded below.
+    events:
+      - "1. Read agents/validator.md, AGENTS.md, the task card (TASK-20260904-f8c4dd), experiments/EXP-MONO-98abb2/specification.yaml, ledger/hypotheses/H-MONO-1297d7.yaml, ledger/corrections/CORR-20260904-e526e0.yaml, and ledger/proposals/IDEA-20260904-4f614a.yaml in full (its NOTATION and (D3) blocks and mechanism STEP 4/5), to get the exact authoritative D_sum/D_prod formulas rather than the task prompt's paraphrase."
+      - "2. Listed (ls/find only, no reads) experiments/EXP-MONO-98abb2/{implementation,runs,reviews} to see what existed, without opening execution_report.yaml, raw-result.json, stdout.log, or implementation/run_bivariate_test.py."
+      - "3. Wrote and ran an OWN standalone script (independent_curve_construction.py, scratch workspace) implementing Euler-criterion quadratic-residue testing, brute-force root finding, full point enumeration, an independent short-Weierstrass group law (add/double/negate), repeated-doubling scalar multiplication, and 2-/4-torsion counting from scratch for both E and its quadratic twist E^d. Imports NOTHING from RC/UC or any prior experiment's code."
+      - "4. Wrote and ran an OWN driver script (independent_census_driver.py, scratch workspace), reusing ONLY RC.qe_from_sym (via RC.compile_sym) and UC.classify_fibre by file path (sys.path insertion, own import statements), with the base-point enumeration, stratum definition (eligible = F_103 minus the 3 roots of f), tabulation, and D_sum/D_prod computation all written independently -- not a copy of, and structurally different from, experiments/EXP-MONO-98abb2/implementation/run_bivariate_test.py, which was never opened before this step. Performed the FULL exhaustive census (161,700 base points, not a sample)."
+      - "5. Wrote and ran an OWN symbolic-algebra script (j2_algebra.py, sympy) substituting h_+=h_-=h into D_sum and D_prod, solving D_sum=D_prod for h, and then solving the general h_+ != h_- coincidence question symbolically, cross-checked by an exhaustive bounded numeric search over (h_+,h_-,n_+,n_-) in [0,12]x[0,12]x[1,500]x[1,500] with h_+ != h_-."
+      - "6. Read experiments/EXP-MONO-4e6faa/specification.yaml and execution_report.yaml, and experiments/EXP-MONO-ee06e2/specification.yaml and execution_report.yaml (DIFFERENT experiments' own already-archived material, not this experiment's blind_from set) to obtain the exact named-rival formulas (\"E[4]-alone\", D_quad) and the found curves' own (n_+,n_-,h_+,h_-) and archived residuals, then wrote and ran an OWN script (proves_too_much.py) applying the same substitution method to both."
+      - "7. Listed experiments/EXP-MONO-98abb2/reviews/ (find only) and observed a sibling red-team-report.yaml already exists; did NOT open or read it (see sibling_review_note below)."
+      - "8. ONLY THEN opened experiments/EXP-MONO-98abb2/execution_report.yaml, runs/RUN-MONO-98abb2-1/raw-result.json, runs/RUN-MONO-98abb2-1/manifest.yaml, runs/RUN-MONO-98abb2-1/environment.json, runs/RUN-MONO-98abb2-1/command.txt, and runs/RUN-MONO-98abb2-1/stderr.log, and compared the Executor's own reported numbers against steps 3-6's already-recorded independent results."
+      - "9. Recomputed sha256 of every file listed in RUN-MONO-98abb2-1/manifest.yaml's artifact_sha256 and reused_frozen_artifacts blocks, independently via Python hashlib."
+    blind_from_respected: true
+    sibling_review_read: false
+    sibling_review_directory_exists: true
+    sibling_review_note: >-
+      experiments/EXP-MONO-98abb2/reviews/red-team/red-team-report.yaml
+      EXISTS on disk (confirmed by `find`, step 7 above) -- the Red Team
+      task evidently completed, or wrote partial output, before this
+      Validator task ran or before this Validator step executed. Per
+      agents/validator.md and the task card's blindness declaration
+      (lifted_for: null), this reviewer did NOT open or read that file at
+      any point, before or after its own J1/J2 conclusions were formed. This
+      is disclosed here as an encountered sibling artifact per "Do not read
+      another reviewer's report ... If you encounter one, say so in the
+      attestation."
+
+  # ==================================================================
+  # J1 -- INDEPENDENT CURVE CONSTRUCTION AND CENSUS AUDIT
+  # ==================================================================
+  j1_curve_construction_and_census_audit:
+    part_a_curve_and_twist_construction:
+      method: >-
+        Standalone Python (independent_curve_construction.py), written from
+        scratch for this review: own Euler-criterion Legendre-symbol
+        function, own brute-force root finder for f(X)=X^3+X+11 mod 103,
+        own n_+/n_- tally by direct iteration, own curve-order formula
+        (N = 1 + 2*n_+ + Z), own smallest-non-residue search for the twist
+        parameter d, own A_tw=A*d^2 mod p / B_tw=B*d^3 mod p reduction, own
+        full (x,y) point enumeration (brute-force sqrt search, not a
+        shortcut), own elliptic-curve group law (add/double/negate,
+        standard affine Weierstrass formulas implemented independently),
+        own repeated-doubling scalar multiplication, and own 2-/4-torsion
+        counters (2P==O and doubling-twice==O, applied to every enumerated
+        point of both E and E^d). Imports NOTHING from RC.pt_add,
+        RC.curve_order, RC.qe_from_sym/UC.classify_fibre, or any file under
+        experiments/EXP-MONO-0e6e8f or experiments/EXP-MONO-815525.
+      results:
+        p: 103
+        A_B: [1, 11]
+        f_roots: [12, 26, 65]
+        Z: 3
+        order_E_bruteforce: 120
+        trace_t: -16
+        d_nonresidue: 3
+        A_twist_recomputed: 9
+        B_twist_recomputed: 91
+        order_Etwist_bruteforce: 88
+        twist_sanity_N_plus_Ntw_eq_2p_plus_2: true
+        tau_via_own_group_law: 4
+        tau_tw_via_own_group_law: 4
+        E4_bruteforce: 8
+        Ed4_bruteforce: 8
+        n_plus: 58
+        n_minus: 42
+        h_plus: 1
+        h_minus: 1
+      confirmation_table:
+        - {claim: "f(X)=X^3+X+11 has exactly 3 distinct roots mod 103", predicted: 3, own_result: 3, match: true}
+        - {claim: "#E(F_103) = 120", predicted: 120, own_result: 120, match: true}
+        - {claim: "d=3 is a quadratic non-residue mod 103", predicted: true, own_result: true, match: true}
+        - {claim: "A_tw = A*d^2 mod 103 = 9", predicted: 9, own_result: 9, match: true}
+        - {claim: "B_tw = B*d^3 mod 103 = 91", predicted: 91, own_result: 91, match: true}
+        - {claim: "#E^d(F_103) = 88", predicted: 88, own_result: 88, match: true}
+        - {claim: "N + N_tw == 2p+2 (twist identity)", predicted: true, own_result: true, match: true}
+        - {claim: "tau = Z+1 = 4", predicted: 4, own_result: 4, match: true}
+        - {claim: "#E(F_103)[4] = 8", predicted: 8, own_result: 8, match: true}
+        - {claim: "#E^d(F_103)[4] = 8", predicted: 8, own_result: 8, match: true}
+        - {claim: "h_+ = (8-4)/4 = 1", predicted: 1, own_result: 1, match: true}
+        - {claim: "h_- = (8-4)/4 = 1", predicted: 1, own_result: 1, match: true}
+        - {claim: "n_+ = 58", predicted: 58, own_result: 58, match: true}
+        - {claim: "n_- = 42", predicted: 42, own_result: 42, match: true}
+      verdict: >-
+        HOLDS. All fourteen independently-checked facts (Z, tau, #E, #E^d,
+        #E[4], #E^d[4], h_+, h_-, n_+, n_-, and three internal identities)
+        confirmed exactly by from-scratch code sharing no line with RC/UC.
+
+    part_b_blind_census_and_D_computation:
+      method: >-
+        Own driver script (independent_census_driver.py), structurally
+        independent of run_bivariate_test.py (never read before this step):
+        own eligible-set construction (F_103 minus the 3 roots of f, size
+        100, cross-checked == n_+ + n_-), own re-derivation of n_+/n_- from
+        scratch inside this script (not imported from Part A's in-memory
+        state), own itertools.combinations enumeration over all C(100,3)
+        unordered triples, reusing ONLY RC.compile_sym / RC.qe_from_sym
+        (Q_e(T) construction) and UC.classify_fibre (five-class label) by
+        file path. D_sum and D_prod re-derived from IDEA-20260904-4f614a's
+        own (D3) notation block ("D := h_+ * n_- + h_- * n_+") and
+        H-MONO-1297d7's own statement field ("D_prod = h_+ * h_- *
+        (n_+ + n_-)"), not from the task prompt's paraphrase.
+      stratum_enumeration:
+        base_points_enumerated: 161700
+        expected_C_100_3: 161700
+        match: true
+      own_observed_five_class_counts:
+        "1^4": 42436
+        "2+2": 112256
+        "2+1+1": 7008
+        anomalies_outside_the_three_classes: 0
+      own_D_sum_D_prod:
+        formula_used_sum: "D_sum = h_+*n_- + h_-*n_+ (re-checked verbatim against IDEA-20260904-4f614a's own (D3) block, STEP 4)"
+        formula_used_prod: "D_prod = h_+*h_-*(n_++n_-) (re-checked verbatim against H-MONO-1297d7's own PRE-REGISTERED, TWO-SIDED paragraph)"
+        D_sum: 100
+        D_prod: 100
+        both_equal_100: true
+      own_predictions:
+        predicted_sum: {"1^4": 42436, "2+1+1": 7008, "2+2": 112256}
+        predicted_prod: {"1^4": 42436, "2+1+1": 7008, "2+2": 112256}
+      own_residuals:
+        R1_sum: 0
+        R2_sum: 0
+        R1_prod: 0
+        R2_prod: 0
+      verdict: >-
+        HOLDS. Own independent reclassification (own driver, own eligible-set
+        and n_+/n_- recomputation, own D_sum/D_prod re-derivation from the
+        idea/hypothesis records themselves) reproduces the exhaustive
+        161,700-point census exactly (42436/112256/7008), and both R1_sum=
+        R2_sum=0 and R1_prod=R2_prod=0, matching C(100,3) exactly. Both
+        predictions coincide numerically (100=100) and both match the
+        observed census exactly -- the run does confirm D_sum on this curve
+        but does NOT, by itself, discriminate D_sum from D_prod, exactly as
+        CORR-20260904-e526e0 discloses.
+
+  # ==================================================================
+  # J2 -- COINCIDENCE ALGEBRA AUDIT
+  # ==================================================================
+  j2_coincidence_algebra_audit:
+    part_1_diagonal_substitution:
+      method: "sympy symbolic substitution h_+ = h_- = h into D_sum and D_prod (j2_algebra.py)."
+      result: >-
+        D_sum(h,h,n_+,n_-) = h*(n_++n_-);  D_prod(h,h,n_+,n_-) = h^2*(n_++n_-).
+        D_sum - D_prod = -h*(h-1)*(n_++n_-). For n_++n_- > 0, this is 0 iff
+        h*(h-1)=0, i.e. h in {0,1}.
+      at_this_curve: >-
+        h_+ = h_- = 1, n_+=58, n_-=42: D_sum = 1*100 = 100, D_prod =
+        1^2*100 = 100. Exactly the observed coincidence.
+      verdict: >-
+        CONFIRMED, exactly as CORR-20260904-e526e0 and the task card's
+        coordinator_prior state. This is a genuine algebraic identity of
+        the two named formulas at the specific point the fixed search order
+        reached first (h_+=h_-=1 is the MINIMAL pair admissible under the
+        Stage-0 filter h_+>=1 AND h_->=1), not a coding bug, not a
+        coincidence of this particular n_+/n_- split, and not an artifact
+        of the census/classifier: it holds for every n_+, n_- whatsoever
+        once h_+=h_-=1, and is fully explained by the diagonal substitution
+        above.
+
+    part_2_general_h_plus_neq_h_minus_question:
+      question: >-
+        For h_+ != h_- (both nonnegative integers), does D_sum = D_prod have
+        a solution for SOME choice of positive integers n_+, n_- > 0? I.e.
+        does requiring h_+ != h_- in a follow-up's Stage-0 filter fully
+        close the coincidence loophole, or could another (h_+,h_-,n_+,n_-)
+        combination still coincide?
+      setup: >-
+        D_sum = D_prod  <=>  h_+ n_- + h_- n_+ = h_+ h_- (n_+ + n_-)  <=>
+        n_- * h_+ * (1 - h_-)  +  n_+ * h_- * (1 - h_+)  =  0.
+        Write a=h_+, b=h_-, x=n_+, y=n_- (a,b nonnegative integers, a != b;
+        x,y strictly positive integers, per H-MONO-1297d7's own outcome (I)
+        domain "n_+, n_- > 0").
+      case_analysis:
+        - {case: "a=0, b>0", result: "equation reduces to b*x=0; x>0 forces no solution (unless b=0, excluded by a!=b)."}
+        - {case: "b=0, a>0", result: "by symmetry, equation reduces to a*y=0; y>0 forces no solution."}
+        - {case: "a=1, b != 1", result: "equation reduces to y*(1-b)=0; y>0 forces b=1, excluded."}
+        - {case: "b=1, a != 1", result: "by symmetry, x*(1-a)=0; x>0 forces a=1, excluded."}
+        - {case: "a>1, b>1, a != b", result: "the two terms n_-*a*(1-b) and n_+*b*(1-a) have STRICTLY OPPOSITE signs (one positive, one negative, since exactly one of (1-a),(1-b) is negative and the other... both negative in this range, but the a-1 and b-1 factors combine to force the ratio y/x = b(a-1)/(a(1-b)) to be strictly negative whenever a,b>1 and a!=b), so no positive (x,y) solves the equation. Verified both symbolically (sympy factor/solve) and by exhaustive bounded search."}
+      exhaustive_bounded_search: >-
+        Brute-force search over h_+, h_- in [0,12] with h_+ != h_-, and
+        n_+, n_- in [1,500] each (a grid of 13*12*500*500 = 39,000,000
+        combinations, run to completion in this review): ZERO
+        counterexamples found. No (h_+,h_-,n_+,n_-) with h_+ != h_- and
+        n_+,n_- both strictly positive makes D_sum equal D_prod.
+      conclusion: >-
+        h_+ != h_- is BOTH NECESSARY AND SUFFICIENT to guarantee D_sum !=
+        D_prod, PROVIDED n_+ > 0 and n_- > 0 (both, not merely their sum).
+        The only coincidence pairs are the diagonal h_+ = h_- = h with h in
+        {0,1} (h=1 being the nontrivial case realized on this run's curve;
+        h=0 forces D_sum = D_prod = 0 trivially and is in any case excluded
+        by this experiment's own Stage-0 filter h_+>=1 AND h_->=1). There is
+        NO other (h_+,h_-) pair, equal or unequal, at which a coincidence
+        can occur for any positive n_+, n_-.
+      caveat_on_the_n_plus_n_minus_gt_0_precondition: >-
+        A genuinely degenerate corner exists if n_+=0 or n_-=0 is allowed
+        (e.g. h_-=0 or h_+=1 with n_-=0 makes D_sum=D_prod=0 trivially
+        regardless of h_+ != h_-) -- but this corner is inaccessible in the
+        declared toy-prime search domain: by the Hasse bound |t| <= 2*sqrt(p)
+        and n_+ - n_- = -t, n_+ + n_- = p - Z, having n_-=0 (or n_+=0) would
+        require p - Z <= 2*sqrt(p), which fails for every prime p >= 101 in
+        the declared [101,2000] range (2*sqrt(101) ~ 20.1, versus p-Z >= 98).
+        So for every curve reachable by this program's own Stage-0 search at
+        these primes, n_+ > 0 and n_- > 0 strictly, and the caveat is
+        academic, not a live loophole. This is disclosed rather than
+        silently assumed.
+      verdict: >-
+        CORR-20260904-e526e0's own proposed fix ("require h_+ != h_- in a
+        follow-up's Stage-0 filter") IS SUFFICIENT to guarantee D_sum and
+        D_prod differ on every curve such a follow-up's search could
+        produce, given the always-true-at-these-scales precondition
+        n_+, n_- > 0 above. No other (h_+, h_-) coincidence point exists.
+        This directly answers claim_under_review item (e): the proposed fix
+        fully closes the loophole for the D_prod rival specifically.
+
+  # ==================================================================
+  # PROVES-TOO-MUCH CONTROL (review_plan.proves_too_much)
+  # ==================================================================
+  proves_too_much_control:
+    purpose: >-
+      Confirm this reviewer's own general coincidence-checking method
+      (substitute the curve's own (h_+,h_-,n_+,n_-) into D_sum and a named
+      rival, and/or solve symbolically for when they agree) correctly
+      reproduces the two ALREADY-INDEPENDENTLY-VERIFIED non-coincidence
+      outcomes on EXP-MONO-4e6faa's and EXP-MONO-ee06e2's own archived
+      curves, before trusting this report's own J2 verdict above.
+    target_1_EXP-MONO-4e6faa:
+      curve: "p=101, A=1, B=0, n_+=48, n_-=50, h_+=0, h_-=1 (read from that experiment's own execution_report.yaml/raw-result.json, a DIFFERENT experiment's already-archived material, not this experiment's blind_from set)"
+      named_rival: "\"E[4]-alone\": the theory that only E's own rational 4-torsion matters, i.e. it drops the h_- term entirely: D_E4alone = h_+ * n_-, forced to 0 here since h_+=0."
+      own_recompute: {D_lin: 48, D_E4alone: 0, equal: false}
+      general_coincidence_condition_solved: "D_lin = D_E4alone  <=>  h_-*n_+ = 0  <=>  h_-=0 (since n_+>0)."
+      applied_here: "h_- = 1 != 0, so predicted to differ."
+      archived_residuals: "R1=48, R2=-144 (both nonzero, per this task's own prompt and EXP-MONO-4e6faa's execution_report.yaml)."
+      match: true
+      verdict: "Method correctly predicts non-coincidence; matches the already-archived nonzero residuals."
+    target_2_EXP-MONO-ee06e2:
+      curve: "p=101, n_+=52, n_-=46, h_+=0, h_-=3 (read from that experiment's own execution_report.yaml)"
+      named_rival: "D_quad = h_+ * n_- + (h_-)^2 * n_+, per H-MONO-fa4cb9's own mechanism field."
+      own_recompute: {D_lin: 156, D_quad: 468, equal: false}
+      general_coincidence_condition_solved: "at h_+=0: D_lin = D_quad  <=>  h_-*n_+ = h_-^2*n_+  <=>  h_-(1-h_-)=0 (n_+>0)  <=>  h_- in {0,1}."
+      applied_here: "h_- = 3, not in {0,1}, so predicted to differ."
+      archived_residuals: "R1_quad=-312, R2_quad=936 (both nonzero, per EXP-MONO-ee06e2's execution_report.yaml)."
+      match: true
+      verdict: "Method correctly predicts non-coincidence; matches the already-archived nonzero residuals."
+    structural_observation: >-
+      The coincidence set for D_quad ({h_-: 0,1}) has the SAME shape as for
+      D_prod ({h: 0,1}): both named rivals are constructed so that their
+      h-dependent term agrees with D_sum's own linear term at h=0 and h=1
+      (0^2=0, 1^2=1, 1*1=1 -- any polynomial or product-form rival p(h)*n
+      with p(0)=0 and p(1)=1 will coincide with the linear term h*n
+      EXACTLY at those two boundary values). This is a structural property
+      of "minimal admissible h" Stage-0 filters (h_->=1, or h_+>=1 AND
+      h_->=1): the first h value such a filter admits is generically h=1,
+      which is systematically also the first value at which many
+      plausible non-linear/multiplicative rivals coincide with the linear
+      form -- a pattern, not a one-off, and directly relevant to J3's own
+      "is this the second time" question (owned by red-team, noted here
+      only because J2's own algebra is what establishes it).
+    conclusion: >-
+      CONTROL PASSES on both target objects. This reviewer's general
+      method (symbolic solve for the coincidence condition, then
+      substitute the curve's own reported values) neither spuriously
+      predicts a coincidence that was not observed, nor misses a
+      coincidence that was observed, on either prior curve. J2's verdict
+      above on the general h_+ != h_- question is therefore trusted.
+
+  # ==================================================================
+  # COMPARISON AGAINST THE EXECUTOR'S OWN REPORTED VALUES
+  # (read only after the above was complete; see chronology)
+  # ==================================================================
+  comparison_against_executor_reported_values:
+    j1_agreement:
+      found_curve_p_A_B: {own: [103, 1, 11], executor: [103, 1, 11], match: true}
+      order_E: {own: 120, executor: 120, match: true}
+      order_Etwist: {own: 88, executor: 88, match: true}
+      twist_A: {own: 9, executor: 9, match: true}
+      twist_B: {own: 91, executor: 91, match: true}
+      E4: {own: 8, executor: 8, match: true}
+      Etwist4: {own: 8, executor: 8, match: true}
+      Z: {own: 3, executor: 3, match: true}
+      tau: {own: 4, executor: 4, match: true}
+      h_plus: {own: 1, executor: 1, match: true}
+      h_minus: {own: 1, executor: 1, match: true}
+      n_plus: {own: 58, executor: 58, match: true}
+      n_minus: {own: 42, executor: 42, match: true}
+      overall: "FULL AGREEMENT, no disagreement of any kind, on every J1 quantity."
+    j2_agreement:
+      stratum_size_enumerated: {own: 161700, executor: 161700, match: true}
+      counts_1_4: {own: 42436, executor: 42436, match: true}
+      counts_2plus2: {own: 112256, executor: 112256, match: true}
+      counts_2plus1plus1: {own: 7008, executor: 7008, match: true}
+      D_sum: {own: 100, executor: 100, match: true}
+      D_prod: {own: 100, executor: 100, match: true}
+      D_sum_equals_D_prod: {own: true, executor: true, match: true}
+      predicted_sum_1_4: {own: 42436, executor: 42436, match: true}
+      predicted_sum_2plus1plus1: {own: 7008, executor: 7008, match: true}
+      predicted_sum_2plus2: {own: 112256, executor: 112256, match: true}
+      predicted_prod_1_4: {own: 42436, executor: 42436, match: true}
+      predicted_prod_2plus1plus1: {own: 7008, executor: 7008, match: true}
+      predicted_prod_2plus2: {own: 112256, executor: 112256, match: true}
+      R1_sum: {own: 0, executor: 0, match: true}
+      R2_sum: {own: 0, executor: 0, match: true}
+      R1_prod: {own: 0, executor: 0, match: true}
+      R2_prod: {own: 0, executor: 0, match: true}
+      overall: "FULL AGREEMENT, no disagreement of any kind, on every J2/Stage-2 quantity."
+    headline: >-
+      NO DISAGREEMENT FOUND between this report's own independently-derived
+      J1 curve/twist/torsion numbers, J2's full exhaustive census (161,700
+      base points, not a sample), and Stage-2 four-way residual
+      computation, and what the Executor reported in execution_report.yaml,
+      runs/RUN-MONO-98abb2-1/manifest.yaml, and
+      runs/RUN-MONO-98abb2-1/raw-result.json. Every compared integer/
+      boolean above (26 of 26) matches bit-for-bit. The blind re-derivation
+      used a differently-structured driver (own file, own eligible-set
+      construction, own re-derived n_+/n_-/h_+/h_- rather than reused
+      in-memory state, own group law implemented from scratch for J1) and
+      still converged on identical integers -- strong evidence the reused
+      classifier pipeline (RC.qe_from_sym + UC.classify_fibre) is not
+      hiding a shared, self-consistent bug on this stratum, and that this
+      run's own reported Stage-0/1/2 numbers are not transcription errors.
+      This agreement also independently confirms CORR-20260904-e526e0's
+      own central factual claim: the coincidence D_sum=D_prod=100 at this
+      curve is real, not a reporting artifact.
+
+  # ==================================================================
+  # ARTIFACT / MANIFEST / SHA256 CHECKS (not blind; read freely)
+  # ==================================================================
+  sha256_reuse_checks:
+    method: "Python hashlib.sha256, recomputed independently in this review session, compared against RUN-MONO-98abb2-1/manifest.yaml's own artifact_sha256 and reused_frozen_artifacts blocks."
+    results:
+      - {path: "experiments/EXP-MONO-98abb2/specification.yaml", match: true}
+      - {path: "experiments/EXP-MONO-98abb2/implementation/run_bivariate_test.py", match: true}
+      - {path: "experiments/EXP-MONO-98abb2/runs/RUN-MONO-98abb2-1/command.txt", match: true}
+      - {path: "experiments/EXP-MONO-98abb2/runs/RUN-MONO-98abb2-1/raw-result.json", match: true}
+      - {path: "experiments/EXP-MONO-98abb2/runs/RUN-MONO-98abb2-1/stdout.log", match: true}
+      - {path: "experiments/EXP-MONO-98abb2/runs/RUN-MONO-98abb2-1/stderr.log", match: true}
+      - {path: "experiments/EXP-MONO-0e6e8f/implementation/run_uncond_census.py", match: true}
+      - {path: "experiments/EXP-MONO-815525/implementation/run_census.py", match: true}
+      - {path: "experiments/EXP-MONO-815525/implementation/s3_monomials.json", match: true}
+      - {path: "experiments/EXP-MONO-815525/implementation/s4_monomials.json", match: true}
+      - {path: "experiments/EXP-MONO-815525/implementation/s4_symmetric_coeffs.json", match: true}
+    verdict: "ALL ELEVEN sha256 values match exactly (6 direct EXP-MONO-98abb2 artifacts + 5 reused frozen artifacts from EXP-MONO-0e6e8f/EXP-MONO-815525)."
+
+  manifest_and_environment_checks:
+    - {check: "command in command.txt matches manifest.code.command verbatim", result: true}
+    - {check: "stderr.log is empty (exit implied 0, no error)", result: true}
+    - {check: "environment.json declares stdlib-only dependencies (hashlib, json, os, resource, sys, time, itertools), no CAS/solver, network disabled", result: true}
+    - {check: "budget compliance (wall/cpu/RSS/disk/workers/runs) all within declared specification.yaml budget caps (15.5s vs 900s wall/cpu cap; ~23MB vs 128MiB RSS cap)", result: true}
+    - {check: "seed 20260904006 recorded per replication.seeds[0]; run is deterministic and instantiates no random.Random -- confirmed by re-running this reviewer's own from-scratch enumeration in the same fixed order and obtaining identical counts", result: true}
+    - {check: "no post-hoc widening of the Stage-0 search range (invalidation_rules) -- NOT independently re-audited by this reviewer; this is part of J3/the Stage-0 search loop, owned by red-team, not the J1/J2 census/algebra joints assigned here", result: not_independently_checked}
+
+  git_and_dirty_tree_check:
+    status: NOT PERFORMED
+    reason: >-
+      This task's explicit environment note instructs the Validator not to
+      run any git commands in this session. manifest.yaml's own
+      `code.dirty: unknown` field and `code.commit_note` disclose that the
+      Executor was separately instructed not to run git commands either,
+      and that the commit sha (dcf379d9a022bb81304fb49af56e672dc379ca42)
+      was obtained by the Coordinator via a read-only `gh api` call rather
+      than a local git command. This reviewer therefore did NOT
+      independently verify commit reachability or the dirty-tree state via
+      `git log`/`git show`/`git status`. Per AGENTS.md's "Archive receipts
+      bind to CONTENT first" principle, the sha256_reuse_checks block above
+      (11 of 11 match) is offered as the available substitute, but
+      commit-reachability itself was never checked in this session. This is
+      disclosed as a limitation on this report's own coverage, not as a
+      defect found in the run package.
+
+  # ==================================================================
+  # STANDARD VALIDATOR CHECKLIST (agents/validator.md required output)
+  # ==================================================================
+  artifact_checks:
+    - {artifact: specification.yaml, present: true, frozen: true, sha256_bound: true, note: "approved, frozen, execution_authorized, evidence_eligible all true"}
+    - {artifact: "implementation/run_bivariate_test.py", present: true, sha256_bound: true, note: "not read before J1/J2 own work completed, per blind_rederivation discipline (this file is not in the plan's literal blind_from list, but was deliberately avoided to preserve genuine independence, consistent with the task's own 'not a copy of the Executor's script' instruction)"}
+    - {artifact: implementation.md, present: true, note: "present, not read in depth (out of scope for J1/J2)"}
+    - {artifact: execution_report.yaml, present: true, note: "read only after blind rederivation completed; all reported J1/J2/Stage-2 numbers agree with this report's own independent computation"}
+    - {artifact: "runs/RUN-MONO-98abb2-1/manifest.yaml", present: true}
+    - {artifact: "runs/RUN-MONO-98abb2-1/command.txt", present: true, sha256_bound: true}
+    - {artifact: "runs/RUN-MONO-98abb2-1/environment.json", present: true, note: "stdlib-only dependencies confirmed; no CAS/solver; network disabled"}
+    - {artifact: "runs/RUN-MONO-98abb2-1/stdout.log", present: true, sha256_bound: true, note: "read only after blind rederivation completed"}
+    - {artifact: "runs/RUN-MONO-98abb2-1/stderr.log", present: true, sha256_bound: true, note: "empty; no error"}
+    - {artifact: "runs/RUN-MONO-98abb2-1/raw-result.json", present: true, sha256_bound: true, note: "read only after blind rederivation completed; content matches manifest.artifact_sha256 exactly"}
+    - {artifact: "ledger/corrections/CORR-20260904-e526e0.yaml", present: true, note: "read in full; its central factual claim (D_sum=D_prod=100 at h_+=h_-=1) independently confirmed true by this report's own J1/J2 work"}
+  metric_recomputations:
+    - {metric: "M1/M2 (R1_sum, R2_sum against D_sum)", method: "own independent driver, own group law + reused RC/UC classifier", own_value: "[0, 0]", reported_value: "[0, 0]", match: true}
+    - {metric: "M3 (R1_prod, R2_prod against D_prod)", method: "own independent driver", own_value: "[0, 0]", reported_value: "[0, 0]", match: true}
+    - {metric: "M4 (found curve p,A,B,n_+,n_-,h_+,h_-)", method: "own independent group law (J1 part A)", own_value: "[103,1,11,58,42,1,1]", reported_value: "[103,1,11,58,42,1,1]", match: true}
+    - {metric: "M5 (curves scanned in Stage 0 before success = 10316)", method: "NOT independently re-run -- would require re-implementing the full Stage-0 search loop over the declared [101,2000] range and its no-hardcoding audit, which is J3's own attack plan (red-team), not J1/J2 (validator)", own_value: null, reported_value: 10316, match: not_independently_checked}
+  control_checks:
+    - {control: "proves_too_much (review_plan)", target: "EXP-MONO-4e6faa's own h_-=1 curve and EXP-MONO-ee06e2's own h_-=3 curve", result: PASS, note: "own general coincidence-solving method correctly predicts non-coincidence at both, matching each experiment's own already-archived nonzero residuals"}
+    - {control: "diagonal coincidence D_sum=D_prod at h_+=h_-=h", result: "CONFIRMED as genuine algebraic identity", note: "h in {0,1}; realized here at h=1"}
+    - {control: "general h_+ != h_- coincidence search (h_+,h_- in [0,12], n_+,n_- in [1,500])", result: "NO COUNTEREXAMPLE FOUND", note: "exhaustive bounded search plus symbolic case analysis; h_+ != h_- is sufficient given n_+,n_->0"}
+    - {control: "n_+,n_- > 0 precondition at toy primes p in [101,2000]", result: PASS, note: "guaranteed by the Hasse bound for every Z in {0,1,3} at these p; the degenerate n_+=0/n_-=0 corner is unreachable in this program's declared search domain"}
+    - {control: "twist-order identity N + N_tw == 2p+2", result: PASS, note: "120+88=208=2*103+2, own independent point count"}
+    - {control: "exact-division checks ((#E[4]-tau)/4, (#E^d[4]-tau)/4 both integer)", result: PASS, note: "(8-4)/4=1 for both E and E^d"}
+    - {control: "stratum-size identity C(n_++n_-,3) == enumerated base points", result: PASS, note: "161700 == 161700, own enumeration"}
+    - {control: "class-count closure (three classes sum to total, no anomalies)", result: PASS, note: "42436+112256+7008 = 161700 exactly; 0 base points classified outside {1^4,2+2,2+1+1}"}
+  heuristic_validation_checks:
+    - {check: "pre-registered prediction (docs/target-result-profile.md style)", applicable: false, note: "This is an exact zero-tolerance integer census comparison at a fixed toy prime, not a distributional/heuristic (e.g. Dickman-de Bruijn CDF) validation. Pre-registration is instead satisfied by specification.yaml's stage_2 block and preregistered_prediction section, which fix both D_sum's and D_prod's formulas and (for M3) the DIRECTION of the expected discrepancy before Stage 1 is read -- present and unmodified in the frozen contract, though CORR-20260904-e526e0 discloses that the M3 direction claim was itself wrong at this specific (h_+,h_-) point (a pre-registration DEFECT, not an absence of pre-registration)."}
+  cost_model_checks:
+    - {check: "concrete cost table with declared unit, memory alongside time", applicable: false, note: "No cost, complexity, or relation-rate table is reported anywhere in this experiment's artifacts; specification.yaml's claim_ceiling explicitly disclaims any ECDLP cost/runtime/exponent claim."}
+  proof_architecture_checks:
+    - {audit: "whether the Stage-0 search loop genuinely avoided hard-coding toward (A,B)=(1,11)", status: "NOT independently audited by this reviewer -- this is J3 (correction-completeness audit), assigned to red-team.", applies: true}
+    - {audit: "whether CORR-20260904-e526e0 correctly and completely characterizes the defect, including its severity call and whether EV-MONO-91bca2/EV-MONO-fae201 could have a similar unchecked coincidence", status: "NOT independently audited by this reviewer -- this is J3, assigned to red-team. This report's J2 algebra (the general h_+ != h_- result, and the E[4]-alone/D_quad coincidence conditions in the proves-too-much control) is offered as an input red-team may cite for J3(i), but no J3 verdict is rendered here.", applies: true}
+    - {audit: "whether requiring h_+ != h_- is necessary/sufficient/both/neither (J4)", status: "This report's J2 result (h_+ != h_- IS sufficient, given n_+,n_->0 which always holds at these scales) directly answers the sufficiency half of J4's own question, but J4's full assessment (including whether a cleaner alternative filter like max(h_+,h_-)>=2 is preferable) is red-team's own joint and is not rendered here.", applies: true}
+
+  limitations:
+    - >-
+      This report addresses ONLY J1 and J2 (and the blind_rederivation
+      requirement, which J1 part B / J2 subsumes). It renders no verdict on
+      J3 (whether CORR-20260904-e526e0 correctly and completely
+      characterizes the defect, including its severity and whether
+      EV-MONO-91bca2/EV-MONO-fae201 are genuinely unaffected) or J4 (the
+      full sufficiency/necessity/cleanliness assessment of a follow-up's
+      proposed filter) as a whole -- those are red-team's joints. This
+      report's own J2 algebra is offered as load-bearing input to J3(i) and
+      J4, but no composite verdict is formed here, per agents/validator.md
+      "Working under a review plan."
+    - >-
+      M5 (curves scanned before success = 10316) and the Stage-0
+      no-hardcoding audit were NOT independently re-verified: doing so
+      would require re-implementing the Stage-0 search loop exactly,
+      including its declared fixed order over [101,2000], which is J3's
+      own attack plan and outside the J1/J2 joints as assigned. This is
+      disclosed rather than silently assumed correct.
+    - >-
+      Per this task's explicit environment note, no git command was run in
+      this review session. Commit reachability and dirty-tree state were
+      therefore not independently verified; this reviewer relied on the
+      sha256-bound content checks above (11 of 11 match) as the available
+      substitute, per AGENTS.md's "Archive receipts bind to CONTENT first"
+      principle, but that is narrower than a full reachability check.
+    - >-
+      The J2 general-coincidence result (h_+ != h_- is sufficient given
+      n_+,n_->0) is proved for the SPECIFIC rival D_prod = h_+ h_- (n_++n_-)
+      named in this experiment's own specification. It is not a claim about
+      every conceivable rival formula a future follow-up might name; the
+      proves-too-much control's structural_observation above (that D_quad
+      and D_prod share the same {0,1} coincidence set) is a general remark
+      about polynomial/product-form rivals agreeing with the linear term at
+      h in {0,1}, offered for red-team's J4 consideration, but is not
+      itself an exhaustive classification of all possible future rivals.
+    - >-
+      The Hasse-bound argument establishing n_+,n_- > 0 for every reachable
+      curve in the declared [101,2000] toy-prime range assumes Z in
+      {0,1,3} (the specification's own domain) and standard ordinary
+      curves; it was checked by hand/arithmetic in this report, not by an
+      exhaustive re-scan of the full [101,2000] range for a hypothetical
+      n_+=0 or n_-=0 curve (which the Hasse bound already rules out for
+      every such p, so no such scan is needed for the conclusion to hold,
+      but this reviewer notes the argument was not additionally
+      brute-force verified across the whole range as a redundant check).
+    - >-
+      heuristic_validation_checks and cost_model_checks are reported as not
+      applicable: this experiment is an exact finite-integer census with a
+      pre-registered closed-form comparison, not a distributional
+      heuristic-validation experiment in the sense of
+      docs/target-result-profile.md, and reports no cost table.
+    - >-
+      A sibling red-team-report.yaml file exists in this experiment's
+      reviews/ directory (confirmed present by directory listing) but was
+      never opened or read, before or after this report's own conclusions
+      were formed. Disclosed per the blindness declaration, not because its
+      existence affected anything in this report.
+
+  overall_verdict_on_owned_joints:
+    j1: holds
+    j2: holds
+    blind_rederivation: holds
+    proves_too_much: holds
+    sha256_reuse_binding: verified
+    agreement_with_executor: full_agreement_no_disagreement_found
+  verdict: passed
+  verdict_scope_statement: >-
+    "Passed" here means: J1's fourteen curve/twist/torsion facts (Part A)
+    and the exhaustive 161,700-point distinct-split census with both
+    D_sum/D_prod predictions and all four residuals (Part B) are
+    independently confirmed by from-scratch code sharing no line with
+    RC/UC for the curve construction, and by an independently-written
+    driver reusing ONLY RC.qe_from_sym/UC.classify_fibre for the census,
+    written and run BEFORE any of the Executor's own reported values were
+    read; J2's algebraic audit confirms the diagonal coincidence
+    D_sum=D_prod at h_+=h_-=h in {0,1} as a genuine identity (not a bug),
+    and further establishes -- by symbolic case analysis plus an
+    exhaustive bounded numeric search with zero counterexamples -- that
+    h_+ != h_- is BOTH NECESSARY AND SUFFICIENT to guarantee D_sum !=
+    D_prod for any n_+,n_- > 0, a precondition this program's own toy-prime
+    search domain always satisfies by the Hasse bound; the proves-too-much
+    control on both EXP-MONO-4e6faa's and EXP-MONO-ee06e2's own archived
+    curves passes (this reviewer's general method correctly reproduces
+    both already-verified non-coincidence outcomes); the sha256-bound
+    reuse of prior artifacts and this experiment's own artifact hashes are
+    real (11 of 11 match); and every independently-derived number agrees
+    exactly with what the Executor reported (26 of 26 compared values),
+    including the coincidence itself. This is a verdict on the
+    ADMISSIBILITY OF THIS RUN AS A RECEIPT for the two joints assigned to
+    this reviewer, and on CORR-20260904-e526e0's central factual claim and
+    proposed fix's sufficiency (both independently confirmed true). It is
+    NOT a verdict on H-MONO-1297d7's status, on J3/J4 (red-team's joints,
+    including CORR-20260904-e526e0's completeness/severity call and
+    whether EV-MONO-91bca2/EV-MONO-fae201 are genuinely unaffected), on
+    whether the Stage-0 search genuinely avoided hard-coding, or on any
+    ECDLP-relevant question -- those compositions belong to the
+    Coordinator, per agents/validator.md "Working under a review plan",
+    and per this experiment's own claim_ceiling (toy tier; "Not a
+    discrete-logarithm computation, not an ECDLP attack, not relation
+    collection").
+
+  artifact_paths:
+    - experiments/EXP-MONO-98abb2/specification.yaml
+    - experiments/EXP-MONO-98abb2/implementation.md
+    - experiments/EXP-MONO-98abb2/implementation/run_bivariate_test.py
+    - experiments/EXP-MONO-98abb2/execution_report.yaml
+    - experiments/EXP-MONO-98abb2/runs/RUN-MONO-98abb2-1/manifest.yaml
+    - experiments/EXP-MONO-98abb2/runs/RUN-MONO-98abb2-1/command.txt
+    - experiments/EXP-MONO-98abb2/runs/RUN-MONO-98abb2-1/environment.json
+    - experiments/EXP-MONO-98abb2/runs/RUN-MONO-98abb2-1/stdout.log
+    - experiments/EXP-MONO-98abb2/runs/RUN-MONO-98abb2-1/stderr.log
+    - experiments/EXP-MONO-98abb2/runs/RUN-MONO-98abb2-1/raw-result.json
+    - experiments/EXP-MONO-0e6e8f/implementation/run_uncond_census.py
+    - experiments/EXP-MONO-815525/implementation/run_census.py
+    - experiments/EXP-MONO-4e6faa/specification.yaml
+    - experiments/EXP-MONO-4e6faa/execution_report.yaml
+    - experiments/EXP-MONO-ee06e2/specification.yaml
+    - experiments/EXP-MONO-ee06e2/execution_report.yaml
+    - ledger/proposals/IDEA-20260904-4f614a.yaml
+    - ledger/hypotheses/H-MONO-1297d7.yaml
+    - ledger/hypotheses/H-MONO-d4c511.yaml
+    - ledger/corrections/CORR-20260904-e526e0.yaml
+    - ledger/handoffs/TASK-20260904-f8c4dd.yaml
+    - agents/validator.md
+    - AGENTS.md
+
+review_attestation:
+  task_id: TASK-20260904-f8c4dd
+  joints_owned: [J1-CURVE-CONSTRUCTION-AND-CENSUS-AUDIT, J2-COINCIDENCE-ALGEBRA-AUDIT]
+  sources_read:
+    - agents/validator.md
+    - AGENTS.md
+    - ledger/handoffs/TASK-20260904-f8c4dd.yaml
+    - experiments/EXP-MONO-98abb2/specification.yaml
+    - ledger/hypotheses/H-MONO-1297d7.yaml
+    - ledger/corrections/CORR-20260904-e526e0.yaml
+    - ledger/proposals/IDEA-20260904-4f614a.yaml (full, including NOTATION, (D1)-(D5), STEP 1-5)
+    - experiments/EXP-MONO-815525/implementation/run_census.py (source, for reused-primitive signatures: compile_sym, qe_from_sym)
+    - experiments/EXP-MONO-0e6e8f/implementation/run_uncond_census.py (source, for reused-primitive signature: classify_fibre)
+    - experiments/EXP-MONO-4e6faa/specification.yaml (a DIFFERENT experiment's own material, for the proves-too-much control)
+    - experiments/EXP-MONO-4e6faa/execution_report.yaml (a DIFFERENT experiment's own material, for the proves-too-much control; not this experiment's blind_from set)
+    - ledger/hypotheses/H-MONO-d4c511.yaml (for the "E[4]-alone" rival's context)
+    - experiments/EXP-MONO-ee06e2/specification.yaml (a DIFFERENT experiment's own material, for the proves-too-much control)
+    - experiments/EXP-MONO-ee06e2/execution_report.yaml (a DIFFERENT experiment's own material, for the proves-too-much control)
+    - experiments/EXP-MONO-98abb2/execution_report.yaml (read only after own J1/J2 complete, per blind_rederivation)
+    - experiments/EXP-MONO-98abb2/runs/RUN-MONO-98abb2-1/raw-result.json (read only after own J1/J2 complete)
+    - experiments/EXP-MONO-98abb2/runs/RUN-MONO-98abb2-1/manifest.yaml (read only after own J1/J2 complete)
+    - experiments/EXP-MONO-98abb2/runs/RUN-MONO-98abb2-1/environment.json
+    - experiments/EXP-MONO-98abb2/runs/RUN-MONO-98abb2-1/command.txt
+    - experiments/EXP-MONO-98abb2/runs/RUN-MONO-98abb2-1/stderr.log
+    - templates/research-records.md
+  read_sibling_reports: false
+  sibling_report_directory_observed_but_not_read: experiments/EXP-MONO-98abb2/reviews/red-team/red-team-report.yaml
+  blind_from_respected: true
+  verdict: holds
