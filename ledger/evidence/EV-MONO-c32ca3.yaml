@@ -1,0 +1,173 @@
+evidence:
+  id: EV-MONO-c32ca3
+  hypothesis_id: H-MONO-6adf3c
+  experiment_ids: [EXP-MONO-7f39bf]
+  run_ids: [RUN-MONO-7f39bf-3, RUN-MONO-7f39bf-4]
+  type: empirical
+  direction: contradicts
+  strength: strong
+  claim_tier: toy
+  certificate_refs: []
+  proof_status: derivation
+  proof_refs:
+    - experiments/EXP-MONO-7f39bf/runs/RUN-MONO-7f39bf-3/raw-result.json
+    - experiments/EXP-MONO-7f39bf/runs/RUN-MONO-7f39bf-4/raw-result.json
+    - ledger/handoffs/TASK-20260905-77a64b.yaml
+
+  observations:
+    - >-
+      MEASURED, BOTH RUNS, ALL 6 (p,m) CELLS: n_reject=0 in every one of 24
+      measured (p,m,tag) cells (Stage 1 interval/generator-based AND Stage
+      1B random-subset, both replication seeds, 24,000 total trials). The
+      character-tower filter never once rejected a candidate.
+    - >-
+      MEASURED, BOTH RUNS: at m=5 the construction produces 4 T-dependent
+      character branches (n_branches_T_dependent_discriminant=4), not
+      IDEA-20260807-5126f4's own predicted count of m-2=3, reproducibly
+      across all 3 primes and both replication seeds (12 of 12 m=5 gate
+      checks).
+    - >-
+      INDEPENDENTLY RE-DERIVED, VALIDATOR (blind, from source code and
+      fresh computation, TASK-20260905-77a64b joint 1): REJECT is
+      reachable BY CONSTRUCTION -- concrete T values exist, at all 6
+      tested cells, for which the actual unmodified implementation
+      returns REJECT. But the set of REJECT-triggering T values, at every
+      tested cell, is EXACTLY the complement of the on-curve x-coordinate
+      set: {T : filter rejects} = {T : legendre(f(T),p) == -1}, verified
+      by exact set equality (not merely non-overlap) at all 6 cells.
+      Since Stage 1 samples candidates only from genuine on-curve
+      x-coordinates, n_reject=0 is neither sampling luck nor a coding
+      defect disabling REJECT -- it is a consequence of the sampling
+      domain never intersecting the REJECT set.
+    - >-
+      INDEPENDENTLY RE-DERIVED, RED TEAM (blind, symbolic derivation,
+      generic A, B -- TASK-20260905-77a64b cross-cutting finding): the
+      GENERAL algebraic identity discriminant(S3(x_free,T,tb), x_free) /
+      (T^3 + A*T + B) = 16 * (tb^3 + A*tb + B) holds EXACTLY, for any
+      branch value tb and any curve (A,B). Every branch value (t_+/t_- at
+      m=4, u_i at m=5) is itself computed via genuine elliptic-curve
+      point addition on the fixed factor-base coordinates, so
+      f(tb) = tb^3+A*tb+B is ALWAYS a quadratic residue by construction.
+      Consequently chi(disc_branch(T)) = chi(f(T)) IDENTICALLY, for every
+      branch, at every m, for every curve -- not merely at the 3 tested
+      primes. Since any genuine relation-search candidate target is by
+      definition an on-curve x-coordinate (chi(f(T))=+1 always), REJECT
+      is a MATHEMATICAL IMPOSSIBILITY for any genuine candidate under
+      this construction. Verified numerically against real cell data at
+      p=211 (m=4 and m=5) and independently confirmed at a second cell
+      (p=1009, m=4: REJECT fires on exactly 0/536 on-curve T's and
+      473/473 off-curve T's).
+    - >-
+      INDEPENDENTLY RE-DERIVED, RED TEAM (from-scratch, joint 2): the
+      m=5 branch count of 4 is CORRECT, not a counting defect. The
+      general formula for this construction's branch count is 2^(m-3)
+      (2 at m=4, 4 at m=5, 8 at m=6, ...), exponential in m -- not the
+      idea's own linear "m-2" prediction. The two formulas coincide only
+      at m=4 (both equal 2); IDEA-20260807-5126f4's own "m-2" claim was
+      extrapolated from that single coincidental data point and diverges
+      at every larger m. Confirmed via an exact resultant-as-product-
+      over-roots identity, cross-checked against fresh factor-base points
+      not reused from the run.
+    - >-
+      PROVES-TOO-MUCH CONTROL HELD (Red Team): the experiment's own
+      independent ground-truth root-finding path (used to check the
+      filter's answers) was tested against a hand-constructed, verified
+      root-free candidate (T=0 at p=211/m=4) and a hand-constructed,
+      verified non-trivial-root candidate (T=1, roots {38,122,146,162}),
+      both computed independently of the implementation. The
+      implementation's own ground-truth path matched exactly in both
+      cases. The false-positive-rate numbers are not undermined by a
+      broken ground-truth path.
+
+  inference: >-
+    The measured false-positive rates (0.128-0.798 across cells) do NOT
+    measure the character-tower filter's discriminating power over
+    genuinely reachable candidates -- since the filter accepts (PASS)
+    every on-curve T unconditionally, by the proven identity above, these
+    numbers are instead the base rate of "a random on-curve T happens to
+    have a genuine factor-base root", entirely independent of the filter.
+    IDEA-20260807-5126f4's own falsification condition (a) ("filter
+    false-positive rate is ~1 on the partial locus too... the imprimitivity
+    buys nothing") is not merely measured but PROVEN, unconditionally, for
+    every m and every curve: this specific character-tower construction
+    can never reject a genuine candidate target, because a branch's
+    discriminant's quadratic character is identical to the target's own
+    on-curve membership test, which is guaranteed true before the filter
+    is invoked. Condition (b) (resolvent field-operation cost) is
+    rendered moot in the same way H-MONO-39b1f0's own full-locus
+    confirmation rendered it moot: a filter with zero genuine
+    discriminating power provides no pruning value regardless of its own
+    per-decision cost.
+
+  boundaries:
+    - >-
+      The discriminant identity itself (chi(disc_branch(T)) = chi(f(T)))
+      is a GENERAL algebraic fact, curve-parameter-independent (derived
+      symbolically for generic A, B), not scoped to the 3 tested primes
+      -- unlike a purely empirical measurement, this specific mechanism
+      is now understood to fail for every prime and curve, at m=4 and
+      m=5 specifically (the branch-construction pattern verified). Its
+      generalization to m>=6 (where the 2^(m-3) branch count continues)
+      is a strong, well-grounded conjecture from the same construction
+      pattern, not independently verified at m>=6 by this record.
+    - >-
+      Toy scale for the MEASUREMENT (p in {211,431,1009}, m in {4,5});
+      the identity's own validity is not scale-limited.
+    - >-
+      Does not touch KN-OPEN-009's own status (a knowledge-curation act,
+      separate from this record), H-MONO-45183a, or H-MONO-663fb4.
+    - >-
+      No ECDLP, relation-rate, or exponent claim in either direction; a
+      cheaper membership predicate, had one existed, would only ever
+      have affected the relation-collection constant (FINDING-PF-IC-001).
+
+  unresolved_confounds:
+    - >-
+      Named risk R2 (disc_branch(T) degree growth) was not separately
+      tracked as a distinct open question by this record; the governing
+      fact is now the discriminant IDENTITY above, which supersedes R2's
+      original framing (the degree of disc_branch(T) no longer matters
+      once its Legendre symbol is proven identical to chi(f(T))
+      regardless of degree).
+
+  obstruction:
+    statement: >-
+      A character-tower membership filter built from a Semaev summation
+      polynomial's own branch discriminants, where each branch value is
+      itself computed via elliptic-curve point addition on already-fixed,
+      already-on-curve factor-base coordinates, can never reject a
+      genuine on-curve candidate target -- because the discriminant's
+      quadratic character reduces identically to the target's own
+      on-curve membership test (f(T) is a square), which is guaranteed
+      true for every genuine relation-search candidate by definition of
+      being a curve point.
+    quantity: >-
+      chi(disc_branch(T)) / chi(f(T)), ratio, for every branch, every
+      tested m, every tested curve
+    value: "1 (identical), exactly, at all 6 tested (p,m) cells and generically for any (A,B) by symbolic derivation"
+    measured_by: [RUN-MONO-7f39bf-3, RUN-MONO-7f39bf-4]
+    scope: >-
+      This specific construction (branch values obtained via EC point
+      addition on fixed on-curve coordinates, discriminant taken in the
+      free/target variable), m in {4,5}; the identity's derivation is
+      curve-generic.
+    resource_check:
+      examined: true
+      reading: >-
+        Read the other way, this is a REUSABLE STRUCTURAL LEMMA for this
+        lane's own future idea generation: any proposed membership filter
+        built by taking discriminants of a Semaev-polynomial branch
+        decomposition, where the branch values are themselves obtained by
+        summing already-on-curve points, is STRUCTURALLY GUARANTEED to
+        reduce to a curve-membership tautology and can be ruled out
+        BEFORE implementation by checking this one algebraic fact --
+        cheaper than building and running the filter to discover the
+        same vacuity empirically, as this record's own predecessor
+        (H-MONO-39b1f0) and this record both had to do. Named as a
+        candidate object-first check for
+        docs/inventor-protocol.md-style pre-compute audits of any future
+        multiquadratic/character-descent membership-filter idea in this
+        lane.
+      spawned_ids: []
+
+  reviewed_by: coordinator
