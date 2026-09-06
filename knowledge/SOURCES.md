@@ -25,13 +25,13 @@ a hash it cannot is an assertion by the session that recorded it.
 | — present but carrying no `.sha256` | 1 |
 | — sought and never retrieved | 1 |
 | Seed bibliography entries | 10 |
-| Literature entries (`KN-LIT-*`) | 7862 |
-| — with a resolvable external identifier | 2252 |
+| Literature entries (`KN-LIT-*`) | 7864 |
+| — with a resolvable external identifier | 2254 |
 | — with no identifier recorded | 5610 |
 
-Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1324, doi 149, eprint 743, url 36. Every identifier an entry carries is kept in `sources.json`.
+Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1325, doi 150, eprint 743, url 36. Every identifier an entry carries is kept in `sources.json`.
 
-`citation_verified` distribution: `False` 21, `True` 10, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `metadata` 1, `partial` 5, `read` 7489, `secondary_only` 1, `transcription_of_full_text_at_recorded_sha256` 2, `web` 326.
+`citation_verified` distribution: `False` 21, `True` 10, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `metadata` 1, `partial` 5, `read` 7491, `secondary_only` 1, `transcription_of_full_text_at_recorded_sha256` 2, `web` 326.
 
 ## 1. Frozen source packages
 
@@ -112,7 +112,7 @@ records that some fetch failed, and says nothing about the file that is here.
 
 ## 5. Literature citations with a resolvable identifier
 
-2252 of 7862 `KN-LIT-*` entries carry an
+2254 of 7864 `KN-LIT-*` entries carry an
 eprint, arXiv, DOI, ISBN or URL identifier.
 
 | ID | Title | Year | Identifier | Verified |
@@ -258,6 +258,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-1027 | Protecting the most significant bits in scalar multiplication algorithms | 2022 | `eprint:2022/1254` | read |
 | KN-LIT-1028 | p∞ –SELMER RANKS OF CM ABELIAN VARIETIES | 2022 | `arxiv:2208.14563` | read |
 | KN-LIT-1029 | Quantum Analysis of | 2022 | `eprint:2022/683` | read |
+| KN-LIT-102cdb | Parity (XOR) Reasoning for the Index Calculus Attack | 2020 | `arxiv:2001.11229` | read |
 | KN-LIT-103 | Sieve algorithms for the shortest vector problem are practical | 2008 | `doi:10.1515/jmc.2008.009` | read |
 | KN-LIT-1030 | Quantum Impossible Differential Attacks: | 2022 | `eprint:2022/754` | read |
 | KN-LIT-1031 | RADICAL ISOGENIES AND MODULAR CURVES | 2022 | `eprint:2022/1446` | read |
@@ -2228,6 +2229,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-927 | Side Channel Analysis against the ANSSI’s protected AES implementation on ARM | 2021 | `eprint:2021/592` | read |
 | KN-LIT-928 | SPORADIC POINTS OF ODD DEGREE ON X1 (N ) COMING FROM Q-CURVES | 2021 | `arxiv:2107.10909` | read |
 | KN-LIT-929 | Sumcheck Arguments and their Applications ? | 2021 | `eprint:2021/333` | read |
+| KN-LIT-92919e | ANF-Based Satisfiability for Weil-Descent Cryptographic Attacks | 2025 | `doi:10.1109/codit66093.2025.11321693` | read |
 | KN-LIT-930 | Superposition Meet-in-the-Middle Attacks: Updates on Fundamental Security of AES-like Hashing | 2021 | `eprint:2021/575` | read |
 | KN-LIT-931 | Supersingular Isogeny-Based Ring Signature? | 2021 | `eprint:2021/1318` | read |
 | KN-LIT-932 | SYMBOL LENGTH IN BRAUER GROUPS OF ELLIPTIC CURVES | 2021 | `arxiv:2107.10886` | read |
