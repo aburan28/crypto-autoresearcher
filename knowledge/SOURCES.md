@@ -25,13 +25,13 @@ a hash it cannot is an assertion by the session that recorded it.
 | — present but carrying no `.sha256` | 1 |
 | — sought and never retrieved | 1 |
 | Seed bibliography entries | 10 |
-| Literature entries (`KN-LIT-*`) | 7861 |
-| — with a resolvable external identifier | 2251 |
+| Literature entries (`KN-LIT-*`) | 7862 |
+| — with a resolvable external identifier | 2252 |
 | — with no identifier recorded | 5610 |
 
-Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1324, doi 149, eprint 743, url 35. Every identifier an entry carries is kept in `sources.json`.
+Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1324, doi 149, eprint 743, url 36. Every identifier an entry carries is kept in `sources.json`.
 
-`citation_verified` distribution: `False` 21, `True` 10, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `metadata` 1, `partial` 5, `read` 7488, `secondary_only` 1, `transcription_of_full_text_at_recorded_sha256` 2, `web` 326.
+`citation_verified` distribution: `False` 21, `True` 10, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `metadata` 1, `partial` 5, `read` 7489, `secondary_only` 1, `transcription_of_full_text_at_recorded_sha256` 2, `web` 326.
 
 ## 1. Frozen source packages
 
@@ -112,7 +112,7 @@ records that some fetch failed, and says nothing about the file that is here.
 
 ## 5. Literature citations with a resolvable identifier
 
-2251 of 7861 `KN-LIT-*` entries carry an
+2252 of 7862 `KN-LIT-*` entries carry an
 eprint, arXiv, DOI, ISBN or URL identifier.
 
 | ID | Title | Year | Identifier | Verified |
@@ -2114,6 +2114,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-822 | The absolute discriminant of the endomorphism ring of most reductions of a non-CM elliptic curve is close to maximal | 2020 | `arxiv:2003.01253` | read |
 | KN-LIT-823 | THE STRUCTURE OF THE GROUP OF RATIONAL POINTS OF AN ABELIAN VARIETY OVER A FINITE FIELD | 2020 | `arxiv:2006.00637` | read |
 | KN-LIT-824 | THE θ-CONGRUENT NUMBERS ELLIPTIC CURVES VIA A FERMAT-TYPE THEOREM | 2020 | `arxiv:2012.13451` | read |
+| KN-LIT-824baa | On the Mismatch between Neural-Discovered Differential-Linear Features and Long-Round Distinguisher Construction | 2026 | `url:anonymous.4open.science/r/revisiting_differential_nerual_cryptanalysis-f573/readme.md` | read |
 | KN-LIT-825 | TORSION POINTS OF DRINFELD MODULES OVER LARGE ALGEBRAIC EXTENSIONS OF FINITELY GENERATED FUNCTION FIELDS | 2020 | `arxiv:2007.13949` | read |
 | KN-LIT-826 | TORSION POINTS ON ISOGENOUS ABELIAN VARIETIES | 2020 | `arxiv:2011.05815` | read |
 | KN-LIT-827 | Towards Post-Quantum Key-Updatable Public-Key Encryption via Supersingular Isogenies | 2020 | `eprint:2020/1593` | read |
