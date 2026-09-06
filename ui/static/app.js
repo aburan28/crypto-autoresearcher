@@ -602,8 +602,7 @@ const kv = (key, value) => h('div', { style: 'display:contents' },
 
 /** A phone shows a summary line; a wide screen shows the block open. The
  *  reader can toggle either. `note` is a short count or hint after the label. */
-const NARROW = matchMedia('(max-width: 820px)');
-function fold(label, body, { cls = 'panel', note = null, open = !NARROW.matches } = {}) {
+function fold(label, body, { cls = 'panel', note = null, open = !narrowScreen() } = {}) {
   return h('details', { class: `fold ${cls}`, open },
     h('summary', {}, h('span', {}, label), note ? h('span', { class: 'n' }, note) : null),
     h('div', { class: 'fold-body' }, body));
