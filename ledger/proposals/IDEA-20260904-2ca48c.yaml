@@ -1,0 +1,246 @@
+idea:
+  id: IDEA-20260904-2ca48c
+  question_id: RQ-SIMSPK-f6a6c0
+  handoff_id: null
+  goal_id: GOAL-SIMSPK-001
+  added: '2026-09-04'
+
+  title: >-
+    SPARSITY IS A PRIOR ON A MASK'S SIZE WHEN WHAT THE SEARCH NEEDS IS A PRIOR ON
+    ITS POSITION - the 4096 two-word weight-2 masks on Speck128/128 partition
+    exactly by the inter-word bit offset, the neural model's favourites all sit at
+    offset 0 while the classically useful mask sits at offset 8 = alpha, and one
+    exhaustive sweep over that single integer parameter says whether the offset
+    predicts forward linear-trail weight where Hamming weight provably cannot
+
+  class: mechanism
+
+  claim: >-
+    KN-LIT-824baa's own Table 7 falsifies Hamming weight as a ranking signal:
+    {72,8} and {77,5} are both weight 2 and their 5-round minimum-weight trail
+    correlations are 2^-19 and 2^-10, a gap of 2^9 that no size prior can see.
+    That is why the paper's sparsity intervention raised first-layer recovery of
+    {77,5} from 1/30 to 9/30 but left decision-level recovery at 0/30 - it
+    enlarged the pool without reordering it.
+    A positional parameter might do what size cannot. On Speck128/128 the
+    ciphertext difference is two 64-bit words, so the 8128 weight-2 masks
+    partition exactly into 4032 SAME-WORD masks and 4096 SPLIT masks carrying one
+    bit in each word. Every split mask is determined by a base position b and an
+    inter-word offset delta in Z/64. Read that way, the paper's Table 6 shows a
+    striking concentration: the six split masks holding the most first-layer
+    channels - {72,8} with 70 channels, {71,7} with 61, {70,6} with 51, {67,3}
+    with 34, {69,5} with 20, {75,11} with 20 - ALL have delta = 0, while the
+    classically selected {77,5} has delta = 8, which is exactly Speck128's
+    rotation constant alpha. This proposal tests whether delta, a single integer
+    over a space of 64 values, predicts forward trail weight.
+
+  mechanism: >-
+    Speck's round is x_{i+1} = ((x_i >>> alpha) + y_i) XOR k_i and
+    y_{i+1} = (y_i <<< beta) XOR x_{i+1}, with (alpha, beta) = (8, 3) for
+    Speck128/128. Propagating a two-word linear mask BACKWARDS through one round
+    moves one component by alpha and the other by beta before the two are combined
+    at the modular addition, whose linear approximation is cheap only when the
+    incoming masks align. So the cost of extending a split mask backwards through
+    r rounds should depend on how the two single-bit positions sit relative to
+    each other MODULO the rotation constants - i.e. on delta - and not on the mask's
+    weight at all. A mask at delta = 0 has both bits at the same intra-word
+    position, which is the configuration a difference-only distinguisher sees as a
+    strong local parity precisely because the round has not yet separated them;
+    that same non-separation is what should make it expensive to extend.
+    The test is exhaustive over the parameter of interest, which is what makes it
+    worth doing rather than sampling: for all 4096 split masks, compute |r| from
+    the single-pass Gram estimator of IDEA-20260904-b1d69f and |q| from the
+    5-round minimum-weight SAT trail search, then average log2|q| within each of
+    the 64 delta classes. If delta matters, the 64 class means separate; if it
+    does not, they do not, and the hypothesis dies in one plot.
+
+  novelty_status: unverified
+
+  novelty_note: >-
+    The dependence of ARX linear-trail cost on rotation constants is old and
+    certainly known in some form - it is the reason rotation constants are chosen
+    at all - so this record claims no novelty for the underlying phenomenon. What
+    is untested here is its use as a RANKING PRIOR for differential-linear
+    intermediate-mask search, and specifically whether delta separates the
+    candidate space finely enough to substitute for the sparsity bias in
+    KN-LIT-824baa. The corpus holds KN-LIT-4414 on linear approximations to ARX
+    and KN-LIT-4400 on ARX differential-linear attacks; NEITHER was read for this
+    question and either could already settle it more cheaply than running this.
+
+  citations:
+    - ref: KN-LIT-824baa
+      provenance: internal
+      claim: >-
+        Table 7 gives |q| = 2^-19 for {72,8} and 2^-10 for {77,5}, both Hamming
+        weight 2. Table 6 gives per-mask first-layer channel counts for a
+        representative 8-round Speck128/128 model, in which the highest-multiplicity
+        split masks are {72,8}, {71,7}, {70,6}, {67,3}, {69,5} and {75,11}. Sparsity
+        guidance moved {77,5} from 1/30 to 9/30 at the first layer and 0/30 to 0/30
+        at the decision level.
+      verified_by: >-
+        Top-level orchestrating session, 2026-09-04. Full text supplied by the user
+        in-session and read in full. THE OFFSET READING IS THIS PROGRAM'S
+        ARITHMETIC ON THE PAPER'S MASK NOTATION, NOT A STATEMENT THE PAPER MAKES:
+        it assumes bits 64-127 index one 64-bit word and 0-63 the other, which the
+        paper's convention ("bit positions numbered from the LSB within each word")
+        supports but does not state in the form used here. If that indexing is
+        wrong, every delta in this record is wrong and the hypothesis is untested
+        rather than false.
+    - ref: KN-OPEN-7f0d85
+      provenance: internal
+      claim: This proposal is question Q3 of that open problem.
+      verified_by: Top-level orchestrating session, 2026-09-04.
+
+  assumptions:
+    - >-
+      THE INDEXING ASSUMPTION IS THE LOAD-BEARING ONE AND IS CHECKED FIRST. Before
+      any sweep, confirm against a reference Speck128/128 implementation that the
+      paper's mask {77,5} corresponds to bit 13 of one word and bit 5 of the other.
+      The published q = 2^-10 for that mask is the check: if the reconstructed mask
+      does not reproduce it, the indexing is wrong and the experiment stops.
+    - >-
+      Restricting to split masks is deliberate, not an oversight. Same-word weight-2
+      masks are a different family with a different natural parameter and are swept
+      separately or not at all; conflating the two would average away any structure.
+
+  predictions:
+    - >-
+      PRIMARY. Mean log2|q| over the 64 delta classes is NOT flat, and the classes
+      near delta = alpha = 8 admit systematically stronger trails than the class at
+      delta = 0. Stated sharply so it can fail: the delta = 8 class mean beats the
+      delta = 0 class mean by at least 4 bits.
+    - >-
+      delta explains materially more of the variance in log2|q| than Hamming weight
+      does across the union of split and same-word masks - the comparison that
+      decides whether delta is worth using as a prior at all.
+    - >-
+      A secondary structure appears at delta = beta = 3 or at delta = alpha +/- beta,
+      reflecting the second rotation in the round function. This is the weakest of
+      the three predictions and is included because its failure would still leave
+      the primary intact.
+
+  minimal_test:
+    design: >-
+      STAGE 0. Reproduce q = 2^-10 for {77,5} and q = 2^-19 for {72,8} from the
+      reconstructed bit indexing. This is simultaneously the indexing check and the
+      solver-encoding check, and nothing proceeds without it.
+      STAGE 1. Compute |r| for all 4096 split masks in one Gram pass under
+      Delta = {117}.
+      STAGE 2. Run the 5-round minimum-weight trail search for all 4096 split
+      masks under a declared per-instance ceiling. If 4096 solver calls exceed the
+      budget, run a PRE-DECLARED stratified subsample: all 64 masks at each of
+      delta in {0, 1, 2, 3, 4, 8, 11, 16, 32}, which is 576 calls and covers the
+      predicted structure plus controls, with the omitted region named as the
+      convention requires.
+      STAGE 3. Report mean and spread of log2|q| per delta class; report an
+      ANOVA-style variance decomposition of log2|q| by delta against a decomposition
+      by Hamming weight over the combined split and same-word sets.
+    controls:
+    - >-
+      RANDOM-CONSTANT NULL FAMILY. Repeat the whole sweep on a structurally
+      identical Speck128 variant with RANDOMLY DRAWN rotation constants
+      (alpha', beta'). If a delta-structure appears there too at the same offsets,
+      it is a property of the measure, not of the standardized constants. If it
+      appears at delta = alpha' instead, that is the strongest possible
+      confirmation of the mechanism. This control is a precondition, not a
+      robustness check - RQ-SIMSPK-f6a6c0 requires it in exactly this form.
+    - >-
+      SHUFFLE CONTROL. Permute the delta labels and recompute the variance
+      explained, to establish the null distribution of the statistic at this
+      sample size.
+    - >-
+      SAME-WORD ARM. Sweep the 4032 same-word masks under their own natural
+      parameter (intra-word bit distance) so that any claim about split masks is
+      not silently a claim about all weight-2 masks.
+    required_metrics:
+    - mean and interquartile range of log2|q| per delta class, all 64 classes or the
+      declared subsample
+    - variance in log2|q| explained by delta vs by Hamming weight
+    - the same table for the random-constant null family
+    - count and delta-distribution of solver timeouts, reported as censored
+
+  falsification_conditions:
+    - >-
+      The 64 class means are flat within the shuffle-control null. delta carries no
+      information, the observed concentration in Table 6 is coincidence at n = 6,
+      and no positional prior of this form exists. The hypothesis is dead and
+      IDEA-20260904-58ace7's re-ranking remains the only available repair.
+    - >-
+      The same delta structure appears in the random-constant null family at the
+      SAME offsets rather than at that family's own alpha'. The structure is then an
+      artifact of the encoding or the estimator and says nothing about the cipher.
+    - >-
+      Stage 0 fails to reproduce the two published q values. The indexing is wrong,
+      every delta here is meaningless, and the record must be superseded rather than
+      corrected in place.
+
+  confounders:
+    - >-
+      delta and |r| are not independent: delta = 0 masks are also the high-|r| masks
+      in Table 6, so a raw delta-versus-q relationship partly restates the
+      r-versus-q relationship measured in IDEA-20260904-b1d69f. Report the partial
+      relationship controlling for log2|r|, or the two records measure the same
+      thing twice.
+    - >-
+      Minimum-weight single trails may behave differently from hulls in a
+      delta-dependent way, which would make the structure an estimator artifact.
+      Compute the top-3 trails for a stratified sample of 20 masks and report
+      whether the gap depends on delta.
+    - >-
+      Solver difficulty may itself depend on delta, making timeouts
+      delta-correlated and the class means biased. Report timeout counts per class.
+
+  interpretation_limits: >-
+    Scoped to Speck128/128, Delta = {117}, the 5+8+5 decomposition, split weight-2
+    masks, single XOR-linear trails, and the declared budget. A confirmed
+    delta-structure is a statement about which masks extend cheaply under THESE
+    rotation constants at THIS round count; it is not a weakness, not an attack,
+    and not a statement about the constants' quality. Any use of it as a search
+    prior must be re-validated on the target parameters rather than transferred.
+
+  dominated_by: >-
+    Dominated by direct computation of q wherever the candidate set is small enough
+    to score exhaustively - a prior is only worth having when scoring everything is
+    unaffordable. Its value is therefore contingent on IDEA-20260904-772029 finding
+    a regime in which exhaustive scoring does not fit; if no such regime exists,
+    this record is interesting but useless and should be recorded as such.
+
+  sota_delta: >-
+    None claimed. Produces a search prior, not a distinguisher. Any distinguisher
+    found by using the prior is a separate claim requiring separate validation.
+
+  estimated_cost:
+    compute: >-
+      Stage 1 is one Gram pass, minutes. Stage 2 dominates: 4096 SAT instances at
+      the full sweep, or 576 at the declared subsample. At a 300 s ceiling the
+      subsample is at most ~48 core-hours and needs its own authorization; it does
+      NOT fit the GOAL-SIMSPK-001 budget of 10800 s at max_concurrent 3 and must not
+      be scheduled as though it did. The null-family arm doubles stage 2.
+    implementation: >-
+      Low-to-medium given the shared SAT encoding and Gram estimator; the new work
+      is the partition bookkeeping and the null-family cipher variant, the latter of
+      which GOAL-SIMSPK-001 needs anyway for every other portfolio measure.
+    memory: Low.
+
+  recommended_priority: medium
+
+  honest_prior_of_survival: >-
+    Perhaps 0.45 on the primary prediction. In its favour: the mechanism is
+    structural rather than statistical, and the concentration in Table 6 is
+    striking. Against it: n = 6 favourites is a small base for a pattern, the
+    indexing convention is this program's inference rather than the paper's
+    statement, and the delta-versus-|r| confound could account for the whole
+    effect. Ranked below IDEA-20260904-b1d69f and IDEA-20260904-772029 because
+    both of those are cheaper and either could make this record moot.
+
+  status: proposed
+  proposed_by: top-level-session
+  proposed_at: '2026-09-04'
+  source_refs: [KN-LIT-824baa, KN-TECH-d64293, KN-OPEN-7f0d85, KN-TECH-065]
+  scope_note: >-
+    Attached to RQ-SIMSPK-f6a6c0. Note the direct tie to that question's core
+    object: this record tests whether a cipher's ROTATION CONSTANTS shape which
+    differential-linear masks extend cheaply. If they do, then differential-linear
+    reach is a genuine portfolio measure over the constant space rather than a
+    derived one - which is the SIMSPK question restated - and the random-constant
+    null family required here is the same family that question already mandates.
