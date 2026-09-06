@@ -15,6 +15,9 @@ from pathlib import Path, PurePosixPath
 from typing import Any, Protocol, Sequence
 
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from orchestration.research_budget import enforce_research_budget, agent_wall_limit
+
 SCHEMA = "crypto.autoresearch.dispatch_queue.v1"
 PLAN_SCHEMA = "crypto.autoresearch.dispatch_plan.v1"
 
@@ -402,18 +405,23 @@ def validate_handoff(task: dict[str, Any], location: str) -> None:
     budget = handoff.get("budget")
     if not isinstance(budget, dict):
         raise DispatchError(f"{location}.handoff.budget must be an object")
+    try:
+        enforced = enforce_research_budget(
+            budget, repo_root=Path(__file__).resolve().parents[1], target_id=handoff.get("id"))
+        agent_wall_limit(handoff, repo_root=Path(__file__).resolve().parents[1])
+    except ValueError as exc:
+        raise DispatchError(f"{location}: {exc}") from exc
     zero_compute = declares_zero_compute(budget)
     for field in ("wall_clock_seconds", "memory_gb"):
-        # A task that has DECLARED it runs nothing may leave these null. It is
-        # not exempt from bounding its compute; it has bounded it at zero, which
-        # is the tightest bound available and the only honest one. Demanding a
-        # positive number here forced the opposite: a fabricated ceiling for
-        # compute the task will never use (CLAUDE.md rule 5).
-        if zero_compute and budget.get(field) is None:
+        # Null time estimates are advisory. Memory remains machine protection;
+        # a declared zero-compute task may leave both estimates null.
+        if budget.get(field) is None and (zero_compute or (field == "wall_clock_seconds" and not enforced)):
             continue
         require_positive_number(budget, field, f"{location}.handoff.budget")
     maximum_runs = budget.get("maximum_runs")
     minimum_runs = 0 if zero_compute else 1
+    if maximum_runs is None and not enforced:
+        return
     if (not isinstance(maximum_runs, int) or isinstance(maximum_runs, bool)
             or maximum_runs < minimum_runs):
         qualifier = (
@@ -912,6 +920,14 @@ def select(
     """
     queue, claim_report = apply_claims(queue, claims)
     by_id = validate_queue(queue, repository_verifier=repository_verifier)
+    if any("recovery" in task for task in queue["tasks"]):
+        if __package__:
+            from . import task_recovery
+        else:
+            import task_recovery
+        for task in queue["tasks"]:
+            if "recovery" in task:
+                task_recovery.verify(queue, task, repository_verifier, now=now)
     all_running = [task for task in queue["tasks"] if task["state"] == "running"]
     expired = (
         [task for task in all_running if lease_is_expired(task, now)]
@@ -1010,6 +1026,7 @@ def select(
             "write_scope": task["write_scope"],
             "artifact_paths": task["artifact_paths"],
             "handoff": task["handoff"],
+            **({"recovery": task["recovery"]} if "recovery" in task else {}),
             **({"archive": task["archive"]} if is_archive(task) else {}),
             "claim": (
                 {key: claim_report[task["id"]][key] for key in ("status", "owner", "epoch", "expires_at")}
@@ -1613,8 +1630,10 @@ def main() -> int:
                 )
             except goal_lanes.LaneError as error:
                 raise DispatchError(f"claims overlay: {error}") from error
+        if now is None and any("recovery" in task for task in queue.get("tasks", [])):
+            now = datetime.now().astimezone()
         plan = select(queue, repository_verifier=verifier, now=now, claims=claims)
-    except (OSError, json.JSONDecodeError, DispatchError) as error:
+    except (OSError, ValueError) as error:
         print(f"dispatch error: {error}", file=sys.stderr)
         return 2
     args.output.parent.mkdir(parents=True, exist_ok=True)

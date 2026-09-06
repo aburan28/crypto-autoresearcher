@@ -97,10 +97,14 @@ repeating an unchanged check is not progress.
 
 Keep impeded goals active. Record condition, what_is_blocked, clears_when,
 recheck and asserts_nothing_about according to AGENTS.md. Infrastructure,
-timeouts, failed candidates and budget limits assert nothing about the science.
-ECC campaign budgets are unlimited as specified by the priority authority;
-per-task budgets and concurrency remain bounded. Non-ECC exhausted budgets stop
-spending until a committed Coordinator budget decision permits more.
+timeouts and failed candidates assert nothing about the science. Follow
+`docs/research-budget-policy.md`: routine time, CPU and batch estimates are
+advisory and never block dispatch; only an explicit restriction passing the
+90-day stagnation review limits research spending, and process watchdog expiry
+preserves a checkpoint and permits autonomous continuation. ECC campaign
+budgets remain null and unlimited as specified by the priority authority;
+per-task budgets and concurrency remain bounded, sized to actual machine
+headroom. Do not request routine budget renewals.
 
 - Goal mode: continue that goal through batches. Return a precise checkpoint
   when it reaches a committed terminal status, the user stops, or no justified

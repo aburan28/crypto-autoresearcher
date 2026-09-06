@@ -90,6 +90,29 @@ because they are navigation, not summary.
 It reads `ledger/`, `experiments/` and `knowledge/` directly. It is not a
 second source of truth and holds nothing of its own.
 
+## On a phone
+
+The desktop shell is a 208px sidebar beside the content. Reflowed naively
+that sidebar becomes a column of chrome -- brand, six nav rows, build state,
+two buttons -- which on a 390px phone filled the entire first screen, so
+every page opened on navigation rather than on content.
+
+Below 820px it becomes a sticky top bar instead: brand and controls on one
+line, the nav a single horizontally scrolling row, ~110px of chrome rather
+than ~720px. Panel heads stack their title above their note, stat rows use
+flex so an odd count leaves no dead cell, the search field is 16px so iOS
+does not zoom the page on focus, and filter panels -- sixty area chips in the
+records browser -- open collapsed.
+
+Below 560px the record table drops the columns an identifier already carries
+(kind, area) plus date and citation count, keeping identifier, status and
+title, and takes a fixed layout so it fits any width down to a 320px SE
+rather than nearly fitting one. Key/value pairs on detail pages stack.
+
+**Tables stay tables.** A run's status, tier and dates are read against each
+other, and turning each row into a card loses exactly that; the wide ones
+scroll inside their panel, which is what `.scroll-x` is for.
+
 ## The views, in the order a reader asks
 
 - **Overview** — what the program has established, what it is working on,

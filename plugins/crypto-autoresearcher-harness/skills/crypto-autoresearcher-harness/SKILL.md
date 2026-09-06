@@ -13,6 +13,13 @@ metadata:
 
 Requires a Crypto Autoresearcher checkout and Python 3.11+.
 
+Budget policy: follow `docs/research-budget-policy.md`. Routine time, CPU,
+run-count and batch estimates are advisory and may be null; do not demand
+repeated user budget approval. Only a documented 90-day stagnation review can
+activate research caps. Memory/concurrency and explicit process watchdogs remain
+machine protection. Preserve scientific trial counts and frozen artifacts.
+This policy supersedes older budget-exhaustion language below.
+
 This is a portable front door, not a second research harness. The repository's
 committed contracts remain the source of truth:
 
@@ -119,6 +126,14 @@ The old launch-research-harness and coordinate-research-goal commands are
 compatibility aliases for this procedure. Their presence does not create a
 second workflow. Stage skills are implementation references, not additional
 front doors the user must know.
+
+If an expired claim has no inspectable runtime binding, follow
+`docs/isolated-task-recovery.md`: one bounded assessment, then an explicit
+Coordinator-authorized isolated successor if justified. Do not repeatedly ask
+for the same unavailable session identifier or treat unknown runtime state as
+an indefinite veto. Preserve the original claim and artifacts; never fabricate
+a release, termination receipt, or approval. The original queue may remain
+invalid while a separately approved successor queue is validated normally.
 
 ## 4. Execute through the repository's roles and dispatcher
 
