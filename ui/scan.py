@@ -116,6 +116,36 @@ def _clean_scalar(value: str) -> str:
     return re.sub(r"\s+", " ", value).strip()
 
 
+def _strip_comment(value: str) -> str:
+    """Drop a trailing YAML comment from an inline scalar.
+
+    In a plain scalar ` #` always begins a comment; inside quotes a `#` is
+    literal, so the closing quote is found first and anything after it goes.
+    Left in, the comment became part of the value -- `direction: contradicts
+    # contradicts the hypothesis` read as a direction of its own, and every
+    such record fell out of the count for `contradicts`.
+    """
+    text = value.strip()
+    if not text:
+        return text
+    if text[0] in "'\"":
+        quote, i = text[0], 1
+        while i < len(text):
+            char = text[i]
+            if quote == '"' and char == "\\":
+                i += 2
+                continue
+            if char == quote:
+                if quote == "'" and text[i + 1:i + 2] == "'":
+                    i += 2                            # '' escapes a quote
+                    continue
+                return text[:i + 1]
+            i += 1
+        return text
+    cut = re.search(r"\s#", text)
+    return text[:cut.start()].rstrip() if cut else text
+
+
 def _coerce_fields(body: dict) -> dict[str, str]:
     return {
         str(key): ("" if value is None else
@@ -255,23 +285,55 @@ def shallow_fields(text: str) -> tuple[str | None, dict[str, str]]:
         else:
             # A plain or quoted scalar, possibly continued on deeper lines.
             continuation = [p for p in block if p and not p.startswith("#")]
-            fields[key] = _clean_scalar(" ".join([inline, *continuation]))
+            value = _strip_comment(" ".join([inline, *continuation]))
+            # An unquoted `null` (or `~`) is YAML's null, not the word. Read
+            # as a word it became a date that sorted above every real one and
+            # a hypothesis called "null" in every list.
+            fields[key] = "" if value in _NULLS else _clean_scalar(value)
     return root, fields
 
 
+_NULLS = frozenset({"null", "Null", "NULL", "~"})
+
+
 def front_matter(text: str) -> dict[str, str]:
-    """Shallow-parse the YAML front matter of a knowledge markdown entry."""
+    """Shallow-parse the YAML front matter of a knowledge markdown entry.
+
+    Top-level scalars, with the same reading as `shallow_fields`: a block
+    scalar (`title: >-` followed by indented lines) is folded onto one line,
+    a nested list or map is STRUCTURED, a bare `null` is empty. Reading the
+    block indicator as the value put ">-" in the title column of every
+    finding whose author wrapped a long title.
+    """
     if not text.startswith("---"):
         return {}
     end = text.find("\n---", 3)
     if end == -1:
         return {}
-    body = text[text.find("\n") + 1: end]
+    lines = text[text.find("\n") + 1: end].splitlines()
     fields: dict[str, str] = {}
-    for line in body.splitlines():
-        m = _KEY_RE.match(line)
-        if m and not m.group(1):
-            fields[m.group(2)] = _clean_scalar(m.group(3) or "")
+    i = 0
+    while i < len(lines):
+        m = _KEY_RE.match(lines[i])
+        i += 1
+        if not m or m.group(1):
+            continue                                   # not a top-level key
+        key, inline = m.group(2), (m.group(3) or "").strip()
+        block: list[str] = []
+        while i < len(lines) and (not lines[i].strip() or lines[i][:1] in " \t"
+                                  or lines[i].startswith("- ")):
+            block.append(lines[i].strip())
+            i += 1
+        if inline in _BLOCK_INDICATORS or (inline.startswith(("|", ">")) and len(inline) <= 3):
+            fields[key] = _clean_scalar(" ".join(p for p in block if p))
+        elif not inline:
+            fields[key] = STRUCTURED if any(block) else ""
+        elif inline.startswith(("[", "{", "&", "*")):
+            fields[key] = STRUCTURED
+        else:
+            continuation = [p for p in block if p and not p.startswith("#")]
+            value = _strip_comment(" ".join([inline, *continuation]))
+            fields[key] = "" if value in _NULLS else _clean_scalar(value)
     return fields
 
 

@@ -17,9 +17,13 @@ dashboard is exactly the static site with a fresher index.
 
 from __future__ import annotations
 
+from collections import Counter
+from dataclasses import asdict
 from typing import Any
 
-from .index import KIND_LABELS, KIND_ORDER, TERMINAL_GOAL_STATUSES, ResearchIndex
+from .index import (KIND_LABELS, KIND_ORDER, TERMINAL_GOAL_STATUSES, Finding, OpenProblem,
+                    ResearchIndex, _neg_date)
+from .scan import RECORD_ID_RE, STRUCTURED, id_kind
 
 # `data/index.json` rows are positional, not objects. At 14.6k records the
 # repeated key names cost more than the values do: as objects the file is
@@ -64,6 +68,8 @@ def meta_payload(index: ResearchIndex, *, mode: str, commit: str | None = None,
         "goals": len(index.goals),
         "experiments": len(index.experiments),
         "runs": sum(len(e.runs) for e in index.experiments),
+        "findings": len(index.findings),
+        "open_problems": len(index.open_problems),
         "columns": INDEX_COLUMNS,
         "kind_order": KIND_ORDER,
         "kind_labels": KIND_LABELS,
@@ -134,7 +140,36 @@ def overview_payload(index: ResearchIndex) -> dict[str, Any]:
          if r.date and r.kind in ("DEC", "EV", "TASK", "CORR")),
         key=lambda r: r.date, reverse=True)[:40]
 
+    evidence = evidence_rows(index)
+    verdicts = hypothesis_verdicts(index)
+    decisions = sorted(index.by_kind.get("DEC", []),
+                       key=lambda r: (_neg_date(r.date), r.record_id))
+    findings = [finding_summary(index, f) for f in index.findings]
+    current = [f for f in findings if f["status"] == "current"]
+
     return {
+        # What the program has established, for the reader who asks that
+        # first. The full board is `findings.json`; this is its headline.
+        "findings": {
+            "total": len(findings),
+            "current": len(current),
+            "by_proof_status": _count(current, "proof_status"),
+            "by_claim_tier": _count(current, "claim_tier"),
+            "latest": current[:6],
+        },
+        "open_problems": {
+            "total": len(index.open_problems),
+            "open": sum(1 for p in index.open_problems if p.status == "open"),
+            "latest": [
+                {"id": p.record_id, "title": p.title, "status": p.status, "added": p.added}
+                for p in index.open_problems if p.status == "open"][:6],
+        },
+        "hypothesis_verdicts": _count(verdicts, "verdict"),
+        "evidence_polarity": _count(evidence, "polarity"),
+        "evidence_direction": _top_counts(evidence, "direction"),
+        "decision_verdicts": _top_counts([{"decision": r.status} for r in decisions], "decision"),
+        "recent_decisions": [r.record_id for r in decisions[:12]],
+        "pipeline": pipeline_counts(index, evidence, verdicts),
         "counts": [
             {"key": k, "label": KIND_LABELS[k], "count": len(index.by_kind.get(k, []))}
             for k in KIND_ORDER],
@@ -186,6 +221,240 @@ def experiments_payload(index: ResearchIndex) -> dict[str, Any]:
         for e in index.experiments]}
 
 
+# ---------------------------------------------------------------------------
+# Findings: what the program has established, and what still stands against it.
+#
+# `data/findings.json` is one file because every part of it is small and a
+# reader who opens the board wants all of it: the promoted findings, the
+# hypotheses that reached a verdict, the evidence that points somewhere, the
+# obstructions measured along the way, and the problems still open. Nothing
+# here is computed by the browser that could not be checked against the
+# records: every row carries the identifiers it was derived from.
+# ---------------------------------------------------------------------------
+
+# A hypothesis "verdict" is a status past the design stages. Longest first,
+# because `supported_scoped` must not read as `supported`.
+HYPOTHESIS_VERDICTS = (
+    "supported_scoped", "supported", "weakened", "rejected_scoped", "rejected",
+    "refuted", "contradicted", "inconclusive", "superseded",
+)
+
+# Evidence whose `direction` says nothing about any hypothesis. Most of the
+# corpus is here, and the board says so rather than hiding it: the honest
+# state of a research program is mostly "measured, and it did not point".
+NEUTRAL_DIRECTIONS = {"", "neutral", "inconclusive", "n/a", "none", "not_applicable", "null"}
+
+
+def hypothesis_verdict(status: str) -> str | None:
+    key = (status or "").strip().lower()
+    for verdict in HYPOTHESIS_VERDICTS:
+        if key == verdict or key.startswith(verdict + "_"):
+            return verdict
+    return None
+
+
+def direction_polarity(direction: str) -> str:
+    """Fold the corpus's forty spellings of a direction into four.
+
+    The schema names four values; the records use `supports_with_caveat`,
+    `weakening_scoped`, `refutes_own_prior_reading` and so on. The exact
+    string is kept on every row -- this is only how the board groups and
+    colours them, and the reader always sees the author's own word.
+    """
+    key = (direction or "").strip().lower()
+    if key in NEUTRAL_DIRECTIONS:
+        return "neutral"
+    if key.startswith(("weaken", "contradict", "refute", "negative", "against", "adverse")):
+        return "weakens"
+    if key.startswith(("support", "confirm", "corroborat", "positive", "strengthen", "enabling")):
+        return "supports"
+    return "mixed"
+
+
+def _top_counts(rows, key: str, keep: int = 9) -> dict[str, int]:
+    """`_count`, with a long tail folded into one row. Decision labels run to
+    hundreds of one-off spellings; a distribution with 190 bars says nothing."""
+    counts = _count(rows, key)
+    if len(counts) <= keep + 1:
+        return counts
+    items = list(counts.items())
+    head = dict(items[:keep])
+    head[f"other ({len(items) - keep} labels)"] = sum(n for _, n in items[keep:])
+    return head
+
+
+def _scalar(fields: dict[str, str], name: str, limit: int = 60) -> str:
+    value = fields.get(name, "")
+    return "" if value == STRUCTURED else value[:limit]
+
+
+def _id_field(fields: dict[str, str], name: str) -> str:
+    """A field that should hold one identifier, or '' -- the shallow scan
+    leaves a literal `null` as the string "null", which is not one."""
+    value = fields.get(name, "")
+    return value if value and value != STRUCTURED and RECORD_ID_RE.fullmatch(value) else ""
+
+
+def _count(rows, key: str) -> dict[str, int]:
+    counter = Counter((row.get(key) or "(unstated)") for row in rows)
+    return dict(sorted(counter.items(), key=lambda kv: (-kv[1], kv[0])))
+
+
+def finding_summary(index: ResearchIndex, finding: Finding) -> dict[str, Any]:
+    return {
+        "id": finding.record_id,
+        "title": finding.title,
+        "path": finding.path,
+        "added": finding.added,
+        "status": finding.status,
+        "proof_status": finding.proof_status,
+        "proof_refs": finding.proof_refs,
+        "confidence": finding.confidence,
+        "evidence_level": finding.evidence_level,
+        "claim_tier": finding.claim_tier,
+        "tags": finding.tags,
+        "superseded_by": finding.superseded_by,
+        "withdrawn_by": finding.withdrawn_by,
+        "refs": finding.refs,
+        "goal_ids": finding.goal_ids,
+        "areas": finding.areas,
+        "ecc": any(a in index.ecc_areas for a in finding.areas),
+        "excerpt": finding.excerpt,
+        "error": finding.error,
+        "cited_by": len(index.backlinks.get(finding.record_id, ())),
+    }
+
+
+def open_problem_summary(index: ResearchIndex, problem: OpenProblem) -> dict[str, Any]:
+    return asdict(problem) | {
+        "id": problem.record_id,
+        "cited_by": len(index.backlinks.get(problem.record_id, ())),
+    }
+
+
+def hypothesis_verdicts(index: ResearchIndex) -> list[dict[str, Any]]:
+    out = []
+    for record in index.by_kind.get("H", []):
+        raw = record.fields.get("status", "")
+        verdict = hypothesis_verdict(raw)
+        if not verdict:
+            continue
+        citing = sorted(index.backlinks.get(record.record_id, ()))
+        out.append({
+            "id": record.record_id,
+            "verdict": verdict,
+            "status": raw[:80],
+            "statement": record.title[:600],
+            "date": record.date,
+            "area": record.area,
+            "ecc": record.area in index.ecc_areas if record.area else False,
+            "question_id": _id_field(record.fields, "question_id"),
+            "goal_id": _id_field(record.fields, "goal_id"),
+            "evidence_ids": [c for c in citing if id_kind(c) == "EV"],
+            "decision_ids": [c for c in citing if id_kind(c) == "DEC"],
+            "finding_ids": [c for c in citing if c.startswith("KN-FIND-")],
+        })
+    order = {v: i for i, v in enumerate(HYPOTHESIS_VERDICTS)}
+    out.sort(key=lambda h: (order[h["verdict"]], _neg_date(h["date"]), h["id"]))
+    return out
+
+
+def evidence_rows(index: ResearchIndex) -> list[dict[str, Any]]:
+    """Every evidence record with the fields that say what it found.
+
+    All of them, neutral included: the board filters, the reader decides.
+    Direction, strength, tier and proof status are second-level scalars and
+    come from the shallow scan, like every other list in the dashboard.
+    """
+    rows = []
+    for record in index.by_kind.get("EV", []):
+        fields = record.fields
+        direction = _scalar(fields, "direction", 40)
+        polarity = direction_polarity(direction)
+        rows.append({
+            "id": record.record_id,
+            "date": record.date,
+            "area": record.area,
+            "ecc": record.area in index.ecc_areas if record.area else False,
+            "title": record.title[:INDEX_TITLE_CHARS],
+            "direction": direction,
+            "polarity": polarity,
+            "neutral": polarity == "neutral",
+            "strength": _scalar(fields, "strength", 40),
+            "claim_tier": _scalar(fields, "claim_tier", 60),
+            "proof_status": _scalar(fields, "proof_status", 40),
+            "type": _scalar(fields, "type", 40),
+            "hypothesis_id": _id_field(fields, "hypothesis_id"),
+            "goal_id": _id_field(fields, "goal_id"),
+            "experiment_ids": [r for r in sorted(record.refs) if id_kind(r) == "EXP"][:8],
+            "finding_ids": [c for c in sorted(index.backlinks.get(record.record_id, ()))
+                            if c.startswith("KN-FIND-")],
+        })
+    rows.sort(key=lambda r: (_neg_date(r["date"]), r["id"]))
+    return rows
+
+
+def pipeline_counts(index: ResearchIndex, evidence: list[dict], verdicts: list[dict]) -> list[dict]:
+    """The program's own loop (CLAUDE.md "Typical loop") as a row of counts.
+
+    Read left to right it says how much of what went in came out the other
+    end. Each note carries the qualifier that keeps its count honest: how
+    many hypotheses actually reached a verdict, how many experiments actually
+    ran, how much evidence actually points somewhere.
+    """
+    def n(kind: str) -> int:
+        return len(index.by_kind.get(kind, []))
+
+    with_runs = sum(1 for e in index.experiments if e.runs)
+    runs = sum(len(e.runs) for e in index.experiments)
+    directional = sum(1 for row in evidence if not row["neutral"])
+    current = sum(1 for f in index.findings if f.status == "current")
+    retired = len(index.findings) - current
+    return [
+        {"key": "RQ", "label": "questions", "count": n("RQ"), "note": None},
+        {"key": "IDEA", "label": "proposals", "count": n("IDEA"), "note": None},
+        {"key": "H", "label": "hypotheses", "count": n("H"),
+         "note": f"{len(verdicts)} with a verdict"},
+        {"key": "EXP", "label": "experiments", "count": len(index.experiments),
+         "note": f"{with_runs} with runs"},
+        {"key": "RUN", "label": "runs", "count": runs, "note": None},
+        {"key": "EV", "label": "evidence", "count": n("EV"),
+         "note": f"{directional} with a direction"},
+        {"key": "DEC", "label": "decisions", "count": n("DEC"), "note": None},
+        {"key": "FIND", "label": "findings", "count": current,
+         "note": f"{retired} superseded or withdrawn" if retired else None},
+    ]
+
+
+def findings_payload(index: ResearchIndex) -> dict[str, Any]:
+    findings = [finding_summary(index, f) for f in index.findings]
+    evidence = evidence_rows(index)
+    return {
+        "findings": findings,
+        "counts": {
+            "findings": len(findings),
+            "current": sum(1 for f in findings if f["status"] == "current"),
+            "by_status": _count(findings, "status"),
+            "by_proof_status": _count(findings, "proof_status"),
+            "by_claim_tier": _count(findings, "claim_tier"),
+            "by_confidence": _count(findings, "confidence"),
+        },
+        "hypothesis_verdicts": hypothesis_verdicts(index),
+        "evidence": evidence,
+        "evidence_counts": {
+            "polarity": _count(evidence, "polarity"),
+            "direction": _count(evidence, "direction"),
+            "strength": _count(evidence, "strength"),
+            "claim_tier": _count(evidence, "claim_tier"),
+            "proof_status": _count(evidence, "proof_status"),
+        },
+        "obstructions": [
+            asdict(o) | {"date": index.records[o.evidence_id].date}
+            for o in index.obstructions],
+        "open_problems": [open_problem_summary(index, p) for p in index.open_problems],
+    }
+
+
 def record_payload(index: ResearchIndex, record_id: str,
                    include_raw: bool = True) -> dict[str, Any] | None:
     record = index.records.get(record_id)
@@ -193,7 +462,13 @@ def record_payload(index: ResearchIndex, record_id: str,
         return None
     parsed, error = index.full_record(record_id)
     body = parsed
-    if isinstance(parsed, dict) and len(parsed) == 1:
+    markdown = None
+    if isinstance(parsed, dict) and record.path.endswith(".md") and "markdown" in parsed:
+        # A knowledge entry: the front matter is its structured part and the
+        # body IS the entry. Without the body a finding's page was a title
+        # and a link to GitHub, which is not a page.
+        markdown, body = parsed["markdown"], parsed["front_matter"]
+    elif isinstance(parsed, dict) and len(parsed) == 1:
         body = next(iter(parsed.values()))
     payload = {
         "summary": record.summary(index),
@@ -208,6 +483,8 @@ def record_payload(index: ResearchIndex, record_id: str,
             "in": sorted(index.backlinks.get(record_id, ())),
         },
     }
+    if markdown is not None:
+        payload["markdown"] = markdown
     if include_raw:
         # The live server inlines the source; the static build does not.
         # 116 MB of source text is not worth shipping when the same bytes
