@@ -912,6 +912,14 @@ def select(
     """
     queue, claim_report = apply_claims(queue, claims)
     by_id = validate_queue(queue, repository_verifier=repository_verifier)
+    if any("recovery" in task for task in queue["tasks"]):
+        if __package__:
+            from . import task_recovery
+        else:
+            import task_recovery
+        for task in queue["tasks"]:
+            if "recovery" in task:
+                task_recovery.verify(queue, task, repository_verifier, now=now)
     all_running = [task for task in queue["tasks"] if task["state"] == "running"]
     expired = (
         [task for task in all_running if lease_is_expired(task, now)]
@@ -1010,6 +1018,7 @@ def select(
             "write_scope": task["write_scope"],
             "artifact_paths": task["artifact_paths"],
             "handoff": task["handoff"],
+            **({"recovery": task["recovery"]} if "recovery" in task else {}),
             **({"archive": task["archive"]} if is_archive(task) else {}),
             "claim": (
                 {key: claim_report[task["id"]][key] for key in ("status", "owner", "epoch", "expires_at")}
@@ -1613,8 +1622,10 @@ def main() -> int:
                 )
             except goal_lanes.LaneError as error:
                 raise DispatchError(f"claims overlay: {error}") from error
+        if now is None and any("recovery" in task for task in queue.get("tasks", [])):
+            now = datetime.now().astimezone()
         plan = select(queue, repository_verifier=verifier, now=now, claims=claims)
-    except (OSError, json.JSONDecodeError, DispatchError) as error:
+    except (OSError, ValueError) as error:
         print(f"dispatch error: {error}", file=sys.stderr)
         return 2
     args.output.parent.mkdir(parents=True, exist_ok=True)

@@ -107,6 +107,14 @@ mixing but is not authentication and does not make peer data authoritative.
 Never silently resume a paused or completed goal. Never turn an empty queue,
 run crash, timeout, or missing backend into a research conclusion.
 
+If an expired claim has no inspectable runtime binding, follow
+`docs/isolated-task-recovery.md`: one bounded assessment, then an explicit
+Coordinator-authorized isolated successor if justified. Do not repeatedly ask
+for the same unavailable session identifier or treat unknown runtime state as
+an indefinite veto. Preserve the original claim and artifacts; never fabricate
+a release, termination receipt, or approval. The original queue may remain
+invalid while a separately approved successor queue is validated normally.
+
 ## 4. Execute through the repository's roles and dispatcher
 
 Use the checked-in native bindings for the current host:
