@@ -131,6 +131,9 @@ Otherwise dispatch the **idea-generator** subagent, giving it:
   families/objects are already exhausted per the corpus, so it applies
   `docs/inventor-protocol.md` §1's off-limits naming rather than regressing
   to a variant in new notation;
+  for an ECDLP scope, the off-limits list and the object frame are already
+  written down — paste the constraint block from
+  `docs/object-frame-ideation.md` rather than restating them;
 - an explicit instruction to run the lossy-projection test (§2) on every
   candidate before returning it — free, no compute, the cheapest available
   filter for "is this actually new";

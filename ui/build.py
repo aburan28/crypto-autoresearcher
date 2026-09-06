@@ -30,6 +30,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -81,6 +82,13 @@ def resolve_repo_url(repo: Path) -> str:
     return remote.removesuffix(".git")
 
 
+def version_assets(html: str, stamp: str) -> str:
+    """`app.js` -> `app.js?v=<stamp>` (and the stylesheet) in the shell page."""
+    tag = re.sub(r"[^A-Za-z0-9]", "", stamp)[:12] or "0"
+    return (html.replace('href="app.css"', f'href="app.css?v={tag}"')
+                .replace('src="app.js"', f'src="app.js?v={tag}"'))
+
+
 def write_json(path: Path, payload: Any) -> int:
     path.parent.mkdir(parents=True, exist_ok=True)
     blob = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
@@ -105,15 +113,24 @@ def build(repo: Path, out: Path, clean: bool = True,
     while index.deep_scan_state == "running":
         time.sleep(0.5)
     say(f"  {len(index.records)} records, {len(index.goals)} goals, "
-        f"{len(index.experiments)} experiments")
+        f"{len(index.experiments)} experiments, {len(index.findings)} findings")
 
     if clean and out.exists():
         shutil.rmtree(out)
     out.mkdir(parents=True, exist_ok=True)
 
+    commit = resolve_commit(repo)
+    built_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
     for asset in sorted(STATIC_DIR.iterdir()):
         if asset.is_file():
             shutil.copy2(asset, out / asset.name)
+    # A browser keeps `app.js` for as long as Pages lets it, so a fresh page
+    # pointing at the same name ran the OLD client against new data -- a
+    # reader could reload after a deploy and see the previous dashboard.
+    # The references carry the commit, so a deploy shows its own client.
+    (out / "index.html").write_text(
+        version_assets((STATIC_DIR / "index.html").read_text(encoding="utf-8"),
+                       commit or built_at), encoding="utf-8")
     # Without this, Pages runs the content through Jekyll, which drops any
     # path beginning with an underscore and slows every deploy.
     (out / ".nojekyll").write_text("")
@@ -123,14 +140,15 @@ def build(repo: Path, out: Path, clean: bool = True,
 
     meta = payloads.meta_payload(
         index, mode="static",
-        commit=resolve_commit(repo),
+        commit=commit,
         repo_url=resolve_repo_url(repo),
-        built_at=datetime.now(timezone.utc).isoformat(timespec="seconds"))
+        built_at=built_at)
     total += write_json(data / "meta.json", meta)
     total += write_json(data / "index.json", payloads.index_rows(index))
     total += write_json(data / "overview.json", payloads.overview_payload(index))
     total += write_json(data / "goals.json", payloads.goals_payload(index))
     total += write_json(data / "experiments.json", payloads.experiments_payload(index))
+    total += write_json(data / "findings.json", payloads.findings_payload(index))
     total += write_json(data / "integrity.json", index.integrity)
 
     say("  goals")

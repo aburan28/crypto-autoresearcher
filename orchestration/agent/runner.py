@@ -139,7 +139,7 @@ def task_brief(task: dict[str, Any], scope: TaskScope, tool_names: list[str]) ->
               list(scope.read_scope) or ["the whole repository"]),
         block("Tools available", tool_names),
         block("Commands you may run", list(scope.allowed_commands)),
-        f"Budget: wall_clock_seconds={budget.get('wall_clock_seconds')}, "
+        f"Research estimates (advisory unless a valid stagnation review enforces them): wall_clock_seconds={budget.get('wall_clock_seconds')}, "
         f"maximum_runs={budget.get('maximum_runs')}",
         "Write your deliverables with the file tools before finishing. "
         "Existing files cannot be overwritten — artifacts are immutable, so a "
@@ -190,7 +190,8 @@ def run_task(source: str | Path | dict[str, Any], *,
         model = model_factory(config=config, resolution=resolution)
 
     budget = (task["handoff"].get("budget") or {})
-    wall_clock = budget.get("wall_clock_seconds")
+    from ..research_budget import agent_wall_limit
+    wall_clock = agent_wall_limit(task["handoff"], repo_root=repo_root)
     started = clock()
     deadline = started + float(wall_clock) if wall_clock else None
     steps_limit = max_steps or int(api_config.get("max_steps", 40))
