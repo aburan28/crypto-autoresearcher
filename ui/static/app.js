@@ -376,6 +376,13 @@ function findingCard(fd) {
     fd.excerpt
       ? h('div', { class: 'excerpt' }, h('div', { class: 'clamp4' }, linkify(fd.excerpt)))
       : h('div', { class: 'excerpt faint' }, fd.error ? `no front matter — ${fd.error}` : 'no statement excerpt'),
+    // The other half of a finding: what its author says it does NOT
+    // establish. Shown in their words, because a claim without its boundary
+    // is the overclaim the program's rules exist to prevent.
+    fd.non_claim
+      ? h('div', { class: 'non-claim' }, h('span', { class: 'kicker' }, 'not claimed'),
+          h('div', { class: 'clamp2' }, linkify(fd.non_claim)))
+      : null,
     h('div', { class: 'row faint mono', style: 'font-size:11px' },
       fd.added ? h('span', {}, `added ${fmtDate(fd.added)}`) : null,
       fd.confidence ? h('span', { title: `confidence, as the entry states it: ${fd.confidence}` },
@@ -810,12 +817,21 @@ async function viewOverview() {
   const established = panel('Established so far',
     h('span', { class: 'faint' },
       `${f.current} current finding${f.current === 1 ? '' : 's'}`,
+      f.added_last_30_days !== undefined
+        ? ` · ${f.added_last_7_days} added in the last 7 days, ${f.added_last_30_days} in 30` : '',
       proofNote ? ` · ${proofNote}` : '', ' · ', h('a', { href: '#/findings' }, 'all findings →')),
     f.latest.length
       ? h('div', { class: 'panel-body grid',
           style: 'grid-template-columns:repeat(auto-fill,minmax(330px,1fr))' },
           f.latest.map(findingCard))
       : h('div', { class: 'empty' }, 'no finding has been promoted yet'));
+
+  const dirs = o.directions || { total: 0, top: [] };
+  const byArea = panel('By research area',
+    h('span', { class: 'faint' },
+      `the ${dirs.top.length} areas with most established, of ${dirs.total} with records · `,
+      h('a', { href: '#/findings?tab=areas' }, 'all areas →')),
+    dirs.top.length ? h('div', { class: 'scroll-x' }, directionsTable(dirs.top, { compact: true })) : null);
 
   const verdicts = panel('Hypothesis verdicts',
     `${sum(o.hypothesis_verdicts)} of ${count('H').toLocaleString()} hypotheses reached one`,
@@ -844,6 +860,7 @@ async function viewOverview() {
     snapshotBanner(),
     intro,
     established,
+    byArea,
     h('div', { class: 'grid', style: 'grid-template-columns:repeat(auto-fit,minmax(300px,1fr))' },
       verdicts, polarity, decisions),
     panel('Where the work is: ECC first',
@@ -889,8 +906,15 @@ async function viewOverview() {
 // ---------------------------------------------------------------------------
 // Findings: what the program has established, and what still stands against it.
 // ---------------------------------------------------------------------------
+// An area the program has invested in or produced from: a goal, a finding,
+// a hypothesis verdict or an open problem. The long tail of areas that only
+// ever reached a proposal is still there, behind a chip.
+const investedArea = (r) => r.goals.length > 0 || r.findings_total > 0
+  || Object.keys(r.verdicts || {}).length > 0 || r.open_problems > 0;
+
 const FINDINGS_TABS = [
   ['findings', 'Findings', (d) => d.counts.current],
+  ['areas', 'By area', (d) => d.directions.filter(investedArea).length],
   ['verdicts', 'Hypothesis verdicts', (d) => d.hypothesis_verdicts.length],
   ['evidence', 'Evidence', (d) => d.evidence.filter((e) => !e.neutral).length],
   ['obstructions', 'Obstructions', (d) => d.obstructions.length],
@@ -939,14 +963,20 @@ async function viewFindings(params) {
 
   const docs = sourceUrl('docs/claims-and-verification.md');
   const intro = h('div', { class: 'banner info' }, h('div', {},
-    h('b', {}, 'What counts as a finding here. '),
-    'A result is promoted from an evidence record into ', h('code', {}, 'knowledge/findings/'),
-    ' by a Coordinator decision, and carries the proof status and claim tier of the evidence it rests on — never more',
-    docs ? [' (', h('a', { href: docs, target: '_blank', rel: 'noreferrer' }, 'claims and verification'), ')'] : null,
-    '. Most evidence is neutral and most hypotheses never reach a verdict; the counts say so rather than hide it.'));
+    h('div', {},
+      h('b', {}, 'What counts as a finding here. '),
+      'A result is promoted from an evidence record into ', h('code', {}, 'knowledge/findings/'),
+      ' by a Coordinator decision, and carries the proof status and claim tier of the evidence it rests on — never more',
+      docs ? [' (', h('a', { href: docs, target: '_blank', rel: 'noreferrer' }, 'claims and verification'), ')'] : null,
+      '. Most evidence is neutral and most hypotheses never reach a verdict; the counts say so rather than hide it.'),
+    h('div', { style: 'margin-top:6px;font-size:11.5px' },
+      'Proof status: ', proofTag('certificate'), ' an explicit instance re-checked by independent code · ',
+      proofTag('derivation'), ' a written, step-checkable argument · ',
+      proofTag('empirical_only'), ' replicated observations only. ',
+      'Each card also says what the entry does ', h('b', {}, 'not'), ' claim, in its own words.')));
 
   const body = ({
-    findings: findingsTab, verdicts: verdictsTab, evidence: evidenceTab,
+    findings: findingsTab, areas: directionsTab, verdicts: verdictsTab, evidence: evidenceTab,
     obstructions: obstructionsTab, open: openProblemsTab,
   })[tab](d, params);
 
@@ -960,9 +990,48 @@ function findingsTab(d, params) {
     tier: new Set(split(params.get('tier'))),
     area: new Set(split(params.get('area'))),
     q: params.get('q') || '',
+    group: params.get('group') === 'date' ? 'date' : 'area',
   };
-  const grid = h('div', { class: 'grid', style: 'grid-template-columns:repeat(auto-fill,minmax(340px,1fr))' });
+  const host = h('div', { class: 'stack', style: 'gap:20px' });
   const summary = h('div', { class: 'faint mono' });
+  const byArea = new Map(d.directions.map((r) => [r.area, r]));
+  const cardGrid = (items) => h('div', { class: 'grid',
+    style: 'grid-template-columns:repeat(auto-fill,minmax(340px,1fr))' }, items.map(findingCard));
+
+  /** Findings under the area they are filed in, with the goals of that
+   *  area beside the heading — so a reader sees which campaign produced
+   *  what, rather than eighty cards in date order. */
+  function sections(items) {
+    const groups = new Map();
+    for (const x of items) {
+      const key = x.area || '';
+      (groups.get(key) ?? groups.set(key, []).get(key)).push(x);
+    }
+    const order = [...d.directions.map((r) => r.area).filter((a) => groups.has(a)),
+      ...(groups.has('') ? [''] : [])];
+    return order.map((area) => {
+      const dir = byArea.get(area);
+      const rows = groups.get(area);
+      const goals = dir?.goals || [];
+      return h('section', { class: 'area-group' },
+        h('div', { class: 'area-head' },
+          h('div', { class: 'row', style: 'gap:10px;align-items:baseline' },
+            area
+              ? (dir?.ecc ? tag(area, 'acc', 'ECC area — selected first') : h('span', { class: 'mono area-name' }, area))
+              : h('span', { class: 'faint area-name' }, 'no area named'),
+            h('span', { class: 'faint mono', style: 'font-size:11px' },
+              `${rows.length} finding${rows.length === 1 ? '' : 's'}`),
+            goals.slice(0, 2).map((g) => h('a', { href: `#/goal/${g.id}`, class: 'ellipsis',
+              title: `${g.id} · ${g.status}` }, g.title || g.id)),
+            goals.length > 2 ? h('span', { class: 'faint', style: 'font-size:11.5px' }, `+${goals.length - 2} goals`) : null),
+          h('div', { class: 'row faint mono', style: 'font-size:11px' },
+            dir?.active_goals ? h('span', {}, `${dir.active_goals} active goal${dir.active_goals === 1 ? '' : 's'}`) : null,
+            dir?.open_problems ? h('a', { href: `#/findings?tab=open&area=${area}` },
+              `· ${dir.open_problems} open problem${dir.open_problems === 1 ? '' : 's'}`) : null,
+            area ? h('a', { href: `#/findings?tab=areas` }, '· all areas') : null)),
+        cardGrid(rows));
+    });
+  }
 
   const areaCounts = {};
   for (const x of d.findings) for (const a of x.areas) areaCounts[a] = (areaCounts[a] || 0) + 1;
@@ -982,10 +1051,11 @@ function findingsTab(d, params) {
   }
   function draw() {
     const r = rows();
-    fill(grid, r.length ? r.map(findingCard) : h('div', { class: 'empty' }, 'no findings match'));
+    fill(host, !r.length ? h('div', { class: 'empty' }, 'no findings match')
+      : f.group === 'area' ? sections(r) : cardGrid(r));
     summary.textContent = `${r.length} of ${d.findings.length} findings`;
     replaceRoute('#/findings', { tab: 'findings', status: f.status === 'current' ? '' : f.status,
-      proof: f.proof, tier: f.tier, area: f.area, q: f.q });
+      proof: f.proof, tier: f.tier, area: f.area, q: f.q, group: f.group === 'area' ? '' : f.group });
   }
   const toggle = (group) => (key, el) => {
     f[group].has(key) ? f[group].delete(key) : f[group].add(key);
@@ -1015,8 +1085,90 @@ function findingsTab(d, params) {
 
   const search = h('input', { class: 'mono field', placeholder: 'filter findings…', value: f.q,
     oninput: (e) => { f.q = e.target.value; draw(); } });
+  const grouping = choiceChips([['area', 'by area'], ['date', 'latest first']], f.group,
+    (key) => { f.group = key; draw(); });
   draw();
-  return h('div', { class: 'stack' }, facets, h('div', { class: 'spread' }, summary, search), grid);
+  return h('div', { class: 'stack' }, facets,
+    h('div', { class: 'spread' }, h('div', { class: 'row' }, grouping, summary), search), host);
+}
+
+// ---------------------------------------------------------------------------
+// By area: the program as a map, one row per research area.
+// ---------------------------------------------------------------------------
+const VERDICT_PILL_ORDER = ['supported', 'supported_scoped', 'weakened', 'rejected_scoped', 'rejected',
+  'refuted', 'contradicted', 'inconclusive', 'superseded'];
+
+function verdictPills(map) {
+  const items = VERDICT_PILL_ORDER.filter((k) => map?.[k]).map((k) => tag(`${map[k]} ${k}`, statusTone(k)));
+  return items.length ? h('div', { class: 'row', style: 'gap:4px' }, items) : h('span', { class: 'faint' }, '—');
+}
+
+/** A stacked bar of evidence polarity, with its total beside it. */
+function polarityBar(counts) {
+  const total = sum(counts);
+  if (!total) return h('span', { class: 'faint' }, '—');
+  const keys = ['supports', 'weakens', 'mixed', 'neutral'];
+  return h('div', { class: 'row', style: 'gap:8px', title: keys.map((k) => `${k} ${counts[k] || 0}`).join(' · ') },
+    h('div', { class: 'stack-bar' }, keys.map((k) => counts[k]
+      ? h('i', { style: `width:${(counts[k] / total) * 100}%;background:${
+          POLARITY_TONE[k] ? `var(--${POLARITY_TONE[k]})` : 'var(--line-strong)'}` })
+      : null)),
+    h('span', { class: 'mono faint', style: 'font-size:11px' }, total));
+}
+
+function directionsTable(rows, { compact = false } = {}) {
+  const goalsShown = compact ? 1 : 3;
+  return h('table', { class: 'dense' },
+    thead(['area', 'goals', 'findings', 'hypothesis verdicts',
+      { label: 'evidence', title: 'supports · weakens · mixed · neutral' }, 'open', 'latest finding']),
+    h('tbody', {}, rows.map((r) => h('tr', {},
+      td(r.ecc ? tag(r.area, 'acc', 'ECC area — selected first') : h('span', { class: 'mono area-name' }, r.area)),
+      h('td', { style: 'max-width:380px;min-width:220px' }, r.goals.length
+        ? h('div', { class: 'stack', style: 'gap:3px' },
+            r.goals.slice(0, goalsShown).map((g) => h('div', { class: 'row', style: 'gap:6px;align-items:baseline;flex-wrap:nowrap' },
+              idLink(g.id), statusTag(g.status),
+              h('span', { class: 'ellipsis faint', style: 'font-size:11.5px;max-width:240px' }, g.title))),
+            r.goals.length > goalsShown ? h('span', { class: 'faint', style: 'font-size:11px' },
+              `+${r.goals.length - goalsShown} more`) : null)
+        : h('span', { class: 'faint' }, `no goal · ${r.hypotheses} hypotheses, ${r.experiments} experiments`)),
+      td(r.findings ? h('a', { href: `#/findings?tab=findings&area=${r.area}`, class: 'mono' }, r.findings)
+        : h('span', { class: 'faint mono' }, '0')),
+      td(verdictPills(r.verdicts)),
+      td(polarityBar(r.evidence)),
+      td(r.open_problems ? h('a', { href: `#/findings?tab=open&area=${r.area}`, class: 'mono' }, r.open_problems)
+        : h('span', { class: 'faint mono' }, '0')),
+      h('td', { style: 'max-width:440px;min-width:220px' }, r.latest_finding
+        ? h('div', {},
+            h('a', { href: `#/record/${r.latest_finding.id}`, class: 'clamp2', style: 'display:block;line-height:1.4' },
+              r.latest_finding.title),
+            h('div', { class: 'faint mono', style: 'font-size:10.5px' }, fmtDate(r.latest_finding.added)))
+        : h('span', { class: 'faint' }, 'nothing established yet'))))));
+}
+
+function directionsTab(d, params) {
+  let only = ['findings', 'all'].includes(params.get('only')) ? params.get('only') : 'invested';
+  const host = h('div', { class: 'panel scroll-x' });
+  const summary = h('div', { class: 'faint mono' });
+  const pick = (r) => only === 'all' ? true : only === 'findings' ? r.findings_total > 0 : investedArea(r);
+  function draw() {
+    const rows = d.directions.filter(pick);
+    fill(host, rows.length ? directionsTable(rows) : h('div', { class: 'empty' }, 'no areas match'));
+    summary.textContent = `${rows.length} of ${d.directions.length} areas`;
+    replaceRoute('#/findings', { tab: 'areas', only: only === 'invested' ? '' : only });
+  }
+  const chips = choiceChips([
+    ['invested', 'with a goal, finding, verdict or open problem'],
+    ['findings', 'with findings'],
+    ['all', 'every area with records'],
+  ], only, (key) => { only = key; draw(); });
+  draw();
+  return h('div', { class: 'stack' },
+    h('div', { class: 'banner info' }, h('div', {},
+      h('b', {}, 'One row per research area. '),
+      'The area is the token in the middle of a record identifier (GOAL-PFDR-…), the closest thing the corpus has to a research direction. ',
+      'A finding or open problem is filed under its goal’s area, or the first record it cites, so nothing counts twice. ECC areas come first (CLAUDE.md rule 11).')),
+    h('div', { class: 'spread' }, chips, summary),
+    host);
 }
 
 function verdictsTab(d, params) {
@@ -1147,14 +1299,16 @@ function obstructionsTab(d) {
 function openProblemsTab(d, params) {
   let only = params.get('status') || 'open';
   let q = params.get('q') || '';
+  const area = params.get('area') || '';
   const list = h('div', { class: 'stack' });
   const summary = h('div', { class: 'faint mono' });
   function draw() {
     const needle = q.trim().toLowerCase();
     const rows = d.open_problems.filter((p) =>
       (only === 'all' || (only === 'open' ? p.status === 'open' : p.status !== 'open'))
+      && (!area || p.area === area || (p.areas || []).includes(area))
       && (!needle || `${p.id} ${p.title} ${p.statement} ${p.tags.join(' ')}`.toLowerCase().includes(needle)));
-    summary.textContent = `${rows.length} of ${d.open_problems.length} open problems`;
+    summary.textContent = `${rows.length} of ${d.open_problems.length} open problems${area ? ` in ${area}` : ''}`;
     fill(list, rows.length ? rows.map((p) => h('section', { class: 'panel' },
       h('div', { class: 'panel-body stack', style: 'gap:8px' },
         h('div', { class: 'spread' },
@@ -1168,13 +1322,18 @@ function openProblemsTab(d, params) {
           p.resolution ? kv('what would resolve it', h('div', { class: 'glance-text' }, linkify(p.resolution))) : null),
         p.tags.length ? h('div', { class: 'row', style: 'gap:4px' }, p.tags.slice(0, 8).map((t) => tag(t))) : null)))
       : h('div', { class: 'empty' }, 'no open problems match'));
-    replaceRoute('#/findings', { tab: 'open', status: only === 'open' ? '' : only, q });
+    replaceRoute('#/findings', { tab: 'open', status: only === 'open' ? '' : only, q, area });
   }
   const chips = choiceChips([['open', 'open'], ['closed', 'resolved'], ['all', 'all']], only, (k) => { only = k; draw(); });
   const search = h('input', { class: 'mono field', placeholder: 'filter open problems…', value: q,
     oninput: (e) => { q = e.target.value; draw(); } });
   draw();
-  return h('div', { class: 'stack' }, h('div', { class: 'spread' }, chips, h('div', { class: 'row' }, summary, search)), list);
+  return h('div', { class: 'stack' },
+    h('div', { class: 'spread' },
+      h('div', { class: 'row' }, chips,
+        area ? h('a', { class: 'chip', href: '#/findings?tab=open', title: 'clear the area filter' }, `${area} ×`) : null),
+      h('div', { class: 'row' }, summary, search)),
+    list);
 }
 
 // ---------------------------------------------------------------------------
