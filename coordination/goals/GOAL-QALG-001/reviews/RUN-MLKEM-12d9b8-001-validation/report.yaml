@@ -1,0 +1,637 @@
+validation_report:
+  id: VAL-20260906-mlkem12d9b8
+  task_id: TASK-VALIDATION-RUN-MLKEM-12d9b8-001
+  run_ids: [RUN-MLKEM-12d9b8-001]
+  experiment_id: EXP-MLKEM-12d9b8
+  hypothesis_id: H-MLKEM-36f511
+  goal_id: GOAL-QALG-001
+  reviewed_snapshot_commit: b47237c995d034052703e8a71594c53d6df9dc55
+  reviewed_snapshot_commit_note: >-
+    HEAD at review time. Verified reachable from HEAD (git merge-base
+    --is-ancestor confirms it IS HEAD). This is a Coordinator-committed
+    snapshot, not a working-tree-only artifact: `git status --short` at
+    review start shows no uncommitted changes under
+    experiments/EXP-MLKEM-12d9b8/ (the two untracked paths present belong to
+    unrelated concurrent work on EXP-CSIDH-c65945 and EXP-ECDLP-56ee42, not
+    to this run).
+
+  verdict: CONFIRM
+  verdict_rationale: >-
+    Every load-bearing number in the run package was independently
+    recomputed from a from-scratch script (never reading compute.py's code
+    body) and matches raw-result.json / metrics-table.md byte-for-byte at
+    all 3 levels x 4 c values x 2 B endpoints checked. The UNREALIZABLE
+    verdict holds at all 12 (level, c) pairs. The amendment's B<=q ceiling
+    rule was followed exactly (no B>q ever computed anywhere in compute.py
+    or raw-result.json). Stage 0's "NOT COMPUTED" disposition is a genuine,
+    source-checked conclusion, verified against the four cited sources
+    directly, not an assertion. No scope creep or overreach beyond
+    specification.yaml's claim_ceiling was found anywhere in the run
+    artifacts. required_artifacts_crosscheck in manifest.yaml is accurate
+    against specification.yaml's actual required_artifacts list, item by
+    item. One minor, non-blocking artifact defect is flagged below (a unit-
+    conversion bug in a derived diagnostic field, `budget_check
+    .memory_gb_used_approx`) that does not change the within-budget
+    conclusion, touch any required artifact, or affect any claimed metric;
+    it does not, on its own, downgrade this receipt's admissibility as
+    evidence of what the run computed. This verdict certifies the run
+    package is what it claims to be -- an admissible research receipt. It
+    does not support any ECDLP or ML-KEM security claim, and the run's own
+    evidence_eligible: false stands until the Coordinator's independent
+    validation-and-red-team gate (this report is the validation half of
+    that gate) and ledger archive complete.
+
+  # =====================================================================
+  # 1. INDEPENDENT RECOMPUTATION
+  # =====================================================================
+  metric_recomputations:
+    - id: RECOMP-1-Q-TABLE-AND-CEILING
+      method: >-
+        Wrote a from-scratch Python script implementing only the formulas
+        stated in specification.yaml's preregistered_prediction.formula and
+        amendment MLKEM-CHG-2 (Q = k_mlkem * (k_mlkem*256)^(c+1);
+        combinatorial_ceiling(B) = (2B+1)^k_mlkem), WITHOUT reading or
+        copying compute.py's code body (compute.py was read only afterward,
+        to compare the two implementations' independently-obtained values --
+        never to derive the recomputation script itself).
+      script_path: coordination/goals/GOAL-QALG-001/reviews/RUN-MLKEM-12d9b8-001-validation/independent_recompute.py
+      script_output_path: coordination/goals/GOAL-QALG-001/reviews/RUN-MLKEM-12d9b8-001-validation/independent_recompute_output.txt
+      script_sha256: 8cd56fb56d5df516a86728487963ad65504050090e0f54737743f51b7f2353dd
+      scope_checked: >-
+        All 3 standardized levels (ML-KEM-512 k_mlkem=2, ML-KEM-768
+        k_mlkem=3, ML-KEM-1024 k_mlkem=4) x all 4 swept c values
+        {12,13,15,20} x both B endpoints {1, q=3329} -- i.e. the full grid
+        the run reports, not only the task's minimum-required subset
+        (k_mlkem in {2,4} at c in {12,20}).
+      result: >-
+        EXACT MATCH at every one of the 12 (level, c) Q values and all 6
+        (level, B) ceiling values against raw-result.json's
+        stage2_Q_table and stage3_combinatorial_ceiling. Specifically
+        confirmed: ML-KEM-512 (k_mlkem=2) c=12 -> Q=332306998946228968225951765070086144
+        (36 digits); c=20 -> Q=1569275433846670190958947355801916604025588861116008628224
+        (58 digits). ML-KEM-1024 (k_mlkem=4) c=12 -> Q=5444517870735015415413993718908291383296
+        (40 digits); c=20 -> Q=6582018229284824168619876730229402019930943462534319453394436096
+        (64 digits). Combinatorial ceiling at B=1: 9 (k=2), 81 (k=4); at
+        B=q=3329: 44342281 (k=2), 1966237884282961 (k=4). All 12 exact
+        integers match the run's raw-result.json character-for-character.
+      unrealizable_verdict_check: >-
+        Independently confirmed ceiling(B=q) < Q at EVERY ONE of the 12
+        (level, c) pairs reported (not only the 4 pairs the task named as a
+        floor) -- robust_single_verdict UNREALIZABLE at all 3 levels,
+        matching raw-result.json's overall_verdict_by_level exactly. Digit-
+        count shortfalls independently recomputed match
+        orders_of_magnitude_shortfall_approx in raw-result.json exactly at
+        every pair (e.g. ML-KEM-1024 c=12: 24; ML-KEM-512 c=20: 50).
+
+    - id: RECOMP-2-BASELINE-EMBEDDING-CONTROL
+      method: >-
+        Hand-verified (not scripted, elementary): Var(sum c_i e_i) at m=1,
+        c_1=1 reduces to Var(e_1) = eta/2 exactly; at m=2, c_1=c_2=1 reduces
+        to 2*(eta/2) = eta exactly, matching CBD's convolution property.
+      result: >-
+        Matches raw-result.json's stage1_baseline_embedding_control at
+        every level and both eta values (eta1 in {3,2}, eta2=2):
+        m1_variance == eta/2, m2_variance == eta, all six baseline-check
+        pairs PASS. stage1_all_checks_pass: true is correctly derived.
+
+    - id: RECOMP-3-AMENDMENT-DISCLOSURE-CROSSCHECK
+      method: >-
+        Cross-checked the run's own numbers against amendments/v1.yaml's
+        MLKEM-CHG-1 disclosure addendum figures (Q ~ 3x10^35 at ML-KEM-512
+        c=12; combinatorial ceiling ~2x10^15 at ML-KEM-1024, B=q=3329;
+        "roughly 20 orders of magnitude" gap), using the same independent
+        script.
+      result: >-
+        2*512^13 = 2*2^117 = 332306998946228968225951765070086144, confirmed
+        algebraically equal and matching the amendment's "~3x10^35" figure.
+        (2*3329+1)^4 = 1966237884282961, exactly matching both the
+        amendment's "~2x10^15" figure and raw-result.json's own value at
+        that (level, B) pair. Digit-count shortfall at that exact (level=
+        ML-KEM-1024, c=12) pair is 24 orders of magnitude by this
+        independent computation, consistent with (exceeding) the
+        amendment's disclosed "roughly 20 orders of magnitude" -- the run's
+        commit message's own framing ("24-50 orders of magnitude ...
+        reproducing amendments/v1.yaml's independently-disclosed
+        ~20-order-of-magnitude gap") is accurate, not inflated or
+        understated, and is independently reproduced here by a third
+        implementation (this validator's), distinct from both the
+        red-team's original arithmetic (RT-20260814-41d4cc) and the
+        Executor's compute.py.
+
+  # =====================================================================
+  # 2. AMENDMENT APPLICATION CHECK
+  # =====================================================================
+  control_checks:
+    - id: CTRL-1-B-CEILING-RULE-MLKEM-CHG-2
+      description: >-
+        Amendment MLKEM-CHG-2 caps the extreme-B tail check at B=q=3329 and
+        forbids searching B>q. Checked manifest.yaml's
+        B_grid_extreme_check: [1, 3329] against the actual code and output.
+      method: >-
+        grep of compute.py for every B_grid / ceiling_at_B / combinatorial_
+        ceiling( call site, and grep of raw-result.json for every numeric
+        token >= 5 digits, to find any B value used anywhere in the run
+        besides 1 and 3329.
+      result: >-
+        PASS. compute.py's stage3_ceilings() computes ceiling only at
+        B in {1, q} (q read from ML_KEM_PARAMS, =3329 for all three
+        levels); no other B value appears anywhere in compute.py or
+        raw-result.json. manifest.yaml's own
+        inputs.parameters.B_grid_extreme_check: [1, 3329] and
+        B_ceiling_rule note are accurate descriptions of what the code
+        actually did, not aspirational text. No B>q was searched.
+
+    - id: CTRL-2-DISCLOSURE-FIGURE-MLKEM-CHG-1
+      description: >-
+        Amendment MLKEM-CHG-1 requires the run's own numbers, not merely
+        the amendment's assertion, to be consistent with the disclosed
+        ~20-order-of-magnitude gap.
+      result: >-
+        PASS -- see RECOMP-3 above. The run's own independently-verified
+        numbers meet or exceed (are never smaller than) the disclosed
+        ~20-order-of-magnitude figure at every one of the 12 (level, c)
+        pairs (range: 24 to 50 orders of magnitude by digit count), and the
+        smallest observed gap (24, at ML-KEM-1024 c=12 -- the single point
+        the amendment itself used as its worked example) matches the
+        amendment's own worked numbers exactly, not merely "in the same
+        ballpark."
+
+    - id: CTRL-3-BASELINE-EMBEDDING-CONTROL
+      result: PASS -- see RECOMP-2.
+
+    - id: CTRL-4-TRIVIAL-FLOOR-CONTROL
+      description: Q <= k_mlkem must be confirmed trivially realizable / not-applicable at swept c.
+      result: >-
+        PASS. Independently confirmed Q > k_mlkem at all 12 (level, c)
+        pairs by inspection (Q's smallest value has 36 digits; k_mlkem <=
+        4), so the degenerate floor case correctly does not trigger for any
+        swept c, exactly as stage2b_trivial_floor_check reports.
+
+    - id: CTRL-5-SENSITIVITY-CONTROL
+      description: Realizability verdict reported across the full c sweep {12,13,15,20}, not one arbitrary c.
+      result: >-
+        PASS. All four c values reported at all three levels, verdict
+        robustly UNREALIZABLE across the full sweep at every level
+        (independently recomputed, matches raw-result.json).
+
+    - id: CTRL-6-SYMBOL-COLLISION-CONTROL
+      description: >-
+        k_simon and k_mlkem must never be conflated undisclosed.
+      method: >-
+        Read symbol-collision-audit.md and cross-checked its claim (that
+        the Q-formula's k_mlkem-for-k_simon substitution is the frozen
+        contract's OWN disclosed substitution, not an undisclosed
+        conflation introduced by this run) against
+        specification.yaml's own preregistered_prediction.formula clause
+        (i): "Q = k_mlkem * (k_mlkem*256)^(c+1)". Also grepped compute.py,
+        raw-result.json, and every .md artifact in the run directory for
+        any bare, unqualified "k" used for both quantities.
+      result: >-
+        PASS. The substitution the audit describes is verbatim present in
+        the frozen specification.yaml text itself (not invented by the
+        Executor), and no artifact in the run directory uses an
+        unqualified "k" for both k_simon and k_mlkem. Audit's PASS
+        self-report is accurate, not a bare assertion.
+
+    - id: CTRL-7-FALSIFYING-CONTROL-F1-F4
+      description: >-
+        F1 (baseline embedding) must PASS or halt the run; F2/F3/F4 must be
+        reported honestly per their own decision rules, never defaulted.
+      result: >-
+        PASS. F1 passes at every level (verified, CTRL-3). F2 is correctly
+        reported as "not observed on the axis this run could evaluate" --
+        not overclaimed as fully refuted, since the faulty-rate half of F2
+        remains NOT COMPUTED (stage 0) and the manifest's own text says so
+        explicitly rather than collapsing F2 to false. F3 is correctly
+        reported as consistent-but-not-declared (the run does not assert
+        H-MLKEM-36f511 is supported). F4 is correctly never treated as a
+        falsification of anything. This exact care (not conflating "the
+        combinatorial axis alone is UNREALIZABLE" with "F2 is fully
+        refuted") is the correct application of MLKEM-CHG-3's cross-
+        reference annotation.
+
+  # =====================================================================
+  # 3. STAGE 0 GENUINE-CHECK
+  # =====================================================================
+  stage0_disposition_check:
+    id: STAGE0-GENUINE-CHECK
+    method: >-
+      Independently opened and read all four sources stage0-disposition.md
+      names as checked (inputs/DCP-SIMON-2026/paper_extracted_text.txt,
+      knowledge/literature/KN-LIT-21383c.md,
+      knowledge/techniques/KN-TECH-d1bc4f.md,
+      knowledge/open-problems/KN-OPEN-8a5965.md) and grepped the Simon
+      paper text for faulty|a(n)|approx|variance|noise rate|1/O to verify
+      the disposition's specific line-range citations (lines 76-79, 86-99)
+      are accurate, not fabricated.
+    result: >-
+      CONFIRMED GENUINE. All four sources say exactly what
+      stage0-disposition.md reports them as saying: the Simon paper states
+      the qualitative faulty-sample-rate/a(n) relationship (lines
+      76-99 as cited) but no formula converting an arbitrary externally-
+      supplied noise-variance inflation into a(n); KN-LIT-21383c is
+      self-labelled "Paper not read... noise-rate trade-off relayed from
+      Simon 2026's description"; KN-TECH-d1bc4f states the relationship
+      only qualitatively and explicitly flags "Reaching ML-KEM/ML-DSA
+      requires the module variants... a separate step"; KN-OPEN-8a5965
+      independently confirms the same gap from the open-problem side and
+      states Regev 2004's and BKSW's full derivations are not staged in
+      this repository. This is a genuine, checked absence, not a silent
+      skip or an assertion of absence without looking. The disposition is
+      correctly reported as an honest "NOT COMPUTED", never defaulted to
+      either realizability verdict, per specification.yaml's own
+      gating_rule and F4.
+
+  # =====================================================================
+  # 4. SCOPE / OVERREACH CHECK
+  # =====================================================================
+  scope_and_overreach_check:
+    id: SCOPE-CHECK
+    method: >-
+      Grepped the entire run directory (case-insensitive) for
+      attack|broken|insecure|vulnerab|key recover|security level|bits of
+      security|Simon('s)? (correct|proof|is right|is valid)|confirms
+      Simon|refutes Simon|speedup, and read manifest.yaml's result,
+      claim_ceiling_compliance, and evidence_eligibility blocks plus
+      implementation.md's "Claim ceiling discipline" section and the
+      archival commit message in full.
+    result: >-
+      NO OVERREACH FOUND. Every hit for "attack" is an explicit disclaimer
+      ("no attack of any kind was written or run", "this is not an
+      attack"). No hit for any ML-KEM-security-implication or
+      Simon-correctness-implication language anywhere in compute.py,
+      raw-result.json, manifest.yaml, or any .md artifact. manifest.yaml
+      explicitly states evidence_eligible: false and that no hypothesis or
+      goal status is changed. The archival commit message states
+      "evidence_eligible: false pending independent validation and
+      red-team review, which this commit does not perform" -- an accurate,
+      non-overclaiming self-description at the point of archival.
+
+  # =====================================================================
+  # 5. REQUIRED-ARTIFACTS CROSSCHECK
+  # =====================================================================
+  artifact_checks:
+    - id: ARTIFACT-CROSSCHECK
+      method: >-
+        Read specification.yaml required_artifacts (10 items, lines
+        355-365) and manifest.yaml's required_artifacts_crosscheck (10
+        items) side by side, then opened every artifact file each item
+        cites to confirm genuine presence and correct content, not merely
+        a present filename.
+      per_item_result:
+        - item: "1. Frozen approved specification with freeze receipt"
+          status: PASS
+          note: >-
+            specification.yaml present and unedited (its execution_authorized
+            field remains false on disk exactly as manifest.yaml itself
+            states); freeze receipt correctly deferred to
+            TASK-20260814-8a0fea, not fabricated here.
+        - item: "2. Source-pin citation for Simon's n"
+          status: PASS
+          note: >-
+            source-pin-note.md present, verbatim-reproduces
+            specification.yaml's own pinned_literal_definition and
+            giving_n, does not silently recompute the pin.
+        - item: "3. Stage 0 outcome"
+          status: PASS
+          note: See stage0_disposition_check above.
+        - item: "4. Q table, exact integers, all levels x all swept c"
+          status: PASS
+          note: Independently recomputed and matched exactly; see RECOMP-1.
+        - item: "5. Variance formula derivation with m=1/m=2 baseline checks shown"
+          status: PASS
+          note: See RECOMP-2.
+        - item: "6. Combinatorial-ceiling derivation and numeric values at swept B grid"
+          status: PASS
+          note: >-
+            Present at B=1 and B=q=3329 per MLKEM-CHG-2's operative,
+            named-endpoint ceiling. Since combinatorial_ceiling(B) is
+            strictly increasing in B, these two endpoints bound every
+            intermediate B in the original independent_variables example
+            grid ({1,2,eta1,eta2}, all <= q); no informational loss from
+            not separately tabulating the interior points, and the
+            amendment's own text names B=q as "the single, named endpoint
+            of this tail check, not a starting point for further search" --
+            the run correctly treats this as superseding the earlier
+            illustrative grid for the tail-check purpose.
+        - item: "7. Realizability verdict table (three-way, per level, per swept c)"
+          status: PASS
+          note: >-
+            Combinatorial-axis verdict fully reported at all 12 pairs;
+            faulty-rate axis correctly reported NOT COMPUTED, which IS
+            outcome (c) of the contract's own three defined outcomes, not
+            a missing table.
+        - item: "8. Symbol-collision audit statement"
+          status: PASS
+          note: See CTRL-6.
+        - item: "9. Manifest, environment, commands, timestamps, resources"
+          status: PASS
+          note: See environment_and_resource_check below.
+        - item: "10. Snapshot archive, independent validation and red-team review"
+          status: >-
+            CORRECTLY REPORTED AS NOT YET PERFORMED
+          note: >-
+            manifest.yaml accurately flags this as the pending next step
+            rather than fabricating it; this validation report is that
+            step's validation half. Red-team review remains outstanding
+            and is a separate, not-yet-completed task this report does not
+            substitute for.
+
+  # =====================================================================
+  # 6. ENVIRONMENT / RESOURCE CONSISTENCY
+  # =====================================================================
+  environment_and_resource_check:
+    id: ENV-RESOURCE-CHECK
+    checks_performed:
+      - check: environment.json vs manifest.yaml environment block
+        result: >-
+          MATCH. operating_system, architecture, python_version,
+          dependencies.stdlib_only, dependencies.modules_used, and the git
+          commit/dirty/dirty_note fields are identical between the two
+          files.
+      - check: resource_usage.json vs manifest.yaml resources/timing blocks
+        result: >-
+          MATCH. wall_seconds (0.024663209915161133), cpu_seconds_user
+          (0.016211), cpu_seconds_system (0.008111), peak_rss_kb (10976)
+          are identical in both files. peak_rss_bytes (11239424) in
+          manifest.yaml correctly equals peak_rss_kb * 1024 (10976*1024 =
+          11239424).
+      - check: git commit chain
+        result: >-
+          Verified via `git merge-base --is-ancestor`: commit
+          ad681cee06534c38bc8b981c2139510f3c2def4c (the run's declared base
+          commit) is an ancestor of, and the archival commit
+          b47237c995d034052703e8a71594c53d6df9dc55 (HEAD) diffs against it
+          by EXACTLY the 15 declared run-directory files (1288 insertions,
+          0 deletions, no other path touched) -- confirmed by `git diff
+          --stat`. This independently corroborates the "dirty: false /
+          tracked files clean" claim for everything this run's commit
+          actually bears on: no tracked file outside the new run directory
+          was modified between the declared base commit and the archival
+          commit.
+      - check: /usr/bin/time-unavailable deviation
+        result: >-
+          REPRODUCED, CONFIRMED GENUINE, NOT TREATED AS A DEFECT. Ran
+          `/usr/bin/time` directly on this validation host: "No such file
+          or directory" -- matches
+          usr-bin-time-unavailable-evidence.log's own recorded evidence
+          exactly. The resource.getrusage(RUSAGE_CHILDREN) substitute is a
+          disclosed, like-for-like kernel-accounting alternative, named as
+          a deviation in implementation.md rather than silently swapped
+          in. Per this task's own instruction, this deviation is noted,
+          not penalized.
+      - check: budget_check internal arithmetic
+        result: >-
+          MINOR DEFECT FOUND (non-blocking). manifest.yaml's
+          budget_check.memory_gb_used_approx: 0.0000105 is NOT the correct
+          GB conversion of peak_rss_kb: 10976 (which Linux's
+          resource.getrusage reports in KIBIBYTES). The correct conversion
+          is 10976 / 1024^2 = 0.010467529296875 GB (~10.5 MB), roughly 1000x
+          larger than the reported 0.0000105. Reproduced the error
+          mechanically: 0.0000105 GB is what you get by dividing the
+          peak_rss_kb NUMBER (10976) by 1024^3 as if it were already a
+          byte count, i.e. an off-by-1024 unit-conversion bug in this one
+          derived diagnostic field. This does NOT change the
+          within_budget: true conclusion (both the reported and the
+          corrected value are far below the 2 GB budget.maximum_memory_gb
+          ceiling; the true peak RSS of ~11 MB is itself trivial for this
+          arithmetic-only script), does not touch any required artifact,
+          and does not affect wall-clock or CPU-time budget compliance
+          (also verified correct and far under budget). Flagged as a
+          documentation-quality defect in a self-computed convenience
+          field, not a resource-measurement or budget-compliance failure;
+          recommend a superseding correction note to this one field, not a
+          re-run.
+
+  heuristic_validation_checks: []
+  heuristic_validation_checks_note: >-
+    Not applicable in the docs/target-result-profile.md exemplar sense
+    (Dickman-de Bruijn / sampling-distribution validation): this run is a
+    closed-form derivation with no sampling, no seed, and no statistical
+    prediction to compare against an empirical CDF, exactly as
+    specification.yaml's own scale_relevance and replication blocks state.
+    HEUR-MLKEM-36f511-1 (variance additivity) is an exact elementary
+    identity discharged by the baseline-embedding control (CTRL-3), not a
+    random-model conjecture requiring a null-object control; the red-team
+    report (RT-20260814-41d4cc, heuristic_challenges) independently
+    confirms this same characterization, and this validator concurs on
+    independent reading of the identity itself.
+
+  cost_model_checks: []
+  cost_model_checks_note: >-
+    No concrete-cost table (field operations, time, memory at a
+    cryptographic parameter set) is claimed by this run; specification.yaml
+    claim_ceiling scopes this experiment to exact-integer combinatorics,
+    not a cost model for an attack or algorithm. Nothing to check under
+    docs/target-result-profile.md's cost-unit-honesty rule because no such
+    claim is made.
+
+  null_object_control_check: >-
+    Not applicable. No statistical correlation, bias, or excess is reported
+    anywhere in this run -- every quantity is an exact, deterministic
+    closed-form integer computed from stated formulas, with zero sampling.
+    docs/inventor-protocol.md section 3's null-object-control requirement
+    binds statistical signals; there is no statistical signal here to
+    control for, and specification.yaml's own replication.interpretation
+    field states this explicitly and correctly ("NOT APPLICABLE:
+    DETERMINISTIC, INDEPENDENTLY RE-DERIVABLE").
+
+  proof_architecture_checks: []
+  proof_architecture_checks_note: >-
+    H-MLKEM-36f511's proof_search_map was checked at design time by
+    RT-20260814-41d4cc (see proof_architecture_challenges in that report);
+    this validation task concerns the RUN, not the design-time proof_search_map
+    itself, which this validator re-read but did not re-audit from scratch
+    (RT-20260814-41d4cc's own audit of it, including surfacing MLKEM-OBJ-1
+    from the observation_collision audit, was independently re-verified by
+    this validator only insofar as its cited arithmetic was reproduced --
+    see RECOMP-3 -- not insofar as the proof_search_map's other four audits
+    are concerned, which is outside this run's own claim_ceiling and this
+    task's stated scope).
+
+  inventor_protocol_ladder_check: >-
+    docs/inventor-protocol.md section 6's scaled-down-instance-with-measured-
+    ratio ladder governs claimed SPEEDUPS extrapolated from a scale where
+    the improvement cannot be directly executed. This run makes no speedup
+    claim of any kind (specification.yaml what_this_is_not: "Not an
+    attack... not a certificate of any kind"); it is a closed-form
+    arithmetic bound computed exactly at ML-KEM's actual, full
+    cryptographic-scale standardized parameters (q=3329, n up to 1024),
+    not a toy-scale extrapolation needing a ratio-against-baseline check.
+    Section 6 is therefore not the applicable ladder for this run; noted
+    here so its absence from this report is a deliberate scoping decision,
+    not a silent omission.
+
+  limitations:
+    - >-
+      This validation independently confirmed all 12 (level, c) Q-table and
+      verdict pairs and both B-endpoint ceiling values at all 3 levels
+      (i.e. the full grid, a superset of the task's minimum-required
+      k_mlkem in {2,4} at c in {12,20}), by an independent from-scratch
+      script. It did NOT independently re-verify every one of
+      compute.py's intermediate JSON fields byte-for-byte beyond those
+      named above (e.g. margin_Bq_minus_Q's exact subtraction was spot-
+      checked at 2 pairs by hand, not scripted at all 12); this is
+      considered adequate given margin is a deterministic subtraction of
+      two already-independently-verified integers.
+    - >-
+      This validator did not independently re-read Simon 2026's full
+      paper_extracted_text.txt end to end; it grepped and read the specific
+      cited line ranges (76-99) plus the abstract/intro pages to confirm
+      stage0-disposition.md's specific citations are accurate, which is
+      sufficient to confirm the disposition is genuine but not a full
+      independent audit of the paper itself (out of this experiment's own
+      claim_ceiling and this task's scope; that audit belongs to the
+      separate, not-yet-dispatched IDEA-20260813-4aecda).
+    - >-
+      The `memory_gb_used_approx` unit-conversion defect (see
+      environment_and_resource_check) is a documentation-quality issue in a
+      derived diagnostic field, not re-derived from first principles beyond
+      the arithmetic shown; the underlying raw measurements
+      (peak_rss_kb, peak_rss_bytes, cpu times, wall time) are all correct
+      and mutually consistent.
+    - >-
+      Model-provenance discrepancy for THIS validation session itself (see
+      review_attestation.inference below): orchestration/model-bindings.yaml's
+      anthropic-backend binding for review-adversarial resolves to
+      claude-opus-5 (provenance: runtime-verified), but this session's own
+      runtime context self-reports as claude-sonnet-5. This could not be
+      independently reconciled from inside this session (`$ANTHROPIC_API_KEY`
+      is unset in this environment; `python3 -m orchestration.adapter doctor
+      --probe` reports the anthropic backend unusable/unprobed here). This
+      is disclosed, not hidden, and follows the identical precedent already
+      established in this exact goal's own records (DEC-20260906-b60887 and
+      amendments/v1.yaml both self-report claude-sonnet-5 for
+      coordinator-orchestration-code, whose anthropic binding is likewise
+      claude-opus-5). Per the 2026-09-03 floor relaxation of
+      review-adversarial ("any backend that can reason at all may SERVE
+      this policy"; requires reasoning_effort: low as the floor, with the
+      requested xhigh effort and independent_session_required: true staying
+      the load-bearing, unrelaxed parts), this session meets the policy's
+      stated floor (tool_use, structured_output, >=180k context, >=16k
+      output all present; genuinely an independent session that did not
+      produce EXP-MLKEM-12d9b8's run) and this validator did not refuse or
+      silently downgrade -- it disclosed the mismatch and proceeded, per
+      this program's own established practice for the identical situation.
+    - >-
+      This report does not perform, and is not a substitute for, the
+      independent red-team review specification.yaml's required_artifacts
+      item 10 also names as outstanding before evidence_eligible may be
+      set true.
+
+  artifact_paths:
+    - experiments/EXP-MLKEM-12d9b8/specification.yaml
+    - experiments/EXP-MLKEM-12d9b8/amendments/v1.yaml
+    - ledger/decisions/DEC-20260906-b60887.yaml
+    - ledger/hypotheses/H-MLKEM-36f511.yaml
+    - coordination/goals/GOAL-QALG-001/batches/BATCH-dbf57a/tasks/TASK-20260814-11516e/red_team_report.yaml
+    - experiments/EXP-MLKEM-12d9b8/runs/RUN-MLKEM-12d9b8-001/manifest.yaml
+    - experiments/EXP-MLKEM-12d9b8/runs/RUN-MLKEM-12d9b8-001/compute.py
+    - experiments/EXP-MLKEM-12d9b8/runs/RUN-MLKEM-12d9b8-001/run_wrapper.py
+    - experiments/EXP-MLKEM-12d9b8/runs/RUN-MLKEM-12d9b8-001/raw-result.json
+    - experiments/EXP-MLKEM-12d9b8/runs/RUN-MLKEM-12d9b8-001/metrics-table.md
+    - experiments/EXP-MLKEM-12d9b8/runs/RUN-MLKEM-12d9b8-001/stage0-disposition.md
+    - experiments/EXP-MLKEM-12d9b8/runs/RUN-MLKEM-12d9b8-001/source-pin-note.md
+    - experiments/EXP-MLKEM-12d9b8/runs/RUN-MLKEM-12d9b8-001/symbol-collision-audit.md
+    - experiments/EXP-MLKEM-12d9b8/runs/RUN-MLKEM-12d9b8-001/implementation.md
+    - experiments/EXP-MLKEM-12d9b8/runs/RUN-MLKEM-12d9b8-001/environment.json
+    - experiments/EXP-MLKEM-12d9b8/runs/RUN-MLKEM-12d9b8-001/resource_usage.json
+    - experiments/EXP-MLKEM-12d9b8/runs/RUN-MLKEM-12d9b8-001/command.txt
+    - experiments/EXP-MLKEM-12d9b8/runs/RUN-MLKEM-12d9b8-001/stdout.log
+    - experiments/EXP-MLKEM-12d9b8/runs/RUN-MLKEM-12d9b8-001/stderr.log
+    - experiments/EXP-MLKEM-12d9b8/runs/RUN-MLKEM-12d9b8-001/usr-bin-time-unavailable-evidence.log
+    - inputs/DCP-SIMON-2026/paper_extracted_text.txt
+    - knowledge/literature/KN-LIT-21383c.md
+    - knowledge/techniques/KN-TECH-d1bc4f.md
+    - knowledge/open-problems/KN-OPEN-8a5965.md
+    - coordination/goals/GOAL-QALG-001/reviews/RUN-MLKEM-12d9b8-001-validation/independent_recompute.py
+    - coordination/goals/GOAL-QALG-001/reviews/RUN-MLKEM-12d9b8-001-validation/independent_recompute_output.txt
+
+  review_attestation:
+    joints_owned:
+      - "full run-package validation per task card items 1-6 (no review_plan
+         subdividing joints was issued for this task; this validator owns
+         the whole card)"
+    sources_read: >-
+      See artifact_paths above -- complete list of every file opened during
+      this review. Also ran: `git log`, `git show --stat`, `git diff --stat`,
+      `git merge-base --is-ancestor` against commits
+      ad681cee06534c38bc8b981c2139510f3c2def4c and
+      b47237c995d034052703e8a71594c53d6df9dc55; `python3 -m
+      orchestration.adapter resolve --role validator [--independent-session]`
+      and `doctor --probe`; `ls /usr/bin/time` on this host.
+    read_sibling_reports: false
+    read_sibling_reports_note: >-
+      No red-team report for THIS run (RUN-MLKEM-12d9b8-001) exists yet to
+      read (it is the outstanding next step). RT-20260814-41d4cc, read
+      above, is a DESIGN-TIME red-team report on the frozen contract, not a
+      sibling review of this run in the same round; reading it was required
+      by task item 2 (amendment cross-check) and is disclosed here for
+      completeness, not a breach of round-blindness since no review_plan
+      declared rounds for this task.
+    blind_rederivation:
+      required: false
+      note: >-
+        Not a blind_rederivation task per the task card; RECOMP-1/2/3 above
+        were nonetheless written from the frozen contract's stated formulas
+        alone, before opening compute.py, and compute.py was read only
+        afterward for comparison -- effectively achieving the blind-
+        rederivation property for the Q-table/ceiling metric even though it
+        was not formally required.
+    verdict: holds
+    inference:
+      requested_policy: review-adversarial
+      requested_reasoning_effort: xhigh
+      independent_session: true
+      independent_session_note: >-
+        This session did not produce EXP-MLKEM-12d9b8's specification,
+        amendment, decision, or run; it is a fresh validator session reading
+        only the Coordinator-committed snapshot.
+      resolved_model_id_self_reported: claude-sonnet-5
+      resolved_model_id_note: >-
+        Genuine self-report from this session's own runtime system context,
+        which names the answering model "Sonnet 5", exact model id
+        "claude-sonnet-5". orchestration/model-bindings.yaml's anthropic
+        backend binds review-adversarial to claude-opus-5
+        (provenance: runtime-verified); this could NOT be reconciled from
+        inside this session (`$ANTHROPIC_API_KEY` unset;
+        `orchestration.adapter doctor --probe` reports anthropic
+        unusable/unprobed here). Not independently confirmed against
+        model-bindings.yaml from inside this session -- same disclosure
+        basis, and same unresolved discrepancy, as
+        DEC-20260906-b60887.inference and amendments/v1.yaml.provenance
+        already carry on record for coordinator-orchestration-code
+        (also bound to claude-opus-5, also self-reporting claude-sonnet-5).
+      fallback_allowed: false
+      degraded_allowed: false
+      fallback_used: false
+      degraded_requirements: []
+      refused: false
+      refusal_rationale_for_not_refusing: >-
+        review-adversarial's floor was relaxed 2026-09-03 (DEC-20260903-*)
+        to "any backend that can reason at all may SERVE this policy",
+        keeping the requested xhigh effort and
+        independent_session_required: true as the unrelaxed, load-bearing
+        parts. This session satisfies the stated `requires` floor
+        (reasoning_effort >= low, tool_use, structured_output,
+        min_context_tokens 180000, min_output_tokens 16000 -- Claude
+        Sonnet 5 exceeds all four) and IS a genuinely independent session.
+        The model-identity mismatch against the anthropic-backend binding
+        table is a property of how this session was launched (a
+        process-level, pre-session decision per CLAUDE.md's model policy
+        note), not a downgrade this validator chose or could reverse from
+        within the task; disclosing it fully, rather than silently
+        proceeding or refusing a review this session is otherwise equipped
+        to perform, is the action this program's own AGENTS.md rule 11 and
+        this exact precedent (DEC-20260906-b60887) call for.
+      amazon_bedrock: NOT SELECTED, NOT CONFIGURED, NOT PROBED, NOT CONTACTED, NOT USED.
+
+  prohibitions_compliance:
+    edited_raw_receipts_logs_manifests: false
+    substituted_estimate_for_missing_measurement: false
+    promoted_result_on_partial_check: false
+    accepted_timeout_or_crash_as_negative_evidence: not_applicable
+    committed_to_shared_worktree: false
+    committed_anything: false
+    wrote_outside_write_scope: false
+    write_scope_honored: coordination/goals/GOAL-QALG-001/reviews/RUN-MLKEM-12d9b8-001-validation/

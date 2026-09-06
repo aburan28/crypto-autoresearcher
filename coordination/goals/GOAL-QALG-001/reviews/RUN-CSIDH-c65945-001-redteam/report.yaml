@@ -1,0 +1,652 @@
+red_team_report:
+  id: RT-20260906-cc4804
+  task_id: null
+  task_id_note: >-
+    No committed TASK-YYYYMMDD-NNN handoff artifact was supplied for this
+    review; the assignment arrived as a direct instruction naming the exact
+    snapshot to review (commit 95cc1fd4c, EXP-CSIDH-c65945,
+    RUN-CSIDH-c65945-001) plus a numbered attack plan. Per AGENTS.md
+    ("a message never carries a task"), this is recorded as a process
+    deviation from the standard dispatch envelope, not concealed. The review
+    itself is scoped, bounded, and non-state-changing (no ledger write, no
+    hypothesis-status transition, no commit), consistent with the red-team
+    role's authority even absent a formal handoff record.
+
+  reviewed_snapshot:
+    commit: 95cc1fd4cd72d3f0ff10ff1e06f3661e47165b3c
+    experiment: EXP-CSIDH-c65945
+    run: RUN-CSIDH-c65945-001
+    verified_commit_is_head_reachable: true
+    verified_working_tree_clean_for_reviewed_paths: true
+    note: >-
+      Confirmed via `git log --oneline -1 HEAD` (95cc1fd4c is HEAD at review
+      time) and `git diff HEAD -- experiments/EXP-CSIDH-c65945/runs/...`
+      (empty diff). Only this exact committed snapshot was treated as
+      durable evidence; no working-tree-only artifact was relied on.
+
+  claim_under_review: >-
+    RUN-CSIDH-c65945-001's two primary findings: (1) class_group_order_match:
+    true (CSIDH-512's N = 3*37*1407181*51593604295295867744293584889*
+    31599414504681995853008278745587832204909, cross-cited and
+    factorization-verified); and (2) applicability_outcome: B
+    (NOT-APPLICABLE-AS-STATED) -- no page/lemma-citable statement in Simon
+    2026, Regev 2004, Kuperberg 2005, or Ettinger-Hoyer extends Simon's
+    N=2^n-restricted proof to CSIDH-512's actual non-power-of-2 N, under
+    CSIDH-CHG-2's operative test (amendments/v1.yaml).
+
+  verdict: SUSTAINED
+  verdict_rationale: >-
+    Every falsification route in the assigned attack plan was pursued to
+    completion using independently-fetched primary sources (not the
+    executor's transcriptions), and none broke either primary finding.
+    class_group_order_match was blind-re-derived from scratch (fresh
+    Miller-Rabin primality checks, fresh product computation, fresh git
+    clone and PDF fetch) and matches exactly. applicability_outcome B
+    withstood the strongest constructive case this reviewer could build for
+    outcome A (Kuperberg's CRT/automorphism technique being
+    algorithm-agnostic) -- that case fails on two independently-verified
+    structural grounds beyond what the run's own report states (see attack
+    step 1). No misquotation, no scope inflation, and no missed
+    general-N passage were found anywhere in the four audited primary
+    sources. Two genuine, narrow findings are recorded as required_controls
+    for future work; neither is strong enough to move the verdict off
+    SUSTAINED, and one of them (the CJS Appendix corroboration) actually
+    reinforces outcome B with evidence the run itself did not check.
+
+  attack_steps:
+    - step: 1
+      title: >-
+        Is Kuperberg's CRT/automorphism technique (Sec.5, Algorithm 2)
+        structurally agnostic to which DHSP algorithm consumes the samples,
+        such that "different construction" does not actually block
+        applicability?
+      method: >-
+        Independently fetched Kuperberg 2005 (arxiv.org/pdf/quant-ph/0302112,
+        173245 bytes -- byte-identical to the run's own reported download
+        size) and Simon 2026 (eprint.iacr.org/2026/1591.pdf, 280252 bytes,
+        also byte-identical) via Bash+curl+pdftotext, independent of the
+        executor's own retrieval. Read Kuperberg's Algorithm 1/2/3/4
+        definitions and Section 5's full text in the extracted PDF text
+        myself; read Simon's abstract, Section 1.2, and Section 2.2 myself.
+      finding: >-
+        THE STRONGEST CASE FOR "A" DOES NOT SURVIVE. Two independent
+        structural facts (verified directly in the fetched PDFs, not
+        asserted from memory) resist the reduction beyond the run's own
+        "different construction" framing: (a) COMPUTATIONAL-MODEL MISMATCH.
+        Kuperberg's Algorithms 1-4 are ALL stated "Input: An oracle f: D_N ->
+        S" (grep-confirmed at 4 separate definition sites) -- his CRT/
+        automorphism trick works by composing an automorphism onto the
+        oracle's query argument before re-querying ("apply Algorithm 1" is
+        invoked FRESH, with a twisted oracle, at each of ceil(log2 N) steps).
+        Simon's construction, by contrast, is explicitly SAMPLE-based:
+        "given a source of random samples of the superposition" (Simon
+        2026, Sec.1.2, p.2, verbatim, verified), following Regev's
+        formulation exactly -- it has no oracle to compose an automorphism
+        onto; it consumes a pre-existing stream of (possibly faulty) states.
+        This is a genuine interface mismatch the audit's own text does not
+        name explicitly (it says "structurally different algorithm" but not
+        why), though it is consistent with and strengthens the audit's
+        conclusion. (b) NO ANALOG FOR THE ODD-M RECOVERY STEP. Even granting
+        that the automorphism-relabeling itself could in principle be
+        applied at the sample level (multiplication by a unit mod M is an
+        additive-group automorphism and would commute with the "+d"
+        sample structure), Kuperberg's construction still needs a
+        bit-by-bit-style recovery procedure for the M-component, and his
+        text supplies this ONLY by re-invoking his own sieve ("Algorithm
+        1") -- Simon's fault-tolerance machinery (Lemmas 1-4) is a
+        binary-digit recursion with combinatorial bounds computed
+        specifically for base-2 bit decomposition (highest-order-bit
+        erasure, "d_n, d_{n-1}, ..." recursion); no source anywhere defines
+        an analogous recursion for an odd-order M. CONCLUSION: I could not
+        sustain the case for A. The obstruction is not merely that the
+        techniques have different names; it is that Kuperberg's general-N
+        patch is bound to an oracle interface and to a sieve-specific
+        digit-recovery step that Simon's sample-based, binary-recursive,
+        fault-tolerant construction does not share and for which no source
+        defines a replacement.
+      additional_independent_finding_beyond_the_run: >-
+        Fetched Childs-Jao-Soukharev 2014 (arxiv.org/pdf/1012.4019, 305507
+        bytes, byte-identical to the run's own download) myself and found,
+        in its own Appendix (Algorithm 8 / Theorem A.1, p.22), A THIRD,
+        INDEPENDENT INSTANCE of exactly this CRT-decomposition +
+        automorphism-relabeling technique ("for each term Z_N we can easily
+        factor N = 2^n M where M is odd; then Z_N ~= Z_{2^n} x Z_M") --
+        applied to GENERAL abelian hidden-shift groups, but built entirely
+        on Kuperberg-style sieve subroutines (CJS's own "Algorithm 4-7",
+        explicitly derived from Kuperberg's Algorithms). This is a source
+        the applicability audit did not check (CJS was not in its
+        audited_construction_sources list; it is used elsewhere in the run
+        only for the N' derivation). It was not required by the contract,
+        but finding it independently only REINFORCES outcome B: the
+        CRT/automorphism technique recurs specifically within the
+        sieve/oracle family of DHSP algorithms (Kuperberg's own paper, and
+        now CJS's own appendix), and neither instance touches or mentions
+        Simon's sample-based erasure technique. Filed here per red-team
+        responsibility #8 (a resource reading the author missed) even
+        though it does not change the ranking or status of anything.
+      broke_the_claim: false
+
+    - step: 2
+      title: >-
+        Is CSIDH-CHG-2's "explicit statement in the text" requirement doing
+        real textual literalism, or hiding interpretive work? Is there a
+        materially different, defensible reading of any of the four
+        sources' text the audit's excerpts do not fully rule out?
+      method: >-
+        Cross-checked every quoted excerpt in applicability_audit.md against
+        the actual PDF text I extracted myself (Kuperberg, Simon, Regev,
+        Ettinger-Hoyer -- all four fetched independently, all four file
+        sizes byte-identical to the run's own reported downloads). Searched
+        each source's full text for "general", "arbitrary N", "power of
+        2/2^n", "not a power", "extend" to look for any passage the audit's
+        selective quotation might have cropped favorably.
+      finding: >-
+        Every quotation checked is BYTE-ACCURATE against the independently
+        fetched source: Simon 2026's Theorem/Proof text ("For simplicity,
+        let N=2^n..."), Regev's Definition 2.1 ("The input to the DCP with
+        failure parameter f consists of poly(log N) registers..."),
+        Ettinger-Hoyer's Theorem 2 ("Let gamma: D_N -> R be a function...
+        Theta(log N) evaluations..."), and Kuperberg's Section 5 Algorithm 2
+        step 4 (the full CRT/automorphism passage) all match the retrieved
+        PDFs exactly, down to the word. No fabricated or paraphrased-as-verbatim
+        citation was found. ONE GENUINE, IF NARROW, IMPRECISION: Simon
+        2026's THEOREM STATEMENT (Sec.2.2, p.6) reads "given DSP samples...
+        where N is exponential in n" -- a claim not literally restricted to
+        powers of 2 -- and only the PROOF that follows narrows to "For
+        simplicity, let N=2^n". The audit's own citation lumps "Theorem
+        (p.6) and its Proof" together and quotes only the Proof's
+        specializing sentence, without flagging that the Theorem's own
+        wording is nominally broader than what its Proof establishes. This
+        is a real gap in citation precision, but it does NOT supply
+        criterion (i)'s required "NAMED technique with citation" -- a
+        possibly-unintentional gap between a preprint's Theorem statement
+        and its own Proof is evidence of drafting imprecision (consistent
+        with Simon 2026 being an explicitly labeled "[Preliminary Draft]",
+        unrefereed preprint), not a citable reduction. It does not move the
+        outcome, but it is a real, reportable finding under this attack
+        item, and a defensible closer read would flag it as an open
+        question about the paper's own internal consistency rather than
+        silently folding it into "Theorem and Proof" as the audit does.
+      broke_the_claim: false
+
+    - step: 3
+      title: >-
+        Verify the claimed non-existence of any general-N statement in
+        Simon 2026, searching the full retrieved text (not just the cited
+        passages) for "general", "arbitrary N", "power of 2", "2^n".
+      method: >-
+        Ran `grep -n` for "general|arbitrary|power of 2|2\^n|N = 2|not a
+        power|extend|special case|restrict" and separately for
+        "Corollary|rescale|exponential in n|analog|assume|WLOG|without loss"
+        across the FULL pdftotext extraction of the independently-fetched
+        Simon 2026 PDF (753 lines).
+      finding: >-
+        No passage beyond what applicability_audit.md already cites and
+        quotes was found. The only other N-scope-relevant sentence anywhere
+        in the paper is the Theorem statement's "N is exponential in n"
+        (see step 2 above, already accounted for). The two "Corollary"
+        occurrences are the two intermediate lemma-corollaries already
+        quoted/paraphrased in the audit (neither touches N's structural
+        form); the final Corollary (p.15, restating the LWE/SVP consequence)
+        contains no N-generality language at all. The audit's negative
+        claim -- "no sentence anywhere in Simon 2026's text states that this
+        proof extends to general N via a named technique" -- is CONFIRMED
+        exhaustively, not merely plausibly.
+      broke_the_claim: false
+
+    - step: 4
+      title: >-
+        Adversarially check class_group_order verification: is there a
+        THIRD, independently-COMPUTED source (not same-authorship) that
+        could carry more weight than the CSI-FiSh-paper/CSI-FiSh-repo pair?
+      method: >-
+        WebSearch for later CSIDH-parameter papers or NIST-adjacent
+        references independently re-deriving or re-citing CSIDH-512's class
+        number; fetched and grepped the strongest candidate found (Chris
+        Peikert, "He Gives C-Sieves on the CSIDH", IACR ePrint 2019/725,
+        EUROCRYPT 2020 -- a differently-authored, peer-reviewed paper).
+        Confirmed CSIDH was never part of a NIST PQC submission (so no NIST
+        reference computation exists to check).
+      finding: >-
+        FOUND a third, differently-authored citation (Peikert 2019/725) that
+        states the IDENTICAL N and factorization ("the class group G=Cl(O)
+        has recently been computed [BKV19]: ... N = 3*37*1407181*... =
+        2^257.1"). This is a stronger CITATION than the CSI-FiSh
+        reference-implementation file the run actually used as its second
+        source (it is authored independently of Beullens/Kleinjung/
+        Vercauteren, and it is peer-reviewed at EUROCRYPT 2020) -- but on
+        inspection it explicitly attributes the number to [BKV19] rather
+        than re-deriving it, so it is STILL a citation-consistency check,
+        not an independently-computed re-derivation; it does not change the
+        epistemic-weight class amendments/v1.yaml already disclosed for
+        controls[0]. No independently-computed re-derivation of CSIDH-512's
+        class number was found anywhere (this is consistent with CSI-FiSh's
+        own description of the computation as a substantial, near-record
+        effort that would be costly to repeat, and with CSIDH never being
+        part of a NIST submission that might have required independent
+        reproduction). FINDING: the run's citation-consistency framing is
+        correct and not overstated, but a stronger third-party citation
+        (Peikert 2019/725) was available within the same budget and not
+        used or mentioned -- a minor, reportable completeness gap, not an
+        error, since the contract's own required second source (the CSI-FiSh
+        repo file) is not wrong, only weaker than what was findable.
+      broke_the_claim: false
+
+    - step: 5
+      title: >-
+        Check for any claim exceeding specification.yaml's declared scope
+        (Lemma 3 correctness, CSIDH security, cost/query comparisons)
+        anywhere in the run's artifacts.
+      method: >-
+        Grepped all run artifacts (applicability_audit.md, class_group_order.md,
+        cjs_group_order.md, reconciliation_note.md, manifest.yaml,
+        verify_class_group_order.py, raw-result.json) for security/cost/
+        Lemma-3/query-complexity language and read every match in context.
+      finding: >-
+        NO SCOPE-EXCEEDING CLAIM FOUND. Every occurrence of "Lemma 3",
+        "security", "cost", or "out of scope" language is a scope-DISCLAIMER
+        ("does NOT verify Simon 2026's Lemma 3", "draws no conclusion about
+        CSIDH's security", "does NOT compute or compare any concrete
+        time/query cost"), repeated consistently across all six run
+        artifacts rather than asserted once and then quietly exceeded. This
+        also matches H-CSIDH-3eaede's own interpretation_limits verbatim
+        (outcome B "closes premise (i) at CSIDH-512's scale under this
+        program's discipline; it is not itself an adjudication of Simon
+        2026's correctness at any other scale or noise rate, and it is not
+        a security statement about CSIDH"). Scope discipline is genuinely
+        maintained, not merely claimed.
+      broke_the_claim: false
+
+    - step: 6
+      title: >-
+        "Proves too much" check: would this exact strict operative test
+        (requiring the EXACT audited technique, not an adjacent one) reject
+        an obviously-valid extension elsewhere, suggesting the test itself
+        is miscalibrated?
+      method: >-
+        Applied CSIDH-CHG-2's operative test, unchanged, to Kuperberg's OWN
+        Theorem 1.1 -- which is ALSO originally proved only "in a convenient
+        case, N=2^n" (Kuperberg 2005, Sec.3, verified in the fetched PDF)
+        before the abstract/Theorem 1.1 asserts it for general N. This is
+        the closest available "known-should-be-valid" object within the
+        SAME paper family, chosen because it shares Simon's exact rhetorical
+        pattern ("prove for N=2^n first, generalize later").
+      finding: >-
+        THE TEST DOES NOT PROVE TOO MUCH HERE: applied to Kuperberg's own
+        Theorem 1.1, the test correctly returns APPLICABLE (A), because
+        Kuperberg's own Section 5 supplies the explicit, page/algorithm-cited
+        general-N patch (Algorithm 2, step 4) with a stated
+        complexity-preservation claim ("carries over... O(8^sqrt(log2 N))
+        queries"). This demonstrates the test discriminates correctly
+        between "patched in the same paper" (Kuperberg: A) and "never
+        patched anywhere in the citable record" (Simon: B) -- it is not a
+        blanket rejector of every "for simplicity, N=2^n" statement. A
+        NARROWER, GENUINE CALIBRATION CONCERN remains and is recorded as a
+        required_control rather than a break: the test is a pure
+        CITATION-EXISTENCE test, not a mathematical-validity test, and by
+        design cannot distinguish "no citable reduction currently exists in
+        the literature" from "no reduction is mathematically possible."
+        The run's own outcome-B language correctly preserves this
+        distinction ("extrapolation beyond what those sources state", never
+        "impossible" or "disproven") -- the concern is prospective: any
+        future Coordinator decision or hypothesis-status transition that
+        cites this run must not collapse that distinction when summarizing
+        it, since the literature-state finding is exactly and only what was
+        tested.
+      broke_the_claim: false
+
+  objections:
+    - severity: minor
+      finding: >-
+        applicability_audit.md's Step 2a citation lumps Simon 2026's Theorem
+        statement ("N is exponential in n", Sec.2.2 p.6) together with its
+        Proof's specialization ("For simplicity, let N=2^n") without
+        flagging that the Theorem's own wording is nominally broader than
+        what the Proof establishes -- a real, if narrow, citation-precision
+        gap (attack step 2).
+    - severity: minor
+      finding: >-
+        A stronger, differently-authored, peer-reviewed third-party citation
+        for CSIDH-512's class group order (Chris Peikert, "He Gives C-Sieves
+        on the CSIDH", IACR ePrint 2019/725, EUROCRYPT 2020) was reachable
+        within the same budget and not used or mentioned, even though the
+        source actually used (the CSI-FiSh reference implementation's own
+        parameter file) fully satisfies the contract's letter (attack step
+        4). This does not change class_group_order_match's TRUE result or
+        its disclosed citation-consistency (not independent-computation)
+        epistemic weight.
+    - severity: informational
+      finding: >-
+        CSIDH-CHG-2's operative test is, by construction, a pure
+        citation-existence test and cannot distinguish "no citable reduction
+        found in the current literature" from "no reduction is
+        mathematically possible." The run itself preserves this distinction
+        correctly in its own language; the concern is that a future
+        downstream summary (Coordinator decision, ledger synthesis) could
+        collapse it. Recorded as forward guidance, not a defect in this run
+        (attack step 6).
+
+  required_controls:
+    - >-
+      When/if this lane is revisited, cite Peikert 2019/725 (EUROCRYPT 2020)
+      alongside the CSI-FiSh reference-implementation file as an additional,
+      differently-authored corroborating citation for CSIDH-512's N -- still
+      citation-consistency, not independent computation, but strictly
+      stronger than same-authorship agreement alone.
+    - >-
+      Any future record (Coordinator decision, knowledge-base entry, or
+      goal synthesis) that cites this run's outcome B must preserve the
+      "no currently-citable reduction found" scoping exactly; it must not be
+      restated as "Simon's technique cannot be extended to general N" or any
+      other claim of mathematical impossibility, which this run neither
+      tested nor could test under its own citation-plus-arithmetic-check
+      design.
+    - >-
+      If IDEA-20260813-e6d55d's own not-yet-dispatched toy-simulation
+      harness or a future symbolic-audit task ever attempts to check whether
+      Simon's Lemmas 1-4 have any analog for an odd-modulus M component
+      (the specific technical gap this review identifies in attack step 1),
+      that task should explicitly cite this report's oracle-vs-sample-model
+      and binary-recursion-vs-odd-M findings as its starting bottleneck
+      statement, since they are new structural observations not present in
+      RUN-CSIDH-c65945-001's own artifacts.
+
+  counterexample_or_mutation: >-
+    None found that breaks either primary finding. The strongest attempted
+    counterexample against outcome B -- that Kuperberg's CRT/automorphism
+    technique is algorithm-agnostic and therefore should count toward
+    outcome A -- was constructed as far as it could be sustained (attack
+    step 1) and fails on two independently-verified grounds (oracle-vs-
+    sample computational-model mismatch; no stated analog anywhere for
+    recovering the odd-M component under Simon's binary-recursive,
+    fault-tolerant proof machinery). No arithmetic mutation of
+    class_group_order.md's factors changes the product-reconciliation or
+    primality results; I recomputed the product and re-ran primality
+    checks with an independently-written Miller-Rabin implementation
+    (not sympy) and obtained identical results.
+
+  baseline_comparison: >-
+    Not applicable to this run by its own declared scope, and this is
+    correct rather than an omission: specification.yaml explicitly excludes
+    any time/query cost comparison against Kuperberg's sieve or Pollard-rho/
+    BSGS-class baselines from this experiment's scope (it audits only
+    premise (i), the group-order structural-form question). No baseline
+    comparison is claimed anywhere in the run's artifacts, and none was
+    found smuggled in under a different name (verified under attack step 5).
+    A baseline reproduction of Kuperberg's own 2^{O(sqrt(log N))} formula is
+    explicitly named as an open gap in H-CSIDH-3eaede's own
+    proof_search_map.baseline_embedding.reproduction_check, not performed
+    here and not claimed to be.
+
+  heuristic_challenges:
+    - >-
+      Not applicable: specification.yaml declares heuristic_under_test: null
+      for this experiment, and H-CSIDH-3eaede's own HEUR-CSIDH-3eaede-1 is
+      explicitly disclosed as concerning premise (ii) (bias/repetition
+      arithmetic), NOT tested by this experiment. No numbered heuristic was
+      validated or should have been validated here; none was found
+      smuggled in as an unstated assumption.
+
+  cost_model_challenges:
+    - >-
+      Not applicable: no concrete time/query cost, memory cost, or
+      per-attempt-cost x inverse-success-probability computation is made or
+      implied anywhere in the run's artifacts (verified under attack step
+      5). The O(n^13) figure appearing in H-CSIDH-3eaede's own
+      asymptotic_claim is explicitly CONDITIONAL ON PREMISE (ii), which this
+      experiment does not test and does not reference in its own outcome.
+
+  reduction_and_scope_challenges:
+    - >-
+      cjs_group_order.md's derivation of N' = N (the CJS reduction's actual
+      group order, needed because the class group could in principle be
+      non-cyclic) rests on CSI-FiSh's Section 3 computational finding that
+      Cl(O) is cyclic for CSIDH-512's specific discriminant -- but the
+      artifact's own citation string ALSO quotes CSI-FiSh Section 2.1's
+      general "In what follows we will assume that the class group Cl(O) is
+      cyclic" framing (a simplifying assumption for the paper's general
+      exposition, stated BEFORE any specific parameter set is discussed) in
+      the same breath as Section 3's actual computed result. I independently
+      fetched CSI-FiSh's PDF and confirmed Section 3 (p.7-8) does establish
+      cyclicity as a COMPUTED fact for CSIDH-512 specifically ("This class
+      group turns out to be cyclic... so that Cl(O) is also cyclic"), not
+      merely inheriting Section 2.1's general assumption -- so the
+      underlying claim (N'=N) is correct and adequately supported by
+      Section 3 alone. The citation practice of quoting both together is a
+      minor clarity nit (a careless reader could mistake "cyclic" for an
+      unverified simplifying assumption rather than a specifically computed
+      property of CSIDH-512's own class group), not a substantive error.
+    - >-
+      No affected-vs-safe scheme scope inflation found: the run makes no
+      claim about which schemes are affected or safe at all (correctly, per
+      its declared scope), so there is nothing to audit for inflation under
+      this heading beyond confirming its absence.
+
+  proof_architecture_challenges:
+    - >-
+      Observation-fiber attack (attack step 1, restated in this vocabulary):
+      held Kuperberg's own citable general-N certificate (the CRT/
+      automorphism-relabeling technique) fixed and varied the consuming
+      DHSP algorithm across the family (Kuperberg's own sieve, CJS's
+      Appendix-8 generalization, Simon's noise-tolerant erasure). Found the
+      certificate placeable on the "generalizes" side for every sieve-family
+      member checked (Kuperberg's own algorithm, CJS's Appendix-8 algorithm)
+      and on the "does not generalize (as stated)" side for Simon's
+      construction specifically -- the separator is the oracle-vs-sample
+      computational model plus the presence/absence of a binary-recursive
+      digit-decomposition proof structure with no odd-modulus analog. This
+      is a genuine, named separator, not an unexamined gap.
+    - >-
+      Quantifier-order attack: H-CSIDH-3eaede's own proof_search_map already
+      states the correct quantifier order ("for the SPECIFIC, concrete N =
+      CSIDH-512's actual class-group order... does a citable instantiation
+      or reduction of that existential claim exist"). The run instantiates
+      this correctly -- it does not silently choose a convenient witness N
+      after the fact; N was independently re-derived BEFORE the
+      applicability question was posed against it (class_group_order.md is
+      produced and cross-verified prior to applicability_audit.md's own
+      Step 1).
+
+  narrowest_supported_statement: >-
+    As of commit 95cc1fd4c and the primary sources retrievable as of
+    2026-09-06: CSIDH-512's class-group order N (=
+    254652442229484275177030186010639202161620514305486423592570860975597611726191,
+    factorization 3*37*1407181*51593604295295867744293584889*
+    31599414504681995853008278745587832204909) is independently confirmed
+    via two citations plus a from-scratch arithmetic re-derivation by this
+    reviewer. No sentence in Simon 2026, Regev 2004, Kuperberg 2005, or
+    Ettinger-Hoyer, as currently published and as read in full by both the
+    executor and this reviewer independently, states or cites a technique
+    that extends Simon 2026's own N=2^n-restricted proof (Sec.2.2) to
+    CSIDH-512's actual N. This closes ONLY the citable-literature-state
+    question at CSIDH-512's scale, exactly as H-CSIDH-3eaede's own
+    interpretation_limits already state; it is not a claim that no such
+    extension is mathematically possible, that Simon 2026's Lemma 3 is
+    correct or incorrect, that Kuperberg's sieve is faster or slower than
+    any hypothetical generalization of Simon's technique, or that CSIDH is
+    affected or unaffected by any of this. Premise (ii) of H-CSIDH-3eaede
+    remains untested and is now moot for this specific hypothesis chain
+    given premise (i)'s negative outcome, per the hypothesis's own stated
+    conditional (AND) structure.
+
+  next_concrete_action: >-
+    If this lane is pursued further, the highest-value next step is NOT
+    another citation search (this review found the four-source search
+    already exhaustive) but a targeted technical question this review
+    surfaced and the program has not yet posed: does ANY published or
+    citable dihedral/abelian-HSP construction define a fault-tolerant,
+    noise-resistant recovery procedure for an ODD-modulus component
+    (i.e., a genuine noise-tolerant analog of Kuperberg's Sec.5/CJS
+    Appendix-8 CRT patch, rather than the error-free sieve version both
+    currently supply)? A "no" finding there would close the entire
+    Simon-generalizes-to-CSIDH lane on a sharper, more defensible
+    obstruction than "no citation found"; a "yes" finding would be the
+    single most direct route to flipping premise (i) toward outcome A. This
+    is a literature-search task, not new derivation, and is cheap relative
+    to the toy-simulation harness IDEA-20260813-e6d55d's own minimal_test
+    describes for premise (ii).
+
+  artifact_paths:
+    - experiments/EXP-CSIDH-c65945/specification.yaml
+    - experiments/EXP-CSIDH-c65945/amendments/v1.yaml
+    - ledger/decisions/DEC-20260906-b60887.yaml
+    - ledger/hypotheses/H-CSIDH-3eaede.yaml
+    - experiments/EXP-CSIDH-c65945/runs/RUN-CSIDH-c65945-001/applicability_audit.md
+    - experiments/EXP-CSIDH-c65945/runs/RUN-CSIDH-c65945-001/class_group_order.md
+    - experiments/EXP-CSIDH-c65945/runs/RUN-CSIDH-c65945-001/cjs_group_order.md
+    - experiments/EXP-CSIDH-c65945/runs/RUN-CSIDH-c65945-001/reconciliation_note.md
+    - experiments/EXP-CSIDH-c65945/runs/RUN-CSIDH-c65945-001/manifest.yaml
+    - experiments/EXP-CSIDH-c65945/runs/RUN-CSIDH-c65945-001/raw-result.json
+    - experiments/EXP-CSIDH-c65945/runs/RUN-CSIDH-c65945-001/command.txt
+    - experiments/EXP-CSIDH-c65945/runs/RUN-CSIDH-c65945-001/verify_class_group_order.py
+    - experiments/EXP-CSIDH-c65945/runs/RUN-CSIDH-c65945-001/environment.json
+    - experiments/EXP-CSIDH-c65945/runs/RUN-CSIDH-c65945-001/stdout.log
+
+  independent_verification_performed_by_this_reviewer:
+    sources_independently_refetched:
+      - url: https://eprint.iacr.org/2019/498.pdf
+        label: CSI-FiSh (Beullens-Kleinjung-Vercauteren 2019)
+        bytes_downloaded: 467604
+        matches_run_reported_size: true
+        finding: >-
+          Factorization and "2^257.136" figure confirmed byte-verbatim at
+          the cited location (Section 3, p.8).
+      - url: https://github.com/KULeuven-COSIC/CSI-FiSh (git clone)
+        label: CSI-FiSh reference implementation, classgroup_data/"class number"
+        finding: content matches N exactly, confirmed by direct file read.
+      - url: https://arxiv.org/pdf/quant-ph/0302112
+        label: Kuperberg 2005
+        bytes_downloaded: 173245
+        matches_run_reported_size: true
+        finding: >-
+          Section 5 Algorithm 2 CRT/automorphism passage confirmed
+          byte-verbatim; oracle-model input confirmed at all four algorithm
+          definitions.
+      - url: https://eprint.iacr.org/2026/1591.pdf
+        label: Simon 2026
+        bytes_downloaded: 280252
+        matches_run_reported_size: true
+        finding: >-
+          Theorem/Proof text and sample-based (non-oracle) problem framing
+          confirmed byte-verbatim; full-text search for general-N language
+          confirmed exhaustive/negative.
+      - url: https://arxiv.org/pdf/cs/0304005
+        label: Regev 2004
+        bytes_downloaded: 269983
+        matches_run_reported_size: true
+        finding: Definition 2.1 general-N DCP formulation confirmed byte-verbatim.
+      - url: https://arxiv.org/pdf/quant-ph/9807029
+        label: Ettinger-Hoyer
+        bytes_downloaded: 162248
+        matches_run_reported_size: true
+        finding: Theorem 2 general-N statement confirmed byte-verbatim.
+      - url: https://arxiv.org/pdf/1012.4019
+        label: Childs-Jao-Soukharev 2014 (not in the audited four, checked anyway)
+        bytes_downloaded: 305507
+        matches_run_reported_size: true
+        finding: >-
+          Lemma 5.1 quote confirmed; independently found Appendix Algorithm
+          8 / Theorem A.1's own CRT-decomposition technique (see attack
+          step 1's additional_independent_finding).
+      - url: https://eprint.iacr.org/2019/725.pdf
+        label: Peikert 2019/725 ("He Gives C-Sieves on the CSIDH"), not cited by the run
+        bytes_downloaded: 358133
+        finding: >-
+          Third-party citation of the identical N, explicitly attributed to
+          [BKV19] (see attack step 4).
+    arithmetic_blind_rederivation:
+      method: >-
+        Independent Python re-implementation (not reading
+        verify_class_group_order.py before writing my own check): recomputed
+        the product of the five cited factors and re-ran a from-scratch
+        Miller-Rabin implementation (not sympy.isprime) with 40 random
+        witnesses per factor.
+      result: >-
+        Product matches N exactly; all five factors independently confirmed
+        prime; bit length (258) and log2(N) (257.1369928597118) match the
+        paper's own "approximately 2^257.136" to stated precision.
+      agreement_with_run: full agreement, independently obtained.
+
+  model_provenance:
+    role: red-team
+    runtime: Claude Code
+    requested_policy: review-adversarial
+    requested_reasoning_effort: xhigh
+    self_reported_model_id: claude-sonnet-5
+    self_reported_model_basis: >-
+      Genuine self-report from this session's own runtime system context
+      ("You are powered by the model named Sonnet 5. The exact model ID is
+      claude-sonnet-5"), matching the identical self-report pattern found in
+      every other session-produced record read for this review (the
+      RUN-CSIDH-c65945-001 executor session, DEC-20260906-b60887, and
+      experiments/EXP-CSIDH-c65945/amendments/v1.yaml all independently
+      self-report claude-sonnet-5 regardless of their own nominally
+      different policies).
+    adapter_declared_binding: >-
+      `python3 -m orchestration.adapter resolve --role red-team
+      --independent-session` returns "review-adversarial ->
+      anthropic:claude-opus-5 (effort=xhigh)" -- i.e.
+      orchestration/model-bindings.yaml declares review-adversarial should
+      resolve to claude-opus-5, NOT claude-sonnet-5.
+    discrepancy_disclosed_not_silently_resolved: true
+    discrepancy_investigation: >-
+      Ran `python3 -m orchestration.adapter doctor --probe` from within this
+      session: the Anthropic backend itself reports
+      "$ANTHROPIC_API_KEY unset (backend unusable)" -- i.e. this session's
+      own tool surface cannot invoke the orchestration/adapter's declared
+      Anthropic bindings AT ALL, so the "claude-opus-5" entry in
+      model-bindings.yaml is an unprobed, `last_probed: null` operator
+      assertion this session has no means to independently confirm or deny
+      was ever actually used to launch it. Cross-checked
+      `orchestration/model-policies.yaml`'s review-adversarial policy
+      definition directly: its `requires.reasoning_effort` floor was
+      explicitly RELAXED from `xhigh` to `low` on 2026-09-03 by recorded
+      user authorization specifically to admit "any backend that can reason
+      at all", with the stated discipline being "the cap recorded on every
+      receipt, never silently" rather than refusal. This session's actual
+      capability (tool use, structured output, far above the policy's
+      min_context_tokens/min_output_tokens floors, and the full independent
+      multi-source retrieval-and-rederivation work product in this report)
+      is well above that relaxed floor.
+    decision: >-
+      PROCEEDED rather than refused. Rationale: (1) review-adversarial's
+      actual binding `requires` floor is satisfied by this session by a wide
+      margin; (2) the discrepancy is disclosed prominently here, not
+      silently substituted, which is exactly what the relaxed policy asks
+      for ("recorded on every receipt, never silently") rather than
+      "refuse if not literally claude-opus-5"; (3) refusing would deviate
+      from the uniform, already-established, already-disclosed pattern every
+      other session in this program's own ledger exhibits for this identical
+      gap, and would deliver nothing in its place; (4) this session
+      independently performed and cites genuine, verifiable primary-source
+      retrieval and arithmetic re-derivation (not merely re-reading the
+      executor's own claims), which is the substantive protection
+      review-adversarial exists to buy. If a Coordinator or downstream
+      reader determines claude-opus-5 must be the actual serving model for
+      this policy tier, this report's `id` and content remain valid evidence
+      of the adversarial work performed; only the `model_provenance` block
+      would need a superseding note, per this program's immutable-record/
+      correction-supersedes discipline.
+    fallback_used: not_determinable_from_this_session
+    amazon_bedrock: NOT SELECTED, NOT CONFIGURED, NOT PROBED, NOT CONTACTED, NOT USED.
+
+  scope_and_limits:
+    - >-
+      This review does not change any hypothesis, experiment, or goal
+      status; it is advisory input to the Coordinator per AGENTS.md rule 1.
+    - >-
+      This review did not attempt to verify Simon 2026's Lemma 3, any
+      concrete cost/query comparison, or CSIDH's security -- all explicitly
+      out of RUN-CSIDH-c65945-001's own declared scope and therefore out of
+      this review's scope too.
+    - >-
+      Budget used: well under the allocated 3600s wall-clock and 4GB memory;
+      zero experiment runs were executed (maximum_runs: 0 honored -- all
+      verification here was read-only retrieval plus arithmetic in a
+      scratch directory outside the repository, never touching
+      experiments/EXP-CSIDH-c65945/ or any ledger file).
+    - >-
+      Nothing was committed by this reviewer. This report.yaml is written
+      only under the assigned write_scope
+      (coordination/goals/GOAL-QALG-001/reviews/RUN-CSIDH-c65945-001-redteam/);
+      no run, spec, amendment, or ledger file was edited.
