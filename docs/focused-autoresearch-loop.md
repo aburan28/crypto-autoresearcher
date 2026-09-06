@@ -28,8 +28,8 @@ Source: <https://x.com/askalphaxiv/status/2076737985559822734>
 8. Every reproduced claim cites completed runs and immutable artifacts. Failed,
    cancelled, invalid, running, and planned runs remain in the run table but
    cannot satisfy a claim.
-9. Every active or queued experiment records its wall-clock, CPU, memory, and
-   run budget, dominant cost, complexity hypothesis, sharding plan, and stop
+9. Every active or queued experiment records machine memory headroom, optional
+   time/CPU/run estimates, dominant cost, complexity hypothesis, sharding plan, and stop
    rule before execution.
 10. Scope deviations are attached to the claim they limit. A wording or scope
     correction appends a correction record containing both values and never
@@ -45,16 +45,16 @@ internal prior-to-corrected edge and rejects intermediate or unrelated base valu
 
 ## Queue v3 attention and cost model
 
-Queue v3 turns the post's focus discipline into two required records on every
-active or queued candidate:
+Queue v3 keeps a required attention contract and optional stage estimates on
+active or queued candidates:
 
 - `attention_contract` names the decisive evidence, the inconclusive decision,
   the target-independent ambiguity rule, work that is explicitly peripheral,
   and the exact event that triggers reranking;
 - `resource_estimate.stages` separates preparation, execution or theorem work,
-  evaluation, and receipt packaging. Stage wall-clock and CPU totals must match
-  the campaign estimate, no stage may exceed the campaign memory cap, and the
-  dominant stage must be named.
+  evaluation, and receipt packaging when a stage breakdown is useful. Time and
+  CPU estimates are advisory and need not match a campaign total. Declared stage
+  memory must fit machine headroom; a supplied breakdown names its dominant stage.
 
 This distinction matters because a cheap construction can hide an expensive
 evaluation or provenance pass. The selector reports the stage table before any
@@ -100,7 +100,7 @@ python3 -m unittest tools/test_autoresearch_focus.py
 
 The queue rejects more than three active experiments, unresolved ambiguity,
 unknown or cyclic dependencies, malformed scores, missing attention contracts,
-unreconciled stage estimates, claim evidence from noncompleted runs, and
+invalid machine limits, claim evidence from noncompleted runs, and
 expansion from an unverified positive parent. Completed receipts, the attention
 contracts, claim matrix, run graph, estimates, and corrections are copied into
 the hash-bound plan.

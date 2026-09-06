@@ -39,6 +39,12 @@ coordination/goals/<GOAL>/lanes/<BATCH>.closed.json
 
 ### Claims
 
+For expired claims whose original runtime cannot be identified, use
+[isolated successor recovery](isolated-task-recovery.md). Unknown process state
+does not mean stopped, but it must not become an indefinite scheduling veto.
+Do not release as another owner; use a new bounded decision and disjoint
+successor namespace when recovery is justified.
+
 A **claim** is a bounded hold on one queued task's `write_scope`.
 
 - Created with `O_EXCL`; never rewritten. `epoch` is per task and strictly

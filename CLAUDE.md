@@ -1,5 +1,29 @@
 # CLAUDE.md
 
+## Research budgets: progress first
+
+User instruction, 2026-09-06. Applies to this researcher across all areas and
+supersedes older instructions that stop routine work on time/CPU/batch estimates.
+Research cost estimates are advisory, may be null, and require no repeated user
+approval. The Coordinator continues justified work within the authorized research
+scope. CPU usage is measured for algorithm comparisons, not rationed by default.
+
+Only an exceptional, committed Coordinator stagnation review may activate a
+research spending cap: at least **90 days without documented progress**, explicit
+evidence and scope, a concrete next action, and a recent assessment (within seven
+days). Missing telemetry, inactivity, outages and exhausted estimates alone are
+not stagnation. New evidence or progress requires reassessment; expiry never
+automatically renews a restriction. See `docs/research-budget-policy.md` and
+`orchestration/research_budget.py`.
+
+Memory/concurrency limits and explicitly justified process watchdogs remain
+machine protection. Watchdog expiry checkpoints a task; it does not exhaust the
+campaign or require another user budget approval. Fixed scientific sample counts,
+locked execution plans, zero-run tasks, write scopes, controls, immutable records,
+independent review and the Bedrock prohibition still bind. Changing a frozen
+scientific protocol uses an additive amendment; never rewrite historical records.
+
+
 Claude Code **runtime binding** for the autonomous, reproducible ECDLP
 research program. The program itself is runtime-neutral: the binding
 inter-agent contract is `AGENTS.md`, the role contracts are `agents/*.md`
@@ -101,7 +125,7 @@ Code specifically.
    a scheduling rule and relaxes nothing: an impediment is still never negative
    mathematical evidence, an unservable `review-breakthrough` still may not be
    downgraded (the CLAIM stays un-promoted, not the campaign parked), and an
-   exhausted budget still requires a Coordinator budget decision before more
+   exceptional stagnation restriction still requires a Coordinator decision before more
    spending. Terminal retirement is unchanged and remains a deliberate act:
    `completed`, `closed_at_budget`, `cancelled`. See AGENTS.md "Goals are never
    paused".
