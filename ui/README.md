@@ -90,6 +90,29 @@ because they are navigation, not summary.
 It reads `ledger/`, `experiments/` and `knowledge/` directly. It is not a
 second source of truth and holds nothing of its own.
 
+## On a phone
+
+The desktop shell is a 208px sidebar beside the content. Reflowed naively
+that sidebar becomes a column of chrome -- brand, six nav rows, build state,
+two buttons -- which on a 390px phone filled the entire first screen, so
+every page opened on navigation rather than on content.
+
+Below 820px it becomes a sticky top bar instead: brand and controls on one
+line, the nav a single horizontally scrolling row, ~110px of chrome rather
+than ~720px. Panel heads stack their title above their note, stat rows use
+flex so an odd count leaves no dead cell, the search field is 16px so iOS
+does not zoom the page on focus, and filter panels -- sixty area chips in the
+records browser -- open collapsed.
+
+Below 560px the record table drops the columns an identifier already carries
+(kind, area) plus date and citation count, keeping identifier, status and
+title, and takes a fixed layout so it fits any width down to a 320px SE
+rather than nearly fitting one. Key/value pairs on detail pages stack.
+
+**Tables stay tables.** A run's status, tier and dates are read against each
+other, and turning each row into a card loses exactly that; the wide ones
+scroll inside their panel, which is what `.scroll-x` is for.
+
 ## The views, in the order a reader asks
 
 - **Overview** — what the program has established, what it is working on,
@@ -109,7 +132,12 @@ second source of truth and holds nothing of its own.
   problems. This is the board for "what did it find?".
 - **Goals** and a goal page with its record trail: every finding, evidence
   record, decision, hypothesis and experiment that cites the goal, grouped.
-- **Experiments**, with run tallies by terminal status.
+- **Experiments**, with run tallies by terminal status, the date each
+  contract declares (under the field name that carried it), the date git
+  first saw it, the latest run activity and the total measured wall-clock.
+  Click a contract to expand its runs, each with its declared start, finish
+  and duration. Sortable by activity, run count, measured time, contract
+  date or identifier.
 - **Records** — a faceted browser over everything, by kind, area, knowledge
   family and status, with opt-in full-text search.
 - **Integrity** — what is broken, flagged and never fixed.
@@ -167,6 +195,32 @@ records are immutable and corrections supersede rather than overwrite
 path into state that the whole program is built to keep auditable. So the
 integrity page **flags and never fixes**, and there is no POST endpoint
 except `/api/refresh`, which re-reads the corpus.
+
+## Dates, and which kind each one is
+
+Two kinds of time appear, and the distinction is load-bearing:
+
+- **Declared** — a date the record asserts about itself (`approved_at`,
+  `recorded_at`, `started_at`). Always shown under the field name that
+  carried it, because a contract *approved* on a day and one merely
+  *recorded* on it are different facts.
+- **Observed** — the commit time from git history, via `ui/gitdates.py`,
+  shown as *committed*. One `git log` pass over `ledger/`, `experiments/`
+  and `knowledge/` costs under a second and fills in the ~90% of this
+  corpus that declares no date at all: 1,002 of 1,151 experiment contracts
+  and 2,434 of 2,531 runs have no timestamp of their own.
+
+They are never merged. A page that showed a commit time under "approved"
+would assert something no record says. Hover any date for the exact instant
+in UTC and its relative age.
+
+**A shallow clone yields no dates rather than identical ones.**
+`actions/checkout` clones depth 1 by default, and a single-commit history
+reports every file as added by that commit — 15,000 records all "committed"
+at the same instant, which is a *wrong* value rather than a missing one and
+looks entirely plausible on a page. `gitdates.load` detects it, reports why,
+and the UI shows no commit dates at all; `pages.yml` sets `fetch-depth: 0`
+so that path is not taken in CI.
 
 ## Two tiers, and why
 
@@ -230,6 +284,22 @@ reading rather than only in a report.
 Both identifier forms link: the random-token form (`GOAL-AUXIN-a93442`)
 and the legacy three-digit form (`GOAL-ECDLP-001`). Legacy records are
 immutable, must never be renamed, and are most of this program's history.
+
+## Which file a duplicated identifier resolves to
+
+The same identifier can appear in more than one file: a superseding copy
+lives under `ledger/corrections/schema-supersessions/` beside the live
+record. Keeping the first sighting meant 31 records displayed the v2 body,
+and linked "source" at the correction, purely because that path sorts before
+`ledger/evidence/`. Resolution now prefers the **canonical** file — the one
+whose filename *is* the identifier, outside an archive — and the collision
+is still reported under integrity. A record that exists only as a correction
+copy is still reachable at that path.
+
+An experiment is likewise not always announced by `specification.yaml`:
+nineteen directories carry `specification.json` or only prose, and between
+them 218 runs. A directory with runs is an experiment whatever shape its
+contract takes, and the table says which shape.
 
 The second segment of an identifier is an area token for most kinds but a
 **date** for `DEC-`, `IDEA-`, `TASK-` and `CORR-`, and a bare token for

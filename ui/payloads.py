@@ -71,6 +71,7 @@ def meta_payload(index: ResearchIndex, *, mode: str, commit: str | None = None,
         "runs": sum(len(e.runs) for e in index.experiments),
         "findings": len(index.findings),
         "open_problems": len(index.open_problems),
+        "git": git_status(index),
         "columns": INDEX_COLUMNS,
         "kind_order": KIND_ORDER,
         "kind_labels": KIND_LABELS,
@@ -222,15 +223,70 @@ def goals_payload(index: ResearchIndex) -> dict[str, Any]:
 
 
 def experiments_payload(index: ResearchIndex) -> dict[str, Any]:
-    return {"experiments": [
-        {
+    rows = []
+    for e in index.experiments:
+        first_run, last_run = e.run_span
+        measured = [r["duration_seconds"] for r in e.runs if r.get("duration_seconds")]
+        rows.append({
             "id": e.record_id, "title": e.title, "status": e.status, "area": e.area,
             "path": e.path, "hypothesis_id": e.hypothesis_id, "question_id": e.question_id,
             "frozen": e.frozen, "execution_authorized": e.execution_authorized,
+            "contract": e.contract,
             "runs": e.runs, "run_count": len(e.runs),
             "ecc": e.area in index.ecc_areas if e.area else False,
-        }
-        for e in index.experiments]}
+            # Declared by the contract, under the name it used.
+            "dated": e.dated, "date_field": e.date_field,
+            # Observed by git. Never merged with the above.
+            "committed": e.committed, "last_commit": e.last_commit,
+            "first_run": first_run, "last_run": last_run,
+            "runs_timed": sum(1 for r in e.runs if r.get("started")),
+            "total_seconds": round(sum(measured), 3) if measured else None,
+            "runs_measured": len(measured),
+        })
+    return {"experiments": rows, "timing": experiment_timing(index)}
+
+
+def experiment_timing(index: ResearchIndex) -> dict[str, Any]:
+    """What is actually known about when this program ran, stated exactly.
+
+    Every number here is a count of records, not an estimate. The point of
+    the block is that a reader can see the coverage of the timing beside the
+    timing itself: 99 self-reported start times out of 2,313 runs is the
+    real state of the corpus, and a page that showed only the 99 would imply
+    the rest never happened.
+    """
+    runs = [r for e in index.experiments for r in e.runs]
+    stamps = [t for r in runs for t in (r.get("started_epoch"), r.get("committed")) if t]
+    measured = [r["duration_seconds"] for r in runs if r.get("duration_seconds")]
+    return {
+        "runs": len(runs),
+        "runs_with_declared_start": sum(1 for r in runs if r.get("started")),
+        "runs_with_declared_finish": sum(1 for r in runs if r.get("finished")),
+        "runs_with_duration": len(measured),
+        "runs_with_any_time": sum(1 for r in runs if r.get("started") or r.get("committed")),
+        "total_measured_seconds": round(sum(measured), 3) if measured else None,
+        "longest_run_seconds": max(measured) if measured else None,
+        "earliest": min(stamps) if stamps else None,
+        "latest": max(stamps) if stamps else None,
+        "experiments": len(index.experiments),
+        "experiments_with_runs": sum(1 for e in index.experiments if e.runs),
+        "experiments_dated": sum(1 for e in index.experiments if e.dated),
+        "experiments_without_contract": sum(1 for e in index.experiments if not e.contract),
+        "experiments_json_contract": sum(
+            1 for e in index.experiments if e.contract == "specification.json"),
+        "git": git_status(index),
+    }
+
+
+def git_status(index: ResearchIndex) -> dict[str, Any]:
+    """Whether commit dates are available, and if not, exactly why."""
+    return {
+        "available": index.git.available,
+        "error": index.git.error,
+        "paths": len(index.git.first),
+        "commits": index.git.commits,
+        "seconds": round(index.git.seconds, 2),
+    }
 
 
 # ---------------------------------------------------------------------------

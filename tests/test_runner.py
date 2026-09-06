@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import os
 import platform
 import resource
@@ -32,6 +33,13 @@ VERIFIER_COMMIT = "b" * 40
 class RunnerTests(unittest.TestCase):
     def _test_effective_uid(self) -> int:
         return os.geteuid() or 1
+
+    def setUp(self):
+        # Existing low-level cap tests exercise the exceptional enforcement path.
+        # Real review receipts and the ordinary default have separate regressions.
+        self.enforcement = patch.object(runner_module, "enforce_research_budget", return_value=True)
+        self.enforcement.start()
+        self.addCleanup(self.enforcement.stop)
 
     def _specification(self) -> dict:
         return {
@@ -263,6 +271,56 @@ class RunnerTests(unittest.TestCase):
             )
 
         return execute
+
+    def test_advisory_real_child_has_no_implicit_cpu_or_wall_limit(self):
+        from orchestration.research_budget import enforce_research_budget
+        with tempfile.TemporaryDirectory() as temporary:
+            experiment_dir = Path(temporary) / "EXP-TEST-001"
+            experiment_dir.mkdir()
+            spec = self._specification()
+            spec["experiment"]["budget"].update(
+                wall_clock_seconds_per_run=None, total_cpu_hours=None,
+                maximum_runs=None)
+            self._write_specification(experiment_dir, spec)
+            with patch.object(runner_module, "enforce_research_budget",
+                              side_effect=enforce_research_budget):
+                result = run_experiment(
+                    repo_root=REPO_ROOT, experiment_dir=experiment_dir,
+                    run_id="RUN-TEST-092", command=self._valid_command(), seed=7,
+                    curve_id=None, parameters={}, timeout_seconds=None,
+                    allow_dirty=True)
+            manifest = read_json(result / "manifest.json")["run"]
+            self.assertEqual(manifest["status"], "completed_valid")
+            policy = manifest["environment"]["research_budget_policy"]
+            self.assertEqual(policy["enforcement"], "advisory")
+            self.assertIsNone(policy["process_watchdog_seconds"])
+
+    def test_advisory_estimates_do_not_block_repeated_development_runs(self):
+        from orchestration.research_budget import enforce_research_budget
+        with tempfile.TemporaryDirectory() as temporary:
+            experiment_dir = Path(temporary) / "EXP-TEST-001"
+            experiment_dir.mkdir()
+            spec = self._specification()
+            spec["experiment"]["budget"].update({
+                "wall_clock_seconds_per_run": None, "total_cpu_hours": 0,
+                "maximum_runs": 1})
+            self._write_specification(experiment_dir, spec)
+            def child(**kwargs):
+                self.assertIsNone(kwargs["timeout_seconds"])
+                self.assertTrue(math.isinf(kwargs["cpu_seconds"]))
+                return self._fake_child(cpu_seconds=100)(**kwargs)
+            with patch.object(runner_module, "enforce_research_budget",
+                              side_effect=enforce_research_budget), patch.object(
+                                  runner_module, "_run_child", side_effect=child):
+                for run_id in ("RUN-TEST-090", "RUN-TEST-091"):
+                    result = run_experiment(
+                        repo_root=REPO_ROOT, experiment_dir=experiment_dir,
+                        run_id=run_id, command=self._valid_command(), seed=7,
+                        curve_id=None, parameters={}, timeout_seconds=None,
+                        allow_dirty=True)
+                    manifest = read_json(result / "manifest.json")["run"]
+                    self.assertEqual(manifest["status"], "completed_valid")
+                    self.assertEqual(manifest["resources"]["cpu_seconds"], 100)
 
     def test_run_is_captured_and_duplicate_id_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

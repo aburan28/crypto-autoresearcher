@@ -113,12 +113,13 @@ def validate_resource_estimate(
     if not isinstance(estimate, dict):
         raise QueueError(f"{location}.resource_estimate must be an object")
     for field in ("wall_clock_seconds", "cpu_hours", "maximum_memory_gb"):
-        require_positive_number(estimate, field, f"{location}.resource_estimate")
+        if field == "maximum_memory_gb" or estimate.get(field) is not None:
+            require_positive_number(estimate, field, f"{location}.resource_estimate")
     maximum_runs = estimate.get("maximum_runs")
     if (
-        not isinstance(maximum_runs, int)
+        maximum_runs is not None and (not isinstance(maximum_runs, int)
         or isinstance(maximum_runs, bool)
-        or maximum_runs < 1
+        or maximum_runs < 1)
     ):
         raise QueueError(
             f"{location}.resource_estimate.maximum_runs must be a positive integer"
@@ -133,6 +134,8 @@ def validate_resource_estimate(
     if not require_stages:
         return
 
+    if not estimate.get("stages"):
+        return  # Stage cost estimates are optional, not execution permissions.
     require_text(estimate, "dominant_stage_id", f"{location}.resource_estimate")
     stages = estimate.get("stages")
     if not isinstance(stages, list) or not stages:
@@ -147,7 +150,8 @@ def validate_resource_estimate(
         for field in ("id", "purpose", "dominant_operation", "stop_rule"):
             require_text(stage, field, stage_location)
         for field in ("wall_clock_seconds", "cpu_hours", "maximum_memory_gb"):
-            require_positive_number(stage, field, stage_location)
+            if field == "maximum_memory_gb" or stage.get(field) is not None:
+                require_positive_number(stage, field, stage_location)
         parallel_shards = stage.get("parallel_shards")
         if (
             not isinstance(parallel_shards, int)
@@ -165,21 +169,8 @@ def validate_resource_estimate(
             f"{location}.resource_estimate.dominant_stage_id is not a stage"
         )
 
-    stage_wall = sum(stage["wall_clock_seconds"] for stage in stages)
-    stage_cpu = sum(stage["cpu_hours"] for stage in stages)
+    # Time and CPU estimates need not reconcile: they are advisory, not caps.
     stage_memory = max(stage["maximum_memory_gb"] for stage in stages)
-    if not math.isclose(
-        stage_wall, estimate["wall_clock_seconds"], rel_tol=1e-9, abs_tol=1e-9
-    ):
-        raise QueueError(
-            f"{location}.resource_estimate stage wall-clock total does not match"
-        )
-    if not math.isclose(
-        stage_cpu, estimate["cpu_hours"], rel_tol=1e-9, abs_tol=1e-9
-    ):
-        raise QueueError(
-            f"{location}.resource_estimate stage CPU total does not match"
-        )
     if stage_memory > estimate["maximum_memory_gb"]:
         raise QueueError(
             f"{location}.resource_estimate stage memory exceeds the campaign maximum"
@@ -802,13 +793,7 @@ def select(queue: dict[str, Any]) -> dict[str, Any]:
                 effective_queue["schema"] != SCHEMA
                 or all(candidate.get("attention_contract") for candidate in selected)
             ),
-            "all_selected_resource_estimates_stage_bound": (
-                effective_queue["schema"] != SCHEMA
-                or all(
-                    candidate.get("resource_estimate", {}).get("stages")
-                    for candidate in selected
-                )
-            ),
+            "stage_estimates_are_advisory": True,
             "reproduced_claims_independently_verified": all(
                 claim["independently_verified"]
                 for claim in claims
@@ -882,21 +867,21 @@ def render_markdown(plan: dict[str, Any]) -> str:
 
     lines.extend([
         "",
-        "## Stage Budgets",
+        "## Optional Stage Estimates",
         "",
-        "| Experiment | Stage | Wall h | CPU h | Memory GiB | Shards | Dominant |",
+        "| Experiment | Stage | Wall seconds | CPU h | Memory GiB | Shards | Dominant |",
         "|---|---|---:|---:|---:|---:|---:|",
     ])
     stage_rows = 0
     for experiment in plan["critical_experiments"]:
         estimate = experiment.get("resource_estimate") or {}
         dominant_stage_id = estimate.get("dominant_stage_id")
-        for stage in estimate.get("stages", []):
+        for stage in estimate.get("stages") or []:
             stage_rows += 1
             lines.append(
                 f"| `{markdown_cell(experiment['id'])}` | "
                 f"`{markdown_cell(stage['id'])}` | "
-                f"{stage['wall_clock_seconds'] / 3600:g} | {stage['cpu_hours']} | "
+                f"{stage.get('wall_clock_seconds', 'n/a')} | {stage.get('cpu_hours', 'n/a')} | "
                 f"{stage['maximum_memory_gb']} | {stage['parallel_shards']} | "
                 f"{str(stage['id'] == dominant_stage_id).lower()} |"
             )
