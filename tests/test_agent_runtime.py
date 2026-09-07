@@ -349,7 +349,6 @@ def _mini_repo(tmp_path):
     # contract (PR #856); fixtures must seed both paths.
     (tmp_path / "docs/agent-runtime-core.md").write_text("# runtime core\n")
     (tmp_path / "agents/executor.md").write_text("# executor\n")
-    (tmp_path / "docs/agent-runtime-core.md").write_text("# runtime core\n")
     (tmp_path / "coordination/tasks/TASK-9").mkdir(parents=True)
     return tmp_path
 
