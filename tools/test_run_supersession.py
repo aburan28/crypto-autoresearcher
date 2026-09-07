@@ -39,15 +39,14 @@ REPO = Path(vl.REPO)
 ARTIFACTS = ("command.txt", "environment.json", "stdout.log", "stderr.log",
              "raw-result.json")
 
-# These immutable records arrived on main at eae06fdfaca2 with prose-only
-# supersession declarations. Pin that historical vocabulary to exact bytes;
-# new records still require a structured reverse binding. The registry and
-# both identities/hashes remain checked, without endorsing the prose claims.
-PROSE_SUPERSESSION_SHA256 = {
-    "RUN-JMV-001-a": "00aa431b5d3b223643af3261ad6ebfddd2eb6b0825dd2a9de224cbee08d84839",
-    "RUN-JMV-004-a": "94780b39782bf6705d513500e45d3d1c693b8c2ceba264b77fb04998122bcec4",
-    "RUN-CSIDH-c65945-001": "ef4c50276450a0613f2400657db02d9357dce2307d8f1c795d3d69e8e484d1cc",
-}
+# Historical prose-only superseding records (manifest_v2.yaml) were pinned
+# here when they first landed. They have since been retargeted in
+# tools/run_supersession_registry.yaml to structured manifest_integrity_v3
+# records with an explicit supersedes{path,sha256} reverse binding, so they
+# now take the ordinary structured-chain branch below. Keep the map empty
+# rather than deleting the branch: a future prose-only supersession can pin
+# exact bytes here again without rewriting the test.
+PROSE_SUPERSESSION_SHA256: dict[str, str] = {}
 
 
 def manifest_body(**over) -> dict:

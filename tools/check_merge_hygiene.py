@@ -363,6 +363,17 @@ def _identical_to_base(path: str, base: str) -> bool:
         return False  # binary or non-UTF-8 content: leave the cautious default
     if base_blob.returncode != 0:
         return False  # path does not exist at base: cannot be "unchanged"
+    full = os.path.join(REPO, path)
+    # A worktree symlink is never "identical" to a base blob, even when its
+    # target's bytes match and the index still holds the regular file
+    # (`git show :path`). Open() would follow the link; the index short-
+    # circuit below would also miss an unstaged typechange to a symlink
+    # (ProspectiveGoalIdentifierTests.test_base_cli_checks_tracked_unstaged_worktree_symlink).
+    try:
+        if os.path.islink(full):
+            return False
+    except OSError:
+        return False
     try:
         candidate_blob = _run("git", "show", f":{path}")
     except UnicodeDecodeError:
@@ -371,7 +382,7 @@ def _identical_to_base(path: str, base: str) -> bool:
             and candidate_blob.stdout == base_blob.stdout:
         return True
     try:
-        with open(os.path.join(REPO, path), encoding="utf-8", errors="surrogateescape") as fh:
+        with open(full, encoding="utf-8", errors="surrogateescape") as fh:
             worktree_text = fh.read()
     except OSError:
         return False
