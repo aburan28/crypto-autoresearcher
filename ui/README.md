@@ -92,17 +92,11 @@ second source of truth and holds nothing of its own.
 
 ## On a phone
 
-The desktop shell is a 208px sidebar beside the content. Reflowed naively
-that sidebar becomes a column of chrome -- brand, six nav rows, build state,
-two buttons -- which on a 390px phone filled the entire first screen, so
-every page opened on navigation rather than on content.
-
-Below 820px it becomes a sticky top bar instead: brand and controls on one
-line, the nav a single horizontally scrolling row, ~110px of chrome rather
-than ~720px. Panel heads stack their title above their note, stat rows use
-flex so an odd count leaves no dead cell, the search field is 16px so iOS
-does not zoom the page on focus, and filter panels -- sixty area chips in the
-records browser -- open collapsed.
+The desktop shell uses a compact horizontal navigation bar. On small screens,
+the navigation scrolls in one row beneath the brand and controls. The home
+page's current-work cards stack on phones, activity rows put their date above
+the title, and category filters wrap. Search stays at 16px on mobile to avoid
+iOS zoom. Detailed record and experiment tables retain their existing layouts.
 
 Below 560px the record table drops the columns an identifier already carries
 (kind, area) plus date and citation count, keeping identifier, status and
@@ -115,12 +109,19 @@ scroll inside their panel, which is what `.scroll-x` is for.
 
 ## The views, in the order a reader asks
 
-- **Overview** — what the program has established, what it is working on,
-  and what is still open, with the program's own loop as a row of counts
-  (questions → proposals → hypotheses → experiments → runs → evidence →
-  decisions → findings). Each count carries the qualifier that keeps it
-  honest: how many hypotheses reached a verdict, how many experiments ever
-  ran, how much evidence points anywhere.
+- **Home** — current research, recent work, and recent findings. Three active
+  goals show their objective and recorded next action, with ECC first and
+  recent updates first within each group. An active goal is not a claim that
+  an experiment is running. Flags and impediments display as “Needs attention”.
+  The recent-work feed filters findings, experiments, ideas, decisions,
+  evidence, and corrections from the latest 60 dated records, showing six
+  at a time. Highlights select the two newest entries per type; All work
+  shows the complete feed in date order. Task traffic and literature imports are excluded. Dates use the
+  last commit touching the record when available (labelled “Committed”);
+  otherwise the declared record date is labelled “Recorded”. Unknown dates
+  are omitted from the feed. Goal recency also includes sharded checkpoints.
+  The research pipeline and links to open questions, areas, and integrity
+  live in an expandable section. All summaries are clipped source text.
 - **Findings** — the promoted findings (`knowledge/findings/`), grouped
   under the research area they are filed in with that area's goals beside
   the heading, each with its proof status, claim tier, the statement
@@ -130,7 +131,7 @@ scroll inside their panel, which is what `.scroll-x` is for.
   hypotheses that reached a verdict; every evidence record with a
   direction; the obstructions recorded as measurements; and the open
   problems. This is the board for "what did it find?".
-- **Goals** and a goal page with its record trail: every finding, evidence
+- **Research** — the goals board and a goal page with its record trail: every finding, evidence
   record, decision, hypothesis and experiment that cites the goal, grouped.
 - **Experiments**, with run tallies by terminal status, the date each
   contract declares (under the field name that carried it), the date git
