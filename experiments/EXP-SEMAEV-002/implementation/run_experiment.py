@@ -119,7 +119,18 @@ def _exhaustive_cell(m: int, cell_a: dict) -> dict:
     # interior support_fill==1.0 (interior-monomial losses are explicitly
     # permitted by the spec's invalidation_rules and are recorded separately
     # as a descriptive secondary metric, never as an exception).
-    nonexceptional_targets = [t for t in range(p) if t not in observed_hull_set]
+    #
+    # CORR-20260907-e65243: "non-exceptional" must partition against the
+    # INDEPENDENTLY predicted set (pred_exc), not against observed_hull_set
+    # (the very hull classification this metric is meant to check). The
+    # prior formula used observed_hull_set here, which makes every t in
+    # nonexceptional_targets satisfy saturated_flags[t] == True BY
+    # CONSTRUCTION (observed_hull_set is defined as the set of non-saturated
+    # targets) -- so the metric could never decay under a genuine falsifying
+    # instance. Partitioning against pred_exc instead lets a real
+    # classification error (predicted_exception_set != observed_hull_set)
+    # show up here as a fraction < 1.0.
+    nonexceptional_targets = [t for t in range(p) if t not in pred_exc]
     nonexceptional_saturated_count = sum(1 for t in nonexceptional_targets if saturated_flags[t])
     nonexceptional_full_box_fraction = (
         nonexceptional_saturated_count / len(nonexceptional_targets)
