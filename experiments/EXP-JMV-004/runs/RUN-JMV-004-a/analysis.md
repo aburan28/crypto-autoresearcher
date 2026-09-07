@@ -226,3 +226,210 @@ This document stops at the model, the grids, and the constants table, per
 specification.yaml's stopping_rules. The conclusion -- if any -- is written
 only after the C1 (source-transcription-fidelity) review completes, by a
 reviewer who did not produce this transcription.
+
+---
+
+## COORDINATOR ADDENDUM (2026-09-07) -- C1 STATUS: PASSED (VAL-20260907-b0832b)
+
+**This addendum supersedes every "C1 STATUS: PENDING" banner above for
+purposes of drawing a conclusion. It does not alter, delete, or edit any of
+the Executor's original content above, which remains exactly as archived.**
+Everything below is written by the Coordinator after control C1 completed,
+per specification.yaml's own gate ("Conclusions are written only after the
+C1 review completes") and stopping_rules. No number below is recomputed or
+invented; every figure is read directly from `crossover.csv` (400 rows) or
+`crossover_summary.csv`, cited by its exact `(bits, delta, log_convention,
+C)` cell, or from `VAL-20260907-b0832b.yaml`.
+
+### C1 outcome
+
+`experiments/EXP-JMV-004/reviews/VAL-20260907-b0832b.yaml` is an independent
+digit-level check, by a reviewer who did not produce this run's
+transcription, of all five transcribed source statements against the
+actual retrieved, sha256-pinned PDF (`inputs/JMV-0411378-20260907/`).
+**Verdict: passed.** Four of five statements (Theorem 1.1, Corollary 1.2's
+completeness gap, Lemma 4.1, Proposition 3.1) match the source exactly or
+as closely as the source itself permits. The fifth, Section 4.3's
+`k`-formula, is a **partial match**: the held numeric value (`k = Li(m)/2`)
+is asymptotically consistent with the source's own formula
+(`lambda_triv ~ pi(m)/e ~ m/(e log m)`) for **every cell this run's grid
+actually evaluates**, because this run's own `|D| = 4q` convention (every
+`q` in the grid is `>= 2^64`) always satisfies the source's own stated
+condition (`|disc(O)| > 4`) for the unit-count constant `e` to equal 2 --
+but the held transcription's stated *mechanism* for the `/2` ("a split
+prime contributes one generator") is the opposite of what the source
+actually says (a split prime contributes **two** ideals of norm `p`; the
+`/2` comes from dividing by `e`), and `e` itself is absent from
+`source_statements.md` and `constants_table.csv`. **This is numerically
+inert for every cell in this run's own grid and does not change any
+already-computed value in `crossover.csv`** (verdict_scope). It is a
+transcription/reconciliation inaccuracy on this program's own side, not a
+source-side error, and is handled by a separate correction record,
+`CORR-20260907-b7e0f3` (see below) -- `source_statements.md`,
+`cost_model.md`, and `constants_table.csv` are NOT edited by this addendum
+or by that correction; they remain immutable as committed.
+
+### Sign of log(k/c) at q = 2^256, PRIMARY convention (k = Li(m)/2), both logarithm conventions, full C-sweep
+
+Read directly from `crossover.csv` rows `bits=256, delta in {0.25, 0.5,
+1.0, 2.0}, log_convention in {bits, natural}, C in {0.5, 1, 2, 4, 8}`
+(20 rows total for `delta` fixed at each value; 5 rows per
+`(delta, log_convention)` pair):
+
+- **delta = 0.25**: `sign_log_kc_half_PRIMARY = negative` at every one of
+  the 5 swept `C` values, under BOTH `bits` and `natural` log conventions
+  (10/10 cells negative, zero flips of either kind anywhere in this slice).
+  **Robust vacuity.**
+- **delta = 0.5**: identical pattern -- `negative` at every swept `C`,
+  both log conventions, zero flips. **Robust vacuity.**
+- **delta = 1.0**: NOT a clean directional result at low `C`.
+  - `C = 0.5`: `bits` gives `positive` (`degree_convention_flip=False,
+    log_convention_flip_bits_vs_natural=True`); `natural` gives `negative`
+    (`degree_convention_flip=True, log_convention_flip=True`). This cell
+    flips between the two logarithm conventions -- per condition
+    E2-CONVENTION this is CONVENTION-DEPENDENT and is NOT a directional
+    result in either direction.
+  - `C = 1.0`: `bits` gives `sign_half=negative, sign_full=positive,
+    degree_convention_flip=True` -- a degree-convention flip, also
+    CONVENTION-DEPENDENT. `natural` gives `sign_half=negative,
+    sign_full=negative`, no flip -- a clean negative under `natural` alone.
+  - `C in {2.0, 4.0, 8.0}`: `negative` under both conventions, no flips.
+    Clean vacuity at these three `C` values.
+- **delta = 2.0**: robust and non-vacuous for most of the sweep.
+  - `C in {0.5, 1.0, 2.0, 4.0}`: `sign_half = positive` AND
+    `sign_full = positive` (no degree flip) under BOTH `bits` and `natural`
+    (no log flip). **Fully convention-robust non-vacuous result** (8/8
+    cells agree in sign across both axes of convention).
+  - `C = 8.0`: `sign_half = negative` under BOTH `bits` and `natural`
+    (no log-convention flip), but `sign_full = positive` in both -- a pure
+    **degree-convention flip**. Per E2-CONVENTION this specific cell is
+    CONVENTION-DEPENDENT and is not reported as a directional `negative`
+    result under the PRIMARY convention alone, even though the two
+    logarithm conventions themselves agree with each other here.
+
+### Non-vacuity of the proven separation at q = 2^256 (evaluation of the model, not a measurement on any curve)
+
+Under this run's stated PRIMARY convention, restricted to cells that are
+**convention-robust** (agree under both logarithm conventions AND both
+degree conventions, per E2-CONVENTION's requirement that a flipping
+conclusion is reported as convention-dependent, not as a result):
+
+- **Robustly VACUOUS** (`log(k/c) <= 0`) at `delta in {0.25, 0.5}` across
+  the entire swept `C in {0.5, ..., 8}` range, and at `delta = 1.0` for
+  `C in {2, 4, 8}`.
+- **Robustly NON-VACUOUS** (`log(k/c) > 0`) only at `delta = 2.0`, and
+  only for `C in {0.5, 1, 2, 4}` (4 of the 5 swept values of the unpinned
+  Lemma 4.1 constant). At `delta = 2.0, C = 8.0` the result is
+  convention-dependent (degree-convention flip) and not counted as a
+  directional finding either way.
+- `delta = 1.0` at `C in {0.5, 1.0}` yields no convention-robust
+  conclusion in either direction and is reported as CONVENTION-DEPENDENT.
+
+Per specification.yaml's own `claim_boundary`: at every `(q=2^256, delta,
+C)` cell found vacuous above, the only correct statement is that
+Corollary 1.2's concrete walk-length guarantee is **asymptotically sound
+but concretely UNPROVEN at this deployed field size**, under the branch-(a)
+proven bound and the cited/swept constants -- never that Corollary 1.2 is
+false, and never that the JMV reduction fails in practice. This is an
+evaluation of the stated cost model's arithmetic at `q = 2^256`, nothing
+about ECDLP hardness, attack cost, or GRH's truth (CTRL-GRH, C2).
+
+### Smallest delta for which log(k/c) > 0 at q = 2^256
+
+The smallest grid `delta` value producing a **convention-robust** positive
+sign at `bits = 256` is `delta = 2.0` -- the LARGEST value in this run's
+swept grid `{0.25, 0.5, 1.0, 2.0}` -- and even then only for `C <= 4`. The
+individual-convention entries in section 3's own already-computed table
+(`smallest_delta_with_positive_sign_at_bits_256`, reproduced there per
+`(log_convention, C)`) show a `bits`-only positive at `delta = 1.0, C=0.5`,
+but that specific cell fails the E2-CONVENTION robustness requirement
+(natural log gives `negative` there) and is therefore excluded: it is
+CONVENTION-DEPENDENT, not a finding. At `C = 8.0` no grid `delta` value
+produces a positive sign under either convention ("none in grid", per
+section 3's own table). Both readings satisfy the induced-`m`/typical-`l`
+reporting requirement of specification.yaml's own primary metric: at
+`delta=2.0, bits=256`, `m = 4294967296.0 ~= 2^32` (`bits` convention) or
+`m = 991429199.18... ~= 2^30` (`natural` convention), with typical
+`l ~ Theta(m)` in each case (`crossover.csv`, same rows cited above).
+
+### Crossover bit size (modelled reduction overhead = sqrt(n))
+
+Since `r_half`/total cost is defined only where `sign_half` is positive
+(`cost_model.md` section 6), a PRIMARY-convention crossover can only occur
+inside the `delta = 2.0` region identified above. Verified directly against
+`crossover.csv` at `delta = 2.0, C = 1.0, log_convention = bits`, PRIMARY
+per-step variant (`phi_l O(l^3)`, typical `l ~ Theta(m)`):
+
+| bits | cost_over_rho (phi_l, typical l) | cheaper_than_rho |
+|---|---|---|
+| 160 | 4152.618... | False |
+| 192 | 0.6103178... | True |
+| 224 | 0.0000637392... | True |
+
+The crossover bit size for this `(log_convention=bits, C=1.0, phi_l
+typical-l)` slice is **192** -- the smallest grid `bits` value where
+`sign_half=positive` AND `cost < rho` -- reproducing analysis.md section
+5's own already-computed table now stated as a conclusion. Section 5's
+table shows the identical crossover bit size (192) reported for the
+`natural` log convention at the same `(delta=2.0, C=1.0)` slice. Below 192
+bits (within the `delta=2.0` regime that is itself needed for
+non-vacuity), the modelled PRIMARY reduction cost EXCEEDS `rho`
+(sqrt(n)); at and above 192 bits it falls BELOW `rho`. **No crossover
+exists anywhere in the grid for `delta in {0.25, 0.5, 1.0}` at `C=1.0`**,
+because `sign_half` never reaches positive there at any grid `bits` value,
+so total cost is `NA_ratio_not_positive` throughout (matching section 5's
+own "no crossover within grid" statement, now given as a conclusion rather
+than a bare fact).
+
+For the OPTIMISTIC/CAVEATED per-step-cost variants (`velu O(l)`,
+`sqrt_velu O(sqrt l)`, and `phi_l` best-case `l=2`) -- which
+`constants_table.csv`'s own applicability caveat states are not
+realistically available for a uniformly random split prime (which
+generically lacks cheap rational `l`-torsion) -- the modelled cost is
+**already** below `rho` at `bits=160`, the smallest grid bit size where
+`sign_half` first turns positive for `delta=2.0, C=1.0`: `cost_over_rho`
+values there range from `~1.18e-22` (`phi_l` best-case `l=2`) to
+`~9.67e-15` (`velu`, typical `l`) to `~2.95e-23` (`sqrt_velu`, typical
+`l`), all `cheaper_than_rho=True`. Their crossover, within this slice,
+therefore occurs no later than 160 bits -- but per the applicability
+caveat this cheaper figure must NOT be read as the load-bearing one; the
+`phi_l`/typical-`l` crossover at 192 bits is the applicable figure per
+specification.yaml's own method item 4.
+
+### Falsification criterion (specification.yaml)
+
+NOT satisfied: specification.yaml's falsification_criterion requires
+`log(k/c) > 0` at EVERY tested `(q >= 2^128, delta >= 0.25)` cell under
+both logarithm conventions, which fails immediately at, e.g.,
+`bits=256, delta=0.25` (negative under both conventions, every swept `C`).
+The paper's practical reading is therefore NOT vindicated under this
+stated model at this grid, and this research line does not close via the
+falsification route.
+
+### H-JMV-002's own three quantitative predictions, checked against this grid
+
+1. *"at least one (q >= 2^128, delta <= 1) cell has log(k/c) <= 0 under
+   BOTH logarithm conventions"* -- **SATISFIED**, e.g. `bits=256,
+   delta=0.25, C=1.0`: `negative` under both `bits` and `natural` (many
+   other cells also satisfy this).
+2. *"ratio of overhead/sqrt(n) >= 1 at some tested q >= 128 bits"* --
+   **SATISFIED**: `bits=160, delta=2.0, C=1.0, bits, phi_l typical-l`:
+   `cost_over_rho = 4152.618...`, and this cell has no degree- or
+   log-convention flip.
+3. *"delta required for log(k/c) > 0 at q=2^256 strictly greater than the
+   smallest tested delta (0.25)"* -- **SATISFIED**: the smallest
+   convention-robust delta is 2.0 (the grid's largest value); even the
+   individual-convention entries are all `>= 1.0`.
+
+All three predictions are borne out by this grid, strictly scoped to:
+branch-(a)'s proven, GRH-conditional bound; the stated cost model
+(Proposition 3.1 walk length x `phi_l O(l^3)` per-step cost, typical
+`l ~ Theta(m)`, as the load-bearing variant); the swept
+`C in {0.5,...,8}` and `delta in {0.25,...,2.0}` grid; both logarithm
+conventions; zero curve instances at any size (`claim_tier:
+not_applicable`, permanently). Nothing above asserts, or is to be read as
+asserting, anything about ECDLP hardness, attack cost, real-world attack
+feasibility, or GRH's truth.
+
+**C1 STATUS: PASSED (VAL-20260907-b0832b). This addendum is the conclusion
+specification.yaml's stopping_rules reserved for after that review.**
