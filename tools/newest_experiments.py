@@ -3,19 +3,24 @@
 
 Selection is cheap and deterministic: parse only top-level specification.yaml
 files, enforce the approval/frozen/execution gates, skip experiments that
-already contain an execution-report.yaml, preserve ECC-first policy from
-orchestration/research-priority.yaml, then sort newest-first by designed_at
-with experiment id as the deterministic tie-break.
+already have a populated runs/ directory (or, defensively, a bare
+execution-report.yaml at their own top level), skip experiments some other
+experiment's own `supersedes` field names as superseded, preserve ECC-first
+policy from orchestration/research-priority.yaml, then sort newest-first by
+designed_at with experiment id as the deterministic tie-break.
 """
 from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any
 
 import yaml
+
+_EXP_ID_RE = re.compile(r"EXP-[A-Za-z0-9]+-(?:[0-9a-fA-F]{6}|\d{3})")
 
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "tools"))
@@ -32,16 +37,51 @@ def _load(path: Path) -> dict[str, Any] | None:
 
 
 def _completed(exp_dir: Path) -> bool:
-    return any(exp_dir.rglob("execution-report.yaml"))
+    """An experiment has already been executed once its own `runs/` directory
+    holds anything, or an execution report exists under it by either naming
+    convention. `runs/RUN-*/` is the actual, universal signal this repo's own
+    executor writes; a bare `execution-report.yaml`/`execution_report.yaml`
+    directly under the experiment is a narrower, defensive fallback (the
+    program's own convention nests the real report under
+    coordination/**/tasks/*/execution_report.yaml, which is per-batch and not
+    reachable from the experiment directory alone -- runs/ is the reliable
+    signal from here)."""
+    runs_dir = exp_dir / "runs"
+    if runs_dir.is_dir() and any(runs_dir.iterdir()):
+        return True
+    return (any(exp_dir.rglob("execution-report.yaml"))
+            or any(exp_dir.rglob("execution_report.yaml")))
+
+
+def _superseded_ids(specs: list[tuple[Path, dict[str, Any]]]) -> set[str]:
+    """IDs named by some OTHER experiment's own `supersedes` field. A newer
+    contract superseding an older one (this program's mint-a-new-id-per-
+    amendment convention, distinct from EXP-ECDLP-6ac801's own
+    specification.v2.yaml-style in-place versioning) means the older id is
+    abandoned research history, never a candidate to (belatedly) execute --
+    exactly the EXP-SMTH-9d04ba situation: frozen and approved, never run,
+    then superseded by EXP-SMTH-c83476 before anyone executed it."""
+    superseded: set[str] = set()
+    for _, exp in specs:
+        raw = exp.get("supersedes")
+        if not raw:
+            continue
+        text = raw if isinstance(raw, str) else " ".join(str(x) for x in raw)
+        superseded.update(_EXP_ID_RE.findall(text))
+    return superseded
 
 
 def newest_runnable(repo: Path = REPO) -> list[dict[str, Any]]:
     policy = ecc_priority.load_policy(repo / "orchestration" / "research-priority.yaml")
-    rows: list[dict[str, Any]] = []
+    specs = []
     for spec in sorted((repo / "experiments").glob("EXP-*/specification.yaml")):
         exp = _load(spec)
-        if not exp:
-            continue
+        if exp:
+            specs.append((spec, exp))
+    superseded = _superseded_ids(specs)
+
+    rows: list[dict[str, Any]] = []
+    for spec, exp in specs:
         exp_id = str(exp.get("id") or spec.parent.name)
         if exp.get("status") != "approved":
             continue
@@ -50,6 +90,8 @@ def newest_runnable(repo: Path = REPO) -> list[dict[str, Any]]:
         if exp.get("execution_authorized") is False:
             continue
         if _completed(spec.parent):
+            continue
+        if exp_id in superseded:
             continue
         rows.append({
             "id": exp_id,
