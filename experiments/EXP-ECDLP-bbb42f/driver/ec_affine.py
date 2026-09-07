@@ -2,7 +2,7 @@
 Plain (uninstrumented) affine short-Weierstrass EC arithmetic, used only for
 STRUCTURAL purposes: finding a point on a curve, and the fast order
 certificate used to verify class-walk edges without repeating an O(p) point
-count on every vertex (see class_walk.py docstring and implementation.md,
+count on every vertex (see class_walk.py docstring and implementation_reissued.md,
 "edge certificate method"). This module is NOT used for any Q1/Q2/Q3 cost
 measurement -- those use the separately instrumented engines in
 ec_group_ops.py (Q1, common coordinate system) and ec_jacobian.py (Q2,

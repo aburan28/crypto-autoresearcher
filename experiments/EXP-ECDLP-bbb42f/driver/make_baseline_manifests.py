@@ -15,9 +15,9 @@ OUT = os.path.join(BASE, "results", "baseline_manifests")
 def main():
     os.makedirs(OUT, exist_ok=True)
     for run_id, bit_size in [
-        ("RUN-ECDLP-bbb42f-1", 20),
-        ("RUN-ECDLP-bbb42f-2", 24),
-        ("RUN-ECDLP-bbb42f-3", 28),
+        ("RUN-ECDLP-bbb42f-7", 20),
+        ("RUN-ECDLP-bbb42f-8", 24),
+        ("RUN-ECDLP-bbb42f-9", 28),
     ]:
         with open(os.path.join(RUNS, run_id, "results.json")) as f:
             data = json.load(f)

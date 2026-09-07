@@ -54,7 +54,7 @@ def enumerate_class(p, a0, b0, N, t, degrees, edge_cert_seed=1):
     reproducible. This replaces a full O(p) point recount per edge, which
     is mathematically equivalent (independent of the Velu/Kohel
     construction code) but was measured to be computationally infeasible
-    at the 20/24-bit census scale (see implementation.md).
+    at the 20/24-bit census scale (see implementation_reissued.md).
     """
     result = ClassWalkResult()
     result.edge_certificate_method = "fast_order_certificate (Lagrange + Hasse uniqueness)"

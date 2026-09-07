@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-Builds experiments/EXP-ECDLP-bbb42f/results/summary.json from the six run
+Builds experiments/EXP-ECDLP-bbb42f/results/summary_reissued.json from the six run
 results.json files. Pure aggregation / no new computation: every number
 here is read from an already-produced run artifact (required_artifacts_note:
-"no cost number in summary.json may be computed outside [cost_model.py]" --
+"no cost number in summary.json may be computed outside [cost_model_reissued.py]" --
 this script performs no cost computation of its own, only aggregation of
-numbers cost_model.py already produced inside the run drivers).
+numbers cost_model_reissued.py already produced inside the run drivers).
 """
 from __future__ import annotations
 
@@ -23,12 +23,12 @@ def load(run_id):
 
 
 def main():
-    r1 = load("RUN-ECDLP-bbb42f-1")
-    r2 = load("RUN-ECDLP-bbb42f-2")
-    r3 = load("RUN-ECDLP-bbb42f-3")
-    r4 = load("RUN-ECDLP-bbb42f-4")
-    r5 = load("RUN-ECDLP-bbb42f-5")
-    r6 = load("RUN-ECDLP-bbb42f-6")
+    r1 = load("RUN-ECDLP-bbb42f-7")
+    r2 = load("RUN-ECDLP-bbb42f-8")
+    r3 = load("RUN-ECDLP-bbb42f-9")
+    r4 = load("RUN-ECDLP-bbb42f-10")
+    r5 = load("RUN-ECDLP-bbb42f-11")
+    r6 = load("RUN-ECDLP-bbb42f-12")
 
     census_runs = [r1, r2, r3]
     all_curves = []
@@ -185,14 +185,14 @@ def main():
                 "max": max(baseline_ratios_vs_plain_model, default=None),
                 "mean": sum(baseline_ratios_vs_plain_model) / len(baseline_ratios_vs_plain_model) if baseline_ratios_vs_plain_model else None,
             },
-            "protocol_deviation": "Measured baseline is PLAIN Pollard rho, not negation-map rho as specified; see rho_bsgs.py module docstring and implementation.md. Comparison against BOTH reference models is reported to keep the deviation auditable.",
+            "protocol_deviation": "Measured baseline is PLAIN Pollard rho, not negation-map rho as specified; see rho_bsgs.py module docstring and implementation_reissued.md. Comparison against BOTH reference models is reported to keep the deviation auditable.",
             "single_lowest_draw_vs_plain_model": single_lowest_draw_vs_plain_model,
             "single_lowest_draw_note": single_lowest_draw_note,
             "inv_baseline_fired": inv_baseline_fired,
         },
         "ctrl_planted_path": {
             "path_finding_and_order_recertification_succeeded_all_bit_sizes": planted_all_bit_sizes_ok_except_special_curve_step,
-            "special_curve_algorithm_certificate_step": "INFEASIBLE_WITHIN_BUDGET (Smart-ASS; see smart_ass.py, implementation.md)",
+            "special_curve_algorithm_certificate_step": "INFEASIBLE_WITHIN_BUDGET (Smart-ASS; see smart_ass.py, implementation_reissued.md)",
             "ctrl_planted_path_recovered_per_contract_definition": ctrl_planted_path_recovered,
             "inv_planted_void_fired": inv_planted_void_fired,
             "consequence": (

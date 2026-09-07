@@ -21,12 +21,12 @@ ENVIRONMENT = {
 }
 
 SEEDS = {
-    "RUN-ECDLP-bbb42f-1": 20260902001,
-    "RUN-ECDLP-bbb42f-2": 20260902002,
-    "RUN-ECDLP-bbb42f-3": 20260902003,
-    "RUN-ECDLP-bbb42f-4": 20260902004,
-    "RUN-ECDLP-bbb42f-5": 20260902005,
-    "RUN-ECDLP-bbb42f-6": 20260902006,
+    "RUN-ECDLP-bbb42f-7": 20260902001,
+    "RUN-ECDLP-bbb42f-8": 20260902002,
+    "RUN-ECDLP-bbb42f-9": 20260902003,
+    "RUN-ECDLP-bbb42f-10": 20260902004,
+    "RUN-ECDLP-bbb42f-11": 20260902005,
+    "RUN-ECDLP-bbb42f-12": 20260902006,
 }
 
 INFERENCE_BLOCK = {
@@ -76,12 +76,12 @@ def main():
         meta = results.get("_meta", {})
         wall_seconds = meta.get("wall_seconds")
 
-        if run_id == "RUN-ECDLP-bbb42f-4":
+        if run_id == "RUN-ECDLP-bbb42f-10":
             valid = False
             invalid_reason = (
                 "INV-PLANTED-VOID: CTRL-PLANTED-PATH's special-curve-algorithm "
                 "(Smart-ASS) certificate step is INFEASIBLE_WITHIN_BUDGET (see "
-                "implementation.md); no [k]P=Q certificate was produced for the "
+                "implementation_reissued.md); no [k]P=Q certificate was produced for the "
                 "anomalous-curve target, so the control's contract definition "
                 "is not met at any tested bit size. Path-finding, order-"
                 "recertification, and reverse-path recovery DID succeed at all "
@@ -111,7 +111,7 @@ def main():
                         "artifacts, not yet committed by the Coordinator's "
                         "snapshot task; no other tracked file was modified."
                     ),
-                    "command": f"python3 driver/isogeny_transfer_census.py {run_id} runs/{run_id}",
+                    "command": f"python3 driver/isogeny_transfer_census_reissued.py {run_id} runs/{run_id}",
                 },
                 "inference": INFERENCE_BLOCK,
                 "environment": ENVIRONMENT,
@@ -153,7 +153,7 @@ def main():
         with open(os.path.join(run_dir, "command.txt"), "w") as f:
             f.write(
                 f"cd experiments/EXP-ECDLP-bbb42f/driver && "
-                f"python3 isogeny_transfer_census.py {run_id} "
+                f"python3 isogeny_transfer_census_reissued.py {run_id} "
                 f"../runs/{run_id}\n"
             )
 

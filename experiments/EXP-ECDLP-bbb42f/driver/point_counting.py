@@ -8,7 +8,7 @@ This is NOT a substitute for exact point counting -- it computes the same
 exact integer #E(F_p) that a full O(p) sieve (curve_utils.point_count) would,
 but in O(p^{1/4}) group operations instead of O(p) field operations, which is
 what makes point counting tractable at the 28-bit scale within budget (a
-timed comparison is recorded in implementation.md).
+timed comparison is recorded in implementation_reissued.md).
 
 METHOD.
   1. By Hasse's theorem, #E(F_p) = p + 1 - t with |t| <= 2*sqrt(p), so
@@ -41,7 +41,7 @@ METHOD.
 The result of this module is cross-checked, per curve accepted into the
 census, against `curve_utils.point_count` (the independent O(p) sieve) for
 every 20-bit curve (cheap enough to double-check exhaustively) and for a
-random spot sample at 24/28 bits (timed; see implementation.md for the
+random spot sample at 24/28 bits (timed; see implementation_reissued.md for the
 measured cross-check agreement and timings).
 """
 from __future__ import annotations

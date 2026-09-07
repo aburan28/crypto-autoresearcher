@@ -4,10 +4,10 @@ class_walk.enumerate_class but with an ENFORCED (checked every vertex, not
 just after the fact) vertex-count and wall-clock cap, needed because some
 28-bit craters are large enough that unbounded BFS blows the per-run
 budget (measured: one 28-bit curve did not finish exploring its crater
-within a 600s timeout with STEP_PRIMES up to 13 -- see implementation.md).
+within a 600s timeout with STEP_PRIMES up to 13 -- see implementation_reissued.md).
 This is the actual enforcement mechanism behind the
 BOUNDED_WALK_MAX_VERTICES / BOUNDED_WALK_MAX_SECONDS documented in
-isogeny_transfer_census.py.
+isogeny_transfer_census_reissued.py.
 """
 from __future__ import annotations
 

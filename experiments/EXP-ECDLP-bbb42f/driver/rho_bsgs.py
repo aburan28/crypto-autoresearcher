@@ -4,7 +4,7 @@ group-operation counter incremented once per EC point add, both producing a
 [k]P=Q certificate independently re-verified by certificate_verify.py (no
 shared code path with the solver).
 
-PROTOCOL DEVIATION, DISCLOSED (see implementation.md "baseline solver
+PROTOCOL DEVIATION, DISCLOSED (see implementation_reissued.md "baseline solver
 deviation"): the contract specifies "Pollard rho WITH NEGATION" as the
 measured baseline. A negation-map additive walk (folding the walk onto the
 quotient by P -> -P to reach the modeled 0.886*sqrt(N) constant) was
