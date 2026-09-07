@@ -16,13 +16,13 @@ a hash it cannot is an assertion by the session that recorded it.
 |---|---|
 | Frozen source packages (`SRC-*`) | 8 |
 | — of those with the artifact committed | 7 |
-| Per-URL retrieval attempts | 2 |
-| — succeeded | 1 |
-| — failed or blocked | 1 |
-| Source artifacts under `inputs/` | 11 |
-| — hash recomputed and matching | 9 |
+| Per-URL retrieval attempts | 8 |
+| — succeeded | 3 |
+| — failed or blocked | 5 |
+| Source artifacts under `inputs/` | 14 |
+| — hash recomputed and matching | 10 |
 | — hash MISMATCH | 0 |
-| — present but carrying no `.sha256` | 1 |
+| — present but carrying no `.sha256` | 3 |
 | — sought and never retrieved | 1 |
 | Seed bibliography entries | 10 |
 | Literature entries (`KN-LIT-*`) | 7868 |
@@ -63,6 +63,12 @@ not the same as never having looked.
 |---|---|---|---|---|---|
 | dent-galbraith-hidden.pdf |  | failed |  |  | `inputs/ECTD-TESKE-20260731/sources/dent-galbraith-hidden.pdf` |
 | ellipticnews-2015-04-13-ecdlp-char-two | https://ellipticnews.wordpress.com/2015/04/13/elliptic-curve-discrete-logarithm-problem-in-characteristic-two/ | retrieved | 200 | 2026-09-05T22:45:26Z |  |
+| arxiv-math-0411378v3 | https://arxiv.org/abs/math/0411378 | retrieved | 200 | 2026-09-07T21:05:00Z |  |
+| arxiv-math-0411378v3-pdf | https://arxiv.org/pdf/math/0411378v3 | retrieved | 200 | 2026-09-07T21:05:00Z | `inputs/JMV-0411378-20260907/sources/jmv-math-0411378v3.pdf` |
+| local-artifact |  | local_artifact |  | 2026-09-07T21:07:57Z | `inputs/JMV-0411378-20260907/sources/jmv-math-0411378v3.pdf` |
+| local-artifact |  | local_artifact |  | 2026-09-07T21:07:57Z | `inputs/JMV-0411378-20260907/sources/jmv-math-0411378v3.pdf.sha256` |
+| local-artifact |  | local_artifact |  | 2026-09-07T21:07:57Z | `inputs/JMV-0411378-20260907/sources/jmv-math-0411378v3.txt` |
+| local-artifact |  | local_artifact |  | 2026-09-07T21:07:57Z | `inputs/JMV-0411378-20260907/sources/jmv-math-0411378v3-layout.txt` |
 
 ## 3. Source artifacts under `inputs/`
 
@@ -90,6 +96,9 @@ records that some fetch failed, and says nothing about the file that is here.
 | `inputs/ECTD-TESKE-20260731/sources/jmv-0811.0647.pdf` | 294859 | match | 118c6096f6287f4b |  |
 | `inputs/ECTD-TESKE-20260731/sources/kutas-2019-1290.pdf` | 430504 | match | a7f94571aa03ce34 | yes |
 | `inputs/ECTD-TESKE-20260731/sources/teske-2003-058.pdf` | 287387 | match | 8d889ae0b1b03f77 | yes |
+| `inputs/JMV-0411378-20260907/sources/jmv-math-0411378v3-layout.txt` | 70308 | **present_unhashed** |  |  |
+| `inputs/JMV-0411378-20260907/sources/jmv-math-0411378v3.pdf` | 320392 | match | c80586caaa2e4129 |  |
+| `inputs/JMV-0411378-20260907/sources/jmv-math-0411378v3.txt` | 59315 | **present_unhashed** |  |  |
 | `inputs/KARABINA-PDP-2015/eprint-2015-319-v3.pdf` | 352621 | match | ad23de5bfdb5fada |  |
 | `inputs/KARABINA-PDP-2015/paper_fulltext.md` | 41941 | match | c4fcc7c94ad9fca4 |  |
 
