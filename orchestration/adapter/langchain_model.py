@@ -24,9 +24,16 @@ from langchain_core.runnables import Runnable
 from langchain_core.utils.function_calling import convert_to_openai_tool
 from pydantic import ConfigDict, Field
 
+from . import prompt_cache as prompt_cache_module
 from . import transport as transport_module
 from .config import Config
 from .resolver import Resolution
+
+
+# Cache controls are provider-specific, not wire-format capabilities. An
+# OpenAI-compatible gateway or local server must not receive first-party cache
+# parameters merely because it speaks the same protocol.
+_CACHE_CAPABLE_BACKENDS = {"anthropic", "openai"}
 
 
 def _text(content: Any) -> str:
@@ -129,12 +136,35 @@ class ResolvedChatModel(BaseChatModel):
                   run_manager: CallbackManagerForLLMRun | None = None,
                   **kwargs: Any) -> ChatResult:
         system, turns = to_canonical(messages)
-        completion = transport_module.complete(
-            self.adapter_config, self.resolution,
-            system=system, messages=turns,
-            max_tokens=kwargs.get("max_tokens", self.max_tokens),
-            tools=kwargs.get("tools"),
-            env=self.request_env, opener=self.opener)
+        tools = kwargs.get("tools")
+        max_tokens = kwargs.get("max_tokens", self.max_tokens)
+
+        if self.resolution.backend in _CACHE_CAPABLE_BACKENDS:
+            # Use the shared transport primitives, but attach first-party cache
+            # controls before POSTing. The key is content-addressed over the
+            # stable system/tool prefix, so task-specific messages do not bust it.
+            url, headers, body = prompt_cache_module.build_cached_request(
+                self.adapter_config, self.resolution,
+                system=system, messages=turns, max_tokens=max_tokens,
+                tools=tools, cache_policy=prompt_cache_module.PromptCachePolicy(),
+                env=self.request_env)
+            defaults = self.adapter_config.providers.get("defaults", {})
+            started = transport_module.time.time()
+            payload = transport_module.post_json(
+                self.adapter_config, url, headers, body,
+                timeout=float(defaults.get("request_timeout_seconds", 600)),
+                max_retries=int(defaults.get("max_retries", 3)),
+                opener=self.opener)
+            completion = transport_module.parse_response(self.resolution.wire, payload)
+            completion = prompt_cache_module.attach_cache_usage(
+                completion, self.resolution.wire, payload)
+            completion.latency_seconds = round(transport_module.time.time() - started, 3)
+        else:
+            completion = transport_module.complete(
+                self.adapter_config, self.resolution,
+                system=system, messages=turns, max_tokens=max_tokens,
+                tools=tools, env=self.request_env, opener=self.opener)
+
         self.completions.append(completion)
         if self.on_completion is not None:
             self.on_completion(completion)
@@ -156,22 +186,21 @@ class ResolvedChatModel(BaseChatModel):
             response_metadata={
                 "model_name": completion.model,
                 "resolved_model_id": self.resolution.resolved_model_id,
-                # A backend answering as a different model than the one we
-                # resolved is an evidence problem, so carry both and let the
-                # receipt compare them rather than assuming they agree.
                 "model_matches_resolution": (
                     completion.model == self.resolution.resolved_model_id
                     if completion.model else None),
                 "backend": self.resolution.backend,
                 "stop_reason": completion.stop_reason,
                 "latency_seconds": completion.latency_seconds,
+                "usage": usage,
             })
 
     def usage_totals(self) -> dict[str, int]:
-        totals = {"input_tokens": 0, "output_tokens": 0, "requests": 0}
+        totals: dict[str, int] = {"input_tokens": 0, "output_tokens": 0, "requests": 0}
         for completion in self.completions:
-            totals["input_tokens"] += completion.usage.get("input_tokens", 0)
-            totals["output_tokens"] += completion.usage.get("output_tokens", 0)
+            for key, value in (completion.usage or {}).items():
+                if isinstance(value, int):
+                    totals[key] = totals.get(key, 0) + value
             totals["requests"] += 1
         return totals
 

@@ -1,0 +1,253 @@
+execution_report:
+  task_id: TASK-20260907-0a8773
+  experiment_id: EXP-ECDLP-6ac801
+  batch_id: BATCH-3c7493
+  role: executor
+
+  dispatch_authorization_check: >-
+    Re-read experiments/EXP-ECDLP-6ac801/specification.yaml at dispatch time
+    (commit 2552a5eaf0bf09436fe3222fee5fd480467fef0b, branch
+    claude/batch-dlp-precomputation-nov7vh): status: approved,
+    approved_by: coordinator, frozen: true, execution_authorized: true.
+    CONFIRMED before any run was executed. An automated branch-sync merge
+    (612eb501c8f137991d3bb88342615714ce10f1e1) landed on this branch after
+    execution began; `git diff 2552a5eaf..612eb501c --
+    experiments/EXP-ECDLP-6ac801/specification.yaml` is empty, so the
+    approved contract this task executed against is unchanged at HEAD.
+
+  scope_performed: >-
+    Stage B (execution, exact-basin generation) and Stage C (analysis) only,
+    per the handoff. Stage A (the contract's own required, frozen blind
+    re-derivation) was explicitly NOT performed by this task; it is assigned
+    to the independent validator task TASK-20260907-80e198. This executor
+    therefore reports a PRODUCTION-ONLY measurement, which per the contract's
+    own `blind_rederivation`/`invalidation_rules` is NOT evidence on its own
+    until Stage A is sealed and the two readings are compared cell by cell.
+
+  implementation:
+    source_path: experiments/EXP-ECDLP-6ac801/source/
+    files:
+      - run_stageb.py
+      - stagec_analysis.py
+    instrument_reuse:
+      module: experiments/EXP-ECDLP-612fb1/source_v2/instrument.py
+      commit: 22e80f13361a6eb307864c52f51740db419e9e54
+      note: >-
+        Imported directly (sys.path insertion to its own directory), not
+        copied, per specification.yaml `instrument`. The exact-basin
+        enumeration, DP predicate, walk step function, and Bernstein-Lange
+        pool-generation/selection procedure are unchanged from v1/v2's own
+        implementation; only the driving grid
+        (a_grid = {1/16, 1/8, 3/16, 1/4}, r = 2, T_sel = T/2, N = 2^24,
+        5 seeds) is this contract's own.
+    sanity_check: >-
+      Before the production runs, a throwaway N = 2^20, a = 1/4, seed = 1
+      cell was computed with the same code path (not committed as a run
+      record; scratchpad only) and reproduced margin -0.01413, matching
+      EV-ECDLP-f6b3f5's confirmed N = 2^20 seed-1 margin (-0.0141) to 4
+      significant figures, confirming the reused instrument was invoked
+      correctly before committing the N = 2^24 production runs.
+
+  runs:
+    - id: RUN-ECDLP-6ac801-001
+      role: "Stage B, seed 1, full a_grid"
+      status: completed_valid
+      wall_clock_seconds: 34.02
+      peak_rss_bytes: 665157632
+    - id: RUN-ECDLP-6ac801-002
+      role: "Stage B, seed 2, full a_grid"
+      status: completed_valid
+      wall_clock_seconds: 33.20
+      peak_rss_bytes: 665509888
+    - id: RUN-ECDLP-6ac801-003
+      role: "Stage B, seed 3, full a_grid"
+      status: completed_valid
+      wall_clock_seconds: 32.94
+      peak_rss_bytes: 665747456
+    - id: RUN-ECDLP-6ac801-004
+      role: "Stage B, seed 4, full a_grid"
+      status: completed_valid
+      wall_clock_seconds: 33.23
+      peak_rss_bytes: 665382912
+    - id: RUN-ECDLP-6ac801-005
+      role: "Stage B, seed 5, full a_grid"
+      status: completed_valid
+      wall_clock_seconds: 32.50
+      peak_rss_bytes: 665411584
+    - id: RUN-ECDLP-6ac801-006
+      role: "Stage C, analysis over RUN-ECDLP-6ac801-001..005"
+      status: completed_valid
+      wall_clock_seconds: 0.03
+      peak_rss_bytes: null
+
+  runs_used: 6
+  budget_accounting:
+    maximum_runs: 8
+    runs_used: 6
+    runs_unused_spare: 2
+    total_cpu_hours_budget: 1
+    total_cpu_seconds_used_approx: >-
+      6 runs at ~1 worker each: sum of wall_clock_seconds
+      (34.02+33.20+32.94+33.23+32.50+0.03 = 165.92 s) as a single-worker
+      approximation (maximum_workers: 1, so wall clock and CPU time are
+      comparable here); well under the 3600 CPU-second (1 hour) budget.
+    wall_clock_seconds_per_run_budget: 3600
+    max_observed_wall_clock_seconds: 34.02
+    maximum_memory_gb_budget: 8
+    max_observed_peak_rss_bytes: 665747456
+    maximum_workers_budget: 1
+    workers_used: 1
+    all_within_advisory_budget: true
+
+  exceedance_control_c: >-
+    No run reported an exceedance (exact top-T_sel share exceeding 1.0 or the
+    exact top-T share) at any (a, seed) cell. All 6 runs completed_valid; no
+    run was stopped as completed_invalid.
+
+  gate_values_per_a_seed_cell:
+    "a=1/16":
+      per_seed_margins: [0.028603, 0.023279, 0.013719, 0.017438, 0.019787]
+      per_seed_pass: [true, true, true, true, true]
+      pass_count: 5
+      verdict: G3-FEASIBLE
+      role: novel
+    "a=1/8":
+      per_seed_margins: [0.009002, 0.005128, 0.003084, 0.005594, 0.011855]
+      per_seed_pass: [true, true, true, true, true]
+      pass_count: 5
+      verdict: G3-FEASIBLE
+      role: novel
+    "a=3/16":
+      per_seed_margins: [-0.001886, -0.000055, -0.017737, -0.017837, -0.012460]
+      per_seed_pass: [false, false, false, false, false]
+      pass_count: 0
+      verdict: G3-INFEASIBLE
+      role: novel
+    "a=1/4":
+      per_seed_margins: [-0.012918, -0.008373, -0.036196, -0.016829, -0.022216]
+      per_seed_pass: [false, false, false, false, false]
+      pass_count: 0
+      verdict: G3-INFEASIBLE
+      role: replication_control
+      evaluated_first: true
+
+  a_quarter_replication_control:
+    result: REPRODUCED_G3_INFEASIBLE
+    pass_count: "0/5"
+    comparison_to_EV_ECDLP_60e266: >-
+      EV-ECDLP-60e266's N = 2^24 a = 1/4 margins (obstruction.value (i)):
+      -0.0129, -0.0084, -0.0362, -0.0168, -0.0222 (5/5 negative, FAIL). This
+      task's fresh 5 seeds: -0.012918, -0.008373, -0.036196, -0.016829,
+      -0.022216 (5/5 negative, FAIL). Sign matches in all 5 cells and
+      magnitudes agree closely (fresh seeds, not seed-for-seed identical, as
+      the contract's own tail_checks note is not required to be). The
+      control REPRODUCES the established result; per `stopping_rules` and
+      `invalidation_rules`, interpretation of the three novel cells (1/16,
+      1/8, 3/16) PROCEEDED.
+
+  crossing_bracket:
+    confirmed: true
+    feasible_a: 1/8
+    infeasible_a: 3/16
+    note: >-
+      Verdict pattern across the ordered grid (1/16, 1/8, 3/16, 1/4) is
+      G3-FEASIBLE, G3-FEASIBLE, G3-INFEASIBLE, G3-INFEASIBLE -- monotone, one
+      clean crossing between a = 1/8 and a = 3/16, matching the
+      `preregistered_prediction`'s expected bracket location. NOTE: this is
+      the Stage B/C PRODUCTION reading only; per specification.yaml
+      `success_criterion`, the crossing bracket is only CONFIRMED (as
+      opposed to reported) once Stage A's sealed blind result agrees cell by
+      cell -- that comparison is TASK-20260907-80e198's responsibility, not
+      performed here.
+
+  tail_checks:
+    borderline_cell: "a=1/8"
+    borderline_cell_note: >-
+      a = 1/8 is the novel cell closest to the pass/fail boundary in the
+      preregistered prediction's own framing (predicted "borderline, around
+      4/5"); measured here at 5/5 pass, per-seed margins
+      [0.009002, 0.005128, 0.003084, 0.005594, 0.011855] -- all positive but
+      the smallest margins (0.003-0.012) of any cell in this grid, so this is
+      also the cell where the exact-coverage measurement sits closest to
+      zero.
+    a_quarter_control_seed_by_seed_vs_EV_ECDLP_60e266: >-
+      See `a_quarter_replication_control.comparison_to_EV_ECDLP_60e266`
+      above; sign and rough magnitude agree in all 5 cells (not required to
+      match seed-for-seed, per specification.yaml `tail_checks`).
+
+  stage_order_compliance: >-
+    The a = 1/4 replication control was computed and evaluated FIRST in
+    RUN-ECDLP-6ac801-006's stagec_analysis.py (printed and recorded before
+    any novel-cell interpretation in that run's own stdout.log and
+    summary.json), per specification.yaml `stopping_rules` and the
+    handoff's `constraints`. Because the control reproduced G3-INFEASIBLE,
+    interpretation of the three novel cells proceeded; had it not, the
+    script halts and reports outcome "d_INSTRUMENT_MISMATCH" without
+    computing novel-cell verdicts (see stagec_analysis.py's own control-flow
+    branch).
+
+  infrastructure_events: []
+  infrastructure_events_note: "No timeout, crash, memory exhaustion, or dependency failure occurred on any of the 6 runs."
+
+  deviations: []
+  deviations_note: >-
+    No protocol deviation from specification.yaml was made. One
+    infrastructure observation (not a deviation, recorded per AGENTS.md
+    rule 5 and CLAUDE.md's disclosure discipline): an automated
+    branch-sync merge (612eb501c8f137991d3bb88342615714ce10f1e1) landed on
+    this branch mid-task, after Stage B/C execution but before this report
+    was written; it did not alter experiments/EXP-ECDLP-6ac801/specification.yaml
+    (empty diff confirmed) and did not touch any path in this task's
+    write_scope.
+
+  stages_not_reached: []
+  stages_not_reached_note: >-
+    All of Stage B (5 seeds x 4 a-values) and Stage C (aggregation and
+    G3-style criterion application) were reached and completed within
+    budget (6 of 8 maximum_runs used, well under the 1 CPU-hour /
+    3600-second-per-run / 8 GB budget). No cell was skipped for budget
+    reasons. Stage A (blind re-derivation) is a separate task's
+    responsibility (TASK-20260907-80e198), not a "stage not reached" by
+    this executor.
+
+  interpretation_discipline: >-
+    ZERO interpretation beyond the contract's own criterion language was
+    performed. This report states the G3-style verdict at each a exactly as
+    specification.yaml's own criterion computes it; it draws NO
+    hypothesis-level conclusion about H-ECDLP-37dc01, changes NO status, and
+    writes NO ledger record (no EV-*, DEC-*, H-*, or KN-* file). Per
+    specification.yaml `blind_rederivation` and `invalidation_rules`, this
+    Stage B/C production reading alone is explicitly NOT evidence under this
+    contract until Stage A's sealed blind re-derivation exists and the two
+    are compared cell by cell (TASK-20260907-80e198); until then this is an
+    unreviewed measurement, exactly the status quo the contract exists to
+    move past.
+
+  completion_gate_check:
+    - "a = 1/4 replication control evaluated and reported FIRST: YES (RUN-ECDLP-6ac801-006 stdout.log, first three printed lines)."
+    - "G3-style criterion applied identically, verbatim, at every (a, seed) cell: YES (single shared code path, stagec_analysis.py, no per-a special-casing)."
+    - "Crossing bracket reported per `definitions.crossing point`: YES, (1/8, 3/16), pattern is monotone (see `crossing_bracket` above)."
+    - "No exact top-T_sel share exceeded 1.0 or the exact top-T share at any cell: YES (exceedance=False on every printed cell of every run; see run stdout.logs)."
+    - "Every required artifact present for every executed run: YES -- manifest.yaml, raw-result.json (except RUN-006, an aggregation run with no fresh basin data of its own, by design), summary.json; the Stage C analysis output is RUN-ECDLP-6ac801-006/summary.json."
+    - "execution_report.yaml and artifact_inventory.json present in this task directory: YES (this file and the sibling artifact_inventory.json)."
+
+  inference_provenance:
+    requested_policy: executor-implementation
+    resolved_model_id: claude-sonnet-5
+    model_verified: false
+    fallback_used: false
+    reasoning_effort: medium
+    independent_session: false
+
+  artifact_inventory_ref: >-
+    coordination/experiments/EXP-ECDLP-6ac801/batches/BATCH-3c7493/tasks/TASK-20260907-0a8773/artifact_inventory.json
+    (32 files: 2 source files, 6 run manifests, 5 raw-result.json, 6
+    summary.json, 6 stdout.log, 6 stderr.log, 1 pre-existing runs/.gitkeep).
+
+  return_to_coordinator: >-
+    Snapshot-archive task TASK-20260907-11d3d6 and the dependent Validator
+    task TASK-20260907-80e198 are reserved by the batch's own dispatch queue
+    and are NOT run by this executor. Per `review_reservation`, no run under
+    this handoff is evidence before that chain (snapshot archive, sealed
+    blind re-derivation and comparison, Coordinator ledger archive) has
+    completed and been verified.

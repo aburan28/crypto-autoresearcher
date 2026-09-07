@@ -1,0 +1,260 @@
+idea:
+  id: IDEA-20260904-b1d69f
+  question_id: RQ-SIMSPK-f6a6c0
+  handoff_id: null
+  goal_id: GOAL-SIMSPK-001
+  added: '2026-09-04'
+
+  title: >-
+    ONE GRAM MATRIX AND 77 SOLVER CALLS DECIDE WHETHER A LEARNED MASK SEARCH IS
+    MERELY UNINFORMATIVE OR ACTIVELY ANTI-INFORMATIVE - measure the rank
+    correlation between an intermediate mask's middle differential-linear
+    correlation and its forward linear-trail correlation on Speck128/128, because
+    a NEGATIVE correlation means every improvement to the learner makes the
+    search worse, and that is a different defect requiring a different repair
+
+  class: measurement
+
+  claim: >-
+    KN-LIT-824baa reports six data points in which a locally strong intermediate
+    mask composes badly: five recurrent neural masks with 8-round middle
+    correlations |r| in [2^-0.99, 2^-0.01] admit 5-round minimum-weight single
+    XOR-linear trails of correlation only 2^-30 to 2^-19, while the classically
+    selected mask {77,5} with |r| = 2^-5.81 admits one of 2^-10. Six points show
+    a mismatch; they do not show its SIGN over the candidate space, and the sign
+    is the whole diagnosis. If |r| and |q| are merely UNCORRELATED, a learned
+    generator wastes budget and re-ranking fixes it. If they are ANTI-correlated,
+    the learner steers away from useful candidates and does so more confidently
+    the better it is trained - in which case the objective, not the ranking, is
+    the defect. This proposal measures the sign over a declared, exhaustively
+    enumerable candidate space rather than over six hand-picked points.
+
+  mechanism: >-
+    The measurement is cheap for a reason worth stating, because it is what makes
+    the whole space affordable rather than a sample of it. Fix the middle input
+    difference Delta = {117} and draw N ciphertext-difference samples from the
+    8-round middle component. Map each difference bit to a sign s_k = (-1)^{d_k}
+    in {+1,-1}, giving an N x 128 sign matrix S. Then for EVERY Hamming-weight-2
+    mask {i,j}, the differential-linear correlation is exactly
+    r_{ij} = E[(-1)^{d_i XOR d_j}] = E[s_i s_j] = (S^T S / N)_{ij}.
+    So all 8128 weight-2 correlations are ONE 128x128 Gram matrix over a single
+    sample pass - not 8128 separate estimations. (Weight-3 and weight-4 masks need
+    genuine higher-order moments and are deliberately out of scope here; the
+    weight-2 space is where the paper's own comparison lives and where exhaustion
+    is free.)
+    The expensive half is q. For each mask in the declared candidate set, encode
+    the 5-round Speck128/128 single XOR-linear trail problem for SAT and search
+    for the minimum-weight trail with CryptoMiniSat under a per-instance
+    wall-clock ceiling declared before the run. That is one solver call per mask,
+    and it is the only per-candidate cost.
+    Then compute Spearman rho and Kendall tau between log2|r| and log2|q| over the
+    candidate set, and plot the two against each other with |r q^2| as a third
+    axis. The answer is a sign and a confidence interval.
+
+  novelty_status: unverified
+
+  novelty_note: >-
+    KN-LIT-824baa does not compute this correlation and does not claim to; it
+    computes q for six masks chosen by recurrence, not by coverage. Whether the
+    r-versus-q relationship has been measured elsewhere in the differential-linear
+    literature has NOT been screened by this program. The corpus holds
+    KN-LIT-3459 (DLCT), KN-LIT-2112, KN-LIT-1297 and KN-LIT-4400 on adjacent
+    ground and none was read for this question. Treat novelty as unestablished:
+    the value of this record does not depend on the measurement being new, and
+    if a prior source already reports the sign, finding it is cheaper than
+    running this.
+
+  citations:
+    - ref: KN-LIT-824baa
+      provenance: internal
+      claim: >-
+        Table 7 reports (|r|, |q|, |r q^2|) for five recurrent neural masks and
+        for the classical mask {77,5} on the 18-round Speck128/128 5+8+5
+        distinguisher; Table 6 reports that 77 of the 8128 Hamming-weight-2 masks
+        have measured correlation above 2^-8 under input difference {117}.
+      verified_by: >-
+        Top-level orchestrating session, 2026-09-04. Full paper text supplied by
+        the user in-session and read in full. The paper's own bibliographic
+        identifier is UNRESOLVED against any primary index; this citation
+        supports what the paper says, not that the paper has been located.
+    - ref: KN-TECH-d64293
+      provenance: internal
+      claim: >-
+        Records the composed-objective discipline and the required controls that
+        this measurement is the first step of.
+      verified_by: Top-level orchestrating session, 2026-09-04.
+    - ref: KN-OPEN-7f0d85
+      provenance: internal
+      claim: This proposal is question Q2 of that open problem.
+      verified_by: Top-level orchestrating session, 2026-09-04.
+
+  assumptions:
+    - >-
+      The Speck128/128 implementation reproduces the specification's test
+      vectors, and the 5+8+5 decomposition of KN-LIT-824baa is reproduced to its
+      published values BEFORE any new number is generated. See minimal_test
+      stage 0; this is a gate, not a formality.
+    - >-
+      q is a SINGLE-TRAIL correlation from a minimum-weight search, not a linear
+      hull correlation. That is the same quantity KN-LIT-824baa reports, so the
+      comparison is like-for-like, but it is an underestimate of the true linear
+      correlation and every record must say so.
+    - >-
+      The middle correlation r is measured under a random key schedule and is a
+      sample estimate; masks with |r| indistinguishable from 1 or from 0 at the
+      chosen N are reported as censored at the resolution of the sample, never as
+      exact.
+
+  predictions:
+    - >-
+      PRIMARY. Spearman rho between log2|r| and log2|q| over the 77 strong
+      weight-2 masks is NEGATIVE and bounded away from zero. Rationale (a
+      mechanism, not an observation): a mask with near-unit middle correlation is
+      one the middle rounds have barely randomized, hence still close to the
+      deterministic image of the input difference, hence carrying structure that
+      costs weight when propagated forward. This is stated so it can fail.
+    - >-
+      The maximum of |r q^2| over the full weight-2 candidate space is attained at
+      INTERMEDIATE |r|, not at the extremes - a peaked rather than monotone
+      profile.
+    - >-
+      {77,5} and {72,8} - both Hamming weight 2, q differing by 2^9 in the
+      paper's Table 7 - are not adjacent in any ordering by |r|, confirming
+      directly that no weight-based prior can separate them.
+
+  minimal_test:
+    design: >-
+      STAGE 0 (GATE, runs first, blocks everything else). Reproduce three
+      published numbers: Speck32/64 9-round differential-linear correlation
+      2^-7.3; Speck128/128 5+8+5 middle correlation r = 2^-5.81 for {77,5} under
+      Delta = {117}; and the same mask's 5-round minimum-weight trail correlation
+      q = 2^-10. Declare the tolerance BEFORE running. A stage-0 failure is
+      reported as an implementation-fidelity failure and the campaign stops
+      there - it is not a finding about Speck.
+      STAGE 1 (r, one pass). Sample N = 2^30 pairs through the 8-round middle
+      under Delta = {117}, accumulate the 128x128 Gram matrix, and read off all
+      8128 weight-2 correlations. Record N, seed, and the key-sampling rule.
+      STAGE 2 (q, 77 solver calls). Run minimum-weight 5-round single XOR-linear
+      trail search for every weight-2 mask with |r| > 2^-8, plus {77,5}, plus a
+      matched random sample of 40 masks with |r| <= 2^-8 so the correlation is not
+      estimated only where an effect is expected. Declare the per-instance
+      ceiling first. Timeouts are recorded as censored observations and excluded
+      from rho with the exclusion count reported.
+      STAGE 3. Compute Spearman rho and Kendall tau with bootstrap confidence
+      intervals; emit the (log2|r|, log2|q|) scatter and the |r q^2| ranking.
+    controls:
+    - >-
+      MATCHED WEAK-MASK ARM (stage 2). Without the 40 low-|r| masks the
+      correlation is conditioned on |r| > 2^-8 and its sign is not interpretable.
+      This is the control most likely to be skipped and it is the one that makes
+      the number mean anything.
+    - >-
+      NULL-OBJECT CONTROL ON NEAR-DETERMINISTIC MASKS. Every mask with |r| >
+      2^-0.1 is re-measured under (a) a fresh independent key schedule, (b) 7 and
+      9 middle rounds, and (c) an unrelated input difference of the same Hamming
+      weight. A parity that survives all three at near-unit correlation is a
+      STRUCTURALLY FORCED relation, not a statistical bias, and is reported
+      separately rather than entering the correlation.
+    - >-
+      SOLVER-DETERMINISM CONTROL. Re-run 10 of the 77 trail searches under a
+      different solver seed; a minimum-weight search that returns different
+      weights across seeds is not returning a minimum and invalidates stage 2.
+    required_metrics:
+    - spearman_rho and kendall_tau over the candidate set, with bootstrap CI
+    - count of solver timeouts, reported as censored, never as weak trails
+    - max |r q^2| over the weight-2 space, and the mask attaining it
+    - the full (mask, |r|, |q|, |r q^2|) table as a committed artifact
+
+  falsification_conditions:
+    - >-
+      Spearman rho is statistically indistinguishable from zero. The mechanism in
+      predictions is then WRONG, the mismatch is not directional, and the correct
+      repair is re-ranking only (IDEA-20260904-58ace7) rather than any change to
+      the objective.
+    - >-
+      Spearman rho is POSITIVE. Then the six points in KN-LIT-824baa Table 7 are
+      not representative of the candidate space, and the paper's headline is an
+      artifact of which masks recur in the Fourier reconstruction rather than a
+      property of the mask space. That is a strong and reportable result against
+      the source.
+    - >-
+      Stage 0 fails to reproduce any of the three published numbers within the
+      declared tolerance. The record is then an implementation-fidelity failure
+      and asserts nothing about masks.
+
+  confounders:
+    - >-
+      Censoring at both ends. Masks with |r| near 1 or near 0 are compressed by
+      sample resolution, which biases a rank correlation computed naively. Report
+      the censored counts and compute rho on the uncensored subset as well.
+    - >-
+      Single-trail q underestimates hull correlation NON-UNIFORMLY. If the
+      underestimate is systematically worse for high-weight masks, part of any
+      measured relationship is an artifact of the estimator, not of the cipher.
+      Check by computing the top-3 trails for 10 masks and reporting the gap.
+    - >-
+      Solver difficulty may correlate with mask structure, so timeouts are not
+      missing-at-random. Report the |r| distribution of the timed-out set.
+
+  interpretation_limits: >-
+    Scoped to Speck128/128, the fixed middle input difference {117}, the 5+8+5
+    decomposition, Hamming-weight-2 output masks, single XOR-linear trails, and
+    the declared sample and solver budgets. It says NOTHING about other rotation
+    constants, other block sizes, other decompositions, weight-3 or higher masks,
+    linear hulls, or any other cipher, and no record may extend it to those. It
+    is a statement about a correlation between two measured quantities and is not
+    an attack, a distinguisher, or a security claim about Speck.
+
+  dominated_by: >-
+    Not applicable as a performance claim - this proposal produces a diagnostic
+    number, not an algorithm, and does not compete with any published
+    distinguisher. If a prior source already reports the sign of this
+    relationship, that source dominates this record entirely and locating it is
+    cheaper than running the experiment; see novelty_note.
+
+  sota_delta: >-
+    None claimed. The 18-round Speck128/128 distinguisher of Chen-Bao-Yu at
+    p r q^2 = 2^-55.81 is the state of the art in this setting and this proposal
+    does not attempt to improve it. Any improvement would come from
+    IDEA-20260904-58ace7, and would still need independent validation before
+    being stated.
+
+  estimated_cost:
+    compute: >-
+      Stage 1 is one pass over 2^30 pairs plus a 128x128 Gram accumulation -
+      minutes on a GPU, under an hour on CPU. Stage 2 dominates: roughly 117
+      SAT instances at a declared per-instance ceiling. At a 300 s ceiling that
+      is at most ~9.75 core-hours, parallelizable to well under the
+      GOAL-SIMSPK-001 campaign budget of 10800 s wall-clock at max_concurrent 3.
+      Stage 0 is minutes.
+    implementation: >-
+      Medium. The Gram-matrix trick is a few lines. The 5-round Speck128 linear
+      trail SAT encoding is the real work and is REUSED by every other proposal
+      in this batch and by GOAL-SIMSPK-001's own portfolio scoring, so its cost
+      should be charged once to the goal rather than to this record.
+    memory: >-
+      Low. The Gram accumulation is streaming; no 2^30-sample buffer is needed.
+
+  recommended_priority: high
+
+  honest_prior_of_survival: >-
+    High that the experiment RUNS and produces an interpretable number - it is a
+    measurement over an enumerable space with a cheap estimator. Moderate,
+    perhaps 0.5, that the PRIMARY prediction (negative rho) survives; the
+    diffusion-depth mechanism behind it is this program's reading of a six-row
+    table and has not been tested. The record is designed so that all three
+    outcomes - negative, zero, positive - are publishable results with different
+    consequences, which is why it is ranked first despite the modest prior.
+
+  status: proposed
+  proposed_by: top-level-session
+  proposed_at: '2026-09-04'
+  source_refs: [KN-LIT-824baa, KN-TECH-d64293, KN-OPEN-7f0d85, KN-TECH-065, KN-TECH-056]
+  scope_note: >-
+    Attached to RQ-SIMSPK-f6a6c0 because that question's stated targets include
+    scoring Speck against the FULL computable cryptanalytic portfolio with a null
+    control before any anomaly is believed, and a differential-linear score is one
+    of the portfolio measures it would have to add. This record decides whether
+    such a score can be computed from a learned generator at all. It does NOT
+    address rotation constants and is not itself a portfolio measurement; see
+    IDEA-20260904-796ff3 for the constant-space consequence.

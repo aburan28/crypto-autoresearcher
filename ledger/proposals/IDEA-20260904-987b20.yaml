@@ -1,0 +1,250 @@
+idea:
+  id: IDEA-20260904-987b20
+  question_id: null
+  handoff_id: null
+  goal_id: null
+  added: '2026-09-04'
+
+  title: >-
+    THIS PROGRAM RUNS A LEARNED SEARCH WITH EXACTLY THE SHAPE THE SOURCE PAPER
+    FOUND TO FAIL - harness/rl_isogeny scores a presentation by a local Macaulay
+    reading taken AT the null's first-fall degree, while what the search is for is
+    downstream solve cost, so measure the rank correlation between the reward and
+    the thing it stands in for at the toy scale where both are computable, before
+    any ranking that reward produces is trusted
+
+  class: control
+
+  claim: >-
+    KN-LIT-824baa is, stripped of its cryptanalysis, a documented case of one
+    failure mode: a search that proposes an INTERMEDIATE object and scores it by a
+    locally measurable proxy will select against the composed objective whenever
+    the proxy and the downstream cost are anti-correlated, and it will do so more
+    confidently the better it is trained. There, the proxy was an 8-round middle
+    correlation and the composed objective was p r q^2; the locally best candidate
+    lost by 2^13.
+    harness/rl_isogeny has the same shape. Its reward scores a candidate curve
+    model and presentation by an exact null-relative Macaulay reading: minus
+    log2 nnz(M_{D*}) at D* the NULL's first-fall degree, minus a formula for
+    expected decomposition trials, plus a weighted first-fall gap
+    d_ff(null) - d_ff(real), plus a capped fall-dimension deficit term. Each term
+    is defensible and the module's own docstring is careful about what it is - the
+    yield term is explicitly a formula because mean yield is provably not a design
+    lever. But the whole is a reading of the system's LOW-DEGREE SHAPE, and what
+    the search is ultimately for is the cost of actually solving. Those are
+    different quantities, and this program has not measured how well they agree.
+    This proposal measures it. It proposes no change to the reward. Changing a
+    reward before knowing its rank correlation with the objective is how the
+    source paper's sparsity intervention came to widen a candidate pool without
+    moving a single decision.
+
+  mechanism: >-
+    Take the states the existing search already reaches - candidate (curve model,
+    presentation) pairs from recorded rollouts, plus a stratified sample drawn
+    directly from the state space so the measurement is not conditioned on where
+    the current policy happens to go. For each state compute two numbers at a toy
+    scale where BOTH are affordable:
+    (1) the reward, exactly as harness/rl_isogeny/reward.py computes it today, with
+        no modification whatsoever; and
+    (2) a downstream cost that the reward is standing in for, measured under a
+        declared, pre-registered definition - the total linear-algebra work to
+        solve the real system through the degrees the solver actually needs, not
+        merely the layer at D*.
+    Then compute Spearman rho and Kendall tau between them, and inspect the top of
+    each ranking against the other. The diagnosis follows the same three-way split
+    as in the source setting: positive rank correlation means the reward is a sound
+    proxy and the search is well posed; near-zero means the search is spending
+    budget without steering; negative means the reward is actively selecting
+    against the objective and every improvement in policy optimization makes the
+    result worse.
+    THE MEASUREMENT MUST NOT BE PERFORMED ONLY ON HIGH-REWARD STATES. Conditioning
+    on reward is the single most likely way to get a wrong sign here, and it is the
+    same error as the source paper's decision to compute q only for its recurrent
+    Fourier terms.
+
+  novelty_status: unverified
+
+  novelty_note: >-
+    Nothing novel is claimed. Reward-versus-objective rank correlation is standard
+    practice for any learned scorer, and the record exists because this program has
+    an active learned search whose reward has not been audited that way, not
+    because the audit is an idea. Whether it has been performed and recorded
+    elsewhere in this repository has been checked only to the extent of reading
+    harness/rl_isogeny/reward.py; if such a record exists, this proposal is
+    redundant and should be withdrawn rather than run.
+
+  citations:
+    - ref: KN-LIT-824baa
+      provenance: internal
+      claim: >-
+        Documents an instance in which a fixed-round training objective ranked
+        intermediate candidates by a local correlation that did not predict the
+        composed long-round objective, with the locally best candidate losing to the
+        classically selected one by a factor 2^13.16; and in which a structural bias
+        intervention (sparsity) enlarged the candidate pool without changing the
+        decision rule at all.
+      verified_by: >-
+        Top-level orchestrating session, 2026-09-04. Full text supplied by the user
+        in-session and read in full; bibliographic identifier unresolved.
+    - ref: KN-TECH-d64293
+      provenance: internal
+      claim: >-
+        Abstracts the failure mode as a proxy-scoring defect independent of model
+        class, and names harness/rl_isogeny as a place this program is exposed to it.
+      verified_by: Top-level orchestrating session, 2026-09-04.
+    - ref: KN-OPEN-7f0d85
+      provenance: internal
+      claim: This proposal is the transfer of that open problem's question Q2 to this program's own tooling.
+      verified_by: Top-level orchestrating session, 2026-09-04.
+
+  assumptions:
+    - >-
+      A downstream cost is computable at toy scale for enough states to give a
+      meaningful rank correlation. If it is not, THE AUDIT IS THE FINDING: a reward
+      whose target quantity cannot be measured even once at any affordable scale has
+      never been validated and cannot be, and that fact belongs on record rather
+      than being worked around.
+    - >-
+      The reward is read, not modified. Any tuning discovered to be desirable is a
+      SEPARATE proposal made after this measurement, never inside it.
+    - >-
+      Toy-scale agreement does not imply agreement at cryptographic scale, and no
+      record produced here may suggest otherwise. The reward module's own claim tier
+      is toy and this audit inherits it exactly.
+
+  predictions:
+    - >-
+      PRIMARY. Spearman rho between reward and downstream cost is POSITIVE but
+      materially below 1 - the reward is a real but loose proxy. Rationale: the
+      first-fall gap term is directly tied to solving behaviour and should carry
+      genuine signal, while the nnz(M_{D*}) shape term measures work at one degree
+      only and should decouple from total cost as systems differ in how far above
+      D* they must go.
+    - >-
+      The rank correlation is WEAKER on the subset of high-reward states than on the
+      full sample - i.e. the reward discriminates worst exactly where the search
+      spends its time, which is the practically damaging pattern and would be
+      invisible to any audit conditioned on reward.
+    - >-
+      Decomposing the reward, the first-fall gap term correlates with downstream cost
+      more strongly than the nnz shape term does. If so, the weights are the lever
+      and a re-weighting proposal is warranted; if not, the whole reading is the
+      problem and re-weighting will not help.
+
+  minimal_test:
+    design: >-
+      (a) Fix a toy parameter set at which the downstream cost is computable, and
+      PRE-REGISTER its definition and budget before any state is scored. (b) Assemble
+      the state sample: recorded rollout states plus a stratified draw over the
+      declared state space, with the strata and draw rule declared first. (c) Score
+      every state with the unmodified reward and with the downstream cost. (d)
+      Report Spearman rho, Kendall tau, bootstrap CIs, the scatter, and the same
+      statistics restricted to the top reward decile. (e) Report the per-term
+      decomposition of prediction 3.
+    controls:
+    - >-
+      UNCONDITIONED SAMPLE ARM. The stratified draw is the control that makes the
+      rank correlation interpretable; without it the statistic is conditioned on the
+      current policy and its sign is not trustworthy. This is the control this record
+      exists to insist on.
+    - >-
+      NULL-STATE ARM. Include the matched nulls the reward already constructs -
+      other_trace and curve_scramble - as states in their own right. Their reward
+      should be uninformative about downstream cost by construction, which
+      calibrates the statistic's floor at this sample size.
+    - >-
+      TIE AND DEGENERACY AUDIT. On a generic class the pre-registered first-fall gap
+      is 0 on every state, so a large fraction of states may share an identical
+      reward. Report the tie fraction; a rank correlation computed over a mostly-tied
+      ranking is close to meaningless and must be labelled so rather than quoted.
+    required_metrics:
+    - Spearman rho and Kendall tau with bootstrap CI, full sample and top decile
+    - tie fraction in the reward ranking
+    - per-term rank correlation for the shape, gap, and deficit terms separately
+    - the state sample and both score columns, committed as an artifact
+
+  falsification_conditions:
+    - >-
+      Rank correlation is negative. The reward is then anti-informative at this
+      scale, the search is steering away from good presentations, and every ranking
+      it has produced must be re-examined before being cited. This is the outcome
+      that would most change what this program does next.
+    - >-
+      Rank correlation is indistinguishable from zero, or the tie fraction is so
+      high that no ranking exists. The reward does not discriminate at this scale
+      and the search's outputs carry no ordering information - a complete result,
+      and one that should be recorded rather than repaired quietly.
+    - >-
+      Downstream cost cannot be computed for enough states. Recorded as an
+      unvalidatable-reward finding, with the specific obstruction named.
+
+  confounders:
+    - >-
+      Rollout states are selected by the current policy and are therefore already
+      conditioned on high reward; this is precisely why the stratified arm is
+      mandatory and why the two arms must be reported separately, never pooled.
+    - >-
+      Downstream cost depends on solver implementation and parameters, so a weak
+      correlation could be an artifact of an unlucky solver configuration. Declare
+      the configuration and repeat on a stratified sample of 10 states under a second
+      configuration.
+    - >-
+      Toy parameters may sit below the regime where either quantity is informative.
+      Report both quantities' spread; if the downstream cost barely varies across
+      states, the correlation is undefined in substance whatever the statistic says.
+
+  interpretation_limits: >-
+    Scoped to the declared toy parameters, the declared state sample, the reward as
+    committed on 2026-09-04, and one downstream-cost definition. Claim tier: toy,
+    inherited from the reward module itself. Nothing here supports any statement
+    about ECDLP hardness, about isogeny-class structure, or about behaviour at
+    cryptographic scale, and a positive result is a statement about a proxy's
+    fidelity, not evidence that the search is finding anything.
+
+  dominated_by: >-
+    Dominated by any existing record in this repository that already measures this;
+    finding one costs a grep and would retire this proposal outright. Also dominated,
+    for the narrow purpose of improving search output, by simply re-ranking the
+    search's final candidates by downstream cost - which is available now, needs no
+    audit, and is the same repair IDEA-20260904-58ace7 proposes in the cipher
+    setting. The audit's distinct value is diagnostic: it says whether re-ranking is
+    sufficient or the reward itself is the defect.
+
+  sota_delta: >-
+    None, and none is possible from this record. It measures an internal tool's
+    proxy fidelity and produces no cryptanalytic result.
+
+  estimated_cost:
+    compute: >-
+      Low to moderate, dominated entirely by the downstream-cost computation at toy
+      scale. The reward side is already implemented and fast. Bounded by the state
+      sample size, which is a declared parameter and should start small - 100 to 200
+      states is enough to establish a sign.
+    implementation: >-
+      Low on the reward side (call the existing module unmodified). Medium on the
+      downstream side, which needs a pre-registered cost definition and a driver;
+      that driver is reusable for any future reward audit.
+    memory: Low.
+
+  recommended_priority: medium
+
+  honest_prior_of_survival: >-
+    Very high that the audit produces a usable number. Perhaps 0.6 on the primary
+    prediction of positive-but-loose correlation; the tie-fraction confounder is the
+    most likely way for the whole measurement to come back undefined rather than
+    negative, and if that happens it is a finding about the reward's discriminative
+    power that matters at least as much as the correlation would have.
+
+  status: proposed
+  proposed_by: top-level-session
+  proposed_at: '2026-09-04'
+  source_refs: [KN-LIT-824baa, KN-TECH-d64293, KN-OPEN-7f0d85, KN-TECH-056]
+  scope_note: >-
+    question_id and goal_id are deliberately null. This is a HARNESS-METHODOLOGY
+    proposal, not a cryptanalytic one, and no existing research question in the
+    ledger covers proxy fidelity of this program's own learned scorers. Placing it
+    under an ill-fitting question would misscope it; a Coordinator should either
+    admit it under an existing goal that owns harness/rl_isogeny or open a question
+    for tooling audits. It is filed now rather than held because the source paper
+    that motivates it is being filed now, and the connection is the kind that is
+    lost if not written down when it is noticed.

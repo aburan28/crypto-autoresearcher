@@ -240,18 +240,12 @@ experiment:
   replication:
     seeds: []
     independent_instances: 0
-  # Budget floors. Historical contracts carry budgets far below anything the
-  # hardware required -- 90 s cells and 255 s scripts (EXP-ICI-001), sized to a
-  # ~280 s tool timeout rather than to the computation. Those caps censored
-  # cells and forced checkpoint engines to be written around them
-  # (src/h012c_block_m4ri.py). The tool cap is now 600 s
-  # (.claude/settings.json), so size a budget to the WORK and let the stopping
-  # rules end the run. Below these floors, state in the objective why:
-  #   wall_clock_seconds_per_run >= 600     (one full tool window)
-  #   maximum_memory_gb          >= 8       (DREG peaked at 7.16 GB)
-  # Existing frozen contracts keep their budgets: they are immutable, and a
-  # re-budgeted protocol is a NEW contract, not an edit to an approved one.
+  # Advisory estimates, not approval gates. Null time/CPU/run estimates are valid.
+  # Size memory/workers for real machine headroom; no arbitrary budget floors.
+  # Optional enforcement: stagnation requires the exceptional 90-day review
+  # described in docs/research-budget-policy.md. Frozen records remain immutable.
   budget:
+    enforcement: advisory
     wall_clock_seconds_per_run: null
     total_cpu_hours: null
     maximum_memory_gb: null
@@ -263,7 +257,7 @@ experiment:
                             # manifest). Declare it only for work that has passed
                             # parallel.verify_determinism, and never above the
                             # core count: the run is charged for its whole
-                            # process group's CPU against total_cpu_hours.
+                            # process group's CPU for reporting; ordinary CPU estimates are not caps.
   stopping_rules: []
   invalidation_rules: []
   success_criterion: null
@@ -436,8 +430,8 @@ claim:
 ## Focused attention and stage budget
 
 Queue v3 requires this record on every active or queued candidate. Stages are
-ordered critical-path phases: wall-clock and CPU totals must reconcile with the
-top-level estimate, and the maximum stage memory must fit its cap.
+optional critical-path phases. Time and CPU estimates may be null and need not
+reconcile exactly. Declared stage memory must fit the machine-protection cap.
 
 ```yaml
 attention_contract:

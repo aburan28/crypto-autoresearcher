@@ -1,0 +1,387 @@
+red_team_report:
+  id: RT-20260905-340bf1
+  task_id: TASK-20260905-bc7d3f-red-team
+  experiment_id: EXP-MONO-7c653b
+  hypothesis_id: H-MONO-10ca08
+  joints_owned:
+    - "joint 2: Stage-4a wrong-rescaling-constant mutant isolates only the rescaling mutation"
+    - "joint 3: 499-vs-500 independent_sample_check discrepancy"
+
+  reviewed_state: >-
+    WORKING TREE, NOT A COORDINATOR SNAPSHOT. Current branch
+    harness-ecdlp-20260904. `git status --porcelain` reports the ENTIRE
+    experiment tree as untracked (`?? experiments/EXP-MONO-7c653b/`), and
+    `git log --all --oneline -- experiments/EXP-MONO-7c653b` returns nothing
+    on ANY branch. The handoff itself (`ledger/handoffs/TASK-20260905-bc7d3f.yaml`)
+    and the hypothesis it cites (`ledger/hypotheses/H-MONO-10ca08.yaml`) are
+    ALSO untracked on every branch. Per docs/task-lifecycle.md Sec.7a ("After
+    a producer reaches a terminal outcome, the Coordinator runs its isolated
+    snapshot archive task before any dependent review") and agents/red-team.md
+    item 6 / Prohibitions ("Review only a Coordinator-committed snapshot...
+    must not... treat a working-tree-only report as a durable research
+    artifact"), the snapshot gate required before this review has NOT been
+    passed. This is a blocking procedural finding, reported per my own
+    operating rules ("Refuse to review working-tree-only artifacts as durable
+    evidence"), not a research verdict. I performed the technical analysis
+    below anyway because it was the explicit, narrow instruction of the
+    dispatching task and the findings are independently checkable facts about
+    the code and data as they currently exist -- but neither verdict below is
+    a validated review of durable evidence until the Coordinator (a) commits
+    this exact snapshot and (b) confirms the sha256 values below are unchanged
+    in the committed tree. If any byte changes, this report does not cover
+    the committed artifact and must be re-run.
+
+  reviewed_sha256:
+    experiments/EXP-MONO-7c653b/specification.yaml: 0d5487f83a102ef10ef679d04bdca1ee4ffbe79f228accee181c679da4386a86
+    experiments/EXP-MONO-7c653b/execution_report.yaml: fffd342ba48168947b58668fcb20d5e1e8819d9bf405d1661442710d032e020d
+    experiments/EXP-MONO-7c653b/implementation.md: 0a4620174785f62a79a95d2813fc1ac57b17020aee7b257cca7110df95e27b5f
+    experiments/EXP-MONO-7c653b/implementation/run_experiment.py: 1f37fe2a2ccd34f7352fb622b6d6cc0df04a7d0de67cc7c113741640baa82d34
+    experiments/EXP-MONO-7c653b/runs/RUN-MONO-7c653b-1/raw-result.json: eb35059b25eeae4cdac3d03d79f3eeff014df460ae5ad2165d18264bff818797
+    experiments/EXP-MONO-7c653b/runs/RUN-MONO-7c653b-1/manifest.yaml: dd2d5f04963926df116c7f8b6c4621f952d1a4b7c4548911f1dbffb07440b7c1
+    experiments/EXP-MONO-7c653b/runs/RUN-MONO-7c653b-2/raw-result.json: d4a9aa5d2e967a50683f57cac8a376253d760959e4bb2cce39655bafb94a0d00
+    experiments/EXP-MONO-7c653b/runs/RUN-MONO-7c653b-2/manifest.yaml: 329a287e794c7964bd375742e117b63b94d602f403b04826d9885e50b8e1f821
+    ledger/hypotheses/H-MONO-10ca08.yaml: af88069e872d16050720a7995bc723b9599282dc60d3330a27143b1f7ad110db
+    ledger/handoffs/TASK-20260905-bc7d3f.yaml: 0203228ac9b87fc886faa19af31e4ede5d009037c8855e3060733f8c718b488f
+
+  claim_under_review: >-
+    (joint 2) Stage 4a's own reported mutant_agreement_rate=0.0 (0/50, both
+    runs) is a genuine consequence of the deliberately wrong final rescaling
+    constant delta', and not an artifact of the mutant construction also
+    perturbing something else (e.g. also using delta' inside the summation).
+    (joint 3) RUN-1's own raw-result.json reports
+    independent_sample_check.stage3_m4_p211_tuple_count=499 while
+    stage3.cells.m4_p211.n_completed=500; what causes this, and does it mean
+    Stage 3's exact_match_rate rests on fewer genuine trials than declared.
+
+  verdict_summary: >-
+    JOINT 2: HOLD. JOINT 3: HOLD on the substantive question (no trial was
+    dropped or duplicated; Stage 3's exact_match_rate is unaffected) but WITH
+    A REQUIRED CORRECTION -- execution_report.yaml itself misreports the
+    raw value for run_1 (states 500, the raw-result.json says 499), which is
+    worse than "undisclosed" and must be fixed before archival.
+
+  # =====================================================================
+  # JOINT 2 -- STAGE-4A MUTANT ISOLATION
+  # =====================================================================
+  joint_2_mutant_isolation:
+    verdict: HOLD
+    code_reading: >-
+      implementation/run_experiment.py. `stage4a()` (lines 587-677) builds
+      `E_delta = EllipticCurve(p, (a*delta*delta)%p, (b*delta**3)%p)` at line
+      592 and `points_delta = build_points_delta(a, b, p, delta, tuple_x)` at
+      line 631 -- BOTH parameterized by the CORRECT `delta`, never
+      `delta_prime`. `mutant_twist_route_xset()` (lines 319-336) takes the
+      already-built `E_delta`/`points_delta` and runs the IDENTICAL
+      accumulation loop as `twist_route_xset()` (lines 295-316, Stage 3's own
+      route: same `E_delta.negate`/`add_counter` calls, same sign
+      enumeration over eps in {+1,-1}^(k-1) with eps_0 fixed). `delta_prime`
+      is used in exactly two places in the whole file: `inv_delta_prime =
+      pow(delta_prime, -1, p)` (line 324) and `xQ = (acc[0] *
+      inv_delta_prime) % p` (line 334) -- both AFTER `acc` (the full signed
+      sum R) has already been computed using delta-based points. Grepped
+      every occurrence of "delta_prime"/"delta'" in the file (11 hits: 319,
+      322, 324, 334, 341, 596, 598, 608, 610-612, 633, 658-659, 671) -- none
+      is inside `build_points_delta` or an `EllipticCurve(...)` construction
+      call. This is exactly and only the final-rescaling mutation, matching
+      the contract's own PROVES-TOO-MUCH-WRONG-RESCALING-MUTANT control
+      description verbatim.
+    excluded_mutants_confirmed_absent: >-
+      (a) Sign flip on y_i': not present -- `mutant_twist_route_xset` uses
+      the SAME `points_delta` list and the SAME `E_delta.negate` calls as
+      Stage 3's own `twist_route_xset`; no separate y'-negation code path
+      exists anywhere in the file. (b) Rebuilding both twist and rescaling
+      with the same delta': not present -- `E_delta` and `points_delta` are
+      each built exactly once per stage4a() call, both parameterized by
+      `delta` (verified above); `delta_prime` never appears as an argument to
+      `build_points_delta` or to `EllipticCurve(...)`.
+    hand_reconstruction: >-
+      Fresh, independent script (rt1_mutant_reconstruction.py, this
+      directory) implementing textbook affine short-Weierstrass point
+      addition and a brute-force modular square root FROM SCRATCH -- no
+      import of harness/toycurve.py or run_experiment.py's own group-law/sqrt
+      code. Reconstructed RUN-1's own stage4a trial 0 (m=4, p=211, a=37,
+      b=57, delta=57, delta_prime=102, tuple_x=[5,163,155]):
+        twist points (74,58),(7,44),(184,99) on E_delta: y^2=x^3+154x+93 (mod
+        211), independently verified on-curve;
+        rescaling the 4 signed-sum results by inverse(delta) gives x-set
+        {5,67,144,171} -- EXACTLY the raw-result.json direct_route_xset for
+        this trial (confirms the reconstruction is faithful before the
+        mutation is even applied);
+        rescaling the SAME 4 signed-sum results by inverse(delta_prime)
+        instead gives x-set {6,9,139,205} -- EXACTLY the raw-result.json
+        mutant_twist_route_xset for this trial, and disjoint from
+        {5,67,144,171}.
+      Script output reproduced by re-running it in this session; all
+      assertions pass.
+    full_batch_algebraic_corroboration: >-
+      Beyond the single hand-worked trial, script rt3_full_batch_scale_relation.py
+      checks the closed-form identity mutant_xset == {(delta *
+      inverse(delta_prime) * c) mod p : c in direct_route_xset} against ALL
+      50 trials in BOTH official runs, using only the values already recorded
+      in each run's raw-result.json (no group-law re-execution needed for
+      this check). RESULT: 50/50 trials in RUN-1 (fixed scale constant
+      delta*inv(delta')=44 mod 211) and 50/50 trials in RUN-2 (fixed scale
+      constant 73 mod 211) satisfy the identity exactly, and the constant is
+      never 1. This relation can hold for every trial only if the
+      pre-rescaling accumulator X(R) is IDENTICAL between the correct route
+      and the mutant route in every single trial -- i.e. it is a full
+      algebraic proof, not a spot check, that delta_prime enters nowhere
+      except the one final division, across the entire sample in both runs.
+      This also explains MECHANISTICALLY why the agreement rate is 0/50
+      rather than merely "observed to be 0/50": each mutant x-value is the
+      corresponding correct x-value times a FIXED nonzero, non-unity scalar,
+      which for a generic value produces an unequal result -- matching the
+      contract's own forced_output reasoning ("the returned x-set is scaled
+      by delta/delta' != 1").
+    breaking_artifact_check: >-
+      NOT FOUND. No evidence the mutant construction secretly perturbs
+      anything besides the final rescaling; no hand-reconstructed trial
+      matches the direct route.
+
+  # =====================================================================
+  # JOINT 3 -- 499-VS-500 DISCREPANCY
+  # =====================================================================
+  joint_3_tuple_count_discrepancy:
+    verdict: HOLD (substantive) WITH REQUIRED CORRECTION (execution_report.yaml)
+    exact_mechanism: >-
+      `independent_sample_check()` (run_experiment.py lines 680-714)
+      redraws Stage 3's OWN "twisted-fb-tuple" SHA-256 stream for p=211, m=4
+      -- a bit-identical reproduction of `stage3_cell`'s own draw sequence,
+      since `SeedStream`/`draw_distinct` are pure functions of (domain,
+      label, p, m, counter) and `tfb["xs"]` (itself a deterministic scan) --
+      and stores each of the 500 draws as `tuple(sorted(draw_distinct(...)))`
+      inside a Python `set()` (line 693). Re-executing this exact code
+      (script rt2_tuple_count_discrepancy.py, this directory, importing
+      run_experiment.py's own SeedStream/draw_distinct/twisted_factor_base
+      functions -- an investigative reproduction of an already-executed
+      deterministic PRNG stream, distinct from the from-scratch blind
+      re-derivation assigned to the other joint) reproduces the discrepancy
+      exactly and locates its origin: for domain="EXP-MONO-7c653b/v1/run-20260905"
+      (RUN-1's own domain), trial index 218 (0-indexed) draws [121,78,103]
+      and trial index 206 drew [103,78,121] -- the SAME 3-element value-set
+      {78,103,121}, just in a different internal Fisher-Yates pop order. The
+      `set()` collapses these two distinct trials into one entry, yielding
+      len(s3_tuples)=499 against 500 actual draws.
+    why_this_is_benign_not_a_dropped_or_duplicated_trial: >-
+      `stage3_cell`'s own loop (`for i in range(n): ... trials_completed +=
+      1`, lines 458-500) increments `trials_completed` unconditionally once
+      per iteration, independent of the drawn value; trial 206 and trial 218
+      are TWO separate, fully-executed pipeline runs (two separate
+      `poly_split_analysis` calls on the direct-route Semaev polynomial, two
+      separate `build_points_delta`/`twist_route_xset` calls on the twist
+      route, two separate match comparisons) -- nothing is cached, skipped,
+      or reused across iterations. Moreover the two trials are PROVABLY
+      forced to agree on outcome regardless: Semaev's S_4 is symmetric under
+      permutation of its three fixed arguments, and the twist-route signed
+      sum is symmetric under permutation of the input points (elliptic-curve
+      addition is commutative, and the code's own eps-enumeration already
+      ranges over the complete 2^k sign set up to global negation regardless
+      of input order) -- so trials 206 and 218 compute mathematically
+      IDENTICAL direct-route and twist-route outputs, only differing in
+      which coordinate is internally labelled first. The coincidence could
+      not, even in principle, have silently inflated or deflated
+      exact_match_rate. n_completed=500 for this cell is the correct count
+      of genuinely executed, independently evaluated trials.
+    plausibility_check: >-
+      p=211's twisted factor base has size 100 (verified:
+      `twisted_factor_base(211,37,57)["size"]==100`), giving C(100,3)=161700
+      possible 3-element subsets. A birthday-bound estimate for 500 draws
+      gives P(>=1 collision) = 1-exp(-500*499/(2*161700)) ~= 0.538 -- an
+      unsurprising, roughly-coin-flip-odds event, not evidence of a tracking
+      defect.
+    generalization_check_all_cells_both_runs: >-
+      Re-ran the identical duplicate-detection logic (rt2_tuple_count_discrepancy.py)
+      for all 8 (seed, cell) combinations: RUN-1 m4_p1009 (fb=473): 0
+      duplicates in 500 draws. RUN-1 m5_p211 (fb=100): 0 duplicates in 200
+      draws. RUN-1 m5_p1009 (fb=473): 0 duplicates in 200 draws. RUN-2, all
+      four cells (m4_p211, m4_p1009, m5_p211, m5_p1009): 0 duplicates. RUN-1's
+      m4_p211 cell is the ONLY one of 8 with a repeated value-set, consistent
+      with it having by far the smallest factor base (100 vs 473) and hence
+      the highest per-draw collision probability -- not with any
+      cell-specific code defect. Note that `independent_sample_check()` is
+      only ever COMPUTED for the m4/p211 cell in the first place (Stage 4a
+      itself is fixed at m=4,p=211 by the contract), so raw-result.json
+      carries no equivalent field for the other three Stage-3 cells to be
+      discrepant in; I supplied the missing comparison directly.
+    required_correction_found_beyond_the_assigned_question: >-
+      execution_report.yaml line 134 states `run_1: {stage3_m4_p211_tuple_count:
+      500, stage4a_tuple_count: 50, overlap_count: 0}` -- this is FACTUALLY
+      WRONG. RUN-1's own raw-result.json records stage3_m4_p211_tuple_count
+      as 499, not 500. implementation.md (~line 240) independently describes
+      the check as recomputing "Stage 3's own 500-tuple m4_p211 sample"
+      without disclosing the collision anywhere. This is a stronger finding
+      than "not disclosed": the Executor's own summary artifact contains an
+      incorrect transcription of its own raw data for RUN-1, silently
+      smoothing the anomalous value to match RUN-2's clean 500 rather than
+      reporting the observed value. This does not change the validity of
+      Stage 3's exact_match_rate (see above) but the record cannot be
+      archived with execution_report.yaml stating a number contradicted by
+      its own cited raw-result.json.
+    breaking_artifact_check: >-
+      NOT FOUND on the substantive question (no dropped/duplicated trial). A
+      DIFFERENT, narrower defect WAS found: execution_report.yaml's own
+      summary number for run_1 is wrong and must be corrected to 499 with
+      the mechanism disclosed, before this record is treated as complete.
+
+  objections:
+    - id: RT-O1
+      severity: substantive_but_narrow
+      target: experiments/EXP-MONO-7c653b/execution_report.yaml line 134
+      statement: >-
+        `run_1: {stage3_m4_p211_tuple_count: 500, ...}` contradicts RUN-1's
+        own raw-result.json, which records 499. This is a factual error in
+        the Executor's summary, not merely an undisclosed byproduct.
+      required_fix: >-
+        Correct the run_1 value to 499 in execution_report.yaml and add one
+        disclosure sentence naming the mechanism (a benign birthday-coincidence
+        collision between two of Stage 3's own 500 independently-drawn,
+        independently-evaluated trials at the smallest-factor-base cell,
+        verified not to affect n_completed or exact_match_rate). Confirmed
+        benign and isolated to this one (seed, cell) pair; see
+        joint_3_tuple_count_discrepancy above.
+    - id: RT-O2
+      severity: procedural
+      target: whole record
+      statement: >-
+        Reviewed from the working tree; the experiment, its runs, its
+        execution_report.yaml, its cited hypothesis H-MONO-10ca08, and the
+        dispatching handoff TASK-20260905-bc7d3f are ALL untracked on every
+        branch (`git log --all` empty for each path). Not a durable research
+        artifact until the Coordinator's snapshot commit per
+        docs/task-lifecycle.md Sec.7a.
+
+  required_controls:
+    - id: RT-C1
+      name: fresh independent EC-arithmetic reconstruction of one Stage-4a trial
+      cost: minutes
+      status: RUN BY ME, PASSES (rt1_mutant_reconstruction.py) -- reproduces
+        both the reported direct_route_xset and mutant_twist_route_xset for
+        RUN-1 trial 0 exactly, using no code imported from the implementation
+        or harness/toycurve.py.
+    - id: RT-C2
+      name: full-batch algebraic scale-relation check, both runs, all 100 trials
+      cost: seconds
+      status: RUN BY ME, PASSES (rt3_full_batch_scale_relation.py) -- 50/50 +
+        50/50 trials satisfy mutant_xset = (delta/delta')*correct_xset
+        elementwise with a fixed nonzero non-unity scale constant per run.
+    - id: RT-C3
+      name: re-execution of the implementation's own draw functions for all 8
+        (seed, cell) combinations to check for the SAME class of discrepancy
+        elsewhere
+      cost: seconds
+      status: RUN BY ME (rt2_tuple_count_discrepancy.py) -- confirms the
+        collision is unique to seed=20260905/m4_p211 and absent from all
+        other 7 cells in both runs.
+    - id: RT-C4
+      name: correction of execution_report.yaml's run_1 tuple-count value
+      cost: trivial (one-line edit + one disclosure sentence)
+      status: NOT DONE IN THE RECORD; required before archival (see RT-O1)
+
+  counterexample_or_mutation: >-
+    None found for joint 2 (the mutant control is genuine and fully
+    explained algebraically). For joint 3, the "counterexample" I went
+    looking for (a dropped or duplicated TRIAL, per the assigned
+    breaking_artifact) was not found; what I found instead is a documentation
+    defect (RT-O1) that the assigned attack plan's exact wording did not
+    anticipate but which the same investigation surfaced directly.
+
+  baseline_comparison: >-
+    Not applicable. This record makes no ECDLP, Pollard-rho, BSGS, or
+    exponent claim (per its own claim_ceiling.tier: toy and
+    what_no_outcome_can_support), and neither joint I reviewed touches a cost
+    or complexity claim. No dominated_by field exists in this record to
+    audit, correctly, since none is claimed.
+
+  heuristic_challenges: []
+
+  cost_model_challenges: []
+
+  reduction_and_scope_challenges: []
+
+  proof_architecture_challenges: []
+
+  narrowest_supported_statement: >-
+    On the working-tree state hashed above (NOT YET a Coordinator snapshot):
+    (1) Stage 4a's mutant construction in
+    implementation/run_experiment.py, as actually written, uses `delta_prime`
+    in exactly one place (the final rescaling multiplication) and nowhere
+    inside the twist-point or curve construction; this is confirmed both by
+    direct code reading (every occurrence of delta_prime enumerated) and by a
+    fresh, independent hand/code reconstruction of one trial plus a full
+    algebraic check of all 100 trials across both runs. The reported 0/50
+    mutant-agreement rate in each run is genuine and mechanistically
+    explained (a fixed nonzero rescaling-ratio applied to the correct
+    x-values). (2) The 499-vs-500 discrepancy in RUN-1's
+    independent_sample_check traces to a single, isolated birthday-coincidence
+    collision between two of Stage 3's own 500 genuinely-executed,
+    independently-evaluated trials at the smallest-factor-base cell (p=211,
+    fb size 100); it does not represent a dropped or duplicated trial and
+    does not affect Stage 3's reported exact_match_rate; it is absent from
+    all other 7 (seed, cell) combinations. (3) execution_report.yaml's own
+    run_1 tuple-count entry is nonetheless factually wrong (states 500,
+    should state 499) and must be corrected before this record is archived.
+    (4) Nothing in this review bears on H-MONO-10ca08's central
+    twist-arithmetic isomorphism claim (joint 1) or the proves-too-much
+    control (both validator's assignment, not read by me, per this round's
+    mutual blindness).
+
+  next_concrete_action: >-
+    Before the Coordinator composes an evidence/decision record: (a) correct
+    execution_report.yaml's run_1 stage3_m4_p211_tuple_count to 499 with a
+    one-sentence disclosure of the birthday-collision mechanism (RT-O1); (b)
+    run the Coordinator's own isolated snapshot-commit task over this exact
+    experiment tree (specification.yaml, execution_report.yaml [as corrected],
+    implementation.md, implementation/, runs/) per docs/task-lifecycle.md
+    Sec.7a, and re-verify the sha256 values in this report against the
+    committed bytes before treating this review as covering durable evidence.
+
+  artifact_paths:
+    - experiments/EXP-MONO-7c653b/reviews/red-team/red-team-report.yaml
+    - experiments/EXP-MONO-7c653b/reviews/red-team/rt1_mutant_reconstruction.py
+    - experiments/EXP-MONO-7c653b/reviews/red-team/rt2_tuple_count_discrepancy.py
+    - experiments/EXP-MONO-7c653b/reviews/red-team/rt3_full_batch_scale_relation.py
+
+  review_attestation:
+    task_id: TASK-20260905-bc7d3f
+    role: red-team
+    joints_owned:
+      - "joint 2: Stage-4a wrong-rescaling-constant mutant"
+      - "joint 3: 499-vs-500 independent_sample_check discrepancy"
+    verdict: "joint 2: HOLD; joint 3: HOLD (substantive) with required correction RT-O1"
+    independent_session: true
+    read_sibling_reports: false
+    sibling_blindness_note: >-
+      No validator report existed under experiments/EXP-MONO-7c653b/reviews/
+      at the time of this review; none was read. joint 1 (isomorphism claim)
+      and the proves_too_much control are the validator's assignment and were
+      not attacked here.
+    blind_from: []
+    blind_rederivation_note: >-
+      For joint 2, rt1_mutant_reconstruction.py imports NOTHING from
+      harness/ or implementation/run_experiment.py -- independent affine
+      Weierstrass addition and brute-force sqrt, written fresh. For joint 3,
+      rt2_tuple_count_discrepancy.py DOES import run_experiment.py's own
+      SeedStream/draw_distinct/twisted_factor_base, deliberately: the task
+      is to locate the mechanism inside an ALREADY-DETERMINISTIC,
+      already-executed PRNG stream, not to blindly re-derive an independent
+      construction (that requirement was reserved for joint 1, assigned to
+      the validator).
+    sources_read:
+      - AGENTS.md
+      - agents/red-team.md
+      - ledger/handoffs/TASK-20260905-bc7d3f.yaml
+      - experiments/EXP-MONO-7c653b/specification.yaml
+      - experiments/EXP-MONO-7c653b/execution_report.yaml
+      - experiments/EXP-MONO-7c653b/implementation.md
+      - experiments/EXP-MONO-7c653b/implementation/run_experiment.py (full, 765 lines)
+      - experiments/EXP-MONO-7c653b/runs/RUN-MONO-7c653b-1/raw-result.json
+      - experiments/EXP-MONO-7c653b/runs/RUN-MONO-7c653b-2/raw-result.json
+      - experiments/EXP-MONO-805a02/reviews/red-team/red-team-report.yaml (format precedent only)
+    not_read_deliberately:
+      - "any validator/ report or working notes for this task_id (joint 1 / proves_too_much are the validator's scope)"
+    requested_policy: review-adversarial
+    requested_reasoning_effort: xhigh
+    authority_note: >-
+      This report changes no status of EXP-MONO-7c653b, H-MONO-10ca08, or any
+      goal. It is an objection/verdict set for the Coordinator's ledger
+      archive task, per return_format.
