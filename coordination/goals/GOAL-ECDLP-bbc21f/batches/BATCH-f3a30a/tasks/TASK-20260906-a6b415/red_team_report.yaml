@@ -1,0 +1,279 @@
+red_team_report:
+  id: RT-20260906-a6b415
+  task_id: TASK-20260906-a6b415
+  claim_under_review: 'The review_plan''s joints J3 and J4 only (per this task''s assigned scope; J1/J2
+    are TASK-20260906-bc1cfc''s, not read here): (J3) does CAP(2T)''s measured S_peak actually equal 2T
+    at every seed/N/T_sel (not drift to 2.6-2.8T as v1''s own measurement found), and is every headline
+    number reported as the full frontier tuple with S_peak charged, never a bare ratio; (J4) does the
+    v2 analysis pipeline correctly score G1 FAIL (never crash, never PASS) on both permanent negative
+    fixtures, and does the corrected HEUR-BLT-7 / frontier-tuple pipeline collapse to no positive re-selection
+    gain on a fresh random-permutation null object.'
+  joint_verdicts:
+  - joint: J3
+    verdict: HOLDS_WITH_FINDINGS
+    reasoning: 'Read experiments/EXP-ECDLP-612fb1/source_v2/instrument.py end to end and traced the per-target
+      admission+cap loop inside run_arm (the block that begins "resel_ops = 0 / admitted_walks_this_round
+      = 0 / ... for i in range(tb.shape[0])"). Confirmed by direct code reading that the cap check "if
+      admitted_this_target > 0 and len(pool) > cfg.pool_cap: ... pool.restrict(order)" sits INSIDE the
+      per-target loop, immediately after that target''s own walks are admitted and BEFORE the next target''s
+      walks are processed -- this is a per-admission (per solved target''s full walk set, treated as one
+      atomic admission unit) truncation, exactly matching the contract''s own instrument.pool_admission_v2
+      text ("one solved target''s full set of used walks at a time ... before the next target''s walks
+      are admitted") and NOT the v1 defect (round-end-only truncation after the whole round''s admissions
+      were merged). Reproduced this mechanism on a hand-crafted 5-entry pool / cap=5 synthetic example
+      using the REAL production Pool/CountedSelector/numpy_select classes (not a reimplementation): every
+      one of 4 targets that grew the pool above cap was truncated back to exactly cap immediately, before
+      the next target was processed; a side-by-side v1-style round-end-only simulation on the identical
+      target sequence let the pool transiently reach 9 entries (vs. cap 5) before a single end-of-round
+      truncation brought it back to 5 -- reproducing the v1 defect the amendment fixes on a fully auditable
+      example (j3_synthetic_trace.py / .log). Independently re-derived the NUMERIC claim by reading every
+      one of the 10 v2 STAGE 1v2/2v2 run summary.json files directly (not trusting the executor''s report):
+      CAP(2T,T_sel)''s S_peak_bits equals EXACTLY 2*T*bits_per_pool_entry (49152 at 2^24, 221184 at 2^30)
+      at ALL 5 seeds x 2 T_sel labels x 2 N values (20/20 cells checked), matches max_pool_entries, matches
+      max_pool_entries_within_round, and cap_S_peak_honest_every_round is True in every case (j3_speak_crosscheck.py
+      / .log). cap_truncations_total is large (1503-1675 at 2^24, 6171-6621 at 2^30) against only 16 rounds
+      per run -- i.e. truncation fires roughly 100-400 times PER ROUND, which is only possible if truncation
+      is applied at a much finer grain than round-end (if it were v1''s once-per-round rule, this counter
+      could not exceed 16). This independently corroborates the per-admission timing claim from the run
+      data itself, not just the code reading. Also confirmed structurally (by reading analysis.py''s per_tsel
+      entry construction and by dumping the raw ci_tables.json) that every rho_T_8T/rho_T_16T value is
+      co-located in the SAME JSON object as frontier_tuple_item_d (T_sel/T, S_peak/T bits, P/sqrt(NT),
+      L/target, eps_ss, eps_cum, early-batch penalty) and CAP_2T_retention_item_f in all 4 cells (j3_bare_ratio_check.py
+      / .log); the same bundling is visible in the human-readable execution_report.yaml and analysis.md.
+      No bare T_sel/T or rho ratio was found anywhere in the run outputs or the executor''s report.'
+    breaking_artifact_found: null
+    findings:
+    - (non-breaking) The headline S_peak_bits is computed from res.max_pool, which is updated ONCE PER
+      ROUND, at round end, OUTSIDE the per-target admission loop ("res.max_pool = max(res.max_pool, len(pool))"
+      runs after the "for i in range(tb.shape[0])" loop completes) -- it is NOT computed by scanning every
+      per-target checkpoint recorded in max_pool_seen_this_round within that round. A SEPARATE, finer-grained
+      tracker (max_pool_seen_this_round / res.max_pool_within_round) IS updated at every per-target checkpoint
+      and IS what backs the validity gate (cap_S_peak_honest_every_round, via pool_cap_honest_this_round
+      in harness_run.py's validity()). I proved mathematically (and confirmed empirically in all 20 tested
+      cells) that these two quantities MUST coincide whenever the validity gate passes, because restrict()
+      always truncates to EXACTLY cfg.pool_cap (never below), so once a CAP arm's pool first reaches cap
+      it can only ever be found at cap or above at any checkpoint, and any excursion above cap is immediately
+      clipped back to exactly cap -- so the round-end value and the round's true internal peak are provably
+      identical under this growth-then-clip-to-exact dynamic. This is not a live defect (I verified zero
+      discrepancies across every seed/N/T_sel this batch produced), but the headline metric's correctness
+      currently rests on an UNSTATED invariant rather than being computed directly from the finer tracker
+      that already exists in the same ArmResult object. A future amendment that changes the admission
+      unit (e.g. a per-walk rather than per-target atomic cap check) or combines pool_cap with null_a
+      mode could break this invariant silently in the headline number while the validity gate (which uses
+      the fine tracker) might still catch it, or might not, depending on exactly how the invariant breaks.
+      Recommend computing S_peak_bits directly from res.max_pool_within_round (already computed) rather
+      than from the separately-tracked res.max_pool, to remove the reliance on the unstated invariant.
+    - (non-breaking) CAP(2T,T_sel) "retention" (capped_gain / uncapped_gain) exceeds 1.0 at 2 of 4 cells
+      (1.096 at 2^24,0.75T; 1.138 at 2^30,0.65T), i.e. the point estimate says the CAPPED arm's gain over
+      STATIC(T) is LARGER than the UNCAPPED arm's own gain, which is not the direction "retention" normally
+      implies. The executor's report attributes this to noise given the small underlying gain (0.06-0.08)
+      and comparable CI widths, which is a plausible explanation given the diff_8T CIs reported elsewhere
+      in the same cell (width around 0.01-0.03), but no CI is reported on the retention ratio itself or
+      on the capped-minus-uncapped gain difference, so the "not a contract violation" claim rests on prose
+      rather than a number. Recommend a bootstrap CI on (capped_gain - uncapped_gain) beside the retention
+      point estimate.
+  - joint: J4
+    verdict: HOLDS_WITH_FINDINGS
+    reasoning: 'PART 1 (permanent negative fixture, item g) -- HOLDS, verified independently and redundantly.
+      Read experiments/EXP-ECDLP-612fb1/source_v2/analysis.py''s run_permanent_fixture_check() and compute_g1():
+      the None-guard is "nc = x.get(''cutoff'', {}).get(''n_c_theta2_over_2'')" plus "cutoff_ok = all((e[''n_c_theta2_over_2'']
+      is not None) and (0.5 <= ... <= 2.0) ...)", i.e. an explicit is-not-None short-circuit before the
+      range comparison, exactly matching the red team''s own reference patch (src/pipeline_perm/analysis.py.diff)
+      cited in the contract. I did NOT merely re-read the executor''s claim: I imported the real source_v2/analysis.py
+      module and called run_permanent_fixture_check() myself, directly, against the two committed fixture
+      directories (BATCH-289698/TASK-20260906-90e7cf/results/j4_perm/{affine_xorshift,permutation}) --
+      result: NO exception, G1_verdict = FAIL on both (j4_g1_fixture_reverify.py / .log, Part 1a). I independently
+      inspected the raw fixture summary.json files and confirmed cutoff.n_c is genuinely None ("tail too
+      short") on all 6 fixture runs (3 seeds x 2 kinds), i.e. the None-guard path is genuinely exercised,
+      not vacuously satisfied (Part 1b). I then deliberately reproduced the PRE-FIX (v1-style) code --
+      direct dict indexing and no is-not-None short-circuit -- and ran it against the SAME fixture data:
+      it raises TypeError (''<='' not supported between instances of float and NoneType) on both fixture
+      kinds (Part 1c). This is the proves-too-much control applied to the FIX itself: it confirms the
+      None-guard is load-bearing on these exact fixtures (they would genuinely crash without it, matching
+      F-J4-4), not a coincidental pass. Item (g) is correctly and non-coincidentally implemented. PART
+      2 (fresh permutation null, mechanism collapse) -- the underlying claim HOLDS when tested, but the
+      batch under review DID NOT TEST IT; I supplied the missing test myself. The v2 contract''s own g1_permanent_fixture_procedure
+      (and the executor''s permanent_negative_fixture_check_item_g section of execution_report.yaml) is
+      scoped EXCLUSIVELY to the G1 basin-law aggregation (slope/cutoff/top-share/static-below) on the
+      two BATCH-289698 fixtures. Nothing in the v2 contract, the executor''s report, or analysis.py runs
+      the CORRECTED HEUR-BLT-7 regression or the frontier-tuple RESEL-L arm against a structurally null
+      (no-tree, no-basin-heterogeneity) object -- the BATCH-289698 "permutation" fixture itself predates
+      v2 and was built and analyzed only under v1''s pipeline (T_sel grid {T/4,T/2,3T/4,T}, no admitted_walks_total/HEUR-BLT-7-v2
+      fields), so its own results (gain(RESEL-L,T/2) in {-0.0026,-0.0052,0.0}; gain(RESEL-L,T) in {0.0,-0.0026,-0.0052}
+      at r in {2,4,8}, all near-zero/negative, from its own analysis/analysis.md) corroborate the mechanism
+      collapsing under v1''s code but do not exercise v2''s corrected code path at all. I constructed
+      a fresh test: imported the real, UNMODIFIED source_v2/instrument.py, overrode Params.step per-instance
+      (a script-local monkeypatch, nothing written to source_v2/) with a keyed numpy permutation of [0,N)
+      -- the same "no basin merging, no convergence" bijection construction the red team used for the
+      BATCH-289698 fixture -- and ran the real run_arm/exact_basins/generate_pools/ CountedSelector code
+      at N=2^20, a=1/4, r=2, v2''s own T_sel_grid_v2={0.65T,0.75T}, 3 seeds (j4_permutation_null_v2.py
+      / .log). Result: eps_ss(RESEL-L(T_sel)) - eps_ss(STATIC(T)) at U in {8T,16T} is exactly 0 or NEGATIVE
+      in every one of 6 (seed x T_sel) cells measured (range -0.0234 to 0.0), far below the real object''s
+      measured +0.06 to +0.08 gain; RESEL-L''s final exact coverage is at or slightly BELOW STATIC(T)''s
+      own coverage in every seed (e.g. 0.00812 vs 0.00937); the v2-corrected r_eff (r + admitted_walk_count/T)
+      computes cleanly without exception (2.59-2.86 at U=8T); and CAP(2T,0.65T)''s S_peak still never
+      exceeds 2T*bits_per_pool_entry on this null object either. This corroborates the amendment''s own
+      prediction that the mechanism collapses on an object with no basin/convergence structure to exploit,
+      using v2''s own corrected code and grid for the first time.'
+    breaking_artifact_found: null
+    findings:
+    - (coverage gap, not a breaking artifact) No part of the current v2 pipeline codifies a PERMANENT
+      regression check for "the corrected HEUR-BLT-7 / re-selection gain collapses on a null object with
+      no tree structure" the way item (g) codifies one for the G1 basin-law fit. The check I ran (j4_permutation_null_v2.py)
+      is a one-off red-team script against source_v2/instrument.py, not a committed fixture with its own
+      frozen result set the way the BATCH-289698 affine_xorshift/permutation fixtures are for G1. A future
+      change to the re-selection weight formula, the admission rule, or the corrected r_eff computation
+      that spuriously manufactured gain from pure noise would not be caught by anything currently in analysis.py's
+      stopping conditions. Recommend promoting this check (or a v2-native version of the BATCH-289698
+      permutation fixture, re-run once through source_v2/run_generic.py's own arm list) to a permanent
+      fixture alongside item (g)'s G1 check, gating STAGE 4v2 the same way.
+    - (documentation gap) specification.v2.yaml's definitions.permanent negative fixture and inputs.g1_permanent_fixture_procedure
+      describe the fixture's role ONLY in terms of the G1 gate; a reader relying solely on the contract
+      text (rather than the amendment record's F-J4-4 citation and the underlying BATCH-289698 red_team_report.yaml)
+      would not learn that the fixture set also contains full arm-level (RESEL-L/CAP/HEUR-BLT-7) v1-era
+      results that could, with modest adaptation, support the broader mechanism- collapse check performed
+      here.
+  required_controls:
+  - 'J3: report a bootstrap CI on (capped_gain - uncapped_gain) beside every CAP(2T,T_sel) retention point
+    estimate, so a retention ratio > 1.0 can be read as "consistent with zero difference" or "a genuine
+    anomaly" without relying on prose.'
+  - 'J3: compute S_peak_bits directly from res.max_pool_within_round (already tracked) rather than from
+    the separately-tracked res.max_pool, removing reliance on the currently-true-but- unstated invariant
+    that the two must coincide whenever the validity gate passes.'
+  - 'J4: commit a v2-native permutation-null (and/or affine-xorshift-null) fixture that runs the FULL
+    v2 arm list (RESEL-L, CAP, HEUR-BLT-7-v2 regression, frontier tuple) through source_v2/run_generic.py''s
+    own code path, with its own frozen expected result (gain <= 0 at every T_sel), as a permanent STAGE
+    4v2 regression check parallel to item (g)''s G1 check -- not a red-team side script re-run ad hoc
+    each batch.'
+  counterexample_or_mutation: 'For J4 Part 1, deliberately reintroduced the pre-fix (v1-style) unguarded
+    dict indexing ("x[''cutoff''][''n_c_theta2_over_2'']" plus a bare "0.5 <= nc <= 2.0" with no is-not-None
+    short-circuit) and ran it against the same two permanent fixtures: it raises TypeError on both, proving
+    the None-guard genuinely and non-coincidentally prevents the crash the amendment''s item (g) exists
+    to fix (see j4_g1_fixture_reverify.log, Part 1c). For J3, reproduced v1''s round-end-only truncation
+    rule on the identical hand-crafted target sequence used to exercise v2''s per-admission rule: the
+    v1-style simulation lets the pool transiently reach 9 entries against a cap of 5 (vs. v2''s rule,
+    which never exceeds 5 at any checkpoint), concretely demonstrating the defect the amendment fixes
+    (see j3_synthetic_trace.log).'
+  baseline_comparison: Out of scope for J3/J4 as assigned (these joints concern internal bookkeeping and
+    pipeline soundness, not a comparison against Pollard-rho/BSGS/Bernstein-Lange); that comparison is
+    carried by the contract's own G2 fixture (measured scaled main cost 1.705-1.727 vs published 1.79
+    +/- 0.18, both N pass) and by J1/J2, which are outside this task's assigned scope and were not read.
+  heuristic_challenges: []
+  cost_model_challenges:
+  - The frontier tuple (item d) correctly charges S_peak as working storage beside every rho_T-adjacent
+    ratio (verified structurally in ci_tables.json and the human-readable reports for all 4 tested cells),
+    which is the specific cost-model discipline J3 was assigned to check. I did not find a hidden per-attempt-vs-total-expected-cost
+    conflation within J3/J4's scope; the frontier tuple's P/sqrt(NT) and L/target lines are reported per-target,
+    not amortized over an implicit success probability, and the report does not claim a single "solve
+    cost" figure that would need that correction. A full total-expected- cost audit is properly J1/J2's
+    scope (the ceiling-feasibility and Stage-0 ordering claims), not read here.
+  reduction_and_scope_challenges:
+  - claim_boundaries in the v2 spec and amendment record correctly restrict this work to a toy generic-random-function
+    instrument at N in {2^20,2^24,2^30}; nothing in the executor's report or the run outputs I read inflates
+    this into a claim about any curve, scheme, or cryptographically-sized parameter. No scope inflation
+    found within J3/J4.
+  proof_architecture_challenges: []
+  narrowest_supported_statement: 'On the two joints assigned to this task: J3''s per-admission pool-cap
+    mechanism is correctly implemented and its S_peak_bits headline is verified, by independent code trace
+    and by direct inspection of every tested run''s raw summary.json (20/20 CAP(2T,T_sel) cells), to equal
+    exactly 2T*bits_per_pool_entry, with the frontier tuple reported as a bundled JSON object (never a
+    bare ratio) in both the raw ci_tables.json and the human-readable reports -- HOLDS, with two non-breaking
+    findings about the robustness of that guarantee''s internal wiring and about an unreported CI on a
+    secondary "retention" metric. J4''s item (g) fix (fit_cutoff None -> G1 FAIL, never crash) is independently
+    confirmed twice (a direct re-run of the production check, and a deliberate reintroduction of the pre-fix
+    bug that confirms it would genuinely crash on these fixtures) -- HOLDS. The broader "proves-too-much"
+    control the review plan also asks for (does the corrected HEUR-BLT-7 / re-selection mechanism collapse
+    to no gain on a structurally null bijection object) was NOT exercised by anything in the batch under
+    review; when I constructed and ran that test myself against the real, unmodified v2 production code,
+    it also collapsed to no positive gain in every tested cell, corroborating the claim -- but this is
+    red-team-supplied evidence filling a real gap in the deliverable, not evidence that the deliverable
+    itself contains this check. This narrow conclusion does not extend to J1 or J2 (the ceiling-feasibility
+    gate and the Stage-0 a-scan ordering claim), which this task did not review and could not read.'
+  next_concrete_action: 'Coordinator should require, before this v2 batch''s evidence is promoted: (1)
+    a committed v2-native permutation-null (or affine-xorshift-null) fixture exercising the FULL v2 arm
+    list through source_v2/run_generic.py, with a frozen expected result, as a permanent STAGE 4v2 check
+    parallel to item (g)''s G1 check -- the ad hoc script in this report (j4_permutation_null_v2.py) is
+    offered as a starting point, not a substitute for a committed fixture; and (2) a bootstrap CI on the
+    CAP(2T,T_sel) retention ratio (or on capped-minus- uncapped gain) at every cell, so the two retention
+    values > 1.0 observed in this batch can be read as noise rather than asserted as noise.'
+  attestation:
+    review_attestation:
+      joints_owned:
+      - J3
+      - J4
+      paths_read:
+      - ledger/handoffs/TASK-20260906-a6b415.yaml
+      - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-f3a30a/tasks/TASK-20260906-a6b415/task_card.yaml
+      - agents/red-team.md
+      - AGENTS.md (background context; not re-quoted here)
+      - experiments/EXP-ECDLP-612fb1/specification.v2.yaml (full; read in two paginated passes)
+      - experiments/EXP-ECDLP-612fb1/amendments/v1_to_v2.yaml (full)
+      - experiments/EXP-ECDLP-612fb1/source_v2/instrument.py (full)
+      - experiments/EXP-ECDLP-612fb1/source_v2/instrument.py.diff_from_v1 (full)
+      - experiments/EXP-ECDLP-612fb1/source_v2/run_generic.py (full)
+      - experiments/EXP-ECDLP-612fb1/source_v2/harness_run.py (full)
+      - experiments/EXP-ECDLP-612fb1/source_v2/analysis.py (full)
+      - experiments/EXP-ECDLP-612fb1/source_v2/IMPLEMENTATION.md (full)
+      - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-f3a30a/tasks/TASK-20260906-5e78c7/execution_report.yaml
+        (full)
+      - experiments/EXP-ECDLP-612fb1/runs/RUN-ECDLP-612fb1-v2-analysis-001/analysis.md (full)
+      - experiments/EXP-ECDLP-612fb1/runs/RUN-ECDLP-612fb1-v2-analysis-001/summary.json (full)
+      - experiments/EXP-ECDLP-612fb1/runs/RUN-ECDLP-612fb1-v2-analysis-001/ci_tables.json (queried programmatically,
+        not fully rendered)
+      - ? experiments/EXP-ECDLP-612fb1/runs/RUN-ECDLP-612fb1-v2-{1v2,2v2}-s{1..5}/summary.json (queried
+          programmatically for arm-level fields
+        : S_peak_bits, max_pool_entries, max_pool_entries_within_round, cap_S_peak_honest_every_round,
+          cap_truncations_total, admitted_walks_total)
+      - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-289698/tasks/TASK-20260906-90e7cf/ (own prior red-team artifacts: results/j4_perm/{affine_xorshift,permutation}/RUN-RT-90e7cf-*/summary.json
+          read directly; results/j4_perm/permutation/analysis/analysis.md read; src/pipeline_perm/instrument.py.diff
+          read; task_card.yaml and red_team_report.yaml listed/read for context)
+      paths_deliberately_not_read:
+      - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-f3a30a/tasks/TASK-20260906-bc1cfc/ (the parallel
+        Validator's task directory -- mutual blindness, never opened)
+      - any file named validation_report.yaml anywhere under BATCH-f3a30a (never opened)
+      scripts_written_and_run_by_this_task:
+      - j3_synthetic_trace.py / j3_synthetic_trace.log (hand-crafted pool-cap trace using the real production
+        Pool/CountedSelector/numpy_select classes)
+      - j3_speak_crosscheck.py / j3_speak_crosscheck.log (independent numeric re-derivation of S_peak_bits
+        across all 20 tested CAP(2T,T_sel) cells)
+      - j3_bare_ratio_check.py / j3_bare_ratio_check.log (structural check that rho_T is always co-located
+        with the frontier tuple in ci_tables.json)
+      - j4_g1_fixture_reverify.py / j4_g1_fixture_reverify.log (independent re-run of the real run_permanent_fixture_check(),
+        raw cutoff.n_c inspection, and a deliberate pre-fix-bug reproduction control)
+      - j4_permutation_null_v2.py / j4_permutation_null_v2.log (fresh permutation-null test of v2's own
+        corrected HEUR-BLT-7 / frontier-tuple pipeline; a script-local monkeypatch only, nothing written
+        to source_v2/)
+      read_sibling_reports: false
+      no_run_record_ledger_record_spec_or_amendment_was_modified: true
+      no_file_was_written_outside_this_tasks_own_directory_except_scratch_temp_files_under_tmp: true
+      verdict_summary:
+        J3: HOLDS_WITH_FINDINGS
+        J4: HOLDS_WITH_FINDINGS
+      inference_receipt:
+        requested_policy: review-adversarial
+        role: red-team
+        independent_session: true
+        note: This session ran Bash/Python directly against the committed source_v2/ code and the committed
+          run/fixture artifacts to independently re-derive numeric and logical claims rather than relying
+          on the executor's report alone; every command and its full output is preserved in the *.log
+          files alongside this report.
+  review_attestation:
+    task_id: TASK-20260906-a6b415
+    verdict: holds
+    joints_owned:
+    - 'Per-admission pool cap and working-storage accounting: does CAP(2T)''s measured S_peak actually
+      equal 2T (not drift to 2.6-2.8T as in v1), and is every headline number reported as the full frontier
+      tuple with S_peak charged, never a bare ratio?'
+    - 'Proves-too-much: the permanent negative fixture (the two red-team bijection seed sets under TASK-20260906-90e7cf/{src/pipeline_perm,results/j4_perm})
+      and the corrected HEUR-BLT-7 on a null object.'
+    read_sibling_reports: false
+    sources_read:
+    - experiments/EXP-ECDLP-612fb1/specification.v2.yaml
+    - experiments/EXP-ECDLP-612fb1/amendments/v1_to_v2.yaml
+    coordinator_compatibility_note: 'This top-level review_attestation block was added by the Coordinator
+      to satisfy tools/check_review_independence.py''s mechanical schema (it looks for a ''review_attestation''
+      key directly under red_team_report; this report''s own rich attestation content lives at attestation.review_attestation
+      and is unchanged). task_id, joints_owned (J3, J4 expanded to the review_plan''s exact joint text)
+      and verdict (''holds'', from verdict_summary J3/J4 both HOLDS_WITH_FINDINGS with breaking_artifact_found:
+      null on both joints in joint_verdicts) are taken verbatim from this report''s own attestation.review_attestation
+      and joint_verdicts blocks. No content was changed or added beyond this schema mapping.'
