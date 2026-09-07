@@ -351,11 +351,13 @@ def _identical_to_base(path: str, base: str) -> bool:
     unchanged relative to ``base`` -- the case a merge commit creates for
     every file `main` altered since the branch's last commit, which a plain
     diff against pre-merge HEAD cannot distinguish from a path the branch
-    itself edited (see the note on ``touched_files`` below). Compares the
-    candidate's committed blob first (covers the ordinary "merged, not
-    otherwise touched" case without a filesystem read), then the worktree
-    file, so a file also matches when the working tree still holds the
-    identical content pre-commit.
+    itself edited (see the note on ``touched_files`` below).
+
+    Prefer the worktree when the path exists there: an index blob that still
+    matches ``base`` must not hide an unstaged type or content change (for
+    example replacing a tracked goal file with a symlink whose target happens
+    to carry the same bytes). Fall back to the index blob only when the
+    worktree path is absent.
     """
     try:
         base_blob = _run("git", "show", f"{base}:{path}")
@@ -363,19 +365,33 @@ def _identical_to_base(path: str, base: str) -> bool:
         return False  # binary or non-UTF-8 content: leave the cautious default
     if base_blob.returncode != 0:
         return False  # path does not exist at base: cannot be "unchanged"
+
+    full = os.path.join(REPO, path)
+    try:
+        mode = os.lstat(full).st_mode
+    except OSError:
+        mode = None
+
+    if mode is not None:
+        if stat.S_ISLNK(mode):
+            return False
+        if not stat.S_ISREG(mode):
+            return False
+        try:
+            with open(full, encoding="utf-8", errors="surrogateescape") as fh:
+                worktree_text = fh.read()
+        except OSError:
+            return False
+        return worktree_text == base_blob.stdout
+
     try:
         candidate_blob = _run("git", "show", f":{path}")
     except UnicodeDecodeError:
-        candidate_blob = None
-    if candidate_blob is not None and candidate_blob.returncode == 0 \
-            and candidate_blob.stdout == base_blob.stdout:
-        return True
-    try:
-        with open(os.path.join(REPO, path), encoding="utf-8", errors="surrogateescape") as fh:
-            worktree_text = fh.read()
-    except OSError:
         return False
-    return worktree_text == base_blob.stdout
+    return (
+        candidate_blob.returncode == 0
+        and candidate_blob.stdout == base_blob.stdout
+    )
 
 
 def touched_files(base: str) -> list[str] | None:

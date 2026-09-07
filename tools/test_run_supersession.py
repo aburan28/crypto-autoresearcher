@@ -43,10 +43,12 @@ ARTIFACTS = ("command.txt", "environment.json", "stdout.log", "stderr.log",
 # supersession declarations. Pin that historical vocabulary to exact bytes;
 # new records still require a structured reverse binding. The registry and
 # both identities/hashes remain checked, without endorsing the prose claims.
+# Retargeted 2026-09-07 when the live superseding paths moved from
+# manifest_v2.yaml to additive manifest_integrity_v3.yaml companions.
 PROSE_SUPERSESSION_SHA256 = {
-    "RUN-JMV-001-a": "00aa431b5d3b223643af3261ad6ebfddd2eb6b0825dd2a9de224cbee08d84839",
-    "RUN-JMV-004-a": "94780b39782bf6705d513500e45d3d1c693b8c2ceba264b77fb04998122bcec4",
-    "RUN-CSIDH-c65945-001": "ef4c50276450a0613f2400657db02d9357dce2307d8f1c795d3d69e8e484d1cc",
+    "RUN-JMV-001-a": "ff34d598d10e96ae09ad4c5f8bd743b398187b1fffef28c2416c8b19de09691a",
+    "RUN-JMV-004-a": "7b53958deb3cdd8647250161d0a7525fdc7d06896b6c78e5cd33839dd223e576",
+    "RUN-CSIDH-c65945-001": "69e69f848cac526291309b16d9d69811bc40991abb7731d443dc26e8c0c1fed7",
 }
 
 
