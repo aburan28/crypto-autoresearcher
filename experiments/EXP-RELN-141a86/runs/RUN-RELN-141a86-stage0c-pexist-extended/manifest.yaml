@@ -184,6 +184,62 @@ run:
         budget, relaunched promptly rather than discovered many hours
         later. See coordinator-facing report for the decision this
         implies for Stage-0c closure timing.
+    - event: container_restart_killed_job
+      detected_at_utc: '2026-09-07T19:54:16Z'
+      evidence: >-
+        `uptime` showed the container up 0 minutes; `pgrep -af
+        "target_enumerate_worker_checkpoint|run_stage0c_pexist"` (excluding
+        the invoking shell's own command line) found nothing alive; the
+        checkpoint file's last_updated_utc is still
+        2026-09-07T19:23:14.491180Z, unchanged since relaunch_2's level-6
+        write, confirming relaunch_2 died sometime after that write (RSS
+        was already rising past level-5's footprint at the last live check,
+        consistent with in-progress level-7 construction, per the prior
+        run's own ~375s timing for that level) and before this check --
+        again failed_infrastructure, never a mathematical result.
+      classification: failed_infrastructure
+      note: >-
+        THIRD container restart this session, and the second to kill this
+        specific job. This exhausts both runs authorized by
+        TASK-20260907-8e0165's budget.maximum_runs: 2 (see the prior
+        restart_history entry). Per that entry's own stated constraint,
+        this executor turn does NOT relaunch a third time unilaterally.
+      new_evidence_for_the_coordinator_and_user: >-
+        Timing across the two full relaunches now brackets the container's
+        survival window: relaunch_1 (18:57:26 launch) lived to somewhere
+        between 19:00:56 (verified alive, level 7 under construction) and
+        19:17:40 (confirmed dead) -- roughly 4-21 minutes. relaunch_2
+        (~19:22:53 launch) lived to somewhere between ~19:24:59 (verified
+        alive, RSS climbing past level 6) and 19:54:16 (confirmed dead) --
+        roughly 2-31 minutes. Both deaths occurred while computing level 7,
+        which levels 1-8's own prior timing data
+        (RUN-RELN-141a86-stage0c-minimality) shows takes ~375s alone, with
+        levels 1-8 cumulatively costing ~1800s (30 min). Two independent
+        container lifetimes have now each ended at or before that same
+        ~30-minute mark. This is materially different from what
+        DEC-20260907-bc69ee's "invest ~12-14 hours" choice assumed: if the
+        container's survival window is itself on the order of the time
+        needed just to re-clear levels 1-8 from scratch (let alone the
+        12-14 hours estimated for level 9 alone), the job may never reach
+        level 9 at all under the current from-scratch-relaunch strategy,
+        regardless of how many times it is retried, unless either (a) the
+        container proves to survive materially longer on some future
+        attempt, or (b) a true resume capability (serializing the full
+        in-memory dedup state, not just per-level summary counts) is built
+        so each restart does not cost re-deriving levels 1-8. Neither
+        option is unilaterally decided here -- see the Coordinator/user
+        decision this raises.
+    - event: status_note_update
+      note: >-
+        status remains `running` per the schema's non-terminal options
+        (no `interrupted`/`blocked` value exists for run records, and
+        `failed`/`cancelled` would misstate this as a negative or decided
+        outcome), but no process is currently alive under this run. The
+        run is paused between attempts pending an explicit Coordinator/
+        user decision on how to proceed, per the restart_history entries
+        above -- this is a scheduling pause on an infrastructure-limited
+        run, not a scientific status change, and does not by itself
+        authorize or forbid any further action.
 
   process:
     relaunch_2:
