@@ -3,7 +3,7 @@ name: design-experiment
 description: >-
   Convert a selected proposal (IDEA-*) into a specified hypothesis and a
   frozen, approved experiment contract ready for execution. Use after
-  ideation, when the user picks an idea to pursue. Runs under Coordinator
+  ideation, when the Coordinator selects ranked work. Runs under Coordinator
   authority.
 ---
 
@@ -22,7 +22,9 @@ specification, experiment design, approval, and handoff.
 ## Steps
 
 1. Read the selected proposal from `ledger/proposals/`. If the user did not
-   name one, list open proposals and ask which to pursue. Before designing,
+   name one, the Coordinator ranks open proposals and selects the next justified
+   candidate under AGENTS.md standing user authorization. Do not ask for
+   per-idea selection or approval. Before designing,
    merge `origin/main` into the working branch (merge, never rebase) so the
    hypothesis and contract are drafted against current ledger state — see
    "Branch and PR hygiene" below.
@@ -39,10 +41,14 @@ specification, experiment design, approval, and handoff.
 3. Create the experiment directory:
    `experiments/EXP-<AREA>-<NNN>/specification.yaml` (plus empty
    `amendments/` and `runs/`).
-4. Present the frozen contract to the user for confirmation before marking
-   it `approved` with `approved_by: coordinator`. Existing user authorization
-   to conduct this research satisfies confirmation; do not add routine budget
-   approval cycles. Freeze scientific tests, not arbitrary CPU allowances.
+4. Under the standing user authorization in `AGENTS.md`, the Coordinator
+   records approval of the complete frozen contract with
+   `approved_by: coordinator` and a committed approval decision. Do not ask
+   for user confirmation. Cite the standing authorization as the user approval
+   basis; the Coordinator still checks protocol completeness and declared
+   resource limits before authorizing dispatch. Freeze scientific tests, not
+   arbitrary CPU allowances. Report the concrete approved scope as a progress
+   update, not as a permission question.
 5. On approval, write the `handoff` record to `ledger/handoffs/` targeting
    the executor, with budget and completion gate filled in.
 6. The Coordinator runs an isolated snapshot archive task that commits the
