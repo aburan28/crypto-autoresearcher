@@ -157,7 +157,7 @@ class NoRegistryEntryTests(SupersessionFixture):
 
 class RegisteredSupersessionTests(SupersessionFixture):
     def malformed_original(self, header="run_id: RUN-SUP-001"):
-        self.superseded.write_text(header + "\ngit:\n  dirty_summary: modified\n?? unescaped\n")
+        self.superseded.write_text(header + "\ngit:\n  dirty_summary: M runner.py\n?? unescaped\nenvironment:\n  python: '3.12'\n")
 
     def test_malformed_original_requires_explicit_header_locator(self):
         self.malformed_original()
@@ -255,6 +255,83 @@ class RegisteredSupersessionTests(SupersessionFixture):
         vl.check_run(str(other), ctx, supersessions)
         self.assertTrue(any("duplicate ID RUN-SUP-001" in e
                             for e in ctx.errors), ctx.errors)
+
+
+class MalformedFlatIdentityTests(SupersessionFixture):
+    text = (
+        "run_id: RUN-SUP-001\n"
+        "experiment_id: EXP-SUP-001\n"
+        "git:\n"
+        "  commit: abc123\n"
+        "  dirty: true\n"
+        "  dirty_summary: M experiments/runner.py\n"
+        "?? experiments/runs/RUN-SUP-001/\n"
+        "environment:\n"
+        "  python: 3.12.3\n"
+    )
+
+    def malformed(self, text=None):
+        self.superseded.write_text(self.text if text is None else text,
+                                   encoding="utf-8")
+        return self.registry(superseded_id_line=1)
+
+    def test_registered_malformed_porcelain_manifest_is_recoverable(self):
+        registry = self.malformed()
+        original = self.superseded.read_bytes()
+        ctx = vl.Ctx(set())
+        vl.check_run_supersessions(ctx, registry)
+        vl.check_run(str(self.superseded), ctx, registry)
+        self.assertEqual(ctx.errors, [])
+        self.assertEqual(self.superseded.read_bytes(), original)
+        unregistered = vl.Ctx(set())
+        vl.check_run(str(self.superseded), unregistered)
+        self.assertTrue(any("invalid YAML" in e for e in unregistered.errors))
+
+    def test_malformed_original_does_not_excuse_incomplete_replacement(self):
+        registry = self.malformed()
+        body = manifest_body()
+        body.pop("timing")
+        self.write_manifest("manifest_v2.yaml", body)
+        registry = self.registry(superseded_id_line=1)
+        ctx = vl.Ctx(set())
+        vl.check_run_supersessions(ctx, registry)
+        vl.check_run(str(self.superseded), ctx, registry)
+        self.assertTrue(any("missing required field 'timing'" in e
+                            for e in ctx.errors), ctx.errors)
+
+    def test_identity_recovery_keeps_hash_and_identity_guards(self):
+        registry = self.malformed()
+        self.superseded.write_text(self.text.replace("abc123", "def456"))
+        ctx = vl.Ctx(set())
+        vl.check_run_supersessions(ctx, registry)
+        self.assertTrue(any("hash changed" in e for e in ctx.errors))
+        registry = self.malformed(self.text.replace("RUN-SUP-001", "RUN-SUP-002"))
+        ctx = vl.Ctx(set())
+        vl.check_run_supersessions(ctx, registry)
+        self.assertTrue(any("declares run id" in e for e in ctx.errors))
+
+    def test_ambiguous_or_nonleading_identity_is_refused(self):
+        variants = [
+            self.text + "run_id: RUN-SUP-001\n",
+            self.text + "run_id: RUN-SUP-002\n",
+            self.text + "id: RUN-SUP-001\n",
+            self.text + "run:\n  id: RUN-SUP-001\n",
+            self.text + "nested:\n  run_id: RUN-SUP-001\n",
+            self.text.replace("run_id: RUN-SUP-001\n", ""),
+            self.text.replace("run_id: RUN-SUP-001", "run_id: [RUN-SUP-001]"),
+            "notes: |\n  run_id: RUN-SUP-001\n" + self.text.split("\n", 1)[1],
+            self.text.replace("run_id: RUN-SUP-001", "run_id: RUN-SUP-001 # comment"),
+            self.text.replace("?? experiments/runs/RUN-SUP-001/", "run_id: RUN-SUP-002"),
+            self.text + "nested: {run_id: RUN-SUP-002}\n",
+            self.text + "other: &identity {run_id: RUN-SUP-002}\nalias: *identity\n",
+        ]
+        for text in variants:
+            with self.subTest(text=text):
+                registry = self.malformed(text)
+                self.assertIsNone(vl._run_id_of(str(self.superseded)))
+                ctx = vl.Ctx(set())
+                vl.check_run_supersessions(ctx, registry)
+                self.assertTrue(any("declares run id" in e for e in ctx.errors))
 
 
 class SupersessionIntegrityTests(SupersessionFixture):
