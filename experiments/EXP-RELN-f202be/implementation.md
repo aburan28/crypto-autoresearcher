@@ -182,3 +182,163 @@ executor.md #12 -- none discarded)
   more directly than a separate later pass, and is recorded as such).
 - `source/runutil.py`: shared artifact-writing/hashing helpers (not one of
   the two independent enumerators).
+
+## ADDENDUM 2026-09-07: re-analysis under protocol amendment v1 (version_to 2, DEC-20260907-432a39)
+
+This section is appended, not a rewrite; everything above stands as the
+original executor's record of the v1 run set (RUN-RELN-f202be-N14/N16/N18/N20
+and RUN-RELN-f202be-stage4), which remain immutable, exactly as recorded,
+including their `INSTRUMENT_FAILURE_NO_VERDICT` classification under the
+frozen v1 (fixed absolute 0.1) forced-negation-gap tolerance.
+
+### What was done
+
+Amendment v1 (`experiments/EXP-RELN-f202be/amendments/v1.yaml`, version_to 2,
+approved by `DEC-20260907-432a39`) changes the `forced_negation_gap_trap_control`
+tolerance from a fixed absolute 0.1 to
+`max(0.1, 3*(m/B)*(B^3/(4M)))`, `m=3`, evaluated per cell from that cell's own
+recorded `B` (the object cell's own B_1- or B_2-convention size) and `M`. This
+addendum implements that formula and re-analyzes rungs 14 and 16 under it,
+per the amendment's `reanalysis_authorization`.
+
+**Reanalysis path chosen: (a), full re-execution.** Both original rung runs
+were cheap (56s for rung 14, 255s for rung 16, per their manifests), so full
+re-execution was preferred over path (b) (reading the existing immutable
+records without re-running) because it also independently confirms
+bit-for-bit reproducibility, which the contract's `replication` clause
+requires and which is itself a real, useful check.
+
+- `source/run_stage2_rung_v2.py`: an EXACT copy of `source/run_stage2_rung.py`
+  (`diff` confirms only the docstring, the `RUN_ID` f-string -- which appends
+  a `v2` suffix so the new run writes to `RUN-RELN-f202be-N14v2` /
+  `RUN-RELN-f202be-N16v2` instead of overwriting the frozen `N14`/`N16` -- and
+  the `command`/`command.txt` strings differ). No algorithm, formula,
+  convention, or seed differs. Run for rung 14 and rung 16 with the same
+  `MASTER_SEED = 20260906` null-draw derivation and the same accepted curve
+  seeds as the original runs (loaded from the same, unedited
+  `RUN-RELN-f202be-stage0/curves.json`).
+- Bit-for-bit reproducibility was checked field-by-field between
+  `RUN-RELN-f202be-N14/curve_results.json` and
+  `RUN-RELN-f202be-N14v2/curve_results.json` (and the N16 pair): **zero
+  non-timing field differences** in either rung; the only fields that differ
+  anywhere in either curve_results.json are per-cell `wall_seconds` timing
+  values. `accounting.json` is byte-identical in both rungs. This is recorded
+  per-run in `RUN-RELN-f202be-N14v2/reanalysis-provenance.json` and
+  `RUN-RELN-f202be-N16v2/reanalysis-provenance.json`.
+- `source/run_stage4_analysis_v2.py`: reads rungs 14 and 16 from the new
+  `RUN-RELN-f202be-N14v2` / `RUN-RELN-f202be-N16v2` directories and rungs 18
+  and 20 from the EXISTING, UNEDITED `RUN-RELN-f202be-N18` /
+  `RUN-RELN-f202be-N20` directories (no re-execution of 18/20 -- none is
+  authorized or needed). It recomputes the forced-negation-gap verdict for
+  **all four rungs** (all 72 object cells: 3 curves x 3 geometries x 2 B
+  conventions x 4 rungs) directly from each cell's own recorded
+  `forced_negation_gap_measured` / `forced_negation_gap_expected` / `B`,
+  applying the amended tolerance formula -- this is NOT read off the old
+  `accounting.json`'s `forced_gap_within_0.1` boolean (which encodes only the
+  OLD tolerance's verdict). Every other statistic (Delta, bootstrap CIs,
+  NULL-A bands, growth fit, k-rich, predicate lifts, other controls) reuses
+  the SAME `analysis.py` functions, unmodified, with the SAME logic as
+  `run_stage4_analysis.py`; `diff` the two files to confirm the only
+  substantive differences are the tolerance formula and the per-rung
+  source-directory mapping. Writes `RUN-RELN-f202be-stage4v2`.
+
+### Result: forced-negation-gap control passes at all four rungs under the amended tolerance
+
+Recomputed directly (not copied from the amendment's own validation table) from
+the already-measured `forced_negation_gap_measured`/`_expected` values in
+`RUN-RELN-f202be-N14v2`, `N16v2`, `N18`, `N20`'s `curve_results.json`:
+0 of 72 object cells fail the amended tolerance at any rung (see
+`RUN-RELN-f202be-stage4v2/control-verdicts.json` for the full 72-row table).
+INV1/INV2 accounting is exact (0 deviation) in every one of those 72 cells,
+confirming the amendment's characterization that this was a tolerance
+miscalibration, not an accounting or enumeration defect.
+
+**A wording note on the amendment's own illustrative validation table, worth
+recording rather than silently reconciling:** the amendment's text applies its
+worked tolerance arithmetic (e.g. `3*(3/48)=0.1875` at rung 14) using the
+RUNG's nominal design B_1 (48, 74, 118, 186) uniformly, quoting a single
+worst-case `(abs, rel)` pair per rung. Recomputing from the raw per-cell data
+shows the worst-`abs`-deviation cell and the worst-`relative`-deviation cell
+at rung 14 are actually TWO DIFFERENT cells: a B_1-convention cell (B=48,
+abs=0.1671, rel=0.1184) and a B_2-convention cell (B=18, abs=0.1666,
+rel=0.1303) -- the amendment's quoted `worst_abs=0.1671` matches the B1 cell
+and its quoted `worst_rel=0.1303` matches the B2 cell, i.e. the table's single
+"worst case" row silently mixes two different cells' numbers. This does not
+change the pass/fail conclusion at any rung: applying the amended formula
+literally per-cell (each cell's own recorded B, matching how the ORIGINAL
+0.1-absolute tolerance was already applied per-cell to both B_1- and
+B_2-convention cells in `run_stage2_rung.py`) passes all 72 cells with wider
+margins for B_2 cells than the amendment's B_1-only arithmetic would suggest;
+applying the amended formula with the rung's nominal B_1 uniformly to every
+cell (the reading implied by the amendment's illustrative arithmetic) ALSO
+passes all 72 cells (checked explicitly, not merely inferred). Both readings
+agree on every classification-relevant fact in this run set; this note exists
+so the discrepancy in the amendment's own prose is not silently smoothed over.
+
+### Combined four-rung classification: `UNANTICIPATED_PATTERN_NOT_NULL_NOT_ALIVE`
+
+With the forced-negation-gap control now passing at all four rungs (and every
+other control unaffected and still passing, exactly as before), the run set
+is `complete_run_set: true`, `all_blocking_controls_pass: true`, and the
+frozen `success_criterion`/`falsification_criterion` (unchanged by this
+amendment) are evaluated in full for the first time on all four rungs. The
+mechanical classification is `UNANTICIPATED_PATTERN_NOT_NULL_NOT_ALIVE`:
+every object cell (x_interval_low/mid, qr_class; reduced, B_1) is inside the
+NULL-A band (mean +/- 3 SD) at every rung on every curve (`all_object_cells_
+in_null_a_band: true`), which is the Delta-band-inclusion half of the
+pre-committed NULL outcome -- but the growth-fit slope of
+`log(max(Delta - Delta_null_mean, SD_null))` vs `log(N)` does NOT contain 0
+for any of the three object geometries (all three slopes are confidently
+NEGATIVE: x_interval_low -0.480 [-0.631, -0.344], x_interval_mid -0.452
+[-0.697, -0.216], qr_class -0.483 [-0.527, -0.392], 95% bootstrap CIs), which
+is neither the pre-committed NULL outcome (requires the slope interval to
+contain 0) nor the competing ALIVE outcome (requires z > 3 SD on every curve
+at rungs 18/20 with slope excluding 0 on the POSITIVE side -- not observed;
+`alive_geometries_meeting_literal_test: []`). This numerically matches, to
+several decimal places, what the ORIGINAL `RUN-RELN-f202be-stage4`'s
+`metrics.json` already computed for these same growth fits and Delta values
+(that stage4 run always computed the full metrics regardless of the
+instrument-failure gate, per its own stopping-rule note) -- so this addendum
+does not change any previously-computed Delta, band, or growth-fit number; it
+only changes whether the run set's forced-gap control gate permits reading a
+classification from them at all. This is reported here as a measured,
+unresolved pattern for Coordinator/reviewer characterization; it is NOT a
+NULL verdict, NOT an ALIVE verdict, and NOT itself grounds to change
+H-RELN-41562a's status (still `proposed`), per the amendment's explicit scope
+limits and the contract's `later_review_requirements` (independent validator,
+red team, review-adversarial at xhigh) which remain owed before any
+claim-changing use.
+
+### Deviations and inherited limitations (not discarded, restated for this addendum)
+
+- The predicate-lift z-scores reported in `RUN-RELN-f202be-stage4v2/
+  predicate-lifts.json` for the object (negation-closed) arms use the
+  ANALYTIC (INV-3, i.i.d.-uniform) null, not the contract-specified NULL-A
+  Monte Carlo null for negation-closed arms -- this is the SAME deviation #3
+  already recorded in this file's original section (per-draw NULL-A T_S sums
+  were never retained, in either the v1 or v2 run, so the correctly-specified
+  Monte Carlo predicate null cannot be built after the fact without
+  re-running the 100-draw NULL-A enumeration with per-draw predicate sums
+  retained -- out of scope for this amendment). These z-scores/Holm verdicts
+  are therefore still not a completed M8 measurement for the object arms in
+  this addendum either.
+- The bootstrap growth-fit CIs are still built from only 3 curves per rung
+  (the contract's minimum), unchanged.
+- No new curve, seed, predicate, or draw count was introduced; nothing in
+  `independent_variables.fixed` was touched.
+
+### New files
+
+- `source/run_stage2_rung_v2.py`, `source/run_stage4_analysis_v2.py`: see
+  above. `source/SHA256SUMS_v2` records their hashes (additive; the original
+  `source/SHA256SUMS` is untouched).
+- `runs/RUN-RELN-f202be-N14v2/`, `runs/RUN-RELN-f202be-N16v2/`: full stage2/3
+  re-execution outputs, each with its own `manifest.json` (including an
+  `amendment_context` block), `command.txt`, `environment.json`,
+  `curve_results.json`, `accounting.json`, `cells/`, `stdout.log`,
+  `stderr.log`, and `reanalysis-provenance.json` (the bit-for-bit
+  reproducibility check against the original run).
+- `runs/RUN-RELN-f202be-stage4v2/`: combined four-rung re-analysis under the
+  amended tolerance -- `manifest.json`, `command.txt`, `environment.json`,
+  `bands.json`, `metrics.json`, `predicate-lifts.json`,
+  `control-verdicts.json`, `classification.json`, `stdout.log`, `stderr.log`.
