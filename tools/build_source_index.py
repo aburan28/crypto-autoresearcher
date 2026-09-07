@@ -212,26 +212,35 @@ def collect_retrievals() -> list[dict]:
                 "goal_id": doc.get("goal_id"),
             })
         for artifact in doc.get("local_artifacts") or []:
-            # Accept both object entries ({path, role, bytes, sha256}) and
-            # bare path strings (JMV-0411378-20260907 and similar packages).
-            # Crashing on the string form made every PR merge-check red once
-            # such a provenance landed on main.
+            # Accept both object form ({path, role, bytes, sha256}) and the
+            # path-only string form used by some packages (e.g. JMV-0411378).
             if isinstance(artifact, str):
-                artifact = {"path": artifact}
-            elif not isinstance(artifact, dict):
-                continue
+                role = None
+                art_bytes = None
+                art_sha256 = None
+                art_path = artifact
+            elif isinstance(artifact, dict):
+                role = artifact.get("role")
+                art_bytes = artifact.get("bytes")
+                art_sha256 = artifact.get("sha256")
+                art_path = artifact.get("path")
+            else:
+                raise TypeError(
+                    f"{_rel(path)}: local_artifacts entry must be a string path "
+                    f"or object, got {type(artifact).__name__}"
+                )
             rows.append({
                 "package": package,
                 "provenance_path": _rel(path),
                 "source_id": "local-artifact",
                 "url": None,
-                "purpose": artifact.get("role"),
+                "purpose": role,
                 "retrieved_at": doc.get("generated_at"),
                 "http_status": None,
                 "status": "local_artifact",
-                "bytes": artifact.get("bytes"),
-                "sha256": artifact.get("sha256"),
-                "vendored_path": artifact.get("path"),
+                "bytes": art_bytes,
+                "sha256": art_sha256,
+                "vendored_path": art_path,
                 "reason": None,
                 "revision_id": None,
                 "task_id": doc.get("task_id"),
