@@ -1,0 +1,77 @@
+handoff:
+  id: TASK-20260907-60957d
+  recorded_at: '2026-09-07'
+  goal_id: GOAL-ECDLP-bbc21f
+  question_id: RQ-ECDLP-78dbc5
+  experiment_id: EXP-ECDLP-6ac801
+  batch_id: BATCH-e9fd22
+  dispatch_queue: coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-e9fd22/dispatch_queue.json
+  task_card: coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-e9fd22/tasks/TASK-20260907-60957d/task_card.yaml
+  role: coordinator
+  from: coordinator
+  to: coordinator (isolated snapshot archive)
+
+  objective: >-
+    SNAPSHOT ARCHIVE, RUN ALONE, BEFORE ANY REVIEWER. Commit the executor's
+    exact run package -- experiments/EXP-ECDLP-6ac801/source_v2/, every
+    RUN-* directory produced under experiments/EXP-ECDLP-6ac801/runs/, and
+    TASK-20260907-e423d5's execution_report.yaml and artifact_inventory.json --
+    and write the post-commit receipt, so the validator and red team review a
+    frozen, hash-bound tree rather than a mutable working directory.
+  uncertainty_reduced: >-
+    None scientific. Whether the artifacts the review round is about are durable
+    and hash-bound before that round starts, which is what makes the reviewers'
+    reports mean anything about a specific state.
+
+  inputs:
+    - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-e9fd22/tasks/TASK-20260907-e423d5/artifact_inventory.json (the binding list of what to stage)
+    - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-e9fd22/tasks/TASK-20260907-e423d5/execution_report.yaml
+    - experiments/EXP-ECDLP-6ac801/runs/
+    - experiments/EXP-ECDLP-6ac801/source_v2/
+
+  constraints:
+    - "Run ALONE, and run BEFORE TASK-20260907-6a2b2e and TASK-20260907-3dff63 begin. Both reviewers depend on this receipt."
+    - "Stage exactly the paths listed in artifact_inventory.json plus the two report files, and verify each declared sha256 against the tree before committing."
+    - >-
+      THE COMMIT MESSAGE MUST STATE NO VERDICT, MARGIN OR NUMBER. This is not
+      style. TASK-20260907-6a2b2e must seal a blind re-derivation of exactly the
+      quantities in this commit, and a commit message is not a file -- it is
+      outside every blind_from list and `git log --oneline` displays it. Two
+      messages already on this branch leaked the a = 1/16 verdict
+      (84233e8c3, 376c6660e); do not add a third. Name the task, batch and
+      experiment IDs and nothing about the result.
+    - "Commit on branch cursor/ecdlp-bbc21f-g3-feasibility-review-276e. Merge origin/main in first if it has moved; never rebase a branch carrying pushed run records."
+    - "Do not commit dispatch_plan.* or coordination/**/claims/."
+    - "If the executor reported the run set invalid or incomplete, this archive still runs: the failure record is preserved and committed exactly as produced, and the review tasks are re-scoped by a Coordinator decision rather than the artifacts being tidied."
+
+  deliverables:
+    - one snapshot commit on the current branch staging exactly the inventoried run package and the two task reports
+    - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-e9fd22/archives/TASK-20260907-60957d/snapshot-receipt.json
+
+  artifact_paths:
+    - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-e9fd22/archives/TASK-20260907-60957d/snapshot-receipt.json
+
+  write_scope:
+    - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-e9fd22/archives/TASK-20260907-60957d
+
+  archived_by: TASK-20260907-60957d
+
+  inference:
+    policy: coordinator-orchestration-code
+    reasoning_effort: null
+    fallback_allowed: false
+    degraded_allowed: false
+    independent_session_required: false
+
+  budget:
+    wall_clock_seconds: 1800
+    memory_gb: 2
+    maximum_runs: 0
+    budget_note: "Zero-compute archival task; memory is machine protection."
+
+  completion_gate:
+    - "The commit is reachable from HEAD, has the expected parent, and changes exactly the inventoried artifact set plus the two task reports."
+    - "snapshot-receipt.json records commit_sha, parent_sha, the task and record IDs, and a sha256 per staged path matching both the committed tree and artifact_inventory.json."
+    - "The commit message contains no verdict, margin, pass-count or numeric result."
+    - "Re-rendering the dispatch plan with --claims refs accepts the receipt."
+    - "tools/validate_ledger.py reports no NEW error naming a file in this commit."
