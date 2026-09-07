@@ -98,6 +98,8 @@ def write_run_record(
     model_id: str,
     repo_root: Path,
     extra_artifacts: dict | None = None,
+    task_id: str = "TASK-20260907-cd0cf9",
+    scientific_boundary: str | None = None,
 ) -> Path:
     run_dir.mkdir(parents=True, exist_ok=True)
     env = _environment()
@@ -121,7 +123,7 @@ def write_run_record(
         "run_id": run_dir.name,
         "experiment_id": "EXP-ECDLP-a98ea9",
         "hypothesis_id": "H-ECDLP-07c7c6",
-        "task_id": "TASK-20260907-cd0cf9",
+        "task_id": task_id,
         "stage": stage,
         "recorded_at": now,
         "command": command,
@@ -145,7 +147,8 @@ def write_run_record(
         "artifacts": artifacts,
         "certificate": {"kind": "none"},
         "validity": {"status": validity, "reason": validity_reason},
-        "scientific_boundary": (
+        "scientific_boundary": scientific_boundary
+        or (
             "Stage 0-1 only. No ADV, no D2 disposition, no attack, no breakthrough."
         ),
     }
