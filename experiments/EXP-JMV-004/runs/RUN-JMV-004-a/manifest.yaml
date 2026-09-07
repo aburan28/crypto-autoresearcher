@@ -125,6 +125,17 @@ run:
       fabricated memory figure.
     runs_used_of_5: 1
     cpu_hours_consumed_this_task: "<0.001"
+    completion_session_note: >-
+      This single run (RUN-JMV-004-a, run 1 of the 5-run cap) was completed
+      across two Executor sessions under the same handoff
+      (TASK-20260906-a29dee), per DEV-3 above. The completing session's own
+      compute cost was a single re-execution of compute_grid.py in an
+      isolated scratch directory for verification purposes only (~0.09s
+      wall clock, not counted against this run's budget since it did not
+      write into write_scope) plus authorship of the three missing
+      artifacts (no further model computation). Combined actual compute
+      across both sessions for this run remains far under 600s wall clock,
+      1 CPU-hour, and 2GB memory.
 
   grid_coverage:
     q_bit_sizes: [64, 96, 128, 160, 192, 224, 256, 320, 384, 512]
@@ -200,6 +211,41 @@ run:
         instrument-measured (see budget.actual_wall_clock_seconds_note
         above for why this is certain to be far under the 2 GB cap by
         construction, not merely assumed).
+    - id: DEV-3-CompletionSessionAndSummaryScopeCaveat
+      severity: reported_not_blocking
+      description: >-
+        This run was completed by a SECOND Executor session (same handoff
+        TASK-20260906-a29dee) after a first session was interrupted
+        mid-run by an account-wide HTTP 429 rate-limit on 2026-09-07
+        (see the now-removed INCOMPLETE.md, whose text is preserved here:
+        interruption ~03:38 UTC 2026-09-07, missing analysis.md,
+        cost_model.md, source_statements.md at that point). The completing
+        session independently re-verified the first session's
+        manifest.yaml, compute_grid.py, raw.json, crossover.csv, and
+        constants_table.csv before trusting them: re-executed
+        compute_grid.py in an isolated scratch directory and diffed the
+        resulting raw.json byte-for-byte against the committed one (only
+        the non-deterministic `elapsed_seconds` field differed), and
+        independently hand-recomputed one grid cell
+        (bits=256, delta=1.0, convention=bits, C=1.0) at mp.dps=60 from
+        first principles, matching the archived value exactly. On that
+        basis compute_grid.py, raw.json, crossover.csv, and
+        constants_table.csv were RETAINED AS-IS (not regenerated); only the
+        three missing required artifacts (analysis.md, cost_model.md,
+        source_statements.md) were newly authored by the completing
+        session. Separately, the completing session found that the
+        supplementary, non-required `crossover_summary.csv` (also
+        inherited from the first session) computes its crossover-bit-size
+        figures via a continuous delta sweep (step 0.05, range
+        [0.05, 6.0]) that extends beyond the frozen grid's four declared
+        `delta_values`, and that its generation script was not archived
+        (produced by ad-hoc inspection commands per the first session's own
+        note above). It is retained for supplementary context only; it is
+        NOT used as the basis for this run's required crossover reporting,
+        which instead uses a fresh, grid-faithful computation directly over
+        `raw.json`/`crossover.csv` (see analysis.md section 5). This is
+        recorded as a completeness/scope caveat, not an error requiring
+        correction of the retained file.
 
   confirmations:
     branch_b_not_executed: true
