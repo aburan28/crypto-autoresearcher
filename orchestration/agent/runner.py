@@ -32,6 +32,7 @@ from .tools import TaskScope, ToolJournal, build_tools
 
 RUNTIME = "api_direct"
 REPO = role_registry.REPO
+RUNTIME_CORE = "docs/agent-runtime-core.md"
 
 
 class UnsupportedRole(RuntimeError):
@@ -85,9 +86,6 @@ def task_scope(task: dict[str, Any], *, repo_root: Path,
     handoff = task["handoff"]
     write_scope = list(task.get("write_scope") or [])
     if not write_scope:
-        # A ledger handoff names artifact paths rather than a scope; the
-        # directories holding them are the narrowest scope that still lets the
-        # task produce its declared deliverables.
         write_scope = sorted({str(Path(p).parent)
                               for p in (handoff.get("artifact_paths") or [])})
     return TaskScope(
@@ -102,10 +100,10 @@ def task_scope(task: dict[str, Any], *, repo_root: Path,
 
 def system_prompt(role: str, roles_doc: dict[str, Any], *,
                   repo_root: Path = REPO) -> str:
-    """The role's own contract, assembled from the runtime-neutral sources."""
+    """Assemble the compact shared contract plus this role's own contract."""
     spec = role_registry.role_spec(roles_doc, role)
     parts = []
-    for name in ("AGENTS.md", spec["contract"]):
+    for name in (RUNTIME_CORE, spec["contract"]):
         path = repo_root / name
         if not path.exists():
             raise FileNotFoundError(f"missing role contract: {path}")
@@ -113,10 +111,20 @@ def system_prompt(role: str, roles_doc: dict[str, Any], *,
     return "\n\n---\n\n".join(parts)
 
 
+def _context_paths(task: dict[str, Any]) -> list[str]:
+    """Return explicit task context paths without scanning repository state."""
+    handoff = task["handoff"]
+    raw = task.get("context_paths") or handoff.get("context_paths") or []
+    if isinstance(raw, str):
+        raw = [raw]
+    return [str(path) for path in raw if path]
+
+
 def task_brief(task: dict[str, Any], scope: TaskScope, tool_names: list[str]) -> str:
     """The task envelope, including the limits the tools will actually enforce."""
     handoff = task["handoff"]
     budget = handoff.get("budget") or {}
+    role = str(task.get("role") or "")
 
     def block(label: str, values: Any) -> str:
         if not values:
@@ -125,11 +133,23 @@ def task_brief(task: dict[str, Any], scope: TaskScope, tool_names: list[str]) ->
             return f"{label}: {values}"
         return label + ":\n" + "\n".join(f"  - {v}" for v in values)
 
+    context_policy = (
+        "Start with the explicit context files below and the frozen experiment "
+        "specification/handoff. Do not scan the full ledger, knowledge corpus, "
+        "or AGENTS.md. Read/search additional repository material only when a "
+        "specific implementation or validation question requires it."
+        if role == "executor" else
+        "Use the explicit context files first. Retrieve additional repository "
+        "material only when it is relevant to this task."
+    )
+
     return "\n\n".join([
-        f"TASK {scope.task_id} — role: {task.get('role')}",
+        f"TASK {scope.task_id} — role: {role}",
         block("Objective", handoff.get("objective")),
         block("Uncertainty to reduce", handoff.get("uncertainty_reduced")),
         block("Inputs", handoff.get("inputs")),
+        block("Explicit context files (read these first)", _context_paths(task)),
+        f"Context policy: {context_policy}",
         block("Constraints", handoff.get("constraints")),
         block("Deliverables", handoff.get("deliverables")),
         block("Artifact paths you must produce", handoff.get("artifact_paths")),
