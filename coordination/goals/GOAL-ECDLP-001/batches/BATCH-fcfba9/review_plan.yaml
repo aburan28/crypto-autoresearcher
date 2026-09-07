@@ -1,0 +1,135 @@
+review_plan:
+  opened_by: TASK-20260907-b58c5b
+  batch_id: BATCH-fcfba9
+  recorded_at: '2026-09-07'
+  recorded_before_reviewers: true
+
+  claim_under_review: >-
+    Producer statement (execution-report.yaml, RUN-ECDLP-a98ea9-S1):
+    static provenance passed; six instances times 10000 sampled k;
+    digit-for-digit agreement rate exactly 1 at r in {1,2,3,4};
+    NULL-2 agrees at r=1 and differs at r in {2,3,4}; [n] of the
+    constructed lift is infinity and the lift reduces to the F_p point.
+    Certificate kind none. No ADV claimed.
+
+  coordinator_prior: >-
+    Written before the reviewers of this round run, after the same
+    session produced the Stage 0-1 package. The Coordinator expects
+    the validator joints to hold: artifacts exist and bind, raw
+    agree/compared ratios are 1, the AST provenance gate passes, and
+    the report does not treat the r=1 NULL-2 identity as discriminating.
+    The Coordinator expects a blind re-derivation on the six named
+    instances to agree at a reduced sample (at least 50 k per instance
+    at r=4) if the transport lemma is the procedure it claims to be.
+    PROCEDURE DEVIATION PD-R1: this prior is contaminated by the
+    producer session. Concurrence with this prior is not independent
+    corroboration of the Coordinator's belief. Independence, if any,
+    lives in the validator recomputation and the blind re-derivation.
+
+  procedure_deviations:
+    - id: PD-R1
+      description: >-
+        The Coordinator session that produced RUN-ECDLP-a98ea9-S1 is
+        writing this prior. A prior recorded after the producer result
+        is known cannot separate "reviewers agreed" from "reviewers
+        agreed with the Coordinator".
+    - id: PD-R2
+      description: >-
+        Branch commit messages already state the Stage 1 gate outcome.
+        Blind history is contaminated. The re-deriver is forbidden to
+        run git log. check_review_independence --blind-history is
+        expected UNCHECKABLE or fail and is not treated as a pass.
+
+  joints:
+    - joint: artifact_binding
+      assigned_to: TASK-20260907-b58c5b
+      attack_plan: >-
+        Confirm every required Stage 0-1 artifact exists, hashes match
+        TASK-20260907-a9e3d8 snapshot-receipt path_sha256, manifests
+        name EXP-ECDLP-a98ea9 / H-ECDLP-07c7c6 / TASK-20260907-cd0cf9,
+        seeds are [3,5,7,11,13,17,19,23], certificate.kind is none,
+        and execution_authorized_stages were [0,1] only.
+      breaking_artifact: >-
+        A missing file, a hash mismatch, a wrong seed list, or a
+        certificate other than none.
+    - joint: raw_rate_recompute
+      assigned_to: TASK-20260907-b58c5b
+      attack_plan: >-
+        From raw-result.json alone, recompute agree/compared per
+        (instance, r). The joint holds only if every compared count
+        is 10000 and every agree count equals compared. Do not trust
+        the all_exact boolean without this arithmetic.
+      breaking_artifact: >-
+        Any cell with compared != 10000 or agree != compared, or a
+        first_disagreement that is not null.
+    - joint: provenance_ast
+      assigned_to: TASK-20260907-b58c5b
+      attack_plan: >-
+        Re-run implementation/static_provenance.py against the
+        committed kfree_transport.py. Confirm canonical_order_n_lift
+        parameters are curve, P_fp, n, precision and that no forbidden
+        scalar name appears.
+      breaking_artifact: >-
+        AST failure, a missing required function, or a forbidden
+        parameter on the k-free surface.
+    - joint: null2_width_zero_not_sold_as_evidence
+      assigned_to: TASK-20260907-b58c5b
+      attack_plan: >-
+        Proves-too-much control. Read the execution report and Stage 0
+        lemma. The joint holds only if r=1 NULL-2 agreement is labeled
+        width-zero / consistency and is not used as a discriminating
+        or ADV-relevant observation. Also confirm kfree_transport
+        refuses gcd(n,p)!=1 (call canonical_order_n_lift on a toy
+        anomalous input and expect ValueError).
+      breaking_artifact: >-
+        Report language that treats r=1 NULL-2 agreement as evidence
+        the projection "does nothing to the statistic", or a lift that
+        succeeds when gcd(n,p)!=1.
+
+  blindness:
+    mutual: true
+    lifted_for: []
+    rationale: null
+
+  proves_too_much:
+    objects:
+      - >-
+        The r=1 NULL-2 versus treatment identity, which is forced
+        because p^{0}=1.
+      - >-
+        An anomalous curve (generator order p), where the order-n lift
+        does not exist.
+    failure_signature: >-
+      An argument that cites r=1 NULL-2 agreement as support for a
+      digit-family claim has proved too much. A construction that
+      returns a lift when gcd(n,p)!=1 has proved too much.
+    assigned_to: TASK-20260907-b58c5b
+
+  blind_rederivation:
+    required: true
+    quantity: >-
+      Ordinary-base-p-digit agreement of affine x between
+      (1) [k] of the canonical order-n lift of S and
+      (2) the canonical order-n lift of [k]S, at precision r=4.
+      The lift is the spec's k-free construction: Hensel-lift the
+      Weierstrass equation, apply [p] exactly (r-1) times, multiply
+      by (p^{r-1})^{-1} mod n. Agreement is exact equality of the
+      length-4 digit tuples.
+    parameters:
+      seeds: [3, 5, 7, 11, 13, 17, 19, 23]
+      min_samples_per_instance: 50
+      precision: 4
+      instances:
+        - {p: 47237, A: 31367, B: 41141, n: 47057, S: [2, 97]}
+        - {p: 128629, A: 119056, B: 83257, n: 42667, S: [87124, 110926]}
+        - {p: 234527, A: 185876, B: 26302, n: 58453, S: [159550, 198939]}
+        - {p: 325411, A: 259076, B: 82146, n: 162611, S: [255196, 53661]}
+        - {p: 949423, A: 610648, B: 188380, n: 39503, S: [377953, 722598]}
+        - {p: 1422461, A: 1184784, B: 515035, n: 79043, S: [616886, 329503]}
+    blind_from:
+      - experiments/EXP-ECDLP-a98ea9/implementation/
+      - experiments/EXP-ECDLP-a98ea9/execution-report.yaml
+      - experiments/EXP-ECDLP-a98ea9/runs/RUN-ECDLP-a98ea9-S1/
+      - experiments/EXP-ECDLP-a98ea9/runs/RUN-ECDLP-a98ea9-S0/raw-result.json
+      - experiments/EXP-ECDLP-c373eb/implementation/
+    assigned_to: TASK-20260907-15dab7
