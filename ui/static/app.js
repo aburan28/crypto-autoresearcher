@@ -600,6 +600,14 @@ function choiceChips(options, current, onPick) {
 const kv = (key, value) => h('div', { style: 'display:contents' },
   h('dt', {}, key), h('dd', {}, value));
 
+/** A phone shows a summary line; a wide screen shows the block open. The
+ *  reader can toggle either. `note` is a short count or hint after the label. */
+function fold(label, body, { cls = 'panel', note = null, open = !narrowScreen() } = {}) {
+  return h('details', { class: `fold ${cls}`, open },
+    h('summary', {}, h('span', {}, label), note ? h('span', { class: 'n' }, note) : null),
+    h('div', { class: 'fold-body' }, body));
+}
+
 // ---------------------------------------------------------------------------
 // Markdown. Knowledge entries are markdown and the entry IS the content, so
 // the page renders it. Small on purpose: headings, paragraphs, lists, quotes,
@@ -720,9 +728,9 @@ function mdLink(label, href) {
 function mdTable(rows) {
   const cells = (row) => row.trim().replace(/^\||\|$/g, '').split('|').map((c) => c.trim());
   const [head, , ...body] = rows;
-  return h('table', {},
+  return h('div', { class: 'scroll-x' }, h('table', {},
     h('thead', {}, h('tr', {}, cells(head).map((c) => h('th', {}, mdInline(c))))),
-    h('tbody', {}, body.map((r) => h('tr', {}, cells(r).map((c) => h('td', {}, mdInline(c)))))));
+    h('tbody', {}, body.map((r) => h('tr', {}, cells(r).map((c) => h('td', {}, mdInline(c))))))));
 }
 
 // ---------------------------------------------------------------------------
@@ -1085,9 +1093,8 @@ async function viewFindings(params) {
       label, ' ', h('span', { class: 'n' }, count(d).toLocaleString()))));
 
   const docs = sourceUrl('docs/claims-and-verification.md');
-  const intro = h('div', { class: 'banner info' }, h('div', {},
+  const intro = fold(h('b', {}, 'What counts as a finding here'), h('div', {},
     h('div', {},
-      h('b', {}, 'What counts as a finding here. '),
       'A result is promoted from an evidence record into ', h('code', {}, 'knowledge/findings/'),
       ' by a Coordinator decision, and carries the proof status and claim tier of the evidence it rests on — never more',
       docs ? [' (', h('a', { href: docs, target: '_blank', rel: 'noreferrer' }, 'claims and verification'), ')'] : null,
@@ -1096,7 +1103,8 @@ async function viewFindings(params) {
       'Proof status: ', proofTag('certificate'), ' an explicit instance re-checked by independent code · ',
       proofTag('derivation'), ' a written, step-checkable argument · ',
       proofTag('empirical_only'), ' replicated observations only. ',
-      'Each card also says what the entry does ', h('b', {}, 'not'), ' claim, in its own words.')));
+      'Each card also says what the entry does ', h('b', {}, 'not'), ' claim, in its own words.')),
+    { cls: 'banner info' });
 
   const body = ({
     findings: findingsTab, areas: directionsTab, verdicts: verdictsTab, evidence: evidenceTab,
@@ -1119,7 +1127,7 @@ function findingsTab(d, params) {
   const summary = h('div', { class: 'faint mono' });
   const byArea = new Map(d.directions.map((r) => [r.area, r]));
   const cardGrid = (items) => h('div', { class: 'grid',
-    style: 'grid-template-columns:repeat(auto-fill,minmax(340px,1fr))' }, items.map(findingCard));
+    style: 'grid-template-columns:repeat(auto-fill,minmax(min(340px,100%),1fr))' }, items.map(findingCard));
 
   /** Findings under the area they are filed in, with the goals of that
    *  area beside the heading — so a reader sees which campaign produced
@@ -1472,7 +1480,7 @@ async function viewGoals() {
 
   const filters = { text: '', only: 'active' };
   const grid = h('div', { class: 'grid',
-    style: 'grid-template-columns:repeat(auto-fill,minmax(310px,1fr))' });
+    style: 'grid-template-columns:repeat(auto-fill,minmax(min(310px,100%),1fr))' });
   const summary = h('div', { class: 'faint mono' });
 
   function draw() {

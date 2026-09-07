@@ -1,0 +1,34 @@
+--- /home/user/crypto-autoresearcher/experiments/EXP-ECDLP-612fb1/source/analysis.py	2026-09-06 15:42:42.142744152 +0000
++++ analysis.py	2026-09-06 16:18:37.300911804 +0000
+@@ -227,8 +227,8 @@
+                                 "MODELED_borel_slope_same_estimator": x["MODELED_borel_survival_slope_same_estimator"],
+                                 "MODELED_borel_slope_int_grid": x["MODELED_borel_survival_slope_int_grid"],
+                                 "survival_pointwise_max_abs_log_ratio": x["survival_pointwise"]["max_abs_log_ratio"],
+-                                "n_c_theta2_over_2": x["cutoff"]["n_c_theta2_over_2"],
+-                                "MODELED_borel_cutoff_same_estimator": x["MODELED_borel_cutoff_same_estimator"]["n_c_theta2_over_2"],
++                                "n_c_theta2_over_2": x["cutoff"].get("n_c_theta2_over_2"),
++                                "MODELED_borel_cutoff_same_estimator": x["MODELED_borel_cutoff_same_estimator"].get("n_c_theta2_over_2"),
+                                 "top_T_share": x["top_T_share"], "C_max_model": x["C_max_model"],
+                                 "top_T_share_over_C_max": x["top_T_share_over_C_max"],
+                                 "static_T_exact_coverage": s["fixture"]["static_T_exact_coverage"],
+@@ -239,7 +239,10 @@
+                                for (_, s, _), x in zip(runs, b)]}
+             g1["slope_within_0.15_all_seeds"] = all(abs(x["survival_slope"] + 0.5) <= 0.15 for x in b)
+             g1["slope_int_grid_within_0.15_all_seeds"] = all(abs(x["survival_slope_int_grid"] + 0.5) <= 0.15 for x in b)
+-            g1["cutoff_in_[0.5,2]_all_seeds"] = all(0.5 <= x["cutoff"]["n_c_theta2_over_2"] <= 2 for x in b)
++            # RED TEAM J4(i) None-guard: on an object whose basin-size tail is too short to fit the Borel
++            # cutoff, fit_cutoff returns n_c = None; the snapshot analysis crashed here (TypeError) instead
++            # of reporting the G1 cutoff criterion as FAILED.  A None cutoff is scored as outside the band.
++            g1["cutoff_in_[0.5,2]_all_seeds"] = all((x["cutoff"].get("n_c_theta2_over_2") is not None) and (0.5 <= x["cutoff"]["n_c_theta2_over_2"] <= 2) for x in b)
+             g1["top_share_over_C_max_in_[0.85,1.05]_all_seeds"] = all(0.85 <= x["top_T_share_over_C_max"] <= 1.05 for x in b)
+             g1["top_share_over_C_max_pooled"] = float(np.mean([x["top_T_share_over_C_max"] for x in b]))
+             g1["stopping_rule_1_top_share_band"] = bool(0.85 <= g1["top_share_over_C_max_pooled"] <= 1.05)
+@@ -262,7 +265,7 @@
+                       f"{[round(e['survival_slope_log_grid'], 3) for e in g1['per_seed']]} "
+                       f"[MODELED Borel under same estimator {[round(e['MODELED_borel_slope_same_estimator'], 3) for e in g1['per_seed']]}]; "
+                       f"within 0.15 of -0.5 all seeds: {g1['slope_within_0.15_all_seeds']}; "
+-                      f"cutoff n_c theta^2/2 {[round(e['n_c_theta2_over_2'], 3) for e in g1['per_seed']]} in [0.5,2]: "
++                      f"cutoff n_c theta^2/2 {[(round(e['n_c_theta2_over_2'], 3) if e['n_c_theta2_over_2'] is not None else None) for e in g1['per_seed']]} in [0.5,2]: "
+                       f"{g1['cutoff_in_[0.5,2]_all_seeds']}; top-T share / C_max "
+                       f"{[round(e['top_T_share_over_C_max'], 3) for e in g1['per_seed']]} in [0.85,1.05]: "
+                       f"{g1['top_share_over_C_max_in_[0.85,1.05]_all_seeds']}; STATIC(T) below top share: "
