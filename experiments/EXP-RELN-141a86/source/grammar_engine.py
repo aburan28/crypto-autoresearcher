@@ -250,6 +250,17 @@ _SAMPLE_GRID = {
 }
 
 
+# Magnitude cap applied ONLY inside numeric fingerprinting (never applied
+# to the exact constant-fitting / recovery-check evaluation path in
+# constant_fit.py or the Stage-1 fit tables, which operate on measured
+# (N, B, m) values that are never remotely this large). This exists solely
+# to keep the fingerprint dedup pass on the fixed small sample grid from
+# hanging on a tower-exponential pow/binomial nesting artifact; recorded as
+# a protocol deviation (implementation.md) since it was not in the frozen
+# Stage-0a module.
+_FINGERPRINT_MAGNITUDE_CAP = 1e6
+
+
 def _eval_expr(expr: Expr, env: Dict[str, float]):
     tag = expr[0]
     if tag == "leaf":
@@ -257,6 +268,29 @@ def _eval_expr(expr: Expr, env: Dict[str, float]):
     if tag == "const":
         return expr[1]
     if tag == "CONST":
+        # BUGFIX (protocol deviation, recorded in implementation.md): a
+        # single shared env["CONST"] value used for EVERY CONST leaf in
+        # the tree makes numeric_fingerprint spuriously conflate
+        # expressions with two INDEPENDENT free constants (permitted by
+        # the frozen constant_fitting clause, "at most two free constants
+        # per expression") with structurally different expressions that
+        # only coincide when both constants happen to equal that one
+        # shared value -- confirmed empirically: div(binomial(add(B,
+        # CONST),CONST),N) (the true INV-A4 coverage law, CONST=2 and
+        # CONST=3) was silently deduplicated out of the enumerated set
+        # because both its CONST leaves fingerprinted as 1. A
+        # "_CONST_STREAM" list in env, when present, supplies a DISTINCT
+        # fingerprint value per CONST leaf in left-to-right evaluation
+        # order (consumed via "_CONST_STREAM_IDX", a single-element list
+        # used as a mutable counter); this never changes node counts,
+        # canonical string form, or the grammar's semantics -- only the
+        # numeric fingerprint used for algebraic-duplicate detection.
+        stream = env.get("_CONST_STREAM")
+        if stream is not None:
+            idx_holder = env["_CONST_STREAM_IDX"]
+            i = idx_holder[0]
+            idx_holder[0] += 1
+            return stream[i % len(stream)]
         return env.get("CONST", Fraction(1, 1))
     if tag in UNARY_OPS:
         v = _eval_expr(expr[1], env)
@@ -293,12 +327,36 @@ def _eval_expr(expr: Expr, env: Dict[str, float]):
                     return None
                 return Fraction(a) / Fraction(b) if isinstance(a, (int, Fraction)) and isinstance(b, (int, Fraction)) else a / b
             if tag == "pow":
-                bf = float(b)
-                if float(a) == 0 and bf < 0:
+                af, bf = float(a), float(b)
+                if abs(af) > _FINGERPRINT_MAGNITUDE_CAP or abs(bf) > _FINGERPRINT_MAGNITUDE_CAP:
+                    # A pathologically large intermediate value on this
+                    # module's fixed *fingerprinting* sample grid (e.g. a
+                    # deeply nested pow/binomial tower); exact evaluation
+                    # would be computationally unbounded (tower-exponential
+                    # bignum growth) for a purely cosmetic dedup check.
+                    # Treated as domain-invalid (None) here, exactly as
+                    # division-by-zero already is -- this never changes
+                    # which expressions exist or their node counts, only
+                    # prevents the fingerprint pass from hanging on an
+                    # astronomically large intermediate.
                     return None
-                return float(a) ** bf
+                if af == 0 and bf < 0:
+                    return None
+                if af < 0 and bf != int(bf):
+                    # non-integer power of a negative base is complex under
+                    # real arithmetic; treat as domain-invalid (None), same
+                    # as any other undefined evaluation on this module's
+                    # fixed sample grid -- never silently coerced to a
+                    # complex or NaN fingerprint value.
+                    return None
+                result = af ** bf
+                if isinstance(result, complex):
+                    return None
+                return result
             if tag == "binomial":
                 af, bf = float(a), float(b)
+                if abs(af) > _FINGERPRINT_MAGNITUDE_CAP or abs(bf) > _FINGERPRINT_MAGNITUDE_CAP:
+                    return None
                 if af < 0 or bf < 0 or bf > af or int(af) != af or int(bf) != bf:
                     return None
                 return math.comb(int(af), int(bf))
@@ -307,20 +365,58 @@ def _eval_expr(expr: Expr, env: Dict[str, float]):
     raise ValueError(f"unknown expression tag: {tag!r}")
 
 
+def _count_const_leaves(expr: Expr) -> int:
+    tag = expr[0]
+    if tag == "CONST":
+        return 1
+    if tag in ("leaf", "const"):
+        return 0
+    if tag in UNARY_OPS:
+        return _count_const_leaves(expr[1])
+    if tag in BINARY_OPS:
+        return _count_const_leaves(expr[1]) + _count_const_leaves(expr[2])
+    raise ValueError(tag)
+
+
+# Distinct fingerprint values assigned to successive CONST leaves (see the
+# "CONST" branch of _eval_expr for why a single shared value is unsound).
+# DELIBERATELY small DISTINCT POSITIVE INTEGERS, not fractions: many real
+# target expressions place CONST directly as a binomial() or pow()
+# argument, and both operators require integer-valued arguments to be
+# evaluable at all (see their domain checks below) -- a fractional
+# fingerprint value there makes the whole subtree evaluate to None on
+# every grid point, and *every* such "always-None" expression then
+# collides on the same (None, None, ..., None) fingerprint and gets
+# deduplicated against whichever one was registered first, silently
+# discarding unrelated valid integer-CONST expressions (confirmed
+# empirically: this cost the true INV-A4 coverage law,
+# div(binomial(add(B,CONST),CONST),N), its own distinct fingerprint before
+# this fix). Small primes keep every occurrence evaluable and distinct.
+_CONST_STREAM_VALUES = [Fraction(v) for v in (2, 3, 5, 7, 11, 13, 17)]
+
+
 def numeric_fingerprint(expr: Expr, leaves: Iterable[str]) -> Tuple:
     """
     Evaluate the canonical expression on the cross product of the fixed
     sample grid restricted to the leaves actually present in this pack,
     rounding to 9 significant digits. Used only to deduplicate the
     enumerated candidate set against itself -- never evaluated against any
-    measured record.
+    measured record. Each CONST leaf in the tree gets its OWN distinct
+    fingerprint value (see _eval_expr's "CONST" branch bugfix note) so
+    that expressions with two independent free constants are not
+    spuriously conflated with expressions that only coincide when both
+    constants take one shared value.
     """
     leaves = [l for l in leaves if l != "CONST"]
     grids = [_SAMPLE_GRID[l] for l in leaves]
+    n_const = _count_const_leaves(expr)
+    const_stream = _CONST_STREAM_VALUES[:max(n_const, 1)]
     fp = []
     for combo in product(*grids):
         env = dict(zip(leaves, combo))
         env["CONST"] = Fraction(1, 1)
+        env["_CONST_STREAM"] = const_stream
+        env["_CONST_STREAM_IDX"] = [0]
         try:
             v = _eval_expr(expr, env)
         except (OverflowError, ValueError, ZeroDivisionError, RecursionError):
