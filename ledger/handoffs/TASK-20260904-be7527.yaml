@@ -1,0 +1,200 @@
+handoff:
+  id: TASK-20260904-be7527
+  from: coordinator
+  to: [validator, red-team]
+  created_at: '2026-09-04'
+  experiment_id: EXP-MONO-4e6faa
+  hypothesis_id: H-MONO-d4c511
+  question_id: RQ-MONO-001
+  goal_id: GOAL-MONO-001
+
+  objective: >-
+    Independent review of EXP-MONO-4e6faa: a stress test of
+    IDEA-20260904-4f614a's exact closed form (D3) on a curve where the
+    formula's own previously-untested twist term (h_-) is nonzero. On the
+    found curve (p=101, A=1, B=0, Z=3, n_+=48, n_-=50, h_+=0, h_-=1), the
+    exhaustive distinct-split census (152096 base points) matches the
+    formula's own prediction exactly: R1 = R2 = R3 = 0.
+
+  review_plan:
+    coordinator_prior: >-
+      Recorded BEFORE either reviewer is dispatched. On inspection, the
+      Stage-0/1/2 arithmetic is self-consistent: C(48,3)+C(50,3)+48 =
+      17296+19600+48 = 36944 matches the reported observed and predicted
+      #1^4; 3*48*50-3*48 = 7200-144 = 7056 matches #2+1+1; n_++n_- = 98 =
+      p-Z and n_+-n_- = -2 = -trace both check; tau=Z+1=4, h_+=(4-4)/4=0,
+      h_-=(8-4)/4=1 all follow correctly from the reported #E[4]=4,
+      #E^d[4]=8. The PRIMARY classification (Q_e construction and five-way
+      factorization-pattern labelling) is unchanged, reused-by-file-path,
+      sha256-bound code from EXP-MONO-0e6e8f/EXP-MONO-815525, both already
+      independently validated and red-teamed in prior rounds -- this is the
+      strongest reason for confidence in the base counts themselves. The
+      ONE genuinely new element is a "fixed" resultant cross-check wired
+      into stage_1() this session (replacing a dead/inert block left by a
+      rate-limit-interrupted prior executor attempt), which embeds the
+      stratum's own rational roots as degree-0 ring elements and claims
+      this makes the check non-tautological. New code deserves its own
+      independent audit regardless of how well-reasoned its own writeup
+      reads -- this Coordinator has not independently verified it. A
+      separate, non-correctness concern: h_-=1 is the minimal possible
+      positive value, and this Coordinator has not fully worked out whether
+      that specific value could pass even under a subtly wrong functional
+      form of the h_- term (as opposed to genuinely confirming the claimed
+      linear dependence h_-*n_+) -- a scope question for the eventual
+      evidence record, not a suspected defect in this run.
+    claim_under_review: >-
+      (a) Is the found curve (E: y^2=x^3+x over F_101, its twist
+      E^d: y^2=x^3+4x) correctly constructed, and are #E(F_101)=100,
+      #E^d(F_101)=104, #E(F_101)[4]=4, #E^d(F_101)[4]=8 -- hence
+      Z=3, tau=4, h_+=0, h_-=1 -- all correct? (b) Is the exhaustive
+      Stage-1 census (152096 distinct-split base points, five-class counts
+      1^4=36944, 2+2=108096, 2+1+1=7056, 4=0, 3+1=0) correct? (c) Is Stage
+      2's comparison against IDEA-20260904-4f614a's own frozen D3 formula
+      (predicted from n_+=48, n_-=50, h_+=0, h_-=1) correctly computed, and
+      does R1=R2=R3=0 actually hold exactly? (d) Is the newly-written
+      resultant cross-check code (added this session, not previously
+      reviewed) actually a genuine, non-tautological independent check, or
+      could it agree with the primary classifier even when the primary
+      classifier is wrong? (e) Does a single h_-=1 confirmation fully
+      close the "retrodiction bias" gap IDEA-20260904-4f614a itself named,
+      or only partially (scope question, not a pass/fail defect)?
+    joints:
+      - joint: J1-CURVE-AND-TWIST-CONSTRUCTION-AUDIT
+        assigned_to: validator
+        attack_plan: >-
+          Write your OWN independent point-counting and group-law code (do
+          NOT import or reuse RC.pt_add, RC.curve_order, or any function
+          from run_census.py / run_uncond_census.py for this joint
+          specifically -- a shared group-law bug between the Executor's
+          code and the reused library would otherwise be invisible to a
+          check that reuses the same code) to verify, from scratch: E:
+          y^2=x^3+x and E^d: y^2=x^3+4x over F_101 have #E=100, #E^d=104,
+          f(X)=X^3+X splits into exactly 3 distinct roots {0,10,91} mod
+          101, and #E[4]=4, #E^d[4]=8 (brute-force is entirely tractable at
+          p=101). Confirm tau=4, h_+=0, h_-=1 follow.
+      - joint: J2-STAGE1-BLIND-RECLASSIFICATION
+        assigned_to: validator
+        attack_plan: >-
+          Reusing ONLY EXP-MONO-0e6e8f's own already-verified
+          run_uncond_census.py (UC) and EXP-MONO-815525's own
+          run_census.py (RC), loaded read-only by file path exactly as the
+          Executor did, write your OWN independent driver script that
+          enumerates the same distinct-split stratum on E: y^2=x^3+x over
+          F_101 (unordered triples of distinct roots of F_101 \\ {0,10,91})
+          and tabulates the five-class counts -- WITHOUT reading
+          execution_report.yaml or raw-result.json first. This is a full
+          reclassification (152096 points, a few seconds), not a sample.
+          Then compare your own counts against the archived
+          raw-result.json's stage_1.counts. Finally, independently
+          recompute Stage 2's predicted #1^4 and #2+1+1 from (n_+=48,
+          n_-=50, h_+=0, h_-=1) per IDEA-20260904-4f614a's own D3 formula,
+          and confirm your own observed counts match your own predicted
+          counts exactly.
+      - joint: J3-NEW-RESULTANT-CROSSCHECK-CODE-AUDIT
+        assigned_to: red-team
+        attack_plan: >-
+          Read experiments/EXP-MONO-4e6faa/implementation.md's own
+          before/after diff and experiments/EXP-MONO-815525/implementation/
+          run_census.py's actual RC.F3 and RC.qe_from_resultant
+          implementations. The archived script claims that embedding each
+          of the stratum's own three rational roots t1,t2,t3 as degree-0
+          tuples (t,0,0) in RC.F3(p,e1,e2,e3) never triggers that ring's
+          degree-3/4 reduction rule, so RC.qe_from_resultant performs
+          genuine independent F_p arithmetic rather than a tautology that
+          would trivially agree with RC.qe_from_sym regardless of whether
+          qe_from_sym is correct. Determine whether this claim is actually
+          true by reading the ring arithmetic directly (not by trusting the
+          writeup), and assess whether the reported "31 sampled, 0
+          mismatches, 0 non-rational" result would have any power to catch
+          a wrong qe_from_sym computation, or none. State plainly whether
+          this new code adds real assurance or false confidence. This new
+          code does NOT gate the primary result (which rests on
+          UC.classify_fibre + RC.qe_from_sym alone, both already
+          independently verified in prior rounds) but is cited in the
+          manifest and execution_report as an additional correctness
+          signal and must not be relied on as such if it turns out to be
+          hollow.
+      - joint: J4-MINIMAL-H-MINUS-SCOPE-CHECK
+        assigned_to: red-team
+        attack_plan: >-
+          h_-=1 is the smallest possible positive value h_- can take.
+          Assess whether an exact match at h_-=1 meaningfully discriminates
+          the CLAIMED linear form of the h_- term (D = h_+ n_- + h_- n_+,
+          i.e. a term proportional to h_-) from plausible alternate
+          functional dependencies on h_- that would also evaluate to the
+          same contribution at h_-=1 (e.g. any f(h_-) with f(1) = n_+,
+          f(0) = 0, such as h_-^2 * n_+, or a step function). If such
+          alternates exist and are not independently excluded by anything
+          else in this run, name this explicitly as a genuine, partial
+          scope limitation on the claim "this closes the retrodiction-bias
+          gap" -- not a defect in the run's own correctness, but a limit on
+          how much confidence a single h_-=1 curve can buy versus what a
+          curve with h_->=2 would buy. State plainly whether the gap is
+          fully or only partially closed, and what a fully decisive
+          follow-up would need (e.g. an h_-=2 curve, if one exists within
+          [101,2000] -- you are not required to search for one yourself,
+          only to assess whether the claim as currently written overstates
+          what one h_-=1 point can support).
+    blindness:
+      lifted_for: null
+      rationale: null
+      declaration: >-
+        Both reviewers are launched as fresh subagents with no prior
+        context; each must independently state whether it read the other's
+        output or any sibling review directory before forming its own
+        conclusions.
+    proves_too_much:
+      objects:
+        - >-
+          Applying the SAME Stage-2 closed-form comparison to one of
+          EXP-MONO-0e6e8f's own already-archived h_-=0 witness curves: the
+          D-term collapses to D = h_+ * n_- + 0 and must reproduce that
+          experiment's own already-reported and already-reviewed exact
+          counts. This confirms the general (n_+,n_-,h_+,h_-) formula used
+          here is a strict generalization of the one already partially
+          validated, not a different formula that merely happens to also
+          fit this new curve.
+      failure_signature: >-
+        If re-applying the identical formula to a prior h_-=0 witness
+        curve's own (n_+, n_-, h_+) values does NOT reproduce
+        EXP-MONO-0e6e8f's own already-archived exact counts, the "closed
+        form" tested here is not actually the same one partially validated
+        before, and this run's confirmatory value for the ORIGINAL claim is
+        undermined even if its own arithmetic is internally consistent.
+    blind_rederivation:
+      required: true
+      quantity: >-
+        The exact five-class Stage-1 counts and the Stage-2 predicted vs.
+        observed comparison for curve p=101, A=1, B=0, independently
+        reproduced from scratch (not merely re-checked against the
+        Executor's own reported numbers).
+      assigned_to: validator
+      blind_from:
+        - experiments/EXP-MONO-4e6faa/execution_report.yaml
+        - experiments/EXP-MONO-4e6faa/runs/RUN-MONO-4e6faa-1/raw-result.json
+        - experiments/EXP-MONO-4e6faa/runs/RUN-MONO-4e6faa-1/stdout.log
+
+  budget:
+    wall_clock_seconds: 3600
+    memory_gb: 4
+    maximum_runs: 0
+
+  constraints:
+    - Do not commit or push. Report only, in your own review directory under experiments/EXP-MONO-4e6faa/reviews/{validator,red-team}/.
+    - Do not read the sibling reviewer's directory before forming your own conclusions; disclose whether you did.
+    - Do not change any research status, ledger record, or hypothesis field.
+
+  completion_gate: >-
+    Both validation-report.yaml and red-team-report.yaml filed, each
+    addressing its owned joints explicitly, before the Coordinator composes
+    the evidence and decision records determining how this result bears on
+    H-MONO-d4c511 and IDEA-20260904-4f614a's own broader closed-form claim.
+
+  inference:
+    requested_policy: review-adversarial
+    reasoning_effort: xhigh
+    runtime: claude_code
+    resolved_model_id: claude-sonnet-5
+    model_verified: true
+    fallback_used: false
+    degraded_requirements: []
