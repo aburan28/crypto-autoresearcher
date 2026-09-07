@@ -69,6 +69,17 @@ def test_usage_normalization_preserves_provider_cache_counters():
         "prompt_tokens": 100, "completion_tokens": 10,
         "prompt_tokens_details": {"cached_tokens": 80}}})
     assert openai["cached_tokens"] == 80
+    assert "cache_write_tokens" not in openai
+
+
+def test_usage_normalization_omits_absent_cache_counters():
+    anthropic = adapter.normalize_usage("anthropic_messages", {"usage": {
+        "input_tokens": 10, "output_tokens": 5}})
+    assert anthropic == {"input_tokens": 10, "output_tokens": 5}
+
+    openai = adapter.normalize_usage("openai_chat", {"usage": {
+        "prompt_tokens": 10, "completion_tokens": 5}})
+    assert openai == {"input_tokens": 10, "output_tokens": 5}
 
 
 def test_cache_efficiency_respects_anthropic_accounting():
