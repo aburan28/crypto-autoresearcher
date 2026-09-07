@@ -180,6 +180,7 @@ class Handler(BaseHTTPRequestHandler):
         for prefix, handler in (
             ("goals/", self._goal_detail),
             ("records/", self._record_detail),
+            ("sources/", self._source_detail),
             ("search/", self._search_shard),
         ):
             if rel.startswith(prefix):
@@ -200,9 +201,14 @@ class Handler(BaseHTTPRequestHandler):
             self._json(payloads.goal_payload(index, goal, detail=True))
 
     def _record_detail(self, index: ResearchIndex, record_id: str) -> None:
-        # `include_raw` is the one place the live server gives more than the
-        # static site: the file is already on disk here.
-        payload = payloads.record_payload(index, record_id, include_raw=True)
+        payload = payloads.record_payload(index, record_id, include_raw=False)
+        if payload is None:
+            self._json({"error": "unknown record"}, HTTPStatus.NOT_FOUND)
+        else:
+            self._json(payload)
+
+    def _source_detail(self, index: ResearchIndex, record_id: str) -> None:
+        payload = payloads.source_payload(index, record_id)
         if payload is None:
             self._json({"error": "unknown record"}, HTTPStatus.NOT_FOUND)
         else:
