@@ -1,0 +1,194 @@
+handoff:
+  id: TASK-20260904-e14b04
+  from: coordinator
+  to: [validator, red-team]
+  created_at: '2026-09-04'
+  experiment_id: EXP-MONO-ee06e2
+  hypothesis_id: H-MONO-fa4cb9
+  question_id: RQ-MONO-001
+  goal_id: GOAL-MONO-001
+
+  objective: >-
+    Independent review of EXP-MONO-ee06e2: on a curve with h_-=3 (p=101,
+    A=1, B=33; n_+=52, n_-=46, h_+=0), the linear D3 closed form matches
+    the exhaustive distinct-split census exactly (R1_lin=R2_lin=0), while
+    a named quadratic rival is decisively excluded (R1_quad=-312,
+    R2_quad=936). Combined with EXP-MONO-4e6faa's own h_-=1 confirmation,
+    this is the second independent exact match, at a genuinely different
+    h_- value, discriminating the linear form from an alternative.
+
+  review_plan:
+    coordinator_prior: >-
+      Recorded BEFORE either reviewer is dispatched. This Coordinator has
+      re-read IDEA-20260904-4f614a's own mechanism section (STEP 4/5) and
+      finds it is NOT a curve-fit dressed as a derivation: it gives an
+      explicit combinatorial argument that the #1^4 excess is a SUM of
+      independent contributions, one per rational fixed-point pair of a
+      halvable 2-torsion translation involution -- h_+ such pairs each
+      contributing exactly n_- (they sit in the chi=+1 half), h_- such
+      pairs each contributing exactly n_+ (chi=-1 half), giving
+      D = h_+ n_- + h_- n_+ as a sum, not a fitted curve. If this
+      additive-independent-pairs argument is correct, a QUADRATIC
+      alternative (D_quad = h_+ n_- + h_-^2 n_+) would require the h_-
+      pairs' contributions to interact non-additively, which the argument
+      gives no mechanism for -- so decisively excluding D_quad here is a
+      real corroboration of the SPECIFIC additive-counting step of the
+      derivation, not merely "two points now agree with an arbitrary
+      one-parameter family." This Coordinator's own moderate-confidence
+      question is whether STEP 4's own claim that "the two rational fixed
+      points of mu_T' are exchanged by the other two involutions and by
+      nothing else, so they form exactly ONE such pair per halvable T'" is
+      airtight -- this Coordinator has not independently re-derived this
+      specific counting claim and it is the crux of why h_+/h_- pairs
+      count without double-counting or omission.
+    claim_under_review: >-
+      (a) Is the found curve (E: y^2=x^3+x+33 over F_101, twist
+      E^d: y^2=x^3+4x+264 mod 101) correctly constructed, with #E=108,
+      #E^d=96, #E[4]=4, #E^d[4]=16, hence Z=3, tau=4, h_+=0, h_-=3,
+      n_+=52, n_-=46? (b) Is the exhaustive Stage-1 census (152,096 base
+      points; 1^4=37436, 2+2=107952, 2+1+1=6708) correct? (c) Are the
+      linear (D_lin=156) and quadratic (D_quad=468) predictions correctly
+      computed, and do R1_lin=R2_lin=0 while R1_quad=-312, R2_quad=936
+      actually hold exactly? (d) Did the Executor's search genuinely avoid
+      hard-coding or special-casing (A,B)=(1,33), landing on it purely via
+      the declared fixed search order (135 pairs examined)? (e) Is
+      IDEA-20260904-4f614a's own STEP 4/5 derivation of D's additive,
+      independent-pair structure mathematically sound on its own terms
+      (an audit of the ARGUMENT, not just the arithmetic it predicts) --
+      in particular the claim that each halvable T' contributes exactly
+      ONE rational fixed-point pair, with no double-counting across the
+      three involutions?
+    joints:
+      - joint: J1-CURVE-AND-TWIST-CONSTRUCTION-AUDIT
+        assigned_to: validator
+        attack_plan: >-
+          Write your OWN independent point-counting and group-law code
+          (do NOT import or reuse RC.pt_add, RC.curve_order, or anything
+          from run_census.py / run_uncond_census.py for this joint) to
+          verify from scratch: E: y^2=x^3+x+33 and its twist (d=2:
+          A_twist=1*4=4, B_twist=33*8=264 mod 101 -- recompute this
+          reduction yourself) over F_101 have #E=108, #E^d=96, f(X)=
+          X^3+X+33 splits into 3 distinct roots mod 101, #E[4]=4,
+          #E^d[4]=16. Confirm tau=4, h_+=0, h_-=3, n_+=52, n_-=46 follow.
+      - joint: J2-STAGE1-BLIND-RECLASSIFICATION-AND-DUAL-PREDICTION
+        assigned_to: validator
+        attack_plan: >-
+          Reusing ONLY EXP-MONO-0e6e8f's own run_uncond_census.py (UC) and
+          EXP-MONO-815525's own run_census.py (RC), loaded read-only by
+          file path, write your OWN independent driver that enumerates the
+          distinct-split stratum on E: y^2=x^3+x+33 over F_101 and
+          tabulates the five-class counts -- WITHOUT reading
+          execution_report.yaml or raw-result.json first. Full exhaustive
+          census (152,096 points), not a sample. Then, from your own
+          n_+=52, n_-=46, h_+=0, h_-=3, independently compute BOTH
+          D_lin = h_+ n_- + h_- n_+ and D_quad = h_+ n_- + (h_-)^2 n_+ and
+          each one's predicted #1^4, #2+1+1. Compare your own observed
+          counts against both. Report R1_lin, R2_lin, R1_quad, R2_quad
+          from your own numbers.
+      - joint: J3-NO-HARDCODING-AUDIT
+        assigned_to: red-team
+        attack_plan: >-
+          Read experiments/EXP-MONO-ee06e2/implementation/
+          run_linear_vs_quadratic.py in full. Confirm the Stage-0 search
+          loop contains no reference, literal, comment-guided shortcut, or
+          conditional branch that special-cases, jumps to, or is seeded
+          toward (A,B)=(1,33) or p=101 specifically -- the loop must be a
+          plain, generic ascending scan whose filter condition alone
+          (Z=3 and h_- >= 2) determines the stopping point, exactly as it
+          would for any other qualifying pair. If you find ANY such
+          shortcut, however minor, report it as the headline finding --
+          it would mean this "independent re-discovery" is not
+          independent at all.
+      - joint: J4-DERIVATION-AUDIT-STEP4-STEP5
+        assigned_to: red-team
+        attack_plan: >-
+          Read IDEA-20260904-4f614a's own `mechanism` field, STEP 4 and
+          STEP 5, in full (ledger/proposals/IDEA-20260904-4f614a.yaml).
+          Independently assess, from the stated group-law and
+          quadratic-character facts alone (not by trusting the prose),
+          whether the argument that "the #1^4 excess is D = h_+ n_- +
+          h_- n_+, a SUM of one contribution per halvable 2-torsion point,
+          each contributing exactly n_- or n_+ depending on its chi-half"
+          is actually correct -- in particular: (i) does each halvable T'
+          really contribute EXACTLY ONE rational fixed-point pair, with no
+          double-counting across which of the (up to) three nontrivial
+          2-torsion points are halvable; (ii) is STEP 5's claim that
+          "chi is mu-invariant, so a second collision inside a triple
+          forces all three characters equal" correct, and does it really
+          prevent any double-counting between the STEP 4 (1^4-excess) and
+          STEP 5 (2+1+1) contributions; (iii) does the argument, if
+          correct, actually PREDICT that D_quad-style non-additive
+          interactions between distinct halvable points should NOT occur
+          -- i.e. is EXP-MONO-ee06e2's decisive exclusion of D_quad
+          exactly the confirmation this specific derivation step would
+          predict, or could a correct derivation still have been
+          compatible with a nonlinear D-term under some scenario this
+          record does not consider? State plainly whether this is a real
+          mathematical derivation with the quadratic alternative
+          A PRIORI structurally implausible under it (making the
+          empirical exclusion a strong corroboration of the mechanism),
+          or whether the derivation itself leaves room for other
+          functional forms that happen not to have been tested yet.
+    blindness:
+      lifted_for: null
+      rationale: null
+      declaration: >-
+        Both reviewers are launched as fresh subagents with no prior
+        context; each must independently state whether it read the
+        other's output or any sibling review directory before forming its
+        own conclusions.
+    proves_too_much:
+      objects:
+        - >-
+          Applying the SAME D_lin/D_quad comparison to EXP-MONO-4e6faa's
+          own already-archived h_-=1 curve: D_lin and D_quad are IDENTICAL
+          there (both equal h_+ n_- + n_+, since 1=1^2), so the
+          "proves-too-much" check here is that this equality must hold --
+          if your own recomputation shows D_lin != D_quad at h_-=1 for
+          that curve, something is wrong with your own formula
+          implementation, not with the prior result.
+      failure_signature: >-
+        If D_lin and D_quad do NOT coincide when independently recomputed
+        for the h_-=1 curve, the reviewer's own quadratic-rival formula is
+        implemented incorrectly and must be fixed before its verdict on
+        EXP-MONO-ee06e2 can be trusted.
+    blind_rederivation:
+      required: true
+      quantity: >-
+        The exact five-class Stage-1 counts and the Stage-2 four-way
+        residual comparison (R1_lin, R2_lin, R1_quad, R2_quad) for curve
+        p=101, A=1, B=33, independently reproduced from scratch.
+      assigned_to: validator
+      blind_from:
+        - experiments/EXP-MONO-ee06e2/execution_report.yaml
+        - experiments/EXP-MONO-ee06e2/runs/RUN-MONO-ee06e2-1/raw-result.json
+        - experiments/EXP-MONO-ee06e2/runs/RUN-MONO-ee06e2-1/stdout.log
+
+  budget:
+    wall_clock_seconds: 3600
+    memory_gb: 4
+    maximum_runs: 0
+
+  constraints:
+    - Do not commit or push. Report only, in your own review directory under experiments/EXP-MONO-ee06e2/reviews/{validator,red-team}/.
+    - Do not read the sibling reviewer's directory before forming your own conclusions; disclose whether you did.
+    - Do not change any research status, ledger record, or hypothesis field.
+
+  completion_gate: >-
+    Both validation-report.yaml and red-team-report.yaml filed, each
+    addressing its owned joints explicitly, before the Coordinator
+    composes the evidence and decision records determining how this
+    result bears on H-MONO-fa4cb9, H-MONO-d4c511, and
+    IDEA-20260904-4f614a's own broader closed-form claim -- including
+    whether the combined h_-=1 and h_-=3 confirmations, together with a
+    sound STEP 4/5 derivation, now warrant a full "supported" status and
+    a knowledge-corpus promotion.
+
+  inference:
+    requested_policy: review-adversarial
+    reasoning_effort: xhigh
+    runtime: claude_code
+    resolved_model_id: claude-sonnet-5
+    model_verified: true
+    fallback_used: false
+    degraded_requirements: []
