@@ -1,0 +1,96 @@
+handoff:
+  id: TASK-20260904-bf0b03
+  from: coordinator
+  to: executor
+  created_at: '2026-09-04'
+  experiment_id: EXP-MONO-64aaa4
+  hypothesis_id: H-MONO-1d50ac
+  question_id: RQ-MONO-001
+  goal_id: GOAL-MONO-001
+
+  objective: >-
+    Re-analyze RUN-MONO-cb905d-1's Part B panel (100 cross-prime matched-
+    (N,tau) ordinary-vs-CM cells) after partitioning out the cells where
+    the "CM" side is actually a supersingular curve, per
+    CORR-20260904-30a8ce and DEC-20260904-d79f75's next_action (2). This
+    is a re-analysis of ALREADY-ARCHIVED data -- no new experiment run, no
+    new sampling.
+
+  authorized_by: coordinator
+  authorization_basis: DEC-20260904-d79f75 next_action (2).
+
+  background: >-
+    experiments/EXP-MONO-64aaa4/implementation/run_experiment.py's
+    construct_ordinary explicitly rejects supersingular candidates
+    ("if N % p == 1: continue"), but construct_cm_j0 and construct_cm_j1728
+    do not. The breakthrough-tier Red Team review found 64 of the 100
+    Part B panel cells in RUN-MONO-cb905d-1's own raw-result.json have
+    N == p_cm + 1 on the CM side (58 distinct such curves) -- i.e. a
+    supersingular curve, not an ordinary CM curve, misclassified as "CM."
+    The Validator-breakthrough's own FB4 finding (an exact conditional-
+    binomial pooling giving CM/ordinary ratio 1.01798, 95% CI
+    [1.00016, 1.03612]) used this same panel WITHOUT partitioning it, per
+    that review's own scope note (it was assigned JB1/JB2, not this
+    audit). This task produces the clean version of that analysis.
+
+  what_to_do:
+    - >-
+      Load experiments/EXP-MONO-cb905d/runs/RUN-MONO-cb905d-1/raw-result.json's
+      Part B section (100 cross-prime matched cells). For each cell,
+      independently verify whether the "CM" curve satisfies N_cm ==
+      p_cm + 1 (supersingular) using the archived (p_cm, A_cm, B_cm, N_cm)
+      fields -- do not trust any prior label; recompute from the archived
+      parameters directly.
+    - >-
+      Partition into two sets: CLEAN (CM side genuinely ordinary, verified
+      by your own check) and CONTAMINATED (CM side supersingular). Report
+      the exact count in each set and cross-check against the Red Team's
+      claimed 64/100 contaminated, 58 distinct curves.
+    - >-
+      On the CLEAN subset only, redo the exact conditional-binomial
+      pooling the Validator-breakthrough performed on the full 100-cell
+      set (CM/ordinary transversal collision-rate ratio, exact 95%
+      confidence interval, total colliding pairs pooled). Report this
+      clean ratio and CI, and compare explicitly against the
+      contaminated-included figure (1.01798, CI [1.00016, 1.03612]) --
+      does partitioning materially change the point estimate or CI width?
+    - >-
+      Separately, using ONLY H-MONO-45183a Part B's own already-
+      established closed form (6(tau-1)/N -- do NOT use the new,
+      not-yet-independently-verified (N,tau,#E[4]) exact formula from the
+      breakthrough round, which is a separate, still-pending verification
+      task, TASK-20260904-b4b00c), recompute the se_deviation figures for
+      ordinary vs. CM curves on the CLEAN subset only, and report whether
+      the "ordinary mean -0.002, CM mean +0.293" split reported elsewhere
+      in this chain persists, shrinks, or disappears once supersingular
+      contamination is removed.
+    - >-
+      Report the 58 distinct supersingular curves found (p, A, B, N) as a
+      simple list, for future reference, so this contamination is never
+      silently reintroduced.
+
+  budget:
+    wall_clock_seconds: 3600
+    memory_gb: 4
+    maximum_runs: 0
+
+  constraints:
+    - Do not commit or push. Write your report and any supporting scripts under a new directory experiments/EXP-MONO-64aaa4/analysis/panel-partition-20260904/.
+    - Do not modify RUN-MONO-cb905d-1's own archived raw-result.json or any other run record -- this is read-only re-analysis; runs are immutable.
+    - No new experiment runs, no new curve construction/sampling -- work entirely from the already-archived 100-cell panel data.
+
+  completion_gate: >-
+    A report filed with the exact partition counts, the clean-subset
+    pooled ratio/CI, the clean-subset se_deviation comparison against
+    Part B's own established closed form, and the list of contaminated
+    curves -- before this Coordinator treats the Part B panel's own
+    CM-vs-ordinary comparison as clean evidence anywhere in the ledger.
+
+  inference:
+    requested_policy: executor-implementation
+    reasoning_effort: medium
+    runtime: claude_code
+    resolved_model_id: claude-sonnet-5
+    model_verified: true
+    fallback_used: false
+    degraded_requirements: []

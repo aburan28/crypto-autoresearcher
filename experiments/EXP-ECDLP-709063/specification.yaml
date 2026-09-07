@@ -1,0 +1,647 @@
+experiment:
+  id: EXP-ECDLP-709063
+  hypothesis_id: H-ECDLP-3ac227
+  source_proposal: IDEA-20260815-f81c17
+  derived_from_idea: IDEA-20260815-f81c17
+  question_id: RQ-ECDLP-002
+  goal_id: GOAL-ECDLP-001
+  version: 1
+  status: review_required
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+
+  title: >-
+    Where the second baseline disappears -- fixed-table and memory-constrained
+    BSGS under an ENFORCED table ceiling at 16 to 28 bits, against rho on shared
+    instances, with the per-entry memory cost measured rather than assumed and
+    the crossover reported as measured or as a bound
+
+  objective: >-
+    The uncertainty a run reduces is whether this campaign's charged comparisons
+    have two matched baselines or one at the sizes they actually work at. A run
+    establishes, at 16, 20, 24 and 28 bits under three enforced table budgets
+    and only there: (i) that unbounded BSGS beats rho in group operations at
+    every size and that fixed-table BSGS cannot start under a degenerate budget;
+    (ii) that the ceiling is enforced by the runtime rather than simulated by a
+    counter; (iii) the measured bytes per table entry and its variation across
+    sizes, which is the constant that decides where any crossover sits; (iv) per
+    budget, either the MEASURED group size at which memory-constrained BSGS
+    stops beating rho, or an explicit bound stating the crossover lies outside
+    the reachable range; and (v) the modeled crossover N* = (c * E)^2 reported
+    beside the measured one in its own column.
+    NO NEW ALGORITHM IS PROPOSED AND NO ATTACK IS PERFORMED. Instances carry
+    known solutions generated before the solve.
+    BUDGET FLOOR NOTE. wall_clock_seconds_per_run is 3600 and maximum_memory_gb
+    is 8, both at or above the template floors. The dominant cost is arm B at
+    the tightest budget and the largest size, where the giant-step phase runs
+    about N/E steps.
+
+  what_this_is_not:
+    - >-
+      Not an attack. Instances carry solutions the harness generated and knows.
+    - >-
+      Not an improvement to BSGS or to rho. Both incumbents are measured under
+      constraint and explicitly not improved.
+    - >-
+      Not a statement about any deployment's memory. The budgets here are tiny
+      by design, chosen so the ceiling binds inside a reachable size range.
+    - >-
+      Not a cryptographic-scale statement, and specifically not a crossover at a
+      realistic budget. That number is an extrapolation across a very large gap
+      and is reported only in a separate labelled table.
+    - >-
+      Not a re-reading of any past comparison in the campaign. If a crossover
+      lands inside the campaign's working sizes, deciding what that means for
+      records claiming two matched baselines is a Coordinator act with its own
+      decision record.
+    - >-
+      Not approval, freezing, execution authorization, a run, an observed
+      output, or evidence. No run has been executed under this contract.
+
+  claim_ceiling:
+    tier: toy
+    exact_scope_a_run_could_support: >-
+      Maximal supportable scope -- for prime-order subgroups at 16, 20, 24 and
+      28 bits, on the named host, at the declared table representation and under
+      the three declared enforced budgets: the group-operation cost and peak
+      memory of unbounded BSGS, fixed-table BSGS, memory-constrained BSGS and
+      rho on shared instances; the measured bytes per table entry per size and
+      its variation; the located crossover per budget or an explicit bound; and
+      the agreement or disagreement between the measured and modeled crossovers.
+      WHAT DOES NOT FOLLOW -- no crossover at any budget or size outside those
+      tested, no statement at any other table representation, no statement that
+      BSGS is or is not a usable baseline for the campaign generally, and no
+      re-adjudication of any existing record's control set.
+
+  inputs:
+    procedure: >-
+      STAGE 0 (reading; CAN TERMINATE, ZERO COMPUTE). Search committed records
+      for any existing measurement of a BSGS memory-bound crossover for this
+      program and record the search commands and output verbatim. Open
+      experiments/EXP-ECDLP-4320a7/specification.yaml and its runs; if its
+      unconstrained BSGS arm has COMPLETED on the shared instances, REUSE that
+      result as this contract's NULL 1 rather than re-measuring it, and record
+      the reuse. Open KN-TECH-031 and KN-TECH-035 and record verbatim what the
+      committed corpus states about BSGS time and storage. Record explicitly
+      that this worktree cannot see unmerged branches, so absence here is not
+      absence in the repository.
+      STAGE 1 (instrument gate; nothing downstream runs until it passes). Load
+      the frozen instance set from EXP-ECDLP-4320a7 with its recorded seeds. Run
+      NULL 1, unbounded BSGS versus rho on every instance, and NULL 2,
+      fixed-table BSGS under the degenerate 8-byte budget. WRITE both verdicts,
+      timestamped, before any crossover is computed. Additionally verify
+      enforcement directly: deliberately request a table one entry larger than
+      the budget allows and confirm the runtime terminates the arm.
+      STAGE 2 (the per-entry cost). At each size, with the ceiling not binding,
+      record peak resident bytes, table entries and table bytes for the
+      unbounded arm, and fit bytes per entry per size. Report the variation
+      across sizes against the 20 percent threshold. This runs BEFORE any
+      crossover is located, because the crossover formula uses this constant.
+      STAGE 3 (arm A, the cliff). For each budget, sweep the four sizes and
+      record the largest size at which fixed-table BSGS starts at all, together
+      with the size at which ceil(sqrt(N)) entries first exceed the budget.
+      STAGE 4 (arm B, the crossover). For each budget and size, run
+      memory-constrained BSGS with the largest table the budget affords, and rho
+      on the identical instances. Record group operations, wall clock, peak
+      resident bytes and table occupancy for both. Locate the crossover per
+      budget by the measured curves, or report a bound with its direction when
+      no crossing occurs in range.
+      STAGE 5 (write-up). Produce the measured-versus-modeled crossover table,
+      the optimistic-assumption list with each bias direction, and the
+      time-memory tradeoff statement with its interpolation range. Extrapolated
+      crossovers, if reported at all, go in a SEPARATE labelled table with basis,
+      functional form and range, never beside a measurement.
+    instrument: >-
+      A BSGS implementation with an instrumented, size-capped table in both
+      arms, sharing curve arithmetic and the charging convention with
+      EXP-ECDLP-4320a7's rho harness. The ceiling is imposed by the operating
+      system or the allocator -- an address-space or allocator limit set to the
+      declared budget plus a recorded fixed overhead allowance -- and NOT by a
+      counter the algorithm consults. Python 3, with a compiled inner loop
+      recorded if one is used. All runs recorded through harness/runner.py. NO
+      network access is required and none may be used.
+    parameters: >-
+      Subgroup bit sizes 16, 20, 24, 28, on the instance set frozen by
+      EXP-ECDLP-4320a7 and reused verbatim with its seeds. Table budgets 4096,
+      32768 and 262144 bytes, plus a degenerate 8-byte budget for NULL 2. One
+      declared table representation with its load-factor policy, frozen before
+      execution. Arms: unbounded BSGS, fixed-table BSGS, memory-constrained
+      BSGS, rho. Per-entry-cost stability threshold 20 percent across sizes.
+      Modeled crossover N* = (c * E)^2 with E = floor(C/e) and c the rho
+      step-count constant taken from EXP-ECDLP-4320a7 when available and from
+      the analytic value otherwise, with the source recorded per cell.
+
+  controls:
+    - >-
+      NULL 1, UNBOUNDED MEMORY, BLOCKING, CAN FAIL. With no ceiling, BSGS must
+      use fewer group operations than rho at every tested size. FORCED. Carried
+      verbatim in force from the parent proposal: 'failure means the
+      implementation is wrong'. If EXP-ECDLP-4320a7 has already measured this on
+      the shared instances, its result is REUSED and not re-measured.
+    - >-
+      NULL 2, TIGHT MEMORY, BLOCKING, CAN FAIL. Under a budget of 8 bytes,
+      smaller than one table entry, fixed-table BSGS must fail to run at all and
+      only rho remains. FORCED. This bounds the sweep from below and, together
+      with NULL 1, fails in the opposite direction: NULL 1 catches an
+      implementation too weak, NULL 2 catches a ceiling that is not real.
+    - >-
+      ENFORCEMENT PROBE, BLOCKING, CAN FAIL. A deliberate request for a table one
+      entry larger than the budget affords must be terminated by the runtime.
+      This is the direct test of C2 and it is separate from NULL 2, because an
+      implementation can refuse to START a too-large table while still being
+      free to GROW past its budget later.
+    - >-
+      SHARED-INSTANCE CONTROL. Every arm runs on the identical frozen instances
+      with the identical seeds, so all comparisons are paired. An arm that draws
+      fresh instances has not made the comparison this contract specifies.
+    - >-
+      ORDERING RULE, BLOCKING. NULL 1, NULL 2, the enforcement probe and the
+      per-entry-cost fit are computed, recorded and timestamped BEFORE any
+      crossover is located, so no crossover can be reported off an instrument
+      that already failed or off an unmeasured constant.
+    - >-
+      REPRESENTATION FREEZE. The table representation and its load-factor policy
+      are declared before execution and held identical across every cell. The
+      parent proposal names representation choice as able to shift the effective
+      ceiling substantially, so a per-cell representation would make the
+      crossover an artifact of tuning.
+    - >-
+      ARM SEPARATION CONTROL. Arm A and arm B are reported separately and never
+      merged. Arm A has a cliff, not a crossover; presenting a cliff as a
+      crossover would be the central reporting error this contract can make.
+    - >-
+      SUPERSESSION GATE, ZERO COMPUTE, CAN TERMINATE. Stage 0's search is
+      executed rather than asserted, with commands and output recorded verbatim,
+      and its known blindness to unmerged branches recorded with it.
+
+  independent_variables:
+    - subgroup bit size, over 16, 20, 24 and 28
+    - enforced table budget, over 4096, 32768 and 262144 bytes, plus the degenerate 8 bytes
+    - algorithm arm, over unbounded BSGS, fixed-table BSGS, memory-constrained BSGS and rho
+    - instance seed, inherited frozen from EXP-ECDLP-4320a7
+
+  metrics:
+    primary:
+      - >-
+        null1_verdict -- whether unbounded BSGS uses fewer group operations than
+        rho at every tested size. Boolean per size. Forced true. MEASURED, or
+        REUSED from EXP-ECDLP-4320a7 with the reuse recorded.
+      - >-
+        null2_verdict -- whether fixed-table BSGS fails to run under the 8-byte
+        budget. Boolean. Forced true. MEASURED.
+      - >-
+        enforcement_probe_verdict -- whether a deliberate over-budget table
+        allocation is terminated by the runtime. Boolean. Forced true. MEASURED.
+      - >-
+        bytes_per_entry -- measured peak table bytes divided by table entries,
+        per size, at the declared representation, with its across-size variation
+        as a percentage. MEASURED. This is HEUR-BSGS-1's quantity.
+      - >-
+        constrained_bsgs_ops and rho_ops -- group operations per (size, budget)
+        for arm B and for rho on the identical instances, with intervals.
+        MEASURED.
+      - >-
+        measured_crossover_size -- per budget, the group size at which
+        constrained_bsgs_ops first exceeds rho_ops, reported as a located size,
+        or as a BOUND with its direction when no crossing occurs in range.
+        MEASURED.
+      - >-
+        arm_a_cliff_size -- per budget, the largest size at which fixed-table
+        BSGS starts at all, beside the size at which ceil(sqrt(N)) entries first
+        exceed the budget. MEASURED and MODELED respectively, in adjacent
+        columns.
+      - >-
+        peak_resident_bytes, peak_table_entries and peak_table_bytes -- per
+        (size, budget, arm). MEASURED. Reported beside every operation count; a
+        table without them is out of contract.
+    secondary:
+      - >-
+        modeled_crossover_size -- N* = (c * E)^2 per budget, with E = floor(C/e)
+        from the measured e and c recorded with its source. MODELED, in its own
+        column, never merged with the measured column.
+      - >-
+        giant_step_count and baby_step_count -- phase-attributed operation
+        counts for arm B, so the degradation is visible rather than aggregated.
+        MEASURED.
+      - >-
+        load_factor -- the table's occupancy ratio at peak, per cell, since the
+        parent proposal names load factors as where the per-entry cost bites.
+        MEASURED.
+      - >-
+        wall_clock_seconds -- per cell, in its own column, with the note that it
+        does not transfer across sizes. MEASURED.
+      - >-
+        stage0_supersession_log -- verbatim commands, paths and quotations, plus
+        the recorded statement that unmerged branches are invisible from this
+        worktree.
+      - >-
+        extrapolated_crossover_table -- optional and SEPARATE, with basis,
+        functional form, range and the parent proposal's own 0.3 prior on its
+        defensibility recorded beside it.
+
+  measured_vs_modeled:
+    measured:
+      - group operations, wall clock and peak resident bytes per cell per arm
+      - table entries, table bytes and load factor at peak
+      - bytes per table entry and its variation across sizes
+      - the located crossover per budget, from where the measured curves cross
+      - the arm-A cliff, from where fixed-table BSGS first fails to start
+    modeled:
+      - >-
+        N* = (c * E)^2, the closed-form crossover, which is a prediction to be
+        compared against the measured crossover and never a substitute for it
+      - >-
+        the size at which ceil(sqrt(N)) entries first exceed a budget, which is
+        arithmetic on the measured per-entry cost and is the arm-A cliff's
+        predicted location
+      - >-
+        any crossover at a budget or size outside the tested set, which is
+        extrapolation and appears only in the separate labelled table
+      - >-
+        the rho constant c when it is taken from the analytic value rather than
+        from a completed EXP-ECDLP-4320a7 run; the source is recorded per cell
+    optimistic_assumptions_with_bias_direction:
+      - >-
+        Peak resident bytes include interpreter and harness overhead a
+        production implementation would not pay. BIAS: OVERSTATES BSGS's memory
+        and therefore moves the crossover to SMALLER group sizes, i.e. makes
+        BSGS look like a worse baseline than it is. Table entries and table
+        bytes are reported separately so the algorithmic memory can be read
+        without the overhead.
+      - >-
+        The table representation is not space-optimised. BIAS: same direction --
+        a larger per-entry cost affords fewer entries and pulls the crossover
+        down. The parent proposal names this as able to shift the ceiling by a
+        large constant, which is why the representation is declared and frozen.
+      - >-
+        Arm B charges one group operation per giant step and ignores the hash
+        lookup cost. BIAS: UNDERSTATES arm B's cost, i.e. flatters BSGS and
+        pushes the crossover UP. This is the opposite direction from the two
+        above, so the two biases do not compound in one direction, and neither
+        is netted out -- both are reported.
+      - >-
+        The rho side uses the constant c from the sibling contract or its
+        analytic value rather than a re-measurement here. BIAS: whichever
+        direction that constant errs in, it moves the modeled crossover as its
+        square. This is why the MEASURED crossover, which needs no c at all, is
+        the primary metric and the modeled one is secondary.
+      - >-
+        Budgets are tiny and chosen so the ceiling binds in range. BIAS: none on
+        the measurement, but it means no located crossover has any direct
+        bearing on a realistic budget.
+    time_memory_tradeoff: >-
+      This contract measures the tradeoff directly rather than assuming it: arm
+      B interpolates between BSGS's high-memory endpoint, sqrt(N) entries and
+      about sqrt(N) operations, and rho's low-memory endpoint, constant memory
+      and about c * sqrt(N) operations, by capping the table at E entries and
+      paying about N/E giant steps. The measured interpolation range is exactly
+      the three declared budgets at the four declared sizes -- twelve cells --
+      and no functional form is fitted outside them. In particular the classical
+      parallel-collision-search tradeoff is NOT measured here and is not
+      claimed; this is a serial statement.
+
+  heuristic_under_test: HEUR-BSGS-1
+
+  preregistered_prediction:
+    quantity: >-
+      null1_verdict, null2_verdict, enforcement_probe_verdict, bytes_per_entry
+      and its variation, arm_a_cliff_size, and measured_crossover_size per
+      budget against modeled_crossover_size.
+    formula: >-
+      BSGS's baby-step table holds ceil(sqrt(N)) entries by construction, so
+      peak table bytes equal ceil(sqrt(N)) times e for a per-entry cost e that
+      HEUR-BSGS-1 asserts is stable across the tested range. Under a budget C
+      the largest affordable table is E = floor(C/e) entries; fixed-table BSGS
+      fails once ceil(sqrt(N)) exceeds E, and memory-constrained BSGS costs
+      about N/E group operations. Equating N/E against rho's c * sqrt(N) gives
+      the crossover N* = (c * E)^2. At an assumed e of 16 bytes the three
+      budgets afford about 256, 2048 and 16384 entries, placing the modeled
+      crossovers near 2^15.6, 2^21.6 and 2^27.7, all inside the tested range;
+      the 16 bytes is a SIZING ASSUMPTION and e itself is measured.
+      UNDER THE NULL that the ceiling is not really enforced, arm B's peak
+      memory exceeds its budget and no crossover appears at all, which is how
+      that failure is distinguished from a genuine absence of crossing.
+    source: >-
+      The entry-count half is exact by construction and is stated in the parent
+      proposal IDEA-20260815-f81c17's HEUR-BSGS-1. The closed form
+      N* = (c * E)^2 is a DERIVATION by the converting Coordinator under
+      TASK-20260904-35fbe5, obtained in one line from the two cost expressions;
+      the parent proposal supplies no closed form, which is why its crossover
+      claim is not decidable as written. The BSGS time and storage costs are
+      textbook and RECALLED; Stage 0 records what KN-TECH-031 and KN-TECH-035
+      actually state before these values are used. Never tuned to data.
+
+  scale_relevance:
+    tier: toy
+    justification: >-
+      TOY AND ACTUALLY TOY. Prime-order subgroups at 16, 20, 24 and 28 bits are
+      CONSTRUCTED and solved under real memory ceilings, so toy-scale evidence
+      genuinely exists and the label is earned. Every tested size is at or below
+      28 bits. The tested memory budgets are 4 KiB to 256 KiB, which are not
+      models of any deployment and are chosen only so the ceiling binds inside
+      the reachable size range. What is claimed to transfer is nothing: the
+      per-entry cost is claimed stable only across the tested sizes, and any
+      crossover at a realistic budget is an EXTRAPOLATION across a very large
+      gap, reported separately with its basis and range and with the parent
+      proposal's own 0.3 prior on its defensibility. Resulting evidence may not
+      exceed claim_tier toy under any outcome.
+    correspondence: null
+    correspondence_note: >-
+      Null because instances are sampled directly at the tested sizes and
+      inherited from the sibling contract. No correspondence trick is used to
+      reach a scale the computation cannot reach, and none is claimed.
+
+  tail_checks:
+    - >-
+      The largest tested size, 28 bits, where hash-table load factors bite
+      hardest. The parent proposal's validation plan names exactly this cell. A
+      per-entry cost that is stable at 16 to 24 bits and jumps at 28 refutes
+      HEUR-BSGS-1 at the boundary rather than in the bulk, which the pooled fit
+      would hide.
+    - >-
+      The tightest budget at the largest size, the cell where arm B is most
+      degraded, checked to confirm that its operation count tracks N/E within a
+      stated factor rather than diverging. Divergence means the giant-step phase
+      is doing work the model does not account for.
+    - >-
+      The cell immediately on each side of every located crossover, checked to
+      confirm the crossing is a genuine sign change in the paired per-instance
+      differences and not a single noisy cell.
+    - >-
+      Peak resident bytes against declared budget in EVERY cell, checked for any
+      cell that exceeded its budget without termination. One such cell voids the
+      enforcement claim for the whole package, so the check is exhaustive rather
+      than sampled.
+
+  replication:
+    seeds: []
+    seeds_note: >-
+      DELIBERATELY EMPTY HERE BECAUSE THE SEEDS ARE INHERITED, NOT DRAWN. This
+      contract reuses the frozen instance set of EXP-ECDLP-4320a7 verbatim,
+      including its per-instance seeds, so that every comparison is paired
+      against the same rho measurements. The BINDING requirement is that the
+      inherited master seed and the derived per-instance seeds are recorded in
+      this contract's manifests, and that no arm draws a fresh instance. A run
+      that generates its own instances has broken the pairing and is
+      completed_invalid. If EXP-ECDLP-4320a7 has not been approved and run, the
+      instance set must be generated once under a recorded master seed and
+      frozen before any arm runs.
+    independent_instances: 2
+    independent_instances_note: >-
+      Two full independent executions, required to produce identical group
+      operation counts, identical table entry counts and identical arm verdicts.
+      Both arms are deterministic given the instance and the budget, so any
+      difference is an implementation or environment defect. Peak resident bytes
+      may differ between executions by allocator noise and are required to agree
+      only within a declared 5 percent tolerance, which is recorded rather than
+      assumed.
+
+  budget:
+    wall_clock_seconds_per_run: 3600
+    total_cpu_hours: 6
+    maximum_memory_gb: 8
+    maximum_runs: 40
+    maximum_workers: 1
+
+  stopping_rules:
+    - >-
+      Stop and report if Stage 0 finds a committed record already measuring this
+      crossover. The question is answered and the run cites that record.
+    - >-
+      Abort the package if NULL 1 fails at any size, and report the
+      implementation failure rather than any crossover.
+    - >-
+      Abort the package if NULL 2 or the enforcement probe fails. A ceiling that
+      is not enforced makes every memory measurement meaningless, and the
+      correct output is that the instrument does not exist yet.
+    - >-
+      Stop at the declared four sizes, three budgets and one representation. No
+      budget is added and no representation is changed after a crossover has
+      been seen; either would be tuning the instrument to the answer.
+    - >-
+      Stop arm B at the tightest budget and largest size if its giant-step phase
+      exceeds the per-run wall clock, and report that cell as CENSORED with the
+      operations completed. A censored cell is not a crossover and not a bound.
+    - >-
+      Stop at maximum_runs or total_cpu_hours, whichever binds first. Budget
+      exhaustion is a stop and is reported as censoring, never as a negative
+      result (AGENTS.md rule 5).
+
+  invalidation_rules:
+    - >-
+      A timeout, crash, memory exhaustion caused by the harness rather than by
+      the declared ceiling, or dependency failure makes the run
+      failed_infrastructure and is NEVER negative mathematical evidence
+      (AGENTS.md rule 5). A run terminated BY the declared ceiling is a MEASURED
+      outcome and is not an infrastructure failure; the two are distinguished by
+      whether the terminating limit is the declared budget.
+    - >-
+      A run whose ceiling is simulated by a counter rather than enforced by the
+      runtime is completed_invalid, whatever its numbers.
+    - >-
+      A run that merges arm A and arm B, or that reports arm A's cliff as a
+      crossover, is completed_invalid.
+    - >-
+      A run reporting any operation count without peak memory beside it, or
+      merging a measured and a modeled crossover into one column, is
+      completed_invalid.
+    - >-
+      A run quoting an extrapolated crossover without its basis, functional form
+      and range, or in the same table as a measured one, is completed_invalid.
+    - >-
+      A run that draws fresh instances rather than reusing the frozen set is
+      completed_invalid; the paired comparison the contract specifies was not
+      made.
+    - >-
+      A run that changes the table representation, a budget, or the 20 percent
+      per-entry stability threshold after observing a result is
+      completed_invalid. Changing a success criterion after seeing an outcome
+      requires a versioned protocol_amendment.
+    - >-
+      A run whose parameters differ from the frozen contract is a DIFFERENT
+      experiment and requires a new contract; it is never a repair of this one.
+
+  success_criterion: >-
+    All seven of the following hold, each decidable from the primary metrics --
+    (1) Stage 0 is executed and its log recorded verbatim, including the
+    statement that unmerged branches are invisible from this worktree;
+    (2) null1_verdict is true at all four sizes, whether measured here or reused
+    from a completed EXP-ECDLP-4320a7 run with the reuse recorded;
+    (3) null2_verdict and enforcement_probe_verdict are both true;
+    (4) bytes_per_entry is reported per size with its across-size variation, and
+    that variation is at or below 20 percent;
+    (5) for every (size, budget) cell, constrained_bsgs_ops, rho_ops,
+    peak_resident_bytes, peak_table_entries and peak_table_bytes are all
+    reported, with memory beside time in every table;
+    (6) for each of the three budgets, either measured_crossover_size is located
+    with the adjacent cells confirming a genuine sign change, or an explicit
+    BOUND is reported with its direction and the reason the crossing was not
+    reached;
+    (7) arm_a_cliff_size is reported per budget beside its modeled location, and
+    the two agree within one tested rung.
+    The experiment SUCCEEDS AS AN INSTRUMENT whether crossovers are located or
+    bounded; it fails only when a blocking control fails or a required quantity
+    is unreported.
+
+  falsification_criterion:
+    - >-
+      NULL 1 misbehaves -- unbounded BSGS does not use fewer group operations
+      than rho at some tested size. Carried from the proposal: implementation
+      wrong. C1 fails, no crossover is reportable, and this is an instrument
+      outcome rather than a statement about BSGS.
+    - >-
+      NULL 2 or the enforcement probe misbehaves -- fixed-table BSGS runs under
+      the 8-byte budget, or an over-budget allocation is not terminated. C2
+      fails: the ceiling was simulated rather than enforced and every memory
+      measurement in the package is void.
+    - >-
+      Memory-constrained BSGS remains competitive across all reachable sizes and
+      budgets. Carried verbatim in force from the proposal: the crossover is
+      beyond the measurable range and the record reports a BOUND rather than a
+      crossover. C3 is satisfied in its bound form; this is a legitimate outcome
+      and not a failure.
+    - >-
+      A crossover sits within the campaign's working sizes. Carried from the
+      proposal: comparisons at those sizes have effectively ONE baseline and not
+      two, which changes how they should be reported. This is the most
+      decision-relevant outcome and is the run's headline; what to do about it is
+      a separate Coordinator decision.
+    - >-
+      bytes_per_entry varies by more than 20 percent across the tested sizes, or
+      peak table memory departs from sqrt(N) times the fitted per-entry cost by
+      more than 20 percent. HEUR-BSGS-1 is refuted at the tested scope; no single
+      crossover formula may be quoted and the deliverable becomes a per-size
+      table.
+    - >-
+      arm_a_cliff_size differs from its modeled location by more than one tested
+      rung. The table is not the size the implementation reports and every memory
+      number in the package is suspect.
+    - >-
+      The measured and modeled crossovers disagree by more than a factor of 2 at
+      any budget while all controls fire. The closed form N* = (c * E)^2 is wrong
+      or incomplete at these sizes -- most likely because arm B's per-giant-step
+      cost is not one charged operation -- and the MEASURED crossover stands
+      while the model is withdrawn. This is a result about the model, not about
+      BSGS.
+    - >-
+      Stage 0 finds a committed record already measuring this crossover. The
+      hypothesis is superseded and the run cites that record rather than
+      re-deriving the gap.
+
+  required_artifacts:
+    - manifest.yaml with the exact command, commit sha, dirty-tree state, host description, declared budgets, declared table representation, the enforcement mechanism used, resolved model/inference block and environment
+    - raw-result.json with one row per (instance, size, budget, arm) carrying seed, group operations, baby-step and giant-step counts, wall clock, peak resident bytes, peak table entries, peak table bytes, load factor and the termination reason -- never summaries alone
+    - the Stage 0 supersession log with verbatim commands, paths and quotations, and the recorded unmerged-branch blindness statement
+    - the Stage 1 null and enforcement-probe verdicts, timestamped before any crossover computation
+    - the per-entry-cost table per size with its across-size variation against the 20 percent threshold
+    - the arm-A cliff table per budget, measured beside modeled, in adjacent columns
+    - the arm-B crossover table per budget with the measured crossover or the explicit bound, and the modeled N* in its own separate column
+    - the twelve-cell time-memory table with operations, peak memory and table occupancy in every cell
+    - the measured-versus-modeled table and the optimistic-assumption list with each bias direction
+    - the extrapolated-crossover table, if produced at all, in a separate file with basis, functional form, range and the recorded 0.3 prior
+    - the tail-check outputs, including the exhaustive per-cell budget-compliance check
+    - the pre-registration text, written before the first run and hashed
+
+  assigned_to: executor
+  approved_by: null
+
+  approval_gate:
+    - >-
+      Coordinator drafting does not confer approval. This contract is
+      review_required and is NOT approved; approved_by is null and
+      execution_authorized is false. Approval is a separate act because it
+      authorizes execution and spends compute.
+    - >-
+      THE TABLE REPRESENTATION AND ITS LOAD-FACTOR POLICY MUST BE DECLARED IN
+      WRITING BEFORE APPROVAL. The crossover moves with the per-entry cost, and
+      a representation chosen after seeing a crossover is a tuned instrument.
+    - >-
+      THE ENFORCEMENT MECHANISM MUST BE NAMED BEFORE APPROVAL -- which limit,
+      set by what, with what overhead allowance. 'Enforced, not simulated' is the
+      contract's second conjunct and it cannot be reviewed without knowing how.
+    - >-
+      The instance-set provenance must be settled before approval: either
+      EXP-ECDLP-4320a7's frozen set is inherited with its recorded master seed,
+      or a master seed is drawn and recorded here first. Both contracts must not
+      independently generate instances they believe to be shared.
+    - >-
+      Whether NULL 1 is measured here or REUSED from a completed
+      EXP-ECDLP-4320a7 run must be decided at approval, so the campaign does not
+      pay twice for the same unconstrained BSGS measurement.
+
+  derivation_provenance:
+    tool: coordinator-authored contract under the backlog-conversion task
+    source_record: IDEA-20260815-f81c17
+    authored_under_task: TASK-20260904-35fbe5
+    authored_at: '2026-09-04'
+    note: >-
+      Metrics, controls, nulls and falsifiers are taken from the parent
+      proposal's predictions, minimal_test, controls, required_metrics,
+      falsification_conditions, confounders and interpretation_limits, and
+      restated as measurable quantities with units. Boilerplate identical across
+      contracts by program rule follows the fixed table. No field is invented; a
+      value the proposal did not supply is null, is recorded as a derivation gap
+      below, or is flagged in place as a Coordinator addition.
+
+  coordinator_additions_flagged:
+    - >-
+      THE TWO-ARM SPLIT, AND IT IS THE LARGEST ADDITION. The proposal's NULL 2
+      describes an arm in which BSGS 'cannot run at all', while its crossover
+      language describes an arm in which BSGS 'stops being competitive'. Those
+      are different algorithms: fixed-table BSGS has a CLIFF and no crossover,
+      memory-constrained BSGS has a crossover and no cliff. Running only one
+      would either make the proposal's null unreachable or make its crossover
+      claim undefined. Both arms are run and reported separately.
+    - >-
+      THE CLOSED-FORM CROSSOVER N* = (c * E)^2. The proposal asserts a
+      determinable crossover but supplies no expression, so its prediction is not
+      decidable as written. Derived in one line, placed in the MODELED column,
+      and never substituted for the measured crossover.
+    - >-
+      THE THREE CONCRETE BUDGETS, 4 KiB, 32 KiB and 256 KiB, chosen so that the
+      modeled crossovers fall inside the tested 16-to-28-bit range. The proposal
+      says 'three memory budgets' without naming them.
+    - >-
+      THE FOUR CONCRETE SIZES, matched to EXP-ECDLP-4320a7 so the instances can
+      be shared. The proposal says 'four group sizes' without naming them.
+    - >-
+      THE 20 PERCENT PER-ENTRY STABILITY THRESHOLD. HEUR-BSGS-1's falsification
+      condition says the per-entry cost must not vary 'materially', which is not
+      decidable without a number.
+    - >-
+      THE EXPLICIT ENFORCEMENT PROBE, separate from NULL 2. An implementation can
+      refuse to start an over-large table while still growing past its budget
+      later, and NULL 2 alone would not catch that.
+    - >-
+      THE REUSE RULE FOR NULL 1. The proposal requires shared instances with the
+      rho record but does not say that its NULL 1 is the sibling contract's R6
+      metric. Making the reuse explicit is how the campaign avoids paying twice
+      for one measurement.
+
+  derivation_gaps:
+    - >-
+      THE RHO CONSTANT c IS AN INPUT THIS CONTRACT DOES NOT MEASURE. The modeled
+      crossover depends on c and moves as its square. If EXP-ECDLP-4320a7 has not
+      completed, c is the analytic value and its variant ambiguity -- 0.8862
+      versus 1.2533 -- propagates into the modeled crossover as a factor of 2.
+      This is precisely why the MEASURED crossover, which needs no c, is primary.
+    - >-
+      THE EXTRAPOLATION TO REALISTIC BUDGETS IS THE RECORD'S WEAKEST PART AND
+      THE PROPOSAL SAYS SO. Its own prior that the extrapolation is defensible
+      enough to quote is 0.3, the lowest number in the record. The contract does
+      not improve that prior; it isolates the extrapolation in a separate table
+      so it cannot be read as a measurement.
+    - >-
+      NO PARALLEL OR DISTRIBUTED TRADEOFF IS MEASURED. The classical
+      parallel-collision-search time-memory tradeoff is a different object and
+      is out of scope; every statement here is serial.
+    - >-
+      TWELVE CELLS IS A COARSE TRADEOFF CURVE. Three budgets at four sizes locate
+      a crossover to within one rung at best. A finer sweep would locate it
+      better and is deliberately not attempted, because the reportable content is
+      whether a crossover exists in range, not its third significant figure.
+    - >-
+      THIS WORKTREE CANNOT SEE UNMERGED BRANCHES. Stage 0's supersession search
+      establishes only what is present here; another branch may already carry
+      this measurement. Recorded rather than resolved.

@@ -1,0 +1,767 @@
+validation_report:
+  id: VAL-20260904-b4b00c-rederivation
+  task_id: TASK-20260904-b4b00c
+  experiment_id: EXP-MONO-005b49
+  hypothesis_id: H-MONO-45183a
+  also_bears_on: [H-MONO-1d50ac, EXP-MONO-64aaa4, EXP-MONO-cb905d]
+  question_id: RQ-MONO-001
+  goal_id: GOAL-MONO-001
+  role: validator
+  authorization_basis: TASK-20260904-b4b00c (DEC-20260904-d79f75 next_action (1))
+  run_ids: []          # no new runs; pure mathematical/computational verification
+
+  # =====================================================================
+  # HEADLINE
+  # =====================================================================
+  verdict: failed
+  verdict_scope: >-
+    `failed` applies to ONE of the two closed forms in the Red Team's
+    counterexample_or_mutation section: the GROUP-UNIFORM formula, which is
+    presented as exact and is not exact. The TRANSVERSAL formula is CONFIRMED
+    exactly. `failed` here means "this artifact is not admissible AS STATED
+    for DETERMINISTIC-tier promotion", not "the Red Team's JB3 conclusion is
+    wrong". Every qualitative conclusion RC-B10 draws survives the
+    correction; see conclusions_that_survive below.
+
+  verdict_per_claim:
+    transversal_closed_form: CONFIRM
+    group_uniform_closed_form: DISCREPANCY
+    dependence_on_(N,tau,#E4)_only: CONFIRM
+    check_1_p617_exactly_zero_effect: CONFIRM
+    check_2_P3_equals_0.99957533: DISCREPANCY
+    check_3_panel_calibration_mean_-0.010_sd_0.915: CONFIRM
+
+  headline: >-
+    The Red Team's transversal closed form is exactly right and I reproduce it
+    to the last rational digit, together with its 145-measurement calibration
+    (their mean z=-0.010, sd=0.915; mine -0.0096, 0.9118 on the same 145
+    curves). Their GROUP-UNIFORM closed form is NOT exact. It computes the
+    probability of ONE of the six collision conditions correctly and then
+    multiplies by six. That step is valid for the transversal arm, where the
+    sampling law is exchangeable in the three draw slots, and INVALID for the
+    group-uniform arm, where the sequential distinct-key rejection sampler is
+    provably not exchangeable. The six conditions have three distinct
+    probabilities, strictly ordered Pr[k=1] < Pr[k=2] < Pr[k=3]; the Red Team
+    multiplied the LARGEST of the three by six, so E_gu is systematically
+    overstated. The overstatement is +10.09% at N=13, +3.74% at N=12,
+    +0.0982% at cell 1 (N=580) and +0.0159% at cell 2 (N=3600). Their claimed
+    exact value P3 = 0.99957533 at cell 2 is therefore wrong; the correct
+    exact value is 0.99957538460151266 (4111818990624225/4113565673952074).
+    The error is O(1/N) relative and immaterial to every inference the report
+    draws, but a formula advertised as exact and proposed for DETERMINISTIC
+    tier must actually be exact.
+
+  # =====================================================================
+  # BLINDNESS DISCLOSURE  (required by the task card)
+  # =====================================================================
+  blindness:
+    blind_rederivation_performed: true
+    blind_from_respected: true
+    sources_read_BEFORE_locking_my_derivation:
+      - ledger/handoffs/TASK-20260904-b4b00c.yaml
+      - agents/validator.md
+      - AGENTS.md (roles / core rules section)
+      - experiments/EXP-MONO-64aaa4/implementation/run_experiment.py
+      - experiments/EXP-MONO-cb905d/implementation/run_experiment_v2_part_a_corrected.py
+    nothing_else_read_before_locking: >-
+      No review, report, ledger record, knowledge record, specification,
+      amendment, execution report or raw-result file was opened before my own
+      derivation AND its brute-force validation were written to disk.
+    lock_artifact: experiments/EXP-MONO-005b49/reviews/validator-rederivation/locked_derivation.md
+    lock_written_at: '2026-09-04T19:05Z (derivation)'
+    validation_appended_at: '2026-09-04T19:15Z (brute force + all three checks)'
+    first_read_of_any_review_or_report: '2026-09-04T19:15:47Z'
+    order_of_operations: >-
+      (1) read the two implementation files only; (2) derive both closed forms
+      by hand and write them to locked_derivation.md with a sha256; (3) write
+      my own elliptic-curve arithmetic and exhaustive enumerator from scratch,
+      importing no repo code; (4) validate on 1511 + 41 + 3 curves at primes I
+      chose; (5) Monte-Carlo the literal sampler loop; (6) run the three
+      numbered checks, including the archived RUN-MONO-cb905d-1 Part B panel
+      and RUN-MONO-64aaa4-1 raw-result.json (DATA, not derivations); (7) append
+      results to the lock file; (8) ONLY THEN open
+      reviews/red-team-breakthrough/red-team-report.yaml and its scripts.
+    caveat_disclosed_honestly: >-
+      EXP-MONO-64aaa4/implementation/run_experiment.py's own module docstring
+      states the program's pre-existing prediction 6(tau-1)/N. I read that (it
+      is in a file the task card orders me to read) and it is the LEADING TERM
+      of the answer. It is not the Red Team's closed form and does not contain
+      the (nu4 - tau) correction, the exact denominators, or anything about the
+      group-uniform arm. I flag it rather than claim a blindness I did not have.
+    read_sibling_reports_in_this_round: false
+    reports_read_after_locking:
+      - experiments/EXP-MONO-005b49/reviews/red-team-breakthrough/red-team-report.yaml
+      - experiments/EXP-MONO-005b49/reviews/red-team-breakthrough/{exact,gu,gu2,verify,e4,panel}.py
+
+  # =====================================================================
+  # MY OWN DERIVATION, IN FULL
+  # =====================================================================
+  derivation:
+    notation: >-
+      E/F_p : y^2 = x^3+Ax+B. N = #E(F_p). T = E(F_p)[2] (2-torsion INCLUDING
+      O), tau = |T| in {1,2,4}. nu4 = #E(F_p)[4] (points with 4P=O, including
+      O); n4 = nu4 - tau = number of points of EXACT order 4. S = affine points
+      with y != 0 ("generic"); G = |S| = N - tau = 2*n1 where n1 = |factor base|
+      = #{x : f(x) a nonzero square}. key(P) = x(P) if affine, "O" if P = O.
+
+    step_1_the_four_sums: >-
+      With eps_1 fixed to +1 the four sign classes give
+        S1 = P1+P2+P3, S2 = P1+P2-P3, S3 = P1-P2+P3, S4 = P1-P2-P3.
+
+    step_2_x_collision_criterion: >-
+      x(S_i) = x(S_j) <=> S_i = +-S_j. This is also correct for the code's
+      "INF" sentinel: two infinite sums collide (S_i=S_j=O, so S_i=+-S_j), and
+      an infinite sum never matches an affine one.
+
+    step_3_the_six_conditions:
+      differences_and_sums: |
+        (1,2): S1-S2 = 2P3        S1+S2 = 2(P1+P2)
+        (1,3): S1-S3 = 2P2        S1+S3 = 2(P1+P3)
+        (1,4): S1-S4 = 2(P2+P3)   S1+S4 = 2P1
+        (2,3): S2-S3 = 2(P2-P3)   S2+S3 = 2P1
+        (2,4): S2-S4 = 2P2        S2+S4 = 2(P1-P3)
+        (3,4): S3-S4 = 2P3        S3+S4 = 2(P1-P2)
+      result: >-
+        Writing {a,b} = {1,2,3}\{k}, the six class-pair collision events are
+        exactly, one for each (k, eps) with k in {1,2,3} and eps in {+1,-1}:
+            COLLISION(k,eps)  <=>  P_k in T   OR   P_a + eps*P_b in T.
+        Hence the per-tuple colliding-pair count is
+            f(P1,P2,P3) = sum_{k,eps} 1{ P_k in T or P_a + eps P_b in T }
+                        = sum_k [ 2*1{P_k in T}
+                                  + 1{P_k notin T} * #{eps : P_a+eps P_b in T} ].
+      corollaries_derived_before_looking_at_any_data:
+        C1: >-
+          f is invariant under P_k -> -P_k for every k, so the transversal
+          arm's 'fixed' and 'random' sign arms must be BIT-IDENTICAL (they draw
+          the same 3 factor-base indices from the same counter prefix and only
+          then draw sign bits). VERIFIED against RUN-MONO-64aaa4-1: 613/613 and
+          681/681 total pairs, 613/613 and 679/679 tuples-with-collision.
+          Consequence for the program: the 'random' arm is not an independent
+          replicate of the 'fixed' arm and must never be counted as one.
+        C2: f is a SYMMETRIC function of (P1,P2,P3) despite eps_1 being fixed.
+        C3: exactly one P_k in T (others generic) => f = 2, deterministically.
+        C4: two or three P_k in T => f = 6, deterministically.
+        C5: >-
+          transversal arm with tau = 1 => f = 0 always. VERIFIED: all 32 tau=1
+          curve-measurements in the archived Part B panel observed exactly 0.
+
+    step_4_the_pair_count:
+      statement: >-
+        D00 := #{(P,Q) in S^2 : key(P) != key(Q), P+Q in T} = G*(tau-1) - n4.
+      proof: >-
+        For each Q in S and each W in T set P = W - Q. Then P is never in T
+        (W-Q in T would force Q in T) and never O (Q != W), so P is in S.
+        P = -Q iff W = O; P = Q iff W = 2Q, which needs 2Q in T\{O}, i.e. Q of
+        exact order 4. The two exclusions are disjoint (both would force
+        2Q = O). So each Q admits (tau-1) - 1{ord(Q)=4} valid W, giving
+        D00 = G(tau-1) - n4. Also D(1,1) = tau(tau-1) (T is a group) and
+        D(1,0) = D(0,1) = 0 (P in T and P+Q in T forces Q in T).
+
+    step_5_transversal_arm:
+      sampling_law: >-
+        Drawing 3 distinct factor-base x-coordinates without replacement and
+        lifting by any rule is exactly the uniform law on ordered triples in S
+        with pairwise distinct keys (2^3 lift choices are equiprobable and, by
+        C1, irrelevant). This law IS exchangeable in the three slots.
+      closed_form: |
+        E_trans(N,tau,nu4) = 6 * D00 / ( G*(G-2) )
+                           = 6 * [ (N-tau)(tau-1) - (nu4-tau) ]
+                             / [ (N-tau)(N-tau-2) ] ,   G = N - tau.
+      remarks: >-
+        All P_k are generic here, so the "P_k in T" branch never fires and each
+        unordered pair contributes both its sum and its difference. If nu4=tau
+        this is 6(tau-1)/(N-tau-2). The program's 6(tau-1)/N is the large-N
+        approximation and is systematically LOW by mean +0.62% (max +5.08%,
+        min +0.07%) across the archived panel.
+
+    step_6_group_uniform_arm:
+      sampling_law: >-
+        Each accepted draw of sample_group_uniform_v2_corrected is uniform on
+        all N points (per-iteration acceptance is exactly 1/(2p+1) for O, for
+        each affine 2-torsion point, and for each generic point). Rejection in
+        measure_group_uniform_v2 is on the KEY, so
+          P1 ~ U(N); P2 ~ U(N - c1); P3 ~ U(N - c1 - c2),
+        with c_k = 1 if P_k in T and 2 otherwise. The weight of an ordered
+        triple is 1/( N (N-c1) (N-c1-c2) ). THIS LAW IS NOT EXCHANGEABLE: the
+        weight depends on (c1,c2), i.e. on which SLOTS hold 2-torsion points.
+        This is the single fact the Red Team's derivation misses.
+      closed_form: |
+        Let j = #{k : P_k in T}. By C3, C4 and step 5,
+          E[f | j=0] = E_trans ,  E[f | j=1] = 2 ,  E[f | j=2] = E[f | j=3] = 6.
+        so       E_gu = pi0 * E_trans + 2*pi1 + 6*pi2 + 6*pi3
+        with     pi_j = C_j * W_j  (and sum_j pi_j = 1), where
+          C_0 = G(G-2)(G-4)              C_1 = tau*G(G-2)
+          C_2 = tau(tau-1)*G             C_3 = tau(tau-1)(tau-2)
+          W_0 = 1/(N(N-2)(N-4))
+          W_1 = 1/(N(N-1)(N-3)) + 1/(N(N-2)(N-3)) + 1/(N(N-2)(N-4))
+          W_2 = 1/(N(N-1)(N-2)) + 1/(N(N-1)(N-3)) + 1/(N(N-2)(N-3))
+          W_3 = 1/(N(N-1)(N-2))
+        (W_j is the sum over the C(3,j) torsion PATTERNS t of
+         1/(N (N-2+t1) (N-4+t1+t2)) -- the three terms of W_1 and W_2 are
+         precisely the non-exchangeability.)
+
+    invariant_sufficiency_claim: >-
+      Both E_trans and E_gu are exact rationals in (N, tau, nu4) alone. No
+      dependence on the j-invariant, the CM discriminant, the endomorphism
+      ring, the group structure beyond nu4, or nu8 = #E[8].
+
+  # =====================================================================
+  # MY OWN BRUTE-FORCE VALIDATION
+  # =====================================================================
+  brute_force_validation:
+    independence: >-
+      rederive_brute.py imports NO repo code. Its point addition, negation,
+      scalar multiplication, point enumeration, group-structure determination
+      and collision counter are written from scratch. f is computed by
+      literally forming the four signed sums on the curve and comparing
+      x-coordinates -- no algebra from the derivation enters it. The exhaustive
+      enumerator sums f over ALL ordered triples with distinct keys, weighting
+      the group-uniform arm by 1/(N (N-c1) (N-c1-c2)), and works in Fractions,
+      so agreement is exact rational equality, not a tolerance.
+    bulk_sweep:
+      scope: every non-singular curve with 12 <= N <= 26 over p in {11,13,17,19,23,29,31,37,41,43,47,53,59,61,67,71,73}
+      curves_exhaustively_enumerated: 1511
+      tau_nu4_profiles_covered: {"(1,1)": 491, "(2,2)": 420, "(2,4)": 363, "(4,4)": 66, "(4,8)": 165, "(4,16)": 6}
+      group_structures_covered: 22
+      distinct_(p,j)_pairs_covered: 113
+      includes_supersingular_and_j_in_{0,1728}: true
+      mismatches_against_my_closed_forms: 0
+      note: exact rational equality on BOTH arms for all 1511 curves
+    targeted_curves:
+      count: 41
+      range: 12 <= N <= 40, plus N in {60,61,68}
+      mismatches: 0
+    invariant_sufficiency_negative_controls:
+      description: >-
+        Curves sharing (N,tau,nu4) but differing in j-invariant, CM status and
+        GROUP STRUCTURE were required to give identical exact values.
+      cases:
+        - {cell: "(N,tau,nu4)=(36,4,4)", members: "p=29 j=23 struct Z/2 x Z/18 ; p=31 j=0 struct Z/6 x Z/6", outcome: IDENTICAL}
+        - {cell: "(N,tau,nu4)=(25,1,1)", members: "p=17 j=12 struct Z/1 x Z/25 ; p=31 j=0 struct Z/5 x Z/5", outcome: IDENTICAL}
+        - {cell: "(N,tau,nu4)=(27,1,1)", members: "p=19 j=0 struct Z/3 x Z/9 ; p=19 j=3 struct Z/1 x Z/27", outcome: IDENTICAL}
+        - {cell: "(N,tau,nu4)=(36,2,4)", members: "p=29 j=5 struct Z/1 x Z/36 ; p=31 j=29 struct Z/3 x Z/12", outcome: IDENTICAL}
+        - {cell: "(N,tau,nu4)=(18,2,2)", members: "p=11 j=3 struct Z/1 x Z/18 ; p=13 j=12 struct Z/3 x Z/6", outcome: IDENTICAL}
+        - {cell: "(N,tau,nu4)=(12,4,4)", members: "p=13 A=0 (j=0) ; p=11 B=0 (j=1728) ; p=13 j=11 (ordinary)", outcome: IDENTICAL}
+      conclusion: >-
+        The exponent-3 dependence really is (N, tau, #E[4]) and nothing more.
+        Two curves with the same triple but genuinely different group
+        structures agree exactly, so even the full group structure carries no
+        extra information for this statistic.
+    monte_carlo_of_the_literal_sampler:
+      purpose: >-
+        Discriminate my SEQUENTIAL (non-exchangeable) group-uniform law from
+        the EXCHANGEABLE uniform-over-distinct-key-triples law. Both are
+        plausible readings of the code; only one is what it does.
+      method: literal re-implementation of measure_group_uniform_v2's loop with a real RNG
+      results:
+        - {curve: "p=13 A=0 B=1 (N=12,tau=4,nu4=4)",  tuples: 2000000, simulated: 3.242215, my_formula: 3.242424, exchangeable_model: 3.333333}
+        - {curve: "p=11 A=1 B=2 (N=16,tau=4,nu4=8)",  tuples: 2000000, simulated: 2.439849, my_formula: 2.439560, exchangeable_model: 2.504202}
+        - {curve: "p=17 A=1 B=0 (N=16,tau=4,nu4=16)", tuples: 2000000, simulated: 2.296190, my_formula: 2.296703, exchangeable_model: 2.369748}
+      conclusion: the implemented sampler is the sequential/non-exchangeable one; the exchangeable model is rejected at >100 sigma
+    monte_carlo_at_cell_1_scale:
+      note: all exhaustive enumeration is at N <= 68; cell 1 is checked by simulation
+      results:
+        - {curve: "p=617 ordinary",  tuples_per_arm: 400000, transversal_MC: 0.030933, transversal_exact: 0.031359, gu_MC: 0.073042, gu_exact: 0.072377}
+        - {curve: "p=617 CM j=1728", tuples_per_arm: 400000, transversal_MC: 0.031358, transversal_exact: 0.031359, gu_MC: 0.072057, gu_exact: 0.072377}
+      caveat: >-
+        400k tuples gives ~0.0004 standard error on the group-uniform arm, so
+        this confirms the closed form to ~0.6% and CANNOT by itself
+        discriminate my value from the Red Team's (they differ by 0.098%).
+        The discrimination comes from the exhaustive small-N enumeration, which
+        is exact.
+
+  # =====================================================================
+  # THE THREE NUMBERED CHECKS
+  # =====================================================================
+  specific_checks:
+
+    check_0_invariant_dependence:
+      question: >-
+        Does the transversal expectation depend on the curve ONLY through
+        (N, tau, #E[4]), or also on the endomorphism ring / j-invariant / CM
+        discriminant in some way the Red Team's formula misses?
+      verdict: CONFIRM
+      finding: >-
+        Only through (N, tau, #E[4]). This is not merely empirical: step 4
+        shows the ONLY curve-dependent quantity entering the pair count is
+        n4 = #{points of exact order 4} = #E[4] - tau. Endomorphism ring, j
+        and CM discriminant enter solely through whatever they force on
+        (N, tau, #E[4]). Confirmed on 1511 exhaustively enumerated curves,
+        including supersingular curves and both CM families, with zero
+        exceptions, and by the six negative-control cells above where curves
+        with different group structures and different j agree exactly.
+      same_holds_for_group_uniform_arm: true
+
+    check_1_p617_exact_zero:
+      question: >-
+        Do the p=617 ordinary (A=340,B=362) and CM j=1728 (A=69,B=0) curves
+        have EXACTLY equal expected collision rates under both arms, and does
+        N=580 with tau=4 force a unique 2-Sylow-compatible group structure?
+      verdict: CONFIRM
+      number_theory:
+        argument: >-
+          E(F_p) = Z/n1 x Z/n2 with n1 | n2. tau = 4 requires both n1 and n2
+          even; n1 | n2 then gives n1^2 | n1*n2 = N. 580 = 2^2 * 5 * 29, and
+          the only even n1 with n1^2 | 580 is n1 = 2 (n1=4 fails since
+          16 does not divide 580; n1=10 fails since 100 does not divide 580).
+        exhaustive_enumeration_over_all_divisors: "[(n1,n2,nu4)] = [(2, 290, 4)] -- unique"
+        consequence: "nu4 = gcd(4,2)*gcd(4,290) = 2*2 = 4 is FORCED for any curve with (N,tau)=(580,4)"
+        coordinator_spot_check: confirmed independently and exactly
+      measured_invariants:
+        ordinary:  {p: 617, A: 340, B: 362, N: 580, tau: 4, nu4: 4, j: 227, group: "Z/2 x Z/290"}
+        cm_j1728:  {p: 617, A: 69,  B: 0,   N: 580, tau: 4, nu4: 4, j: 494, group: "Z/2 x Z/290", note: "494 = 1728 mod 617"}
+        curves_independently_rederived_from_the_construction: true
+      exact_values_validator:
+        E_transversal_both_curves:   {fraction: 9/287, decimal: 0.03135888501742160279}
+        E_group_uniform_both_curves: {fraction: 337753291/4666582705, decimal: 0.07237700740589360239}
+        exact_gu_over_transversal:   {fraction: 96935194517/41999244345, decimal: 2.30802234727682932}
+      conclusion: >-
+        The true effect at cell 1 is EXACTLY zero and the true P3 is EXACTLY 1,
+        for both arms, and this is forced by number theory rather than by
+        coincidence of two sampled curves. Any nonzero measurement at this cell
+        is by construction sampling noise. RC-B10's most load-bearing claim is
+        CONFIRMED in full, including its stated reason.
+      disagreement_on_the_value_only: >-
+        The Red Team reports E_group_uniform = 0.07244810268502463 for both
+        curves; the correct value is 0.07237700740589360 (+0.0982% error).
+        Because the error is identical on both curves, the cell-1 conclusion
+        (exactly zero effect) is completely unaffected.
+
+    check_2_p3541_P3_value:
+      question: "Is the exact P3 at cell 2 equal to 0.99957533?"
+      verdict: DISCREPANCY
+      measured_invariants:
+        ordinary: {p: 3541, A: 577, B: 1628, N: 3600, tau: 4, nu4: 8,  j: 1532, group: "Z/6 x Z/600"}
+        cm_j0:    {p: 3541, A: 0,   B: 2728, N: 3600, tau: 4, nu4: 16, j: 0,    group: "Z/60 x Z/60"}
+        both_curves_rederived_from_the_deterministic_construction: >-
+          reproduced exactly under DOMAIN "EXP-MONO-005b49/v1" (they are NOT
+          reproducible under EXP-MONO-64aaa4's own domain, which is why the
+          cell-2 curves differ in provenance from the panel curves)
+        cross_check_against_archive: >-
+          RUN-MONO-005b49-1 raw-result.json stage0.cell records exactly these
+          A,B,N,tau values
+      why_a_real_effect_exists_here_and_not_at_cell_1: >-
+        N = 3600 with tau = 4 admits EIGHT structures, not one:
+        (2,1800), (4,900), (6,600), (10,360), (12,300), (20,180), (30,120),
+        (60,60), with nu4 in {8, 16}. The two curves land on different values
+        (8 vs 16), so a true, tiny effect exists. This is exactly the right
+        contrast with cell 1 and is CONFIRMED.
+      exact_values:
+        validator:
+          E_trans_ord: 0.005006490238643939380
+          E_trans_cm:  0.005002776225113788090
+          E_gu_ord:    0.011663885286351485568
+          E_gu_cm:     0.011660183645984808823
+          P3_true:     {fraction: 4111818990624225/4113565673952074, decimal: 0.99957538460151266079}
+          effect:      "-0.0424615%"
+        red_team:
+          E_trans_ord: 0.005006490238643939   # AGREES EXACTLY with mine
+          E_trans_cm:  0.005002776225113788   # AGREES EXACTLY with mine
+          E_gu_ord:    0.011665736107823454   # +0.015868% high
+          E_gu_cm:     0.011662034467456778   # +0.015873% high
+          P3_claimed:  {fraction: 2741647635137401/2742812413610400, decimal: 0.99957533425646642}
+          effect:      "-0.0424666%"
+        difference_in_P3: 5.0345e-08
+      finding: >-
+        The claimed value 0.99957533 is wrong in the 8th decimal place. The
+        correct exact value is 0.99957538. I reproduce the Red Team's number
+        EXACTLY from their own gu.py formula as exact rationals, which
+        confirms the discrepancy is in the formula and is not a typo or a
+        rounding artifact.
+      materiality: >-
+        NIL for every inference in the report. Both values give an effect of
+        -0.042%, the same sign, the same order of magnitude, and the same
+        conclusion that the measured +11.2% at this cell is noise pointing the
+        wrong way. Their pooled exact log P3 of -5.42e-05 becomes -5.42e-05.
+        The claim is defective only in being advertised as exact.
+
+    check_3_panel_calibration:
+      question: >-
+        Apply my independently derived formula to the archived panel and
+        compare to the Red Team's mean z = -0.010, sd = 0.915.
+      verdict: CONFIRM
+      method: >-
+        All 100 Part B cells of RUN-MONO-cb905d-1 (200 curve-measurement
+        slots, 175 distinct curves). Each curve re-derived from the
+        deterministic construction under DOMAIN "EXP-MONO-64aaa4/v1"; N and
+        tau re-counted and asserted equal to the archived cell; nu4 counted by
+        4P=O over all enumerated points; predicted count = 20000 * my
+        E_trans; z against the archive's own se_pairs_per_20000.
+      spot_checks_requested: ">= 10 ; performed: 200 (all of them)"
+      results:
+        unique_curves_tau_gt_1:
+          n: 145
+          mean_z_vs_my_exact_formula: -0.0096
+          sd_z_vs_my_exact_formula: 0.9118
+          red_team_claimed: {mean: -0.010, sd: 0.915}
+          agreement: "confirmed to 3 decimal places on an identically-sized sample"
+        all_200_slots_tau_gt_1:
+          n: 168
+          mean_z: -0.0335
+          sd_z: 0.9255
+        vs_program_closed_form_6(tau-1)/N:
+          n: 145
+          mean_z: +0.1507
+          sd_z: 0.9536
+          mean_relative_incompleteness: "+0.6199%   (Red Team claimed +0.60%)"
+          max_relative_incompleteness:  "+5.0847%   (Red Team claimed +5.08%)"
+          min_relative_incompleteness:  "+0.0667%   (Red Team claimed +0.07%)"
+      tau_1_exact_zero_control:
+        n: 32
+        predicted: 0
+        observed_nonzero: 0
+        note: corollary C5, derived before any data was read, holds on all 32
+      conclusion: >-
+        The transversal closed form and its calibration are fully and
+        independently CONFIRMED, including the +0.60%/+5.08% O(1/N)
+        incompleteness of the program's own 6(tau-1)/N. Note that this panel
+        exercises ONLY the transversal arm; the group-uniform formula was never
+        calibrated against archived data by anyone, which is part of why its
+        error survived.
+
+  # =====================================================================
+  # THE DISCREPANCY, LOCATED
+  # =====================================================================
+  discrepancy:
+    id: DISC-GU-SLOT-EXCHANGEABILITY
+    severity: high_for_promotion_nil_for_inference
+    what_the_red_team_wrote: |
+      E[...] = (6/N) * [ tau/(N-1) * ( (tau-1) + (N-tau)(tau-1)/(N-3) )
+               + sum over generic points of
+                 1/(N-2) * ( beta + tau(tau-1)/(N-3) + (N-2-beta-tau)*tau/(N-4) ) ]
+        with beta = tau-2 for the (#E[4]-tau) points of exact order 4
+        and beta = tau-1 for all other non-2-torsion points.
+    what_that_expression_actually_is: >-
+      6 * Pr[ COLLISION(k=3, eps=+1) ] = 6 * Pr[ P3 in T or P1+P2 in T ].
+      I verified this by exhaustive per-condition enumeration: their q equals
+      Pr[COLLISION(k=3,eps=+1)] to the last exact rational digit (e.g. 37/66 at
+      p=13 A=0 B=1). Their algebra for that single condition is CORRECT.
+    the_error: >-
+      Multiplying that single probability by 6. Under the sequential
+      distinct-key rejection sampler the six conditions are NOT equiprobable,
+      because the sampler is not exchangeable in the three draw slots: P1 is
+      uniform on all N points, P2 on N minus one key class, P3 on N minus two.
+      The condition indexed by k puts P_k in the "P_k in T" role, so the six
+      conditions take three distinct values, strictly increasing in k.
+    exhaustive_evidence:
+      - curve: "p=13 A=0 B=1 (N=12, tau=4, nu4=4)"
+        Pr_k1: 47/90    ("0.522222222222")
+        Pr_k2: 533/990  ("0.538383838384")
+        Pr_k3: 37/66    ("0.560606060606  <- the one they used")
+        true_E_gu: 3.242424242424
+        their_6x_Pr_k3: 3.363636363636
+        relative_error: "+3.7383%"
+      - curve: "p=11 A=1 B=2 (N=16, tau=4, nu4=8)"
+        Pr_k1: 431/1092
+        Pr_k2: 443/1092
+        Pr_k3: 229/546
+        true_E_gu: 2.439560439560
+        their_6x_Pr_k3: 2.516483516484
+        relative_error: "+3.1532%"
+      - curve: "p=11 A=1 B=1 (N=14, tau=2, nu4=2)"
+        Pr_k1: 82/385
+        Pr_k2: 1116/5005
+        Pr_k3: 1181/5005
+        true_E_gu: 1.343856143856
+        their_6x_Pr_k3: 1.415784215784
+        relative_error: "+5.3524%"
+    error_magnitude_by_scale:
+      N_13:   "+10.09%"
+      N_12:   "+3.74%"
+      N_16:   "+3.15% to +3.35%"
+      N_36:   "+1.50%"
+      N_580:  "+0.0982%   (cell 1)"
+      N_3600: "+0.0159%   (cell 2)"
+      scaling: "O(1/N) relative; always POSITIVE (they multiplied the largest of the three)"
+    why_it_is_the_transversal_shortcut_carried_one_step_too_far: >-
+      For the TRANSVERSAL arm the sampling law IS exchangeable in the three
+      slots, so 3 x (pair probability) -- and equivalently 6 x (single
+      condition) -- is exactly valid. That is why exact.py's transversal
+      formula is right, and why verify.py's genuine pair-level brute force
+      confirms it. The same shortcut was then applied to the group-uniform arm,
+      where the distinct-key rejection makes the law slot-dependent.
+    why_their_own_verification_could_not_catch_it:
+      - >-
+        verify.py brute-forces ONLY the transversal formula (brute_tr). There
+        is no independent brute force of the group-uniform formula anywhere in
+        the review directory.
+      - >-
+        gu.py's brute_gu, presented as the exact enumeration cross-check for
+        the group-uniform arm, is NOT independent: it is itself an O(N^2)
+        evaluation of 6 * Pr[COLLISION(k=3,eps=+1)]. It shares the defective
+        multiplication with analytic_gu, so it agrees with it to 1e-12 and
+        always will. gu2.py prints "AGREE=True" for four curves on this basis.
+      - >-
+        The 145-measurement panel calibration exercises only the transversal
+        arm (panel.py calls exact_tr only).
+      - >-
+        NC-5's "233.31 predicted versus 233 observed" endorsement of the
+        corrected sampler is at a cell where the overdispersion-corrected
+        standard error is ~19 counts, so a 0.016% formula error is ~200x below
+        the resolution of that check. The check is sound; it simply cannot see
+        this.
+      - >-
+        NOTE: this is precisely the failure mode agents/validator.md "Blind
+        re-derivation tasks" names -- a wrong-but-consistent implementation
+        reproduces itself faithfully and agrees with itself. Only a derivation
+        that never saw it can disagree. RC-B10 asked for exactly this and was
+        right to.
+    the_corrected_group_uniform_closed_form: |
+      E_gu(N,tau,nu4) = pi0*E_trans(N,tau,nu4) + 2*pi1 + 6*pi2 + 6*pi3
+        pi_j = C_j * W_j,  G = N - tau
+        C_0 = G(G-2)(G-4)        C_1 = tau*G(G-2)
+        C_2 = tau(tau-1)*G       C_3 = tau(tau-1)(tau-2)
+        W_0 = 1/(N(N-2)(N-4))
+        W_1 = 1/(N(N-1)(N-3)) + 1/(N(N-2)(N-3)) + 1/(N(N-2)(N-4))
+        W_2 = 1/(N(N-1)(N-2)) + 1/(N(N-1)(N-3)) + 1/(N(N-2)(N-3))
+        W_3 = 1/(N(N-1)(N-2))
+      Still an exact function of (N, tau, #E[4]) and nothing else.
+
+  # =====================================================================
+  # WHAT SURVIVES
+  # =====================================================================
+  conclusions_that_survive_the_correction:
+    - >-
+      The measured quantity IS a deterministic function of the curve,
+      exactly computable, with no sampling. CONFIRMED.
+    - >-
+      It depends on the curve ONLY through (N, tau, #E(F_p)[4]). CONFIRMED,
+      and now proved rather than fitted: the endomorphism ring enters solely
+      through what it forces on those three numbers.
+    - >-
+      Cell 1's true effect is EXACTLY zero, for the stated reason (N=580 with
+      tau=4 forces Z/2 x Z/290, hence #E[4]=4). CONFIRMED. The correction to
+      E_gu is identical on both curves and cancels.
+    - >-
+      Cell 2's true effect is real, tiny (-0.042%), and opposite in sign to
+      the measured +11.2%. CONFIRMED (my -0.0424615% vs their -0.0424666%).
+    - >-
+      H-MONO-45183a Part B's 6(tau-1)/N is systematically incomplete by mean
+      +0.62%, max +5.08%, and the exact repair is the transversal formula.
+      CONFIRMED independently on 145 curves.
+    - >-
+      The fixed/random sign arms are byte-identical by construction, so they
+      are one measurement and not two. CONFIRMED, and I derived this before
+      reading their report.
+    - >-
+      UC-1's overdispersion finding is right and I can now give it exactly:
+      the group-uniform arm's phi = Var/E is >= 1.5388 analytically at cell 1
+      (Monte Carlo 1.554 at 600k tuples) against their lower bound 1.499,
+      and the transversal arm's is ~0.9686 against their 0.969. The asymmetry
+      is structural: by C3/C4 a group-uniform tuple containing a 2-torsion
+      point contributes f = 2 (or 6) deterministically, creating atoms the
+      transversal arm cannot have.
+  what_does_not_survive:
+    - the group-uniform closed form as published in counterexample_or_mutation
+    - "the four E_group_uniform values in what_it_returns (0.07244810268502463 x2, 0.01166573610782345, 0.01166203446745678)"
+    - "the three exact_gu_over_tr values (2.310289, 2.330123, 2.331113); correct: 2.308022, 2.329753, 2.330743"
+    - "exact_P3 = 0.99957533 and exact_log_P3 = -0.00042476 at cell 2; correct: 0.99957538460151266 and -0.000424705"
+    - "the group_uniform 'expected' counts in per_count_z_against_the_exact_expectation (1448.96 -> 1447.54; 233.31 -> 233.28; 233.24 -> 233.20). The z values shift by <0.04 and no reading changes."
+
+  # =====================================================================
+  # STANDARD VALIDATOR BLOCKS
+  # =====================================================================
+  artifact_checks:
+    - {artifact: "experiments/EXP-MONO-005b49/reviews/red-team-breakthrough/red-team-report.yaml", present: true, parseable: true}
+    - {artifact: "experiments/EXP-MONO-005b49/reviews/red-team-breakthrough/{exact,gu,gu2,verify,e4,panel,panel2,final,disc}.py", present: true, count: 9}
+    - {artifact: "experiments/EXP-MONO-64aaa4/runs/RUN-MONO-64aaa4-1/raw-result.json", present: true, used_for: "corollary C1 and cell-1 transversal counts"}
+    - {artifact: "experiments/EXP-MONO-cb905d/runs/RUN-MONO-cb905d-1/raw-result.json", present: true, used_for: "Part B panel calibration (100 cells)"}
+    - {artifact: "experiments/EXP-MONO-cb905d/runs/RUN-MONO-cb905d-2/raw-result.json", present: true, used_for: "cell-1 corrected group-uniform counts"}
+    - {artifact: "experiments/EXP-MONO-005b49/runs/RUN-MONO-005b49-1/raw-result.json", present: true, used_for: "cell-2 curve identity and counts"}
+    - note: >-
+        I read the working tree at the declared paths. The task card names no
+        Coordinator-committed snapshot sha and I was instructed not to run git,
+        so I cannot attest that what I read is the committed snapshot. Recorded
+        as a limitation, not as a pass.
+
+  metric_recomputations:
+    - {metric: E_transversal_cell1_both_curves, reported: 0.03135888501742160, recomputed: 0.03135888501742160279, agrees: true, method: "independent closed form + exhaustive brute force at small N + 400k-tuple MC"}
+    - {metric: E_group_uniform_cell1_both_curves, reported: 0.07244810268502463, recomputed: 0.07237700740589360239, agrees: false, relative_error_of_reported: "+0.09823%"}
+    - {metric: E_transversal_cell2_ord, reported: 0.00500649023864394, recomputed: 0.005006490238643939380, agrees: true}
+    - {metric: E_transversal_cell2_cm,  reported: 0.00500277622511379, recomputed: 0.005002776225113788090, agrees: true}
+    - {metric: E_group_uniform_cell2_ord, reported: 0.01166573610782345, recomputed: 0.011663885286351485568, agrees: false, relative_error_of_reported: "+0.015868%"}
+    - {metric: E_group_uniform_cell2_cm,  reported: 0.01166203446745678, recomputed: 0.011660183645984808823, agrees: false, relative_error_of_reported: "+0.015873%"}
+    - {metric: exact_P3_cell1, reported: 1.00000000, recomputed: "1 (exactly)", agrees: true}
+    - {metric: exact_P3_cell2, reported: 0.99957533, recomputed: 0.99957538460151266079, agrees: false, absolute_error: 5.0345e-08}
+    - {metric: panel_mean_z, reported: -0.010, recomputed: -0.0096, agrees: true, n: 145}
+    - {metric: panel_sd_z,   reported: 0.915,  recomputed: 0.9118,  agrees: true, n: 145}
+    - {metric: closed_form_incompleteness_mean, reported: "+0.60%", recomputed: "+0.6199%", agrees: true}
+    - {metric: closed_form_incompleteness_max,  reported: "+5.08%", recomputed: "+5.0847%", agrees: true}
+    - {metric: overdispersion_phi_gu_cell1, reported: ">= 1.499", recomputed: ">= 1.5388 analytic, 1.554 by 600k-tuple MC", agrees: true}
+    - {metric: overdispersion_phi_tr_cell1, reported: ">= 0.969", recomputed: "~0.9686 analytic, 0.981 by 600k-tuple MC", agrees: true}
+    - {metric: cell1_transversal_expected_count, reported: 627.18, recomputed: 627.1777, agrees: true}
+    - {metric: cell1_transversal_z_cm, reported: "+2.18", recomputed: "+2.18 (53.82/24.65)", agrees: true}
+
+  control_checks:
+    - {control: "tau=1 exact-zero (negative control derived a priori as corollary C5)", expected: 0, observed: 0, n: 32, outcome: pass}
+    - {control: "fixed vs random sign arms bit-identical (corollary C1)", expected: identical, observed: "613/613 and 681/681 pairs; 613/613 and 679/679 tuples", outcome: pass}
+    - {control: "null object -- curves with identical (N,tau,nu4) but different j, CM status and group structure must give identical exact values", n_cells: 6, outcome: pass}
+    - {control: "null object -- exchangeable-triple sampling model as the alternative hypothesis for the group-uniform law", outcome: "rejected by 2e6-tuple simulation of the literal loop on 3 curves"}
+    - {control: "decay control -- the (nu4 - tau) term is the only curve-specific term and must vanish as tau -> 1", outcome: "pass; E_trans identically 0 at tau=1, matching 32/32 archived measurements"}
+    - {control: "closed form vs exhaustive enumeration on curves the Red Team did not use", n: 1511, mismatches: 0, outcome: pass}
+
+  proof_architecture_checks:
+    baseline_fixture: >-
+      PASS. My E_trans reduces to the program's 6(tau-1)/N in the large-N limit
+      and to exactly 6(tau-1)/(N-tau-2) when #E[4]=tau, and the deviation from
+      6(tau-1)/N is recomputed on 145 archived measurements rather than
+      asserted.
+    strictness_witness: >-
+      PASS for the transversal claim (the (nu4-tau) term is exhibited as a
+      strictly nonzero correction on 90 of 200 archived curve-measurements).
+      FAIL for the group-uniform claim: no witness separates the published
+      formula from the correct one, because none was sought.
+    observation_collisions: >-
+      PASS with scope. The (N,tau,#E[4])-sufficiency claim is certified by
+      exhaustive enumeration over 1511 curves with 12 <= N <= 26 plus 44
+      further curves to N = 68, and by the structure of the derivation. It is
+      NOT certified by enumeration at N = 580 or N = 3600; there it rests on
+      the derivation plus Monte Carlo at ~0.6% resolution.
+    interface_preservation: >-
+      PASS. The one representation change (3 distinct factor-base
+      x-coordinates + a lift <-> uniform ordered distinct-key triples of
+      generic points) is stated with its hypotheses and verified: the lift
+      choice is irrelevant by C1, and the key-distinctness constraint is what
+      kills the W=O branch of D00.
+    ceiling_and_nearby_control: >-
+      PASS. The nearby object is the group-uniform arm, which differs from the
+      transversal arm only by admitting 2-torsion points and O into the draw;
+      running the identical machinery on it is what exposed the defect.
+    quantifier_fidelity: >-
+      PASS. "Depends only on (N,tau,#E[4])" is claimed uniformly over curves
+      and is verified as a uniform statement (same rational value for every
+      curve in a cell), not per-curve.
+
+  heuristic_validation_checks:
+    - {check: pre_registered_prediction, outcome: n/a, note: "This is an exact computation, not a heuristic validation; no distributional prediction is fitted."}
+    - {check: sample_integrity, outcome: pass, note: "My own seeds (20260904, 4172026, 99) and sample sizes are recorded above; the archived samples' seeds are in the runs' own manifests, which I did not re-verify (out of scope)."}
+    - {check: correspondence_validity, outcome: pass, note: "The only substitution is exhaustive small-N enumeration standing in for cell-scale enumeration; its scope limit is stated explicitly."}
+    - {check: scale_binding, outcome: pass, note: "Exhaustive: N <= 68. Formula-plus-MC: N = 580, 3600. Cryptographic scale: not touched by anything here."}
+
+  cost_model_checks:
+    - {check: cost_unit_declared, outcome: pass, note: "This task consumed no experiment budget; maximum_runs was 0 and 0 runs were executed. My own compute was ~5 CPU-minutes."}
+    - {check: cost_bookkeeping, outcome: n/a}
+
+  # =====================================================================
+  # LIMITATIONS
+  # =====================================================================
+  limitations:
+    - >-
+      MY OWN group-uniform closed form is now the load-bearing new content of
+      this report and it has been derived by exactly one agent -- me. It is far
+      better supported than the one it corrects (1511 exhaustive rational
+      agreements, plus a 2e6-tuple simulation of the literal sampler loop that
+      discriminates it from the obvious alternative model), but it should be
+      independently rederived before any record cites it as exact. I am making
+      the same request RC-B10 made, for the same reason.
+    - >-
+      All exhaustive enumeration is at N <= 68. At N = 580 and N = 3600 the
+      closed forms rest on the derivation plus Monte Carlo at ~0.6% and ~1%
+      resolution respectively, which cannot by itself distinguish my values
+      from the Red Team's.
+    - >-
+      Both derivations idealise the seed stream: the implementations draw from
+      a SHA-256 counter stream, not an RNG, and I modelled the draws as i.i.d.
+      uniform. Neither the Red Team nor I tested whether the actual counter
+      stream introduces any correlation. Nothing here would detect that.
+    - >-
+      I validated the two closed forms and the three numbered checks only. I did
+      NOT independently verify the report's pooled statistics (pooled log P3,
+      weights, z, p), the JB4 closure analysis, the KN-OPEN-009 argument, the
+      multiplicity accounting, or objections other than UC-1. Those remain
+      unvalidated by me and my verdict says nothing about them.
+    - >-
+      The task card supplied no committed snapshot sha and instructed me not to
+      run git, so I read the working tree. I cannot attest that the artifacts I
+      read are identical to a Coordinator-committed snapshot. Per
+      agents/validator.md this would ordinarily be a refusal; I proceeded
+      because the instruction is explicit and the mathematical content of the
+      check is snapshot-independent (the formulas either are or are not exact),
+      but the artifact-binding half of a normal validation is NOT discharged.
+    - >-
+      The +0.098% cell-1 and +0.016% cell-2 errors are far below the resolution
+      of any measurement in the archive, so no archived observation could have
+      revealed them and none of the archive's statistical readings change.
+    - >-
+      I did not re-verify the archived runs' manifests, environments, command
+      records, resource records, or dirty-tree state. This task was scoped to a
+      mathematical rederivation and those checks belong to the runs' own
+      validation records.
+
+  # =====================================================================
+  # RECOMMENDED DISPOSITION (advisory only -- the Coordinator decides)
+  # =====================================================================
+  recommended_disposition:
+    - >-
+      PROMOTE the transversal closed form. It is confirmed exactly, calibrated
+      on 145 archived measurements by two independent parties, and is the
+      actual answer to H-MONO-45183a Part B's residual_collision_risk clause.
+    - >-
+      DO NOT promote the group-uniform closed form as published. Supersede it
+      with the corrected form (never overwrite: AGENTS.md rule 4), and record
+      the correction so that any record already citing 0.07244810268502463,
+      2.310289, 2.330123, 2.331113 or 0.99957533 can be found.
+    - >-
+      RC-B10's JB3 verdict does NOT need to be reopened. Cell 1's exactly-zero
+      effect, cell 2's -0.042% wrong-signed effect, and the conclusion that the
+      pooled signal is Monte Carlo noise all survive the correction unchanged.
+      Reopening it would be an overcorrection.
+    - >-
+      Record, as its own finding, that the fixed/random sign arms are
+      byte-identical by construction (C1). Two agents have now derived this
+      independently. Any future design in this lane that treats them as two
+      measurements is double-counting one.
+    - >-
+      Commission ONE more independent rederivation, of MY group-uniform form
+      only, before DETERMINISTIC-tier promotion of the pair. The whole value of
+      this task came from a second derivation disagreeing with the first; that
+      argument applies to mine as much as to theirs.
+
+  # =====================================================================
+  # ATTESTATION
+  # =====================================================================
+  review_attestation:
+    task_id: TASK-20260904-b4b00c
+    role: validator
+    joints_owned: [BLIND-REDERIVATION-OF-THE-TWO-CLOSED-FORMS]
+    independent_session: true
+    requested_policy: review-adversarial
+    reasoning_effort: xhigh
+    runtime: claude_code
+    fallback_used: false
+    read_sibling_reports: false
+    read_the_producer_report_after_locking_own_result: true
+    blind_from_respected: true
+    no_status_changed: true
+    no_commit_performed: true
+    sources_read:
+      - ledger/handoffs/TASK-20260904-b4b00c.yaml
+      - agents/validator.md
+      - AGENTS.md
+      - experiments/EXP-MONO-64aaa4/implementation/run_experiment.py
+      - experiments/EXP-MONO-cb905d/implementation/run_experiment_v2_part_a_corrected.py
+      - experiments/EXP-MONO-64aaa4/runs/RUN-MONO-64aaa4-1/raw-result.json
+      - experiments/EXP-MONO-cb905d/runs/RUN-MONO-cb905d-1/raw-result.json
+      - experiments/EXP-MONO-cb905d/runs/RUN-MONO-cb905d-2/raw-result.json
+      - experiments/EXP-MONO-005b49/runs/RUN-MONO-005b49-1/raw-result.json
+      - experiments/EXP-MONO-005b49/implementation/run_experiment.py
+      - experiments/EXP-MONO-005b49/reviews/red-team-breakthrough/red-team-report.yaml
+      - experiments/EXP-MONO-005b49/reviews/red-team-breakthrough/exact.py
+      - experiments/EXP-MONO-005b49/reviews/red-team-breakthrough/gu.py
+      - experiments/EXP-MONO-005b49/reviews/red-team-breakthrough/gu2.py
+      - experiments/EXP-MONO-005b49/reviews/red-team-breakthrough/verify.py
+      - experiments/EXP-MONO-005b49/reviews/red-team-breakthrough/e4.py
+      - experiments/EXP-MONO-005b49/reviews/red-team-breakthrough/panel.py
+    verdict: failed
+    what_this_report_does_not_support: >-
+      This report is a check on two formulas. It does not support an ECDLP
+      claim, does not demonstrate a speedup, does not authorize promotion of
+      anything, and says nothing about behaviour at cryptographic scale. The
+      quantity in question is ~6(tau-1)/N, which at a 256-bit group order is
+      about 2^-251 per tuple.
+
+  artifact_paths:
+    - experiments/EXP-MONO-005b49/reviews/validator-rederivation/rederivation-report.yaml
+    - experiments/EXP-MONO-005b49/reviews/validator-rederivation/locked_derivation.md
+    - experiments/EXP-MONO-005b49/reviews/validator-rederivation/rederive_brute.py
+    - experiments/EXP-MONO-005b49/reviews/validator-rederivation/rederive_checks.py
