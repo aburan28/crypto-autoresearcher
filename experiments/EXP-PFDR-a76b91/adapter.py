@@ -86,7 +86,7 @@ def main():
 
     def write(name, obj):
         with (rdir / name).open('x') as f:
-            f.write(json.dumps(obj, indent=2) + '\n')
+            f.write(json.dumps(obj, indent=2) + '\n' if not isinstance(obj, str) else obj)
         return name
 
     env_sup = {
@@ -213,6 +213,8 @@ def main():
     except ImportError:
         errs = structural_check(canon, schema)
         validated, how = (not errs), ('structural_fallback:' + (';'.join(errs) if errs else 'passed'))
+    except Exception as exc:
+        validated, how = False, 'jsonschema:' + type(exc).__name__ + ':' + str(exc)
     report = {'validated': validated, 'validation': how, 'receipt_status': receipt.get('status'),
               'payload_status': mp['status'],
               'frozen_hashes_verified': sorted(frozen['sha256'].keys()),
