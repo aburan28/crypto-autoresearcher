@@ -992,12 +992,97 @@ def check_schema_redirects(ctx: Ctx,
                     "record", force=True)
 
 
+def _flat_run_id_with_malformed_dirty_summary(text: str) -> str | None:
+    """Read identity only from the narrowly known flat-manifest encoding defect.
+
+    The historical writer interpolated git porcelain output into an unquoted
+    dirty_summary. Quote only that field in memory, then parse the WHOLE
+    document and reject ambiguous identities. This does not make the original
+    a valid run: normal check_run still rejects it, and supersession still
+    requires both whole-file hashes and complete replacement validation.
+    """
+    lines = text.splitlines()
+    if not lines or not lines[0].startswith("run_id: "):
+        return None
+    rec_id = lines[0][len("run_id: "):]
+    if not RUN_ID.fullmatch(rec_id):
+        return None
+    starts = [i for i, line in enumerate(lines)
+              if line.startswith("  dirty_summary: ")]
+    if len(starts) != 1:
+        return None
+    start = starts[0]
+    end = start + 1
+    # Accept only literal unquoted porcelain rows, never arbitrary YAML or
+    # scalar contents as continuation. A colon in a filename is not a key.
+    statuses = re.compile(r"(?:\?\?|[MADRCU?!]|[ MADRCU?!]{2}) [^\r\n]+")
+    values = [lines[start][len("  dirty_summary: "):]]
+    while end < len(lines) and lines[end] != "environment:":
+        values.append(lines[end])
+        end += 1
+    if end == len(lines) or not all(statuses.fullmatch(v) for v in values):
+        return None
+    repaired = lines[:start] + ["  dirty_summary: " + json.dumps("\n".join(values))] + lines[end:]
+    try:
+        node = yaml.compose("\n".join(repaired))
+        seen: set[int] = set()
+        identities: list[tuple[str, str]] = []
+
+        def inspect(current, depth=0):
+            # Aliases, duplicate keys, nested identities and merge keys are
+            # deliberately outside this narrowly recoverable old format.
+            if id(current) in seen:
+                raise ValueError("alias")
+            seen.add(id(current))
+            if isinstance(current, yaml.MappingNode):
+                keys = set()
+                for key, value in current.value:
+                    if not isinstance(key, yaml.ScalarNode) or key.value in keys:
+                        raise ValueError("ambiguous mapping")
+                    keys.add(key.value)
+                    if key.value in ("id", "run_id", "run", "<<"):
+                        if depth != 0 or key.value != "run_id" or not isinstance(value, yaml.ScalarNode):
+                            raise ValueError("ambiguous identity")
+                        identities.append((key.value, value.value))
+                    inspect(value, depth + 1)
+            elif isinstance(current, yaml.SequenceNode):
+                for value in current.value:
+                    inspect(value, depth + 1)
+        inspect(node)
+        if identities != [("run_id", rec_id)]:
+            return None
+        doc = yaml.safe_load("\n".join(repaired))
+        if not isinstance(doc, dict) or not isinstance(doc.get("git"), dict):
+            return None
+        if doc["git"].get("dirty_summary") != "\n".join(values):
+            return None
+    except (yaml.YAMLError, ValueError, TypeError):
+        return None
+    return rec_id
+
+
 def _run_id_of(path: str) -> str | None:
     try:
         with open(path, encoding="utf-8") as handle:
-            doc = yaml.safe_load(handle)
-    except (OSError, yaml.YAMLError):
+            text = handle.read()
+    except OSError:
         return None
+    class IdentityLoader(yaml.SafeLoader):
+        pass
+
+    def unique_mapping(loader, node, deep=False):
+        keys = [key.value for key, _ in node.value
+                if isinstance(key, yaml.ScalarNode)]
+        if len(keys) != len(set(keys)):
+            raise yaml.YAMLError("duplicate mapping keys in run identity record")
+        return yaml.SafeLoader.construct_mapping(loader, node, deep=deep)
+
+    IdentityLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG,
+                                   unique_mapping)
+    try:
+        doc = yaml.load(text, Loader=IdentityLoader)
+    except yaml.YAMLError:
+        return _flat_run_id_with_malformed_dirty_summary(text)
     body = doc.get("run") if isinstance(doc, dict) else None
     if isinstance(body, dict):
         rec_id = body.get("id")
