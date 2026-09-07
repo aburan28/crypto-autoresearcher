@@ -1,0 +1,841 @@
+red_team_report:
+  id: RT-20260904-44e988-redteam
+  task_id: TASK-20260904-44e988
+  role: red-team
+  joints_owned: [J3-ADVERSARIAL-CONSTRUCTION-AUDIT, J4-INTERPRETATION-AND-SCOPE-CHECK]
+  experiment_id: EXP-MONO-815525
+  hypothesis_id: H-MONO-5b6617
+  idea_id: IDEA-20260904-ad63fe
+  question_id: RQ-MONO-001
+  goal_id: GOAL-MONO-001
+  reviewed_at: '2026-09-04'
+
+  reviewed_snapshot_commit: null
+  snapshot_integrity: >-
+    NOT INDEPENDENTLY VERIFIED, AND THE REASON IS RECORDED RATHER THAN GLOSSED.
+    The dispatching session instructed this reviewer to run NO git commands
+    (shared working directory, many concurrent sessions) and to read files by
+    absolute path. I therefore could not recompute path_sha256 against an
+    archive receipt and did not locate a snapshot receipt for this task.
+    Everything below reviews the FILE CONTENTS at the listed paths as read on
+    2026-09-04, not a hash-verified snapshot. Per AGENTS.md rule 7 the
+    Coordinator must treat this as a disclosed provenance gap in the REVIEW.
+    It does not weaken the mathematical findings: every load-bearing quantity
+    below was recomputed from scratch in this session, and the two central
+    findings (J3 exact algebra, J4 group theory) are proofs, not measurements.
+
+  verdicts:
+    J3-ADVERSARIAL-CONSTRUCTION-AUDIT: holds_with_finding
+    J4-INTERPRETATION-AND-SCOPE-CHECK: breaks
+
+  headline: >-
+    The CONSTRUCTION is correct -- I confirmed S_3, S_4, the symmetric descent
+    and every recorded Q_e independently, by methods the Executor did not use,
+    with zero mismatches. The INFERENCE is void. The measured quantity
+    ("g irreducible implies cycle type (1,3)") is a group-theoretic identity
+    that holds for EVERY subgroup of the monodromy group, on EVERY curve,
+    including objects whose monodromy is provably intransitive. I ran the
+    null-object control the protocol requires: a quartic whose monodromy is the
+    order-6 point stabiliser S_3 (not transitive, therefore certainly not S_4)
+    reproduces the census result exactly, instance for instance, on the same
+    base points. 688,300 instances of a tautology are 688,300 instances of a
+    tautology. The experiment is a large, well-executed Stage-0 construction
+    validation that has been framed as a monodromy measurement.
+
+  # ==================================================================== J3
+  J3_adversarial_construction_audit:
+    verdict: holds_with_finding
+    what_i_was_asked: >-
+      Audit the S_4 derivation by a method DIFFERENT from the Executor's three
+      routes (symbolic nested resultant; numeric substitution of Frobenius
+      powers into the derived S_4 table; independent runtime Sylvester
+      resultant), and adversarially probe whether 688,300 instances on 5 curves
+      at 4 primes is a fair test of "every non-singular ordinary curve".
+
+    my_method_and_why_it_is_independent: >-
+      NO resultants, NO symbolic algebra, NO CAS anywhere. Direct two-sided
+      brute force against the group law: for a prime p and curve E, I enumerate
+      the points of E over F_{p^2} lying above EVERY x in F_p (every x in F_p is
+      an x-coordinate of exactly one or two points over F_{p^2}, so nothing is
+      excluded by quadratic-residue selection), and for every multiset
+      {x_1,...,x_m} of x-values I decide BY ACTUAL POINT ADDITION whether some
+      sign choice of lifts sums to O. I then compare that boolean, in BOTH
+      directions, against the vanishing of the Executor's own published monomial
+      table. This is orthogonal to all three Executor routes: it never touches a
+      resultant, and it tests the ZERO SET of the shipped artifact rather than
+      its provenance. It also covers the case the Executor's strongest check
+      (check b, 269 split-g probes built from REAL points of E) structurally
+      could not reach: probes built from real points always have every y_i
+      rational, so check (b) only ever exercised the trivial-sign sector.
+
+    result_brute_force_S3_and_S4:
+      curves_tested: 15
+      primes: [11, 13, 17, 19, 23, 29, 31]
+      deliberately_includes_families_the_census_excluded:
+        - "j = 0 (p=11, A=0, B=1) -- supersingular"
+        - "j = 1728 (p=11, A=1, B=0) -- supersingular"
+        - "curves with 0, 1 and 3 rational 2-torsion points"
+      S4_multisets_decided: 146839
+      S3_multisets_decided: 21827
+      note_on_coverage: >-
+        Multisets, not tuples: both S_4 and the group-law condition are fully
+        symmetric (I re-verified the symmetry of the table exactly), so a
+        multiset sweep is lossless and equivalent to roughly 3.5 million ordered
+        4-tuples.
+      mismatches_either_direction: 0
+      verdict: >-
+        The shipped s4_monomials.json and s3_monomials.json vanish at EXACTLY
+        the x-coordinate combinations that admit a signed sum equal to O, and at
+        no others, on every curve tested. The derivation is correct, including
+        on supersingular curves and at j in {0,1728}, which the census excluded.
+
+    result_exact_algebraic_recheck_of_the_descent:
+      method: >-
+        Exact integer polynomial arithmetic in a from-scratch dict-of-monomials
+        ring (no sympy), substituting e1,e2,e3 by the elementary symmetric
+        polynomials of x1,x2,x3 into each published c_k and comparing with the
+        x4^k coefficient extracted from the S_4 table.
+      c_k_matches_x4k_coefficient_for_k_0_to_4: true
+      term_counts_compared: [120, 130, 128, 99, 63]
+      verdict: The symmetric descent is exact. sympy's symmetrize is corroborated, not trusted.
+
+    finding_F1_the_leading_coefficient_is_S3_squared:
+      statement: >-
+        c_4 = (S_3^sym(e1,e2,e3))^2 EXACTLY, as an identity in Z[e1,e2,e3,A,B],
+        where S_3^sym = A^2 - 2*A*e2 - 4*B*e1 + e2^2 - 4*e1*e3 is the symmetric
+        form of the Executor's own S_3 (I verified S_3^sym(e(x)) equals the S_3
+        table exactly, so this is the same S_3, not a lookalike).
+      why_it_matters: >-
+        The Executor reports c_4 as "(-A^2 + 2A e2 + 4B e1 + 4 e1 e3 - e2^2)^2"
+        and never records that the inner factor is minus S_3. With that one
+        observation, "deg Q_e drops" is IDENTICAL to "S_3(x1,x2,x3) = 0", i.e.
+        to "some signed sum of the three base points is the point at infinity" --
+        a THEOREM, not an inference from 269 split-g probes. The degree-drop
+        locus is a codimension-1 surface in the base with exactly p^2 points for
+        every (A,B), which is why the deviation rate is 1/p and not something to
+        be explained.
+      independent_consequence_i_then_verified_numerically: >-
+        Predicting the census's own headline deviation counts in closed form,
+        with no census: #{(e1,e2,e3) : g irreducible and S_3^sym(e)=0} = 3378 for
+        C1 (p=101,A=2,B=3) and 3378 for C5 (p=101,A=37,B=29). The run recorded
+        exactly 3378 and 3378. All 6,756 recorded exhaustive deviations lie on
+        S_3^sym(e)=0 (0 off the surface), all are g-irreducible, and all have
+        degree_in_T = 3. The 6,762 "deviations" are the rational points of an
+        explicit surface, not a discovery.
+
+    result_direct_point_arithmetic_in_the_g_irreducible_regime:
+      note: >-
+        Not my assigned joint (J2 is the Validator's), but I built it anyway
+        because my J4 argument depends on the fibre model being right, and an
+        auditor should not take the model on the producer's word. Reported here
+        as corroboration only; it does not substitute for the Validator's
+        independent J2 and I have not seen the Validator's work.
+      method: >-
+        F_{p^3} = F_p[X]/(g) with g the base cubic itself, F_{p^6} = F_{p^3}[w]/(w^2 - n)
+        with n a non-square, Tonelli-Shanks in F_{p^3}, full point arithmetic in
+        E(F_{p^6}); lift x_1 = X, x_2 = X^p, x_3 = X^{p^2}, form all four signed
+        sums, take x-coordinates, build prod (T - x) over the finite classes and
+        compare with the monic normalisation of the Executor's Q_e.
+      instances: 20
+      composition: >-
+        All 5 disclosed degree-drop instances (C1 e=(26,64,100); C2
+        e=(445,466,232); C5 e=(70,46,7); C1 e=(0,2,6); C5 e=(0,37,1)) plus 15
+        random g-irreducible non-deviating instances, 3 on each of the 5 census
+        curves.
+      results:
+        product_over_finite_classes_equals_monic_Qe: 20 of 20
+        class_x_coordinates_land_in_F_p3: 20 of 20
+        degree_drop_instances_with_exactly_one_class_equal_to_O: 5 of 5
+        non_deviating_instances_with_zero_classes_at_O_and_4_distinct_x: 15 of 15
+        projectively_Frobenius_fixed_fibre_points: "exactly 1 in all 20, with no exceptions"
+      verdict: >-
+        In the actual g-irreducible regime, the fibre is exactly the four signed
+        sums, the degree drop is exactly one class equal to O, and exactly one
+        of the four projective fibre points is F_p-rational in every case.
+
+    result_audit_of_the_recorded_run_artifacts:
+      sampled_instances_re_evaluated_from_the_coefficient_table_independently: 1500
+      coefficient_mismatches_against_recorded_Qe: 0
+      non_squarefree_among_the_1500: 0
+      recorded_exhaustive_deviations_checked: 6756
+      recorded_deviations_off_the_surface_S3_equals_0: 0
+      verdict: The run's recorded numbers are what the shipped construction actually produces. No bookkeeping defect found.
+
+    curve_sample_adversarial_assessment:
+      finding_F2_C1_and_C5_are_isogenous_not_independent:
+        C1: {p: 101, A: 2, B: 3, j: 74, trace: 6, order: 96, group: "Z/96 cyclic", rational_2_torsion_points_Z: 1, CM_disc_t2_minus_4p: -368, order_over_F_p3: 1031904}
+        C5: {p: 101, A: 37, B: 29, j: 45, trace: 6, order: 96, group: "Z/96 cyclic", rational_2_torsion_points_Z: 1, CM_disc_t2_minus_4p: -368, order_over_F_p3: 1031904}
+        statement: >-
+          C1 and C5 are NOT F_p-isomorphic (different j; I searched all u in
+          F_101^* for A2 = u^4 A1, B2 = u^6 B1 and found none) but they have the
+          SAME TRACE, hence by Tate's isogeny theorem they are F_p-ISOGENOUS,
+          with identical #E(F_{p^n}) for every n, identical group structure,
+          identical CM discriminant, and identical (t,Z) = (6,1). C5 is a
+          same-isogeny-class replicate, not an independent second curve.
+        the_unexplained_coincidence_is_this: >-
+          The execution report files "the exhaustive sweeps on C1 and C5
+          returned identical pattern counts, 340022 / 3378 ... recorded as
+          observed, not explained" under unexpected_observations. It is
+          explained. I measured the degree-drop count on 90 curves at p=101
+          covering 48 distinct (t,Z) classes: the count is constant on each
+          class and varies across classes (3366 to 3500). A third curve with
+          trace 6 that I picked at random (A=2, B=98) also returns exactly 3378,
+          while non-isogenous curves return 3369, 3383, 3423, 3441, and so on.
+          The coincidence is a curve-class invariant, and it is a partial,
+          accidental instance of IDEA-20260904-ad63fe's own (C4) matched-(t,Z)
+          law -- the most interesting thing in the whole run, filed as noise.
+      finding_F3_the_diversity_axis_is_wrong:
+        statement: >-
+          The record's diversity argument is stated in (p, A, B, j, ordinariness).
+          Under the parent idea's own (C4), the observable's counts are functions
+          of (p, t, Z) AND OF NOTHING ELSE -- j, CM and the endomorphism ring can
+          enter only through (t,Z). Measured against the axis that the lane's own
+          theory says matters, the census has FOUR (t,Z) points, not five curves:
+          (6,1) twice [C1, C5], (44,1), (-11,0), (-64,3).
+        what_a_fair_test_looks_like: >-
+          Deliberately matched (t,Z) pairs on NON-isogenous curves (the real
+          exceptional-locus test), plus deliberately unmatched (t,Z) pairs, plus
+          curves at j in {0,1728} and supersingular curves as boundary objects.
+          I already checked S_4's own correctness on the last of these; the
+          census did not.
+      what_is_NOT_a_defect: >-
+        Because my J4 finding shows the measured quantity is curve-independent,
+        the narrow sample is not what makes the census uninformative -- 10^9
+        instances on 10^6 curves would have been equally uninformative. Curve
+        diversity is a real but SECOND-ORDER defect here. I say so explicitly so
+        that fixing the sample is not mistaken for fixing the experiment.
+
+  # ==================================================================== J4
+  J4_interpretation_and_scope_check:
+    verdict: breaks
+    the_question: >-
+      Does a pass on this ONE diagnostic establish full S_4 monodromy, or only
+      rule out specific alternative subgroups? Which proper subgroups would ALSO
+      predict cycle type (1,3) whenever g is irreducible?
+
+    answer_short: >-
+      It rules out NOTHING. Not A_4, not D_4, not V_4, not the intransitive
+      order-6 point stabiliser S_3, not C_3, not the trivial group. There is no
+      pair of subgroups this diagnostic separates, because its outcome is a
+      deterministic function of the factorization type of g, which is an
+      observable property of the BASE POINT and carries no information about the
+      FIBRE at all.
+
+    the_theorem:
+      setup: >-
+        By (C3) of IDEA-20260904-ad63fe (and H-MONO-45183a A-1, which I verified
+        independently by F_{p^6} point arithmetic, 20 of 20 above), the four
+        fibre points are the sign classes eps in {+-1}^3 modulo global negation,
+        which is an affine plane over F_2. Frobenius permutes the roots of g by
+        sigma and flips the y-lifts by delta, acting on the fibre by the AFFINE
+        map v -> sigma(v) + delta. So the monodromy is a subgroup of
+        AGL(2,F_2) = S_4, and the LINEAR PART of a Frobenius element is exactly
+        the Galois action on g's roots -- read off g itself.
+      the_computation: >-
+        I enumerated all 24 elements of AGL(2,2) by (order of linear part, cycle
+        type on the four fibre points).
+      table:
+        - "linear part order 1, translation 0     -> cycle type (1,1,1,1) : 1 element"
+        - "linear part order 1, translation != 0  -> cycle type (2,2)     : 3 elements"
+        - "linear part order 2, translation in Fix(L) -> cycle type (1,1,2) : 6 elements"
+        - "linear part order 2, translation not in Fix(L) -> cycle type (4) : 6 elements"
+        - "linear part order 3, ANY translation   -> cycle type (1,3)     : 8 of 8 elements"
+      conclusion: >-
+        An element of AGL(2,2) whose linear part has order 3 has a UNIQUE fixed
+        point (L - I is invertible on F_2^2 when L has order 3) and satisfies
+        L^2 + L + I = 0, so it has order 3: cycle type (1,3), for every
+        translation, with no exception. g irreducible over F_p means precisely
+        that the linear part has order 3. Therefore "g irreducible implies cycle
+        type (1,3)" is FORCED for every subgroup of AGL(2,2) and every curve.
+        The parent idea says as much in its own words -- (C3)(c): "type 3+1
+        ALWAYS, whatever the signs" -- and the experiment then tested exactly
+        that branch, the one branch of (a)/(b)/(c) that is independent of the
+        signs, i.e. of the translation part, i.e. of everything that
+        distinguishes one subgroup from another.
+
+    null_object_control:
+      why: >-
+        docs/inventor-protocol.md section 3 requires the identical measurement
+        against a null object before belief. The census reports 100% agreement
+        and no reported quantity that decays with any parameter. The parameter
+        that should destroy the signal is "make the monodromy smaller". It does
+        not.
+      the_null_object: >-
+        NULL(T) = (T - e1) * g(T), an explicit quartic over the same base
+        F_p(e1,e2,e3). Its splitting field is that of g, so its monodromy is the
+        order-6 point stabiliser S_3 < S_4 -- INTRANSITIVE, of index 4,
+        containing no 4-cycle and no double transposition. It is as far from
+        full S_4 as an object with 3-cycles can be.
+      measurement: same code, same base points, same factorization routine.
+      results_on_the_g_irreducible_locus:
+        C1_p101: "real cover 19,690 pattern 1+3 plus 212 degree-3 (one root at infinity) = 19,902 ; NULL 19,902 pattern 1+3. IDENTICAL."
+        C3_p211: "real 9,850 + 51 = 9,901 ; NULL 9,901. IDENTICAL."
+        C4_p1999: "real 2,739 ; NULL 2,739. IDENTICAL."
+      results_where_they_differ_and_the_census_never_looked:
+        g_equals_linear_times_irreducible_quadratic_locus:
+          real_cover: "14,194 of pattern 1+1+2 and 14,635 of pattern 4 (genuine squarefree irreducible quartics = 4-cycle Frobenius), roughly 50/50, on C1"
+          null_object: "29,355 of pattern 1+1+2 and ZERO 4-cycles"
+        g_splits_completely_locus:
+          real_cover: "7,089 of pattern 2+2 and 2,116 of pattern 1+1+1+1 on C1, roughly 3:1"
+          null_object: "9,564 of pattern 1+1+1+1 and ZERO 2+2"
+      what_this_proves: >-
+        The census's measurement is a CONTROLLED NULL. It has been read as a
+        finding. And the separating evidence sits in the 2/3 of the base that
+        the experiment's own selection rule threw away: it recorded 2,836
+        rejected draws across the five curves as "g reducible", and every bit of
+        discriminating information was in those rejects.
+
+    the_measurement_that_does_discriminate:
+      status: >-
+        REVIEW-SIDE PROBE ONLY. No run record, no seed contract, not
+        evidence-eligible, MUST be re-run under an approved specification before
+        it is cited. I report it because naming the cheapest discriminating
+        control is my job and a number makes the recommendation concrete.
+      what_it_is: >-
+        The same factorization measurement over UNCONDITIONED base points, read
+        projectively into the five classes 1^4 / 2+2 / 2+1+1 / 4 / 3+1, with the
+        inadmissible stratum (repeated root, or more than one root at infinity)
+        counted separately -- i.e. Chebotarev on the whole base rather than on
+        one conjugacy class of the base.
+      observed_frequencies_vs_candidate_monodromy_groups:
+        C3_p211_A3_B11_79630_admissible: {"1^4": 0.0411, "2+2": 0.1265, "2+1+1": 0.2483, "4": 0.2521, "3+1": 0.3320, chi2_vs_S4: 4.9}
+        C2_p1009_A5_B7_29908_admissible: {"1^4": 0.0399, "2+2": 0.1258, "2+1+1": 0.2513, "4": 0.2469, "3+1": 0.3361, chi2_vs_S4: 4.5}
+        C1_p101_A2_B3_145704_admissible: {"1^4": 0.0379, "2+2": 0.1180, "2+1+1": 0.2480, "4": 0.2505, "3+1": 0.3455, chi2_vs_S4: 173.2, note: "C1 has Z=1 and the smallest p; 2.86% of draws are inadmissible, versus 0.46% on C3 and 0.31% on C2 -- an O(1/p) and O(2-torsion) effect, and itself a testable prediction"}
+        uniform_S4_prediction: {"1^4": 0.04167, "2+2": 0.1250, "2+1+1": 0.2500, "4": 0.2500, "3+1": 0.3333}
+        A_4_prediction: {"1^4": 0.0833, "2+2": 0.2500, "2+1+1": 0.0, "4": 0.0, "3+1": 0.6667}
+        D_4_prediction: {"1^4": 0.1250, "2+2": 0.3750, "2+1+1": 0.2500, "4": 0.2500, "3+1": 0.0}
+        V_4_prediction: {"1^4": 0.2500, "2+2": 0.7500, "2+1+1": 0.0, "4": 0.0, "3+1": 0.0}
+        point_stabiliser_S_3_prediction: {"1^4": 0.1667, "2+2": 0.0, "2+1+1": 0.5000, "4": 0.0, "3+1": 0.3333}
+      outcome: >-
+        Every proper subgroup is excluded OUTRIGHT, not statistically: each of
+        them predicts probability exactly zero for a class observed thousands of
+        times (A_4 and the point stabiliser S_3 both forbid 4-cycles; 20,077
+        occurred on C3 alone). The observed distribution matches uniform S_4
+        within chi^2 = 4.5 to 4.9 on 4 degrees of freedom on the two larger
+        primes. Cost: 10 to 14 seconds per curve. The census cost 103 seconds
+        and excluded nothing.
+      honest_scoping_of_my_own_probe: >-
+        This is toy-scale Chebotarev evidence for full S_4 on three specific
+        curves, from an unreviewed script, in a session with maximum_runs = 0.
+        It is NOT a result of this review round and must not be cited as one. It
+        is a pointer to the experiment that should be run.
+
+    specifically_on_S_4_versus_A_4_as_the_task_card_asks:
+      does_the_diagnostic_separate_them: >-
+        No. A_4 = V semidirect C_3 inside AGL(2,2) contains 8 three-cycles and
+        every one of them has cycle type (1,3). A curve with A_4 monodromy would
+        pass this exact test with a perfect score.
+      but_A_4_was_never_the_live_threat: >-
+        A_4's image in GL(2,2) is C_3, so under A_4 monodromy no Frobenius could
+        have a transposition linear part, i.e. no base cubic could factor as
+        (linear)(irreducible quadratic). Such cubics manifestly exist (about half
+        of all monic cubics). So A_4 is excluded for FREE, by a fact about monic
+        cubics over F_p, with zero curve arithmetic -- and NOT by this census.
+      the_live_threat_the_diagnostic_misses: >-
+        The subgroups of S_4 that surject onto S_4/V_4 = S_3 (which the monodromy
+        must, since the base cubic is generic) are exactly S_4 itself and the
+        order-6 point stabilisers. A_4 does not surject onto S_3, so the real
+        binary is "S_4 versus a point stabiliser S_3", i.e. "is Q_e irreducible
+        over F_p(e1,e2,e3), or does it always have a rational root?". That is
+        precisely the alternative my null object realises, and precisely the one
+        this diagnostic cannot see. The separator is the TRANSLATION part
+        V = (Z/2)^2, and it is visible only on the g-reducible locus.
+      how_to_actually_separate_them: >-
+        Exhibit one squarefree irreducible quartic Q_e (a 4-cycle Frobenius) at a
+        base point with g = (linear)(irreducible quadratic): a transitive
+        subgroup of S_4 containing a 3-cycle and a 4-cycle is S_4. One instance
+        suffices. I observed 14,635 of them on C1 and 20,077 on C3.
+
+    claim_boundary_honesty_assessment:
+      spec_claim_ceiling_text: >-
+        "A pass is consistent with full S_4 monodromy at m=4 but does not
+        independently prove it (other, untested diagnostics could still fail); a
+        single confirmed failure is a complete falsification of the full-S_4
+        claim at m=4."
+      objection: >-
+        Both halves are wrong in opposite directions. First half: "consistent
+        with" understates by the decisive notch -- the pass is equally consistent
+        with EVERY subgroup, so its evidential weight for full S_4 is exactly
+        zero rather than small. Second half: a failure would NOT have falsified
+        full S_4; since (1,3) is forced for every subgroup, a failure could only
+        have falsified the sign-class fibre model (C3)/H-MONO-45183a A-1, the
+        derived Q_e, or admissibility (a root collision). The record's falsifier
+        does not point at the thing the record says it falsifies.
+      hypothesis_record_defect: >-
+        H-MONO-5b6617 labels the design "PRE-REGISTERED, TWO-SIDED" and lists
+        outcome (II) alternatives -- "splitting completely, or as two irreducible
+        quadratics, or as an irreducible quartic". All three are
+        group-theoretically IMPOSSIBLE under an order-3 linear part, for every
+        subgroup, on every curve. Branch (II) was empty before the run. A design
+        with an empty falsification branch is one-sided, whatever it is labelled;
+        this is the same defect the parent idea's own load-bearing paragraph
+        diagnoses in the two PRIOR instruments (EV-MONO-a0a89c OBS-5's constant
+        cycle type on the factor-base locus, EV-MONO-efbd1c's degree cap on the
+        ordered generic locus). The lane has now built the same one-sided
+        instrument a third time, by conditioning instead of by construction.
+      what_the_run_DOES_support: >-
+        It is a large and genuinely valuable CONSTRUCTION VALIDATION: it confirms
+        on 688,300 base points that the derived Q_e behaves exactly as the
+        sign-class fibre model predicts, including the 1/p-density degree-drop
+        sublocus, with no root collisions on the g-irreducible locus. That is a
+        Stage-0 result about the artifact. It is not a Stage-1 result about the
+        group.
+
+  # ============================================================== objections
+  objections:
+    - id: OBJ-1
+      severity: fatal_to_the_inference
+      target: "H-MONO-5b6617 outcome (I); specification outcomes.full_s4_diagnostic_holds"
+      statement: >-
+        The measured quantity is a deterministic function of the base cubic's
+        factorization type and is independent of the monodromy subgroup. All 8
+        elements of AGL(2,2) with an order-3 linear part are 3-cycles. The census
+        therefore carries zero bits about the monodromy group.
+      evidence: "J4 theorem plus the enumeration of AGL(2,2); null-object control reproducing the census exactly with an intransitive order-6 group."
+    - id: OBJ-2
+      severity: fatal_to_the_stated_falsifier
+      target: "specification.falsification_criterion; H-MONO-5b6617.falsification_condition"
+      statement: >-
+        The stated falsification branch is empty. Any observed failure would
+        indict the construction or an admissibility degeneracy, never the group.
+        The record's falsifier is misaddressed.
+    - id: OBJ-3
+      severity: major
+      target: "execution_report.stage_1.note_on_scope; implementation.md section 2"
+      statement: >-
+        C5 is F_p-isogenous to C1 (equal trace 6, equal order 96, equal group
+        structure, equal (t,Z), equal #E over every extension). Presenting it as
+        the replication curve for the second exhaustive sweep overstates the
+        sample's independence, and the resulting identical counts were filed as
+        an unexplained coincidence rather than recognised as the fingerprint of
+        that dependence -- and as a partial instance of the parent idea's own
+        (C4) matched-(t,Z) law, which is the one genuinely discriminating test
+        in the neighbourhood.
+    - id: OBJ-4
+      severity: major
+      target: "execution_report.stage_2.M2_observed_distribution_literal_affine_factorization.patterns_never_observed"
+      statement: >-
+        The list ["4", "2+2", "1+1+2", "1+1+1+1", "any non-squarefree pattern",
+        "any degree < 3"] reads as a property of the cover. It is a property of
+        the SELECTION. On the same curves, off the g-irreducible locus, I
+        observed all of them: 4-cycles (14,635 on C1), 2+2 (7,089), 1+1+2
+        (14,194), 1^4 (2,116), non-squarefree instances (hundreds), and degree-2
+        Q_e (two roots at infinity, 6 instances on C1). Every one of these should
+        be labelled "not observed ON THE g-IRREDUCIBLE LOCUS".
+    - id: OBJ-5
+      severity: moderate
+      target: "execution_report stage_0 check_b; implementation.md section 3"
+      statement: >-
+        The 269 split-g probes were "built the honest way round" from real points
+        of E, which forces every y_i rational and therefore forces the trivial
+        translation. Check (b) consequently exercised only the identity element
+        of the translation group V. It is a correct check of a proper sub-sector,
+        and it is the sector in which the degree-drop semantics is least
+        informative. My F_{p^6} probe closes this in the g-irreducible regime;
+        the split-g regime with non-residue y_i remains unchecked by the run.
+    - id: OBJ-6
+      severity: moderate
+      target: "H-MONO-5b6617.heuristic_assumptions H1 rigorous_support"
+      statement: >-
+        H1 invokes "Chebotarev-style reasoning" to justify treating repeated
+        agreement as evidence. Chebotarev is exactly right and it cuts the other
+        way: the informative statistic is the distribution of Frobenius classes
+        over the WHOLE base. Conditioning on g irreducible restricts to the
+        preimage of a single conjugacy class of the quotient S_3, on which the
+        cycle type is constant for every subgroup. H1's own justification, taken
+        seriously, predicts the observation independently of the hypothesis --
+        which is the definition of an uninformative test.
+    - id: OBJ-7
+      severity: minor_but_load_bearing_for_J1
+      target: "execution_report.stage_2.the_deviating_class_in_full.relation_to_stage_0"
+      statement: >-
+        The point-at-infinity identification is presented as an empirical
+        inference transferred from 269 split-g probes, with the transfer flagged
+        as unverified. It is a theorem: c_4 = (S_3^sym)^2 exactly, so
+        deg Q_e < 4 iff S_3(x1,x2,x3) = 0 iff some signed sum is O. Not recording
+        this leaves the strongest available argument for the projective reading
+        unstated and forces the reviewers to re-derive it. (J1 is the Validator's
+        joint; I report the identity as an audit finding, not as an adjudication.)
+    - id: OBJ-8
+      severity: minor
+      target: "the run's information economics"
+      statement: >-
+        103.3 s of compute was spent on a quantity with zero discriminating
+        power, while the five-class distribution that excludes every proper
+        subgroup costs 10-14 s per curve with the same code and the same base
+        measure. This is not a budget violation; it is a design cost, and it is
+        the cost the review round exists to catch.
+
+  # ======================================================= required controls
+  required_controls:
+    - id: RC-1
+      name: null-object control on any future monodromy diagnostic
+      what: >-
+        Run every proposed cycle-type diagnostic against NULL(T) = (T - e1)*g(T)
+        (monodromy = intransitive point stabiliser S_3) and against a random
+        monic quartic in F_p[T] with coefficients drawn uniformly (monodromy
+        generically S_4 but with no elliptic-curve content). A diagnostic that
+        does not separate the real cover from NULL on its own reported statistic
+        must be reported as a controlled null, not as a confirmation.
+      status: RUN BY THIS REVIEW; the g-irreducible diagnostic fails it outright.
+    - id: RC-2
+      name: unconditioned five-class Chebotarev census
+      what: >-
+        Sample (e1,e2,e3) uniformly with NO conditioning on g; classify
+        projectively into 1^4 / 2+2 / 2+1+1 / 4 / 3+1 with an explicit
+        inadmissible stratum; compare against the uniform class densities of S_4,
+        A_4, D_4, V_4, the point stabiliser S_3 and C_3. Report per-class integer
+        counts, not rates.
+      status: piloted review-side; must be re-run under an approved contract.
+    - id: RC-3
+      name: one-witness transitivity certificate
+      what: >-
+        Exhibit and certify ONE base point with g = (linear)(irreducible
+        quadratic) whose Q_e is a squarefree irreducible quartic, with the
+        irreducibility certified by an independently coded routine and the
+        4-cycle confirmed by direct F_{p^4}/F_{p^8} point arithmetic. A transitive
+        subgroup of S_4 containing a 3-cycle and a 4-cycle is S_4: this single
+        instance does what 688,300 could not.
+    - id: RC-4
+      name: root-collision versus root-at-infinity separation
+      what: >-
+        The task card's proves_too_much object asks whether a genuine repeated
+        root would be distinguished from a root at infinity. They are separated
+        by two DIFFERENT loci and both must be reported: degree drop iff
+        c_4 = (S_3^sym)^2 = 0; root collision iff disc(Q_e) = 0. I confirm
+        collisions are real and occur (they require a signed subset sum to be
+        2-torsion, so they appear on C1 and C4 and are absent on C3, whose order
+        223 is prime), and that none occur on the g-irreducible locus. Any future
+        record must state squarefreeness per stratum, not globally.
+    - id: RC-5
+      name: matched-(t,Z) curve design
+      what: >-
+        Replace ad hoc curve choice with the axis the theory names: at least two
+        NON-isogenous curves with identical (t,Z), at least two with deliberately
+        different (t,Z), plus j in {0,1728} and one supersingular boundary curve.
+        Report integer counts and compare bitwise, per (C4). Note that (C4) is a
+        genuinely two-sided claim, and it is the one worth running.
+    - id: RC-6
+      name: restate the never-observed list per stratum
+      what: >-
+        Re-issue the patterns_never_observed claim scoped to the g-irreducible
+        locus, or withdraw it. As written it invites the reading that the cover
+        cannot produce 4-cycles, which is false and is the opposite of the
+        record's own thesis.
+
+  counterexample_or_mutation: >-
+    THE MUTATION THAT BREAKS THE INFERENCE, IN ONE LINE: replace the elliptic
+    quartic Q_e(T) by NULL(T) = (T - e1) * (X^3 - e1 X^2 + e2 X - e3 evaluated at
+    T), whose Galois group over F_p(e1,e2,e3) is the order-6 point stabiliser of
+    a fixed root -- intransitive, hence certainly not S_4 and not even a
+    transitive group. On the g-irreducible locus it produces cycle type (1,3) at
+    rate 1.000, on the same base points, at every prime, on every curve: 19,902
+    of 19,902 matching the real cover instance-for-instance at p=101; 9,901 of
+    9,901 at p=211; 2,739 of 2,739 at p=1999. The census cannot tell this object
+    from the elliptic cover. It separates them instantly on the base points the
+    census discarded (NULL never emits a 4-cycle or a 2+2; the elliptic cover
+    emits both at densities 1/4 and 1/8).
+
+  baseline_comparison:
+    ecdlp_baselines: >-
+      NOT APPLICABLE and correctly disclaimed by the record: no relation rate,
+      no cost, no exponent, no memory claim is made, so Pollard rho
+      (O(sqrt(n)) time, O(1) memory), BSGS (O(sqrt(n)) time and memory) and the
+      closest specialized baseline (Gaudry/Diem-style decomposition index
+      calculus over F_{q^n}, which is the setting where m=4 summation-polynomial
+      monodromy would ever matter) are untouched in both directions. I confirm
+      the record does not inflate here. dominated_by on every ECDLP axis is
+      correctly and vacuously null because no point is claimed on that frontier.
+    the_frontier_that_IS_claimed: >-
+      The claim is on the information-per-experiment frontier, and there the
+      record is dominated on every axis at once:
+      (i) by a ZERO-COMPUTE argument -- the AGL(2,2) enumeration gives the same
+      prediction with certainty in one page and no run;
+      (ii) by an EQUAL-COMPUTE alternative -- the unconditioned five-class census
+      excludes all five proper-subgroup candidates in 10-14 s per curve, versus
+      103.3 s for a result that excludes none;
+      (iii) by a ONE-INSTANCE alternative -- RC-3's single certified 4-cycle
+      settles transitivity outright.
+      Per KN-LIT-7593's discipline, note that the "eliminated dimension" here is
+      the sign/translation data: conditioning on g irreducible removes it from
+      the observable, and removing it is what makes the measurement cheap AND
+      what makes it empty. The dimension was not eliminated, it was averaged over.
+
+  heuristic_challenges:
+    - id: HC-1
+      heuristic: "H-MONO-5b6617 H1 -- independent base points, agreement across many draws is informative."
+      challenge: >-
+        The random model is irrelevant, and the record half-says so ("not a
+        random-model heuristic in the usual sense"). The failure is not
+        independence of draws; it is that the per-draw outcome is a constant
+        function of the conditioning event. Sample size cannot repair a constant.
+        Numbered, explicit and justified is not enough: the heuristic must also
+        be CAPABLE OF BEING WRONG on the object measured.
+    - id: HC-2
+      heuristic: "IDEA-20260904-ad63fe (C3), the affine-action recipe (used-not-reproved from H-MONO-45183a A-1)."
+      challenge_and_outcome: >-
+        This is the only load-bearing internal citation in the chain, and the
+        experiment's whole interpretation rests on it. I did not take it on
+        trust: I verified it by direct F_{p^6} point arithmetic on 20 instances
+        across all five census curves (fibre = the four signed sums; exactly one
+        projectively Frobenius-fixed point in every case) and by exhaustive
+        two-sided brute force of S_3 and S_4 on 15 curves over 7 primes. It
+        HOLDS. Recording this as a discharged challenge rather than a standing
+        one.
+    - id: HC-3
+      heuristic: "Chebotarev-style corroboration as invoked in H1's rigorous_support."
+      challenge: >-
+        Chebotarev applies to the unconditioned base measure. Conditioning on a
+        single conjugacy class of the quotient and then reporting perfect
+        agreement is a selection effect, not a density theorem. The classical
+        statement (equidistribution of Frobenius over conjugacy classes) is the
+        exact tool that turns this into a real instrument -- see RC-2 -- so the
+        cited theorem is right and its application was inverted.
+    - id: HC-4
+      heuristic: "the projective reading of M1 (the Executor declines to adjudicate; the Coordinator's prior favours it)."
+      challenge: >-
+        I do not challenge it -- I strengthen it and then note it does not help.
+        c_4 = (S_3^sym)^2 makes the projective reading a theorem on the whole
+        degree-drop locus, not an inference from 269 probes. But the adjudication
+        is worth 0.98% of an already-empty measurement: BOTH readings leave the
+        monodromy claim exactly where it was. The review round should not spend
+        its remaining attention there.
+
+  cost_model_challenges:
+    - id: CC-1
+      statement: >-
+        No cost model is claimed and none is hidden. Budget compliance is real
+        and verifiable from the manifest (103.3 s of 600 s wall, 31.3 MB of
+        128 MB RSS, 4.71 MB of 10 MB disk). No o(1) or polylog overhead is
+        concealed because no complexity claim exists. I record this as a clean
+        finding rather than manufacturing an objection.
+    - id: CC-2
+      statement: >-
+        The one cost statement worth making is comparative and is in
+        baseline_comparison: the experiment purchased zero discriminating bits at
+        103.3 s when 10-14 s per curve purchases the full five-class separation.
+        Per-attempt versus total-expected-cost bookkeeping does not arise (no
+        success probability, no retry loop).
+    - id: CC-3
+      statement: >-
+        The exhaustive arms are genuinely exhaustive and the count is right:
+        343,400 = (101^3 - 101)/3 is exactly the number of monic irreducible
+        cubics over F_101. No inflation of "688,300" beyond what was computed --
+        though note 686,800 of those 688,300 are two sweeps over the SAME 343,400
+        base points on two ISOGENOUS curves, so the effective independent sample
+        is smaller than the headline in two distinct ways at once.
+
+  reduction_and_scope_challenges:
+    - id: RS-1
+      statement: >-
+        No published external reduction is invoked and no external citation is
+        load-bearing anywhere in the experiment package -- the construction is
+        derived in-repo per the lane's declared "derive, don't cite unread
+        sources" discipline, and I verified the derived objects directly. Nothing
+        to challenge under reduction-instantiation. This is a genuine strength of
+        the package and should be recorded as one.
+    - id: RS-2
+      statement: >-
+        Scheme-scope inflation: none. The record explicitly disclaims ECDLP,
+        cost, exponent, cryptographic scale, F_{q^n}, m != 4, supersingular
+        curves and j in {0,1728}, and the disclaimers are honoured throughout.
+        The inflation in this package is purely inferential (a curve-independent
+        identity read as curve-specific evidence), not scope-of-application.
+    - id: RS-3
+      statement: >-
+        KN-OPEN-009 is correctly not closed. I add that the census could not have
+        borne on either half of its "full symmetric (resp. wreath)" disjunction,
+        for the reason in OBJ-1, so any future decision text must not list this
+        run among the evidence bearing on it.
+    - id: RS-4
+      statement: >-
+        Guard against the opposite error: NOTHING here shows the m=4
+        symmetric-base monodromy is a proper subgroup. My own probe points the
+        other way. Do not let this review be cited as evidence against full S_4;
+        it is evidence against this EXPERIMENT as a test of it.
+
+  proof_architecture_challenges:
+    - id: PA-1
+      attack: observation-fiber
+      result: SUCCESSFUL BREAK
+      detail: >-
+        Held the observation fixed (cycle type on g-irreducible base points) and
+        varied the object: the elliptic cover (claimed monodromy S_4) and
+        NULL(T) = (T-e1)g(T) (monodromy = intransitive S_3 of order 6) sit on
+        opposite sides of the conclusion and produce the identical observation on
+        every base point tested. Missing separator: the translation part
+        V = (Z/2)^2, observable only on the g-reducible locus.
+    - id: PA-2
+      attack: method-ceiling
+      result: CEILING DOES NOT REACH THE HEADLINE
+      detail: >-
+        The monodromy sits in an extension 1 -> (V and Mon) -> Mon -> image in
+        GL(2,2) -> 1. The g-irreducible observable is a function of the IMAGE
+        alone. Under ideal tuning -- infinitely many base points, infinitely many
+        curves, arbitrary precision -- this observable can determine at most the
+        image in GL(2,2) = S_3, and never the kernel. The headline
+        "Mon = AGL(2,2)" is exactly the assertion that the kernel is all of V.
+        The method is blind to the only unknown. This is derivable before any
+        implementation, which is where it should have been caught (KN-TECH-080).
+    - id: PA-3
+      attack: quantifier-order
+      result: DEFECT FOUND
+      detail: >-
+        The claim is "for every non-singular ordinary curve, for every
+        g-irreducible base point, cycle type is (1,3)". True, and vacuously so:
+        the inner statement does not depend on the curve, so the outer universal
+        quantifier ranges over an object the predicate ignores. Verifying it on 5
+        curves, 500 curves, or all curves has the same content. The record's
+        diversity discussion (5 curves, 4 primes) is answering a question the
+        predicate does not ask.
+    - id: PA-4
+      attack: nearby-object
+      result: SUCCESSFUL BREAK
+      detail: Same as PA-1; the nearby object for which the conclusion is false is NULL(T), and the argument does not distinguish it.
+    - id: PA-5
+      attack: boundary-and-strictness
+      result: DEFECT FOUND
+      detail: >-
+        The parent idea's own load-bearing paragraph identifies the two prior
+        instruments as degree-capped or constant-typed -- one-sided by
+        CONSTRUCTION -- and presents the symmetric base as lifting the cap. It
+        does lift it. This experiment then re-imposed an equivalent cap by
+        CONDITIONING on g irreducible, landing back on a constant-typed
+        observable. The proposed perturbation was not strictly better than the
+        boundary it was supposed to escape; it reproduced it by a different
+        mechanism.
+    - id: PA-6
+      attack: compositional-invariant
+      result: HOLDS
+      detail: >-
+        Deleting components of the construction chain (S_3 correctness, the
+        intermediate-point elimination, the symmetric descent, the F_p-rationality
+        of Q_e) and re-checking: each is independently verified above, and the
+        chain implies the stated fibre description. The construction's invariant
+        does imply its target. It is the target that was mis-specified.
+    - id: PA-7
+      attack: proves-too-much (the task card's own object, applied to my J4 argument rather than to J1's)
+      result: MY ARGUMENT SURVIVES THE CONTROL
+      detail: >-
+        My J4 argument says (1,3) is forced whenever the linear part has order 3.
+        Run against objects where the conclusion should FAIL: a base point with
+        a repeated root in Q_e (root collision) breaks the "four distinct fibre
+        points" premise, and my argument correctly declines to predict (1,3)
+        there -- and such points exist and I measured them, on the g-reducible
+        locus and on curves with rational 2-torsion, and they are absent from
+        C3 whose order 223 is prime. My argument therefore does NOT prove too
+        much: it distinguishes root-at-infinity (c_4 = 0, a codimension-1 surface)
+        from root-collision (disc Q_e = 0, a different locus) by two different
+        equations, which is exactly the separation the task card's
+        failure_signature demands.
+
+  narrowest_supported_statement: >-
+    On the five curves and four primes tested, the derived quartic
+    Q_e(T) = S_4^sym(e1,e2,e3,T) is CORRECT -- independently confirmed here by
+    exhaustive two-sided brute force against the group law on 15 curves over 7
+    primes (146,839 S_4 multisets, 21,827 S_3 multisets, zero mismatches, and
+    including supersingular curves and j in {0,1728} which the census excluded),
+    by exact re-derivation of the symmetric descent without a CAS, and by direct
+    F_{p^6} point arithmetic on 20 g-irreducible instances. On those curves, every
+    one of 688,300 g-irreducible base points yields a projective fibre of one
+    F_p-rational point plus one Galois orbit of size three, with the 0.98%
+    degree-drop sublocus being exactly the surface c_4 = (S_3^sym)^2 = 0 (whose
+    point count I predicted in closed form as 3378 and 3378, matching the record
+    exactly). That statement is a CONSTRUCTION VALIDATION of the m=4
+    symmetric-base Semaev quartic and its sign-class fibre model.
+    IT IS NOT EVIDENCE ABOUT THE MONODROMY GROUP. The observation is forced by
+    the affine structure for every subgroup of AGL(2,2) = S_4, and is reproduced
+    exactly by an object whose monodromy is the intransitive order-6 point
+    stabiliser. EXP-MONO-815525 supports IDEA-20260904-ad63fe's full-S_4 claim by
+    exactly zero, and refutes it by exactly zero.
+
+  next_concrete_action: >-
+    ONE ACTION: do not compose a decision that cites EXP-MONO-815525 as support
+    for full S_4 monodromy at m=4; record it instead as a discharged Stage-0
+    construction validation (with the c_4 = (S_3^sym)^2 identity written into the
+    record, which turns the J1 projective-reading question from an inference into
+    a theorem), and approve in its place a specification for the UNCONDITIONED
+    FIVE-CLASS CENSUS -- RC-2 plus the RC-1 null object plus RC-5's matched-(t,Z)
+    curve design plus RC-3's single certified 4-cycle witness -- which is
+    IDEA-20260904-ad63fe's own (C4) test, is two-sided by construction, costs
+    about the same compute as the run just completed, and separates S_4 from
+    every proper subgroup rather than from none.
+
+  artifact_paths:
+    reviewed:
+      - experiments/EXP-MONO-815525/specification.yaml
+      - experiments/EXP-MONO-815525/execution_report.yaml
+      - experiments/EXP-MONO-815525/implementation.md
+      - experiments/EXP-MONO-815525/implementation/derive_s4.py
+      - experiments/EXP-MONO-815525/implementation/derivation_checks.json
+      - experiments/EXP-MONO-815525/implementation/s3_monomials.json
+      - experiments/EXP-MONO-815525/implementation/s4_monomials.json
+      - experiments/EXP-MONO-815525/implementation/s4_symmetric_coeffs.json
+      - experiments/EXP-MONO-815525/implementation/Qe_coeff_c3.txt
+      - experiments/EXP-MONO-815525/implementation/Qe_coeff_c4.txt
+      - experiments/EXP-MONO-815525/runs/RUN-MONO-815525-1/raw-result.json
+      - ledger/handoffs/TASK-20260904-44e988.yaml
+      - ledger/hypotheses/H-MONO-5b6617.yaml
+      - ledger/proposals/IDEA-20260904-ad63fe.yaml
+      - agents/red-team.md
+    written_by_this_review:
+      - experiments/EXP-MONO-815525/reviews/red-team/red-team-report.yaml
+    review_side_scripts_not_committed: >-
+      All verification code for this review was written and run in this session's
+      scratch directory and is NOT a research artifact: poly.py (exact multivariate
+      polynomial ring), check_descent.py (descent and c_4 identity), bf.py
+      (two-sided brute force over E(F_{p^2})), curves.py (curve invariants and
+      isogeny/isomorphism tests), devcount.py and tz.py (closed-form deviation
+      counts and the (t,Z) law), agl.py (AGL(2,2) enumeration), cycletypes2.py
+      (per-stratum cycle types and the null object), fiveclass.py (five-class
+      Chebotarev distribution), fp6.py (F_{p^6} point arithmetic), audit_raw2.py
+      (audit of the recorded run artifacts). Every number in this report is
+      reproducible from the descriptions given; none of it constitutes an
+      approved run, and maximum_runs = 0 in the task card was respected -- no run
+      record was created, no ledger record touched, nothing committed.
+
+  budget_and_authority_compliance:
+    maximum_runs_in_task_card: 0
+    runs_created: 0
+    interpretation_disclosed: >-
+      I read maximum_runs = 0 as "create no run record and no evidence-eligible
+      execution", not as "perform no arithmetic" -- the task card's own J3 attack
+      plan directs me to perform brute-force verification and its J2 plan directs
+      the Validator to implement field arithmetic, so review-side computation is
+      required by the plan. All computation above is review-side verification,
+      confined to the session scratch directory, and is explicitly labelled
+      not-evidence-eligible wherever it produces a number that could be mistaken
+      for a result.
+    ledger_or_status_changes: none
+    commits_or_pushes: none
+    git_commands_run: none (per the dispatching session's explicit instruction)
+
+  review_attestation:
+    task_id: TASK-20260904-44e988
+    role: red-team
+    joints_owned: [J3-ADVERSARIAL-CONSTRUCTION-AUDIT, J4-INTERPRETATION-AND-SCOPE-CHECK]
+    verdicts: {J3-ADVERSARIAL-CONSTRUCTION-AUDIT: holds_with_finding, J4-INTERPRETATION-AND-SCOPE-CHECK: breaks}
+    independent_session: true
+    read_sibling_reports: false
+    read_sibling_directory: false
+    sibling_directory_note: >-
+      At the start of this review I listed
+      experiments/EXP-MONO-815525/reviews/ and the directory DID NOT EXIST. When
+      I later created my own subdirectory, the listing showed that a
+      reviews/validator/ directory had come into existence in the interim. I did
+      not list its contents, did not open any file inside it, and have not seen
+      any Validator output. My J1-adjacent remarks (the c_4 = (S_3^sym)^2
+      identity) and my J2-adjacent F_{p^6} probe were derived and executed by me
+      from the primary artifacts before that directory appeared, and are offered
+      as corroboration that does not substitute for the Validator's own
+      independent work on its own joints.
+    blindness_lifted_for_me: false
+    proves_too_much_object_addressed: >-
+      Yes -- see proof_architecture_challenges PA-7. The task card assigns the
+      object to J1's reasoning; I ran the analogous control on my own J4 argument
+      and separately confirmed that root-collision events are real, are
+      distinguishable from root-at-infinity events by a different equation
+      (disc Q_e = 0 versus c_4 = 0), occur on curves with rational 2-torsion and
+      not on C3 (prime order 223), and do not occur on the g-irreducible locus.
+      The failure_signature named in the task card is therefore not present in my
+      argument.

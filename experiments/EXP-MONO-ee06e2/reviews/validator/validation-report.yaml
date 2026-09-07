@@ -1,0 +1,476 @@
+validation_report:
+  id: VAL-20260904-ea1cdf
+  task_id: TASK-20260904-e14b04
+  experiment_id: EXP-MONO-ee06e2
+  hypothesis_id: H-MONO-fa4cb9
+  question_id: RQ-MONO-001
+  goal_id: GOAL-MONO-001
+  run_ids: [RUN-MONO-ee06e2-1]
+  reviewer_role: validator
+  joints_owned: [J1-CURVE-AND-TWIST-CONSTRUCTION-AUDIT, J2-STAGE1-BLIND-RECLASSIFICATION-AND-DUAL-PREDICTION]
+  blind_rederivation_owned: true
+  reviewed_at: '2026-09-04'
+
+  scope_note: >-
+    Per TASK-20260904-e14b04's review_plan, this report addresses ONLY J1 and
+    J2 and the blind_rederivation requirement. J3 (no-hardcoding audit of the
+    Stage-0 search loop) and J4 (derivation audit of IDEA-20260904-4f614a's
+    STEP 4/5) are owned by red-team and are NOT addressed here beyond passing
+    mention where directly relevant to J1/J2's own scope. This report renders
+    no verdict on H-MONO-fa4cb9, on IDEA-20260904-4f614a's broader closed-form
+    claim, or on the claim_under_review items (d) and (e) -- only on the two
+    joints assigned to the validator, per agents/validator.md "Working under
+    a review plan".
+
+  # ==================================================================
+  # ORDER OF WORK -- MATERIAL BECAUSE blind_rederivation.required IS SET
+  # ==================================================================
+  chronology:
+    note: >-
+      Reconstructed from this session's own tool-call order. Everything in
+      the plan's blind_from set (execution_report.yaml,
+      runs/RUN-MONO-ee06e2-1/raw-result.json, .../stdout.log) was opened only
+      AFTER both J1's own from-scratch group-law/torsion computation and J2's
+      own independent reclassification-and-prediction driver were written,
+      run, and their outputs printed and recorded below.
+    events:
+      - "1. Read agents/validator.md, the task card (TASK-20260904-e14b04), experiments/EXP-MONO-ee06e2/specification.yaml, ledger/hypotheses/H-MONO-fa4cb9.yaml, and ledger/proposals/IDEA-20260904-4f614a.yaml in full (its (D3) notation block and mechanism STEP 4/5, to get the exact authoritative D_lin/D_quad formulas rather than a paraphrase)."
+      - "2. Wrote and ran an OWN standalone script (j1_curve_twist_audit.py, scratch workspace) implementing quadratic-residue testing, brute-force point enumeration, an independent short-Weierstrass group law, scalar multiplication, and n-torsion counting from scratch. Imports NOTHING from RC/UC or any prior experiment's code. Computed all of J1's numbers independently and printed them BEFORE opening anything in blind_from."
+      - "3. Read the source of EXP-MONO-815525/implementation/run_census.py and EXP-MONO-0e6e8f/implementation/run_uncond_census.py ONLY to learn the call signatures of RC.compile_sym, RC.qe_from_sym, and UC.classify_fibre (explicitly permitted: reusing these two named files by file path is the task's own instruction) -- not to read either experiment's own reported results."
+      - "4. Wrote and ran an OWN driver script (j2_reclassification_driver.py, scratch workspace), structurally independent of the Executor's own run_linear_vs_quadratic.py (own module-loading approach via importlib.util, own enumeration/tabulation/prediction code, own re-derivation of n_+/n_-/h_+/h_- from scratch rather than importing J1's variables), reusing ONLY RC.qe_from_sym/RC.compile_sym and UC.classify_fibre. Performed the FULL exhaustive census (152,096 base points, not a sample) and computed D_lin, D_quad, and all four residuals BEFORE opening anything in blind_from."
+      - "5. Independently recomputed the proves-too-much control for EXP-MONO-4e6faa's own already-archived h_-=1 curve (p=101, A=1, B=0, n_+=48, n_-=50, h_+=0, h_-=1), confirming D_lin == D_quad == 48 by direct arithmetic, and cross-checked those values against EXP-MONO-4e6faa's own raw-result.json (a DIFFERENT experiment's already-archived material, not this experiment's blind_from set)."
+      - "6. Recomputed sha256 of run_uncond_census.py, run_census.py, and all files listed in RUN-MONO-ee06e2-1/manifest.yaml's artifact_sha256 and reused_frozen_artifacts blocks, independently via `shasum -a 256`."
+      - "7. ONLY THEN opened experiments/EXP-MONO-ee06e2/execution_report.yaml, runs/RUN-MONO-ee06e2-1/raw-result.json, runs/RUN-MONO-ee06e2-1/manifest.yaml, and runs/RUN-MONO-ee06e2-1/stdout.log, and compared the Executor's own reported numbers against steps 2/4's already-recorded independent results."
+    blind_from_respected: true
+    sibling_review_read: false
+    sibling_review_directory_exists: false
+    sibling_review_note: >-
+      `experiments/EXP-MONO-ee06e2/reviews/` did not exist at all before this
+      task created `reviews/validator/` to hold this report (checked by `ls`,
+      which returned "No such file or directory" for `reviews/`,
+      `reviews/red-team/`, and `reviews/validator/` before this report was
+      written). No red-team report for this task exists yet; it was not
+      read, and could not have been.
+
+  # ==================================================================
+  # J1 -- INDEPENDENT CURVE AND TWIST CONSTRUCTION AUDIT
+  # ==================================================================
+  j1_curve_and_twist_audit:
+    method: >-
+      Standalone Python (j1_curve_twist_audit.py), written from scratch for
+      this review: own trial-division primality check, own brute-force
+      quadratic-residue table (built from {x*x mod p : x in F_p}, cross-
+      checked to have exactly (p-1)/2 residues and (p-1)/2 non-residues),
+      own brute-force root finder for f(X)=X^3+X+33, own short-Weierstrass
+      point-enumeration (full (x,y) scan, not a square-root shortcut), own
+      point-addition/doubling group law, own repeated-doubling scalar
+      multiplication, own order-4-torsion counter (scalar_mult(4,P)==O), and
+      a Lagrange-style group-law sanity check (20 random sampled points times
+      the brute-force-counted order return O, for both E and its twist).
+      Imports NOTHING from RC.pt_add, RC.curve_order, or any file under
+      experiments/EXP-MONO-0e6e8f or experiments/EXP-MONO-815525.
+    results:
+      p: 101
+      A_B: [1, 33]
+      f_roots: [4, 45, 52]
+      Z: 3
+      order_E_bruteforce: 108
+      d_nonresidue: 2
+      A_twist_recomputed: 4
+      B_twist_recomputed: 62
+      order_Etwist_bruteforce: 96
+      twist_sanity_2p_plus_2_minus_E: 96
+      E4: 4
+      Etwist4: 16
+      tau: 4
+      h_plus: 0
+      h_minus: 3
+      n_plus: 52
+      n_minus: 46
+    confirmation_table:
+      - {claim: "f(X)=X^3+X+33 has exactly 3 distinct roots mod 101", predicted: 3, own_result: 3, match: true}
+      - {claim: "#E(F_101) = 108", predicted: 108, own_result: 108, match: true}
+      - {claim: "d=2 is a quadratic non-residue mod 101", predicted: true, own_result: true, match: true}
+      - {claim: "A_twist = A*d^2 mod 101 = 4", predicted: 4, own_result: 4, match: true}
+      - {claim: "B_twist = B*d^3 mod 101 (264 mod 101 = 62)", predicted: 62, own_result: 62, match: true}
+      - {claim: "#E^d(F_101) = 96", predicted: 96, own_result: 96, match: true}
+      - {claim: "2p+2-#E == #E^d", predicted: true, own_result: true, match: true}
+      - {claim: "#E(F_101)[4] = 4", predicted: 4, own_result: 4, match: true}
+      - {claim: "#E^d(F_101)[4] = 16", predicted: 16, own_result: 16, match: true}
+      - {claim: "tau = Z+1 = 4", predicted: 4, own_result: 4, match: true}
+      - {claim: "h_+ = (4-4)/4 = 0", predicted: 0, own_result: 0, match: true}
+      - {claim: "h_- = (16-4)/4 = 3", predicted: 3, own_result: 3, match: true}
+      - {claim: "n_+ = 52", predicted: 52, own_result: 52, match: true}
+      - {claim: "n_- = 46", predicted: 46, own_result: 46, match: true}
+    verdict: "HOLDS. All fourteen independently-checked facts confirmed exactly, using group-law, torsion-counting, and quadratic-residue code sharing no line with RC/UC or with any prior experiment's implementation."
+
+  # ==================================================================
+  # J2 -- BLIND STAGE-1 RECLASSIFICATION + DUAL (LINEAR/QUADRATIC) PREDICTION
+  # ==================================================================
+  j2_blind_reclassification:
+    method: >-
+      Own driver script (j2_reclassification_driver.py), structurally
+      independent of the Executor's own run_linear_vs_quadratic.py: loads
+      run_uncond_census.py by explicit file path via importlib.util (rather
+      than sys.path manipulation matching the Executor's own style), reuses
+      only UC.classify_fibre and RC.qe_from_sym/RC.compile_sym (RC obtained
+      as UC.RC, i.e. the exact module UC itself transitively imports), and
+      independently re-derives roots_f, n_+/n_-, and h_+/h_- from scratch
+      inside this script rather than importing J1's in-memory values. This is
+      a FULL exhaustive census over itertools.combinations of the 98-element
+      set S = F_101 \ {4,45,52}, i.e. all C(98,3) = 152096 base points, not a
+      sample. D_lin and D_quad formulas were re-verified against
+      IDEA-20260904-4f614a's own (D3) notation block ("D := h_+ * n_- + h_- *
+      n_+") and H-MONO-fa4cb9's own mechanism/statement fields ("D_quad =
+      h_+ n_- + (h_-)^2 n_+"), not taken from the task prompt's paraphrase.
+    stratum_enumeration:
+      base_points_enumerated: 152096
+      expected_C_98_3: 152096
+      match: true
+    own_observed_five_class_counts:
+      "1^4": 37436
+      "2+2": 107952
+      "2+1+1": 6708
+      "4": 0
+      "3+1": 0
+      total: 152096
+      anomalies_recorded_within_the_above_counts: {non_squarefree: 13352, deg_lt_4: 1496}
+      anomalies_note: >-
+        These are ramified/degenerate fibres, already counted inside the
+        class tallies above (37436+107952+6708 = 152096 exactly, no double
+        counting or omission). Per H-MONO-fa4cb9's own mechanism, this
+        ramification IS the mu_T fixed-point mechanism the D-term is
+        modeling, not an error to exclude.
+    own_D_lin_D_quad:
+      formula_used_lin: "D_lin = h_+*n_- + h_-*n_+ (re-checked verbatim against IDEA-20260904-4f614a's own (D3) block)"
+      formula_used_quad: "D_quad = h_+*n_- + (h_-)**2*n_+ (re-checked verbatim against H-MONO-fa4cb9's own mechanism/statement fields)"
+      D_lin: 156
+      D_quad: 468
+    own_predictions:
+      predicted_lin: {"1^4": 37436, "2+1+1": 6708, "2+2": 107952}
+      predicted_quad: {"1^4": 37748, "2+1+1": 5772, "2+2": 108576}
+    own_residuals:
+      R1_lin: 0
+      R2_lin: 0
+      R3_lin_2plus2_bonus: 0
+      R1_quad: -312
+      R2_quad: 936
+      R3_quad_2plus2_bonus: -624
+    verdict: >-
+      HOLDS. Own independent reclassification (own driver, own n_+/n_-/h_+/
+      h_- recomputation, own D_lin/D_quad formula re-derivation from the
+      idea/hypothesis records themselves) reproduces R1_lin = R2_lin = 0
+      exactly and R1_quad = -312, R2_quad = 936 exactly, on the full
+      exhaustive 152,096-point stratum, matching C(98,3) exactly. The linear
+      form is reproduced exactly; the named quadratic rival is decisively
+      excluded, independently.
+
+  # ==================================================================
+  # PROVES-TOO-MUCH CONTROL (review_plan.proves_too_much)
+  # ==================================================================
+  proves_too_much_control:
+    target_object: >-
+      EXP-MONO-4e6faa's own already-archived, evidence-eligible h_-=1 curve
+      (p=101, A=1, B=0), confirmed by reading
+      experiments/EXP-MONO-4e6faa/runs/RUN-MONO-4e6faa-1/raw-result.json
+      (a DIFFERENT experiment's already-archived material, not part of THIS
+      experiment's blind_from set): n_+=48, n_-=50, h_+=0, h_-=1 exactly as
+      the task card states, with archived observed counts #1^4=36944,
+      #2+1+1=7056.
+    method: "Direct arithmetic recomputation of D_lin and D_quad from the stated (n_+,n_-,h_+,h_-), using this report's own J2 formula implementation."
+    own_recompute:
+      D_lin: 48
+      D_quad: 48
+      identical: true
+      predicted_1_4_from_D_48: 36944
+      predicted_2plus1plus1_from_D_48: 7056
+      matches_EXP-MONO-4e6faa_archived_observed: true
+    verdict: >-
+      CONTROL PASSES. D_lin and D_quad are identical (both 48) at h_-=1,
+      exactly as required (1 = 1^2), and both correctly reproduce
+      EXP-MONO-4e6faa's own archived observed counts. This confirms this
+      report's own D_lin/D_quad implementation is correct BEFORE trusting
+      its J2 verdict on EXP-MONO-ee06e2 above, per the review_plan's own
+      failure_signature instruction. Had D_lin != D_quad here, the fault
+      would lie in this report's own formula code, not in the prior result --
+      that did not occur.
+
+  # ==================================================================
+  # COMPARISON AGAINST THE EXECUTOR'S OWN REPORTED VALUES
+  # (read only after the above was complete; see chronology)
+  # ==================================================================
+  comparison_against_executor_reported_values:
+    j1_agreement:
+      found_curve_p_A_B: {own: [101, 1, 33], executor: [101, 1, 33], match: true}
+      order_E: {own: 108, executor: 108, match: true}
+      order_Etwist: {own: 96, executor: 96, match: true}
+      twist_A: {own: 4, executor: 4, match: true}
+      twist_B: {own: 62, executor: 62, match: true}
+      E4: {own: 4, executor: 4, match: true}
+      Etwist4: {own: 16, executor: 16, match: true}
+      Z: {own: 3, executor: 3, match: true}
+      tau: {own: 4, executor: 4, match: true}
+      h_plus: {own: 0, executor: 0, match: true}
+      h_minus: {own: 3, executor: 3, match: true}
+      n_plus: {own: 52, executor: 52, match: true}
+      n_minus: {own: 46, executor: 46, match: true}
+      overall: "FULL AGREEMENT, no disagreement of any kind, on every J1 quantity."
+    j2_agreement:
+      stratum_size_enumerated: {own: 152096, executor: 152096, match: true}
+      counts_1_4: {own: 37436, executor: 37436, match: true}
+      counts_2plus2: {own: 107952, executor: 107952, match: true}
+      counts_2plus1plus1: {own: 6708, executor: 6708, match: true}
+      counts_4: {own: 0, executor: 0, match: true}
+      counts_3plus1: {own: 0, executor: 0, match: true}
+      D_lin: {own: 156, executor: 156, match: true}
+      D_quad: {own: 468, executor: 468, match: true}
+      predicted_lin_1_4: {own: 37436, executor: 37436, match: true}
+      predicted_lin_2plus1plus1: {own: 6708, executor: 6708, match: true}
+      predicted_lin_2plus2: {own: 107952, executor: 107952, match: true}
+      predicted_quad_1_4: {own: 37748, executor: 37748, match: true}
+      predicted_quad_2plus1plus1: {own: 5772, executor: 5772, match: true}
+      predicted_quad_2plus2: {own: 108576, executor: 108576, match: true}
+      R1_lin: {own: 0, executor: 0, match: true}
+      R2_lin: {own: 0, executor: 0, match: true}
+      R3_lin_bonus: {own: 0, executor: 0, match: true}
+      R1_quad: {own: -312, executor: -312, match: true}
+      R2_quad: {own: 936, executor: 936, match: true}
+      R3_quad_bonus: {own: -624, executor: -624, match: true}
+      overall: "FULL AGREEMENT, no disagreement of any kind, on every J2 quantity."
+    headline: >-
+      NO DISAGREEMENT FOUND, however small, between this report's own
+      independently-derived J1 numbers, J2 exhaustive-census counts, and
+      Stage-2 four-way residual comparison, and what the Executor reported in
+      execution_report.yaml, runs/RUN-MONO-ee06e2-1/manifest.yaml, and
+      runs/RUN-MONO-ee06e2-1/raw-result.json. Every one of the roughly 30
+      compared integers/booleans above matches bit-for-bit. Per the task's
+      own instruction, this exact agreement is reported plainly rather than
+      assumed: the blind re-derivation used a differently-structured driver
+      (importlib.util module loading, own enumeration order, own re-derived
+      n_+/n_-/h_+/h_- rather than reused J1 in-memory state) and an entirely
+      independent group-law implementation for J1, and still converged on
+      identical integers -- the strongest evidence available at this scale
+      that the Executor's reused-classifier pipeline (RC.qe_from_sym +
+      UC.classify_fibre) is not hiding a shared, self-consistent bug on this
+      stratum, and that this run's own reported Stage-0/1/2 numbers are not
+      transcription errors.
+
+  # ==================================================================
+  # CERTIFICATE, PROVENANCE, AND MANIFEST CHECKS (not blind; read freely)
+  # ==================================================================
+  certificate_check:
+    docs_reference: docs/claims-and-verification.md
+    reported: {kind: none}
+    assessment: >-
+      CORRECT. docs/claims-and-verification.md states "`kind: none` is used
+      for pure measurement runs ... without claiming a solve". This run is
+      an exact-integer five-class census and a zero-tolerance three-way
+      comparison against two closed-form predictions -- no discrete-log
+      solve, no factor-base relation, no key recovery is claimed anywhere in
+      specification.yaml, execution_report.yaml, or raw-result.json. The
+      Stage-1 resultant cross-check (RC.qe_from_sym vs. RC's own independent
+      resultant-elimination path, 31 sampled points, 0 mismatches) is
+      correctly labelled a "construction check, not a solution certificate"
+      in both execution_report.yaml and manifest.yaml, and is not mislabelled
+      as a certificate anywhere read.
+    verdict: "PASS. certificate.kind: none is the correct classification."
+
+  sha256_reuse_checks:
+    method: "shasum -a 256 on each file, recomputed independently in this review session, compared against RUN-MONO-ee06e2-1/manifest.yaml's own artifact_sha256 and reused_frozen_artifacts blocks."
+    results:
+      - {path: "experiments/EXP-MONO-0e6e8f/implementation/run_uncond_census.py", manifest_value: "d51e472ca7d73bf5a00137f79c8570b1fa0edeb86a67b9f8e181640ce3f23209", own_recompute: "d51e472ca7d73bf5a00137f79c8570b1fa0edeb86a67b9f8e181640ce3f23209", match: true}
+      - {path: "experiments/EXP-MONO-815525/implementation/run_census.py", manifest_value: "4c0fea302682602ddb48bbb05f47d63f11a5eeb16319f43c63ddc3e6658ce7f8", own_recompute: "4c0fea302682602ddb48bbb05f47d63f11a5eeb16319f43c63ddc3e6658ce7f8", match: true}
+      - {path: "experiments/EXP-MONO-815525/implementation/s3_monomials.json", manifest_value: "af4e88de664d8babbd79b19e78fa1dfbffd8836e1300386475f4be9d84ca5def", own_recompute: "af4e88de664d8babbd79b19e78fa1dfbffd8836e1300386475f4be9d84ca5def", match: true}
+      - {path: "experiments/EXP-MONO-815525/implementation/s4_monomials.json", manifest_value: "0fcd07172ac70ebf80820be9ebe1e09cc329808cfa0ebbf921a65d993410f6ef", own_recompute: "0fcd07172ac70ebf80820be9ebe1e09cc329808cfa0ebbf921a65d993410f6ef", match: true}
+      - {path: "experiments/EXP-MONO-815525/implementation/s4_symmetric_coeffs.json", manifest_value: "829251863a5456c5b90d9ea94eb840bf266dfbe7bba1165d79421af0d91096e7", own_recompute: "829251863a5456c5b90d9ea94eb840bf266dfbe7bba1165d79421af0d91096e7", match: true}
+      - {path: "experiments/EXP-MONO-ee06e2/specification.yaml", manifest_value: "e7b94d198a638e2682196d7819f922d97cab75fbdbb26cbd345f50410d740561", own_recompute: "e7b94d198a638e2682196d7819f922d97cab75fbdbb26cbd345f50410d740561", match: true}
+      - {path: "experiments/EXP-MONO-ee06e2/implementation/run_linear_vs_quadratic.py", manifest_value: "e833a6987fde239d84d6e810cc750e621082cb3b5921941a72b1702e3c3a9966", own_recompute: "e833a6987fde239d84d6e810cc750e621082cb3b5921941a72b1702e3c3a9966", match: true}
+      - {path: "experiments/EXP-MONO-ee06e2/runs/RUN-MONO-ee06e2-1/command.txt", manifest_value: "8c2876405c0ffa8f24e52533b10d0c02ea0f8dd03eec72a136f8e19dfc1daa79", own_recompute: "8c2876405c0ffa8f24e52533b10d0c02ea0f8dd03eec72a136f8e19dfc1daa79", match: true}
+      - {path: "experiments/EXP-MONO-ee06e2/runs/RUN-MONO-ee06e2-1/raw-result.json", manifest_value: "9b2886d0bb6163d3e8042be17729e9a4731615a30a42e29409dc732d26c22b99", own_recompute: "9b2886d0bb6163d3e8042be17729e9a4731615a30a42e29409dc732d26c22b99", match: true}
+      - {path: "experiments/EXP-MONO-ee06e2/runs/RUN-MONO-ee06e2-1/stdout.log", manifest_value: "2fa388e118467046f40f48f672f180c864b4c02258a4f2ef7fec7f55af7e24b2", own_recompute: "2fa388e118467046f40f48f672f180c864b4c02258a4f2ef7fec7f55af7e24b2", match: true}
+      - {path: "experiments/EXP-MONO-ee06e2/runs/RUN-MONO-ee06e2-1/stderr.log", manifest_value: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", own_recompute: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", match: true}
+    verdict: "ALL ELEVEN sha256 values match exactly (6 direct EXP-MONO-ee06e2 artifacts + 5 reused frozen artifacts from EXP-MONO-0e6e8f/EXP-MONO-815525). The claimed sha256-bound reuse of prior artifacts and the manifest's own artifact-hash bookkeeping are both real, not merely asserted."
+
+  manifest_and_environment_checks:
+    - {check: "command in command.txt matches manifest.code.command verbatim", result: true}
+    - {check: "stderr.log is empty (exit 0, no error)", result: true}
+    - {check: "stdout.log content agrees with raw-result.json field-for-field (Stage 0/1/2 printouts)", result: true}
+    - {check: "environment.json declares stdlib-only dependencies, no CAS/solver, network disabled", result: true}
+    - {check: "budget compliance (wall/cpu/RSS/disk/workers/runs) all within declared budget.yaml caps", result: true}
+    - {check: "seed 20260904005 recorded per replication.seeds[0]; script is deterministic and does not instantiate random.Random -- confirmed by reading stdout.log/raw-result.json's own randomness_sources disclosure and by the exact reproducibility of my own from-scratch enumeration order", result: true}
+
+  # ==================================================================
+  # STANDARD VALIDATOR CHECKLIST (agents/validator.md required output)
+  # ==================================================================
+  artifact_checks:
+    - {artifact: specification.yaml, present: true, frozen: true, sha256_bound: true, note: "own recompute matches manifest.code.specification_sha256 exactly"}
+    - {artifact: "implementation/run_linear_vs_quadratic.py", present: true, sha256_bound: true, note: "own recompute matches manifest.artifact_sha256 exactly"}
+    - {artifact: implementation.md, present: true, note: "present, not read in depth (out of scope for J1/J2; disclosure content is consistent with execution_report.yaml where cross-checked)"}
+    - {artifact: execution_report.yaml, present: true, note: "read only after blind rederivation completed; all reported J1/J2 numbers agree with this report's own independent computation"}
+    - {artifact: "runs/RUN-MONO-ee06e2-1/manifest.yaml", present: true}
+    - {artifact: "runs/RUN-MONO-ee06e2-1/command.txt", present: true, sha256_bound: true}
+    - {artifact: "runs/RUN-MONO-ee06e2-1/environment.json", present: true, note: "stdlib-only dependencies confirmed; no CAS/solver; network disabled"}
+    - {artifact: "runs/RUN-MONO-ee06e2-1/stdout.log", present: true, sha256_bound: true, note: "read only after blind rederivation completed; content matches raw-result.json's own numbers"}
+    - {artifact: "runs/RUN-MONO-ee06e2-1/stderr.log", present: true, sha256_bound: true, note: "empty; no error"}
+    - {artifact: "runs/RUN-MONO-ee06e2-1/raw-result.json", present: true, sha256_bound: true, note: "read only after blind rederivation completed; matches manifest.artifact_sha256 exactly (recomputed independently, unlike the precedent EXP-MONO-4e6faa review which did not recompute this one)"}
+  metric_recomputations:
+    - {metric: "M1 (R1_lin, #1^4 residual against D_lin)", method: "own independent driver, own group law + reused RC/UC classifier", own_value: 0, reported_value: 0, match: true}
+    - {metric: "M2 (R2_lin, #2+1+1 residual against D_lin)", method: "own independent driver", own_value: 0, reported_value: 0, match: true}
+    - {metric: "M3 (R1_quad, R2_quad, quadratic-rival residuals)", method: "own independent driver", own_value: "[-312, 936]", reported_value: "[-312, 936]", match: true}
+    - {metric: "bonus R3_lin/R3_quad (#2+2 residuals)", method: "own independent driver", own_value: "[0, -624]", reported_value: "[0, -624]", match: true}
+    - {metric: "M4 (found curve p,A,B,n_+,n_-,h_+,h_-)", method: "own independent group law (J1)", own_value: "[101,1,33,52,46,0,3]", reported_value: "[101,1,33,52,46,0,3]", match: true}
+    - {metric: "M5 (curves scanned in Stage 0 before success = 135)", method: "NOT independently re-run -- would require re-implementing the full Stage-0 search loop over the declared [101,2000] range, which is J3's own attack plan (assigned to red-team, not validator)", own_value: null, reported_value: 135, match: not_independently_checked}
+  control_checks:
+    - {control: "proves_too_much (review_plan)", target: "EXP-MONO-4e6faa's own already-archived, evidence-eligible h_-=1 curve", result: PASS, note: "D_lin==D_quad==48 confirmed by direct arithmetic and cross-checked against that experiment's own raw-result.json"}
+    - {control: "internal parity check (n_+ even at Z=3)", result: PASS, note: "own n_+=52, even, confirmed directly"}
+    - {control: "twist-order identity 2p+2-#E == #E^d", result: PASS, note: "96==96, own independent point count"}
+    - {control: "exact-division checks ((#E[4]-tau)/4, (#E^d[4]-tau)/4 both integer)", result: PASS, note: "(4-4)/4=0, (16-4)/4=3, both exact"}
+    - {control: "stratum-size identity C(n_++n_-,3) == enumerated base points", result: PASS, note: "152096 == 152096, own enumeration"}
+    - {control: "class-count closure (sum of five classes == total enumerated, no double counting of ramified/degenerate fibres)", result: PASS, note: "37436+107952+6708+0+0 = 152096 exactly"}
+  heuristic_validation_checks:
+    - {check: "pre-registered prediction (docs/target-result-profile.md style)", applicable: false, note: "This is an exact zero-tolerance integer census comparison at a fixed toy prime, not a distributional/heuristic (e.g. Dickman-de Bruijn CDF) validation; the pre-registration requirement is satisfied instead by specification.yaml's stage_2 block, which fixes both D_lin and D_quad's formulas and predicted values as functions of the found curve's own (n_+,n_-,h_+,h_-) BEFORE Stage 1 is read -- confirmed present and unmodified in the frozen contract."}
+  cost_model_checks:
+    - {check: "concrete cost table with declared unit, memory alongside time", applicable: false, note: "No cost, complexity, or relation-rate table is reported anywhere in this experiment's artifacts; specification.yaml's claim_ceiling explicitly disclaims any ECDLP cost/runtime/exponent claim, so no cost-model check applies."}
+  proof_architecture_checks:
+    - {audit: "STEP 4/5 derivation soundness (whether each halvable T' contributes exactly one rational fixed-point pair with no double counting)", status: "NOT independently audited by this reviewer -- this is J4, explicitly assigned to red-team in this task's own review_plan, not part of the J1/J2 attack plans assigned to the validator.", applies: true}
+    - {audit: "Stage-0 no-hardcoding audit of run_linear_vs_quadratic.py's search loop", status: "NOT independently audited by this reviewer -- this is J3, explicitly assigned to red-team.", applies: true}
+
+  limitations:
+    - >-
+      This report addresses ONLY J1 and J2 (and the blind_rederivation
+      requirement, which J2 subsumes). It renders no verdict on J3 (whether
+      the Stage-0 search loop genuinely avoided hard-coding toward
+      (A,B)=(1,33)), J4 (the mathematical soundness of STEP 4/5's
+      additive-independent-pair argument), or on H-MONO-fa4cb9 /
+      IDEA-20260904-4f614a as a whole, including claim_under_review items
+      (d) and (e). Those are red-team's joints or the Coordinator's
+      synthesis, respectively.
+    - >-
+      M5 (curves scanned before success = 135) was NOT independently
+      re-verified: doing so would require re-implementing the Stage-0 search
+      loop exactly, including its declared fixed order, which is J3's own
+      attack plan and outside the J1/J2 joints as assigned. This is disclosed
+      rather than silently assumed correct. Separately, `matches_prior_red_
+      team_pair` in execution_report.yaml discloses that the found curve
+      (A,B)=(1,33) coincides with a pair the Red Team's own prior
+      free-standing review already named -- the genuineness of that
+      coincidence (vs. any search-order bias) is exactly J3's question and is
+      not assessed here.
+    - >-
+      The Stage-1 resultant cross-check (31 sampled points against RC's own
+      independent runtime-resultant elimination path) is disclosed in
+      execution_report.yaml as reused verbatim from EXP-MONO-4e6faa's own
+      already-fixed final stage_1 code, rather than independently re-derived
+      in this run's own file. This reviewer did not re-implement or re-run
+      that specific cross-check; it is orthogonal to J1/J2 (which verify the
+      curve/twist construction and the classification counts by entirely
+      separate, from-scratch code) and is disclosed here rather than silently
+      assumed sound.
+    - >-
+      Per this task's explicit environment note, no git command was run in
+      this review session. This reviewer therefore did NOT independently
+      verify, via `git log`/`git show`, that this experiment directory is a
+      Coordinator-committed snapshot on a specific reachable commit, nor the
+      dirty-tree state (manifest.yaml records `dirty: unknown` with a
+      disclosed reason: no git command run, per the dispatching
+      Coordinator's own instruction for this shared, concurrently-worked
+      repository, and a commit sha obtained via a read-only `gh api` call
+      rather than a local git command). This reviewer relied instead on the
+      sha256-bound content checks above (11 of 11 match), consistent with
+      AGENTS.md's "Archive receipts bind to CONTENT first" principle, but
+      commit-reachability itself was never checked at all in this session
+      (a narrower situation than that principle's own reachability-fallback
+      scenario anticipates). Flagged as a limitation on this report's own
+      coverage, not as a defect found in the run package.
+    - >-
+      Stage 1's classification-anomaly counts (13352 non-squarefree, 1496
+      degree-less-than-4 base points, both already included inside the
+      five-class tallies with no double counting, confirmed above) were not
+      cross-checked example-by-example against raw-result.json's own bounded
+      per-instance `examples` block; only the aggregate counts were verified,
+      which is what D3's own prediction targets.
+    - >-
+      heuristic_validation_checks and cost_model_checks are reported as not
+      applicable, per the reasoning given inline above: this experiment is an
+      exact finite-integer census with a pre-registered closed-form
+      comparison, not a distributional heuristic-validation experiment in the
+      sense of docs/target-result-profile.md, and reports no cost table.
+
+  overall_verdict_on_owned_joints:
+    j1: holds
+    j2: holds
+    blind_rederivation: holds
+    proves_too_much: holds
+    certificate_classification: correct
+    sha256_reuse_binding: verified
+    agreement_with_executor: full_agreement_no_disagreement_found
+  verdict: passed
+  verdict_scope_statement: >-
+    "Passed" here means: J1's fourteen curve/twist/torsion facts are
+    independently confirmed by from-scratch code sharing no line with RC/UC;
+    J2's full exhaustive reclassification (152,096 base points) and Stage-2
+    four-way residual computation, performed with an independently-written
+    driver and independently re-derived n_+/n_-/h_+/h_- and D_lin/D_quad
+    formulas (re-checked against the idea/hypothesis records themselves, not
+    the task prompt's paraphrase) before any of the Executor's own reported
+    values were read, exactly reproduce R1_lin=R2_lin=0 and
+    R1_quad=-312, R2_quad=936; the proves-too-much control on
+    EXP-MONO-4e6faa's own h_-=1 curve passes (D_lin==D_quad==48); the
+    certificate classification (`none`) is correct; the sha256-bound reuse of
+    prior artifacts and this experiment's own artifact hashes are real (11 of
+    11 match); and every one of these independently-derived numbers agrees
+    exactly with what the Executor reported, with NO disagreement found
+    anywhere. This is a verdict on the ADMISSIBILITY OF THIS RUN AS A RECEIPT
+    for the two joints assigned to this reviewer. It is NOT a verdict on
+    H-MONO-fa4cb9, on IDEA-20260904-4f614a's broader closed-form claim, on
+    J3/J4 (red-team's joints), on whether the STEP 4/5 derivation is sound,
+    on whether the Stage-0 search genuinely avoided hard-coding, or on any
+    ECDLP-relevant question -- those compositions belong to the Coordinator,
+    per agents/validator.md "Working under a review plan", and per this
+    experiment's own claim_ceiling (toy tier; "Not a discrete-logarithm
+    computation, not an ECDLP attack, not relation collection").
+
+  artifact_paths:
+    - experiments/EXP-MONO-ee06e2/specification.yaml
+    - experiments/EXP-MONO-ee06e2/implementation.md
+    - experiments/EXP-MONO-ee06e2/implementation/run_linear_vs_quadratic.py
+    - experiments/EXP-MONO-ee06e2/execution_report.yaml
+    - experiments/EXP-MONO-ee06e2/runs/RUN-MONO-ee06e2-1/manifest.yaml
+    - experiments/EXP-MONO-ee06e2/runs/RUN-MONO-ee06e2-1/command.txt
+    - experiments/EXP-MONO-ee06e2/runs/RUN-MONO-ee06e2-1/environment.json
+    - experiments/EXP-MONO-ee06e2/runs/RUN-MONO-ee06e2-1/stdout.log
+    - experiments/EXP-MONO-ee06e2/runs/RUN-MONO-ee06e2-1/stderr.log
+    - experiments/EXP-MONO-ee06e2/runs/RUN-MONO-ee06e2-1/raw-result.json
+    - experiments/EXP-MONO-0e6e8f/implementation/run_uncond_census.py
+    - experiments/EXP-MONO-815525/implementation/run_census.py
+    - experiments/EXP-MONO-4e6faa/runs/RUN-MONO-4e6faa-1/raw-result.json
+    - ledger/proposals/IDEA-20260904-4f614a.yaml
+    - ledger/hypotheses/H-MONO-fa4cb9.yaml
+    - ledger/handoffs/TASK-20260904-e14b04.yaml
+    - docs/claims-and-verification.md
+    - agents/validator.md
+
+review_attestation:
+  task_id: TASK-20260904-e14b04
+  joints_owned: [J1-CURVE-AND-TWIST-CONSTRUCTION-AUDIT, J2-STAGE1-BLIND-RECLASSIFICATION-AND-DUAL-PREDICTION]
+  sources_read:
+    - agents/validator.md
+    - ledger/handoffs/TASK-20260904-e14b04.yaml
+    - experiments/EXP-MONO-ee06e2/specification.yaml
+    - ledger/hypotheses/H-MONO-fa4cb9.yaml
+    - ledger/proposals/IDEA-20260904-4f614a.yaml (full, including (D3) notation block and mechanism STEP 1-5)
+    - experiments/EXP-MONO-815525/implementation/run_census.py (source, for reused-primitive signatures only: compile_sym, qe_from_sym)
+    - experiments/EXP-MONO-0e6e8f/implementation/run_uncond_census.py (source, for reused-primitive signature only: classify_fibre)
+    - experiments/EXP-MONO-4e6faa/runs/RUN-MONO-4e6faa-1/raw-result.json (a DIFFERENT experiment's already-archived material, for the proves-too-much control; not this experiment's blind_from set)
+    - experiments/EXP-MONO-ee06e2/execution_report.yaml (read only after own J1/J2 complete, per blind_rederivation)
+    - experiments/EXP-MONO-ee06e2/runs/RUN-MONO-ee06e2-1/raw-result.json (read only after own J1/J2 complete)
+    - experiments/EXP-MONO-ee06e2/runs/RUN-MONO-ee06e2-1/stdout.log (read only after own J1/J2 complete)
+    - experiments/EXP-MONO-ee06e2/runs/RUN-MONO-ee06e2-1/stderr.log
+    - experiments/EXP-MONO-ee06e2/runs/RUN-MONO-ee06e2-1/command.txt
+    - experiments/EXP-MONO-ee06e2/runs/RUN-MONO-ee06e2-1/environment.json
+    - experiments/EXP-MONO-ee06e2/runs/RUN-MONO-ee06e2-1/manifest.yaml
+    - docs/claims-and-verification.md
+    - templates/research-records.md
+  read_sibling_reports: false
+  blind_from_respected: true
+  verdict: holds

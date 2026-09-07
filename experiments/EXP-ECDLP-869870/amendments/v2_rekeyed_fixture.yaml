@@ -1,0 +1,169 @@
+protocol_amendment:
+  id: PA-ECDLP-869870-v1-to-v2
+  id_allocation_provenance: >-
+    Amendment records are not in tools/allocate_id.py's identifier space
+    (same construction as PA-ECDLP-612fb1-v1-to-v2). One experiment has at
+    most one v1-to-v2 amendment; the label is unique by construction.
+  experiment_id: EXP-ECDLP-869870
+  version_from: 1
+  version_to: 2
+  amended_at: '2026-09-07'
+  authoring_task: TASK-20260907-fe3512
+  opening_decision: DEC-20260907-f394f5
+  triggering_decision:
+    id: DEC-20260906-1f5b71
+    goal_id: GOAL-ECDLP-bbc21f
+    batch_id: BATCH-289698
+    authoritative_field: >-
+      disposition_per_contract.EXP_ECDLP_869870.what_it_licenses -- the
+      successor is a RE-KEYED 2^24 fixture cell (>= 8 keys per instrument,
+      murmur3 and splitmix64 as the validator ran) under a versioned
+      amendment. Carried forward unchanged by DEC-20260906-bcc097 RANK 3
+      and DEC-20260907-9b1b02 RANK 4.
+    review_tasks:
+      - task_id: TASK-20260906-7ec3ea
+        role: validator
+        joints_owned: [J2]
+        report: coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-289698/tasks/TASK-20260906-7ec3ea/validation_report.yaml
+  status: approved
+  approved_by: coordinator
+  approved_by_decision: DEC-20260907-f394f5
+  execution_authorized: true
+  v1_frozen_path: experiments/EXP-ECDLP-869870/specification.yaml
+  v1_bytes_untouched: true
+  scientific_effect: >-
+    Prospective only. Version-1 runs RUN-ECDLP-869870-001..024 are never
+    re-scored. This amendment authorizes a NEW successor cell and nothing
+    else. H-ECDLP-3550b8 stays specified until a later ledger archive.
+
+  scope:
+    what_is_run: >-
+      Exact-basin fixture cell at N = 2^24, T = 256, a in {1/4} for the
+      published-weight scaled-cost / scaled-P comparison against Bernstein-
+      Lange 1.79 / 1.24, PLUS the a = 1/4 top-T share against C_max(1/4) =
+      0.39, for TWO mixers and EIGHT walk-key seeds each.
+    what_is_not_run: >-
+      No 2^20 / 2^22 / 2^30 cells, no curve arm, no Stages 3-4 of v1, no
+      re-execution of v1 seeds 1-5 under splitmix64 for the purpose of
+      replacing those receipts. A 2^20 capped-mass fraction MAY be reported
+      as a side measurement from already-committed v1 RUN-001..005
+      receipts (read-only) and is labelled as such.
+    mixers:
+      - name: splitmix64
+        definition: >-
+          The v1 instrument mixer (experiments/EXP-ECDLP-869870/source/instrument.py
+          mix64 / mix64_int). Walk projection: top log2N bits of mix64(x XOR K).
+        n_keys: 8
+        seeds: [1, 2, 3, 4, 5, 6, 7, 8]
+        note: >-
+          Seeds 1-5 reproduce the v1 walk-key schedule; 6-8 are new. The
+          v1 receipts for seeds 1-5 remain the v1 record. This cell's
+          splitmix64 seeds 1-5 are a bit-for-bit determinism check against
+          those receipts where the same (N, a, cap, rule) is computed;
+          disagreement is IV-determinism, not a v1 re-score.
+      - name: murmur3_fmix64
+        definition: >-
+          MurmurHash3 64-bit fmix64 finalizer exactly as TASK-20260906-7ec3ea
+          src/j2_rederive.py: h ^= h>>33; h *= 0xff51afd7ed558ccd; h ^= h>>33;
+          h *= 0xc4ceb9fe1a85ec53; h ^= h>>33. Walk f(x) = mix(x XOR K) mod N
+          (low log2N bits, matching the validator's sealed instrument, NOT
+          the v1 top-bits projection). DP predicate mix(x XOR K2) < floor(2^64/W).
+        n_keys: 8
+        seeds: [1, 2, 3, 4, 5, 6, 7, 8]
+        key_derivation: >-
+          Walk key K and DP key K2 from sha256 as in j2_rederive.py key()
+          (NOT the v1 GOLDEN splitmix walk_keys). Record both keys per seed.
+    walk_projection_label: >-
+      v1 / splitmix64 arm: TOP log2N bits (instrument.py step_fn). murmur3
+      arm: LOW log2N bits / mod N (validator J2 instrument). Both labels
+      appear on every row. This is J1-F4 of DEC-20260906-1f5b71.
+    cycle_mass_definition: >-
+      Cycle mass = number of points on DP-free cycles (image of f^{2^k} for
+      2^k >= N that never reach a DP). Capped mass = points that do not
+      reach a DP within the declared cap. Both are excluded from every
+      basin and reported beside the fixture, including the read-only v1
+      2^20 capped-mass fraction.
+
+  o_theta_correction:
+    statement: >-
+      Before comparing a 2^24 published-weight scaled cost to 1.79, subtract
+      the model's own O(theta) form as stated in the v1 contract's (B4) note
+      and as the validator recorded: the N/T = 1 cells carry the largest
+      duplicate-discard residual. The comparison reported is BOTH the raw
+      residual (measured - 1.79) AND the residual after the declared
+      O(theta) correction. The gate is evaluated on the CORRECTED residual.
+      If the executor cannot instantiate the correction from the v1 (B4)
+      note and MODEL module alone, it reports the raw residual only and
+      marks the corrected gate as not_evaluated -- never a silent skip
+      dressed as a pass.
+    alternative_gate_not_used: >-
+      DEC-20260906-1f5b71 also permitted gating at 2^30 (theta = 1/512)
+      instead. This amendment does NOT take that alternative: the
+      commissioned cell is the re-keyed 2^24 fixture.
+
+  fixture_gate_v2:
+    published_scaled_cost: 1.79
+    published_scaled_P: 1.24
+    band_cost: 0.10
+    band_P: 0.12
+    evaluated_on: mean over the 8 keys of one mixer, each mixer separately
+    pass_rule: >-
+      A mixer PASSES the v2 fixture gate iff |mean_k scaled_cost_k - 1.79|
+      <= 0.10 after the O(theta) correction when that correction is
+      evaluated, AND |mean_k scaled_P_k - 1.24| / 1.24 <= 0.12. Raw
+      residuals are always reported. A mixer that fails raw but passes
+      corrected (or the reverse) is recorded as such -- not collapsed.
+    murmur3_prior_from_review: >-
+      TASK-20260906-7ec3ea sealed murmur3 8-key mean scaled cost 1.6814
+      (raw residual -0.109, FAIL by 0.009). This successor either
+      reproduces that number from an executor-owned implementation or
+      disagrees; either outcome is an observation. It is not a v1 result.
+
+  n_drift:
+    fit_on: already-committed v1 exact cells at 2^22 and 2^24 (read-only)
+    report: slope of (measured - model) vs theta; no 2^30 cell is run here
+    not_a_V5_verdict: true
+
+  survival_slope_band: >-
+    Restated against the finite-theta Borel value under the declared
+    estimator (v1 used [-0.7, -0.3] around -1/2). This cell reports the
+    measured slope beside Borel(-1/2) and beside the finite-theta
+    correction implied by the v1 model; it does not rescore v1 V1.
+
+  runs:
+    maximum_runs: 16
+    wall_clock_seconds_per_run: 3600
+    maximum_memory_gb: 8
+    maximum_workers: 1
+    enumerated: >-
+      8 splitmix64 (N=2^24, seed 1..8) + 8 murmur3_fmix64 (N=2^24, seed
+      1..8). Each run is one (mixer, seed) exact-basin fixture cell at
+      a = 1/4, caps 8W and 20W, published-weight table, plus the top-T
+      share. Analysis aggregation is not a 17th run: it is written into
+      the execution report from the 16 raw-result.json files.
+    run_id_pattern: RUN-ECDLP-869870-V2-{splitmix|murmur3}-s{seed}
+    source_namespace: experiments/EXP-ECDLP-869870/source_v2/
+    v1_source_untouched: experiments/EXP-ECDLP-869870/source/
+
+  invalidation_rules:
+    - v1 specification.yaml is never edited; v1 runs are never rewritten or re-scored.
+    - A timeout, crash, or OOM is failed_infrastructure, never a fixture-gate result.
+    - Missing mixer, missing seed, or n_keys < 8 for a mixer voids that mixer's gate (not the other mixer's).
+    - Reusing TASK-20260906-7ec3ea's sealed numbers as this cell's result (without an executor-owned re-run) is fabrication; those numbers are a prior, not a receipt.
+    - Execution while this amendment's execution_authorized is false: no run is evidence.
+
+  success_criterion: >-
+    All 16 enumerated runs completed_valid with full artifact policy, both
+    mixers evaluated against fixture_gate_v2, O(theta) raw and corrected
+    residuals reported, walk-projection and cycle_mass labelled, v1 bytes
+    untouched. The Executor records observations only.
+
+  falsification_of_this_amendment_not_of_H: >-
+    This cell cannot support or weaken H-ECDLP-3550b8 by itself (v1 rule 3
+    already fired at 2^24). A fixture PASS on both mixers licenses scoring
+    V2-V5 / M1-M5 in a LATER batch; a FAIL on one or both mixers is a
+    scoped instrument result at N = 2^24 under that mixer, never a
+    hypothesis status change.
+
+  claim_ceiling: toy
+  kn_lit_013_constant_factor: true

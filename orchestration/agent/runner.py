@@ -47,6 +47,7 @@ class TaskRun:
     final_text: str
     resolution: Any
     usage: dict[str, int] = field(default_factory=dict)
+    stop_detail: dict[str, Any] | None = None
     journal: list[dict[str, Any]] = field(default_factory=list)
     transcript: list[dict[str, Any]] = field(default_factory=list)
     model_disagreements: list[str] = field(default_factory=list)
@@ -145,6 +146,11 @@ def task_brief(task: dict[str, Any], scope: TaskScope, tool_names: list[str]) ->
         "Existing files cannot be overwritten — artifacts are immutable, so a "
         "correction is a new path. When you are done, reply with a short "
         "summary naming the paths you wrote; do not restate their contents.",
+        "Correct failed tool arguments instead of repeating identical errors. "
+        "Three consecutive identical all-error tool rounds stop this runtime "
+        "with an operational failure receipt, not a research conclusion. "
+        "Successful calls, timeouts and command exit codes are not counted "
+        "as identical tool-error stalls.",
     ])
 
 
@@ -208,6 +214,7 @@ def run_task(source: str | Path | dict[str, Any], *,
                          HumanMessage(task_brief(task, scope, tool_names))],
             "steps": 0,
             "stop_reason": None,
+            "stop_detail": None,
         }
         state = agent.invoke(
             initial,
@@ -233,6 +240,7 @@ def run_task(source: str | Path | dict[str, Any], *,
         final_text=final_text,
         resolution=resolution,
         usage=model.usage_totals() if hasattr(model, "usage_totals") else {},
+        stop_detail=state.get("stop_detail"),
         journal=journal.entries,
         transcript=[_serialise(m) for m in messages],
         model_disagreements=(model.model_disagreements()
@@ -250,6 +258,8 @@ def _serialise(message: Any) -> dict[str, Any]:
                         "id": c.get("id")}
                        for c in (getattr(message, "tool_calls", None) or [])],
         "tool_call_id": getattr(message, "tool_call_id", None),
+        "status": getattr(message, "status", None),
+        "usage_metadata": getattr(message, "usage_metadata", None),
     }
 
 
@@ -278,6 +288,7 @@ def write_artifacts(run: TaskRun, out_dir: str | Path, *,
     receipt["inference_receipt"]["runtime"] = RUNTIME
     receipt["inference_receipt"]["execution"] = {
         "stop_reason": run.stop_reason,
+        "stop_detail": run.stop_detail,
         "completed": run.completed,
         "steps": run.steps,
         "wall_seconds": run.wall_seconds,
