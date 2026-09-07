@@ -265,3 +265,107 @@ per the frozen contract's own pinning clause.
    `third_factorial_moment`) and packs (see deviations 5-6 above) as
    budget allows -- the count-vector data for `R_k`/`coverage` is already
    cached and does not need to be regenerated.
+
+## Crash diagnosis and fix (this dispatch's follow-up, 2026-09-07 21:xx UTC)
+
+Both background jobs were found dead: the fourth container restart of this
+session killed the e-arm-holdout job cleanly mid-row (no exception, ordinary
+infrastructure interruption), but the grammar-fit driver died from a REAL bug:
+`OverflowError: (34, 'Numerical result out of range')` in
+`stage1_fit_engine.py`'s `held_out_error`, at `sq.append(e_se ** 2)`, after
+complexity level 1 completed cleanly for all 14 targets (see the protective
+snapshot commit `0d3a63bed` for the exact traceback and pre-fix artifacts).
+
+**Root cause (diagnosed, not assumed):** the crash is NOT a data bug. Read
+back `own-enumeration-cache.jsonl`'s held-out rows: `ZN_interval`'s `Delta`
+statistic legitimately runs 57-12609 (vs ~1.0 for the random arms) because
+`ZN_interval` is the arithmetic-progression POSITIVE CONTROL -- its whole
+purpose (see `stage1_own_enumeration.py`'s own docstring) is to depart
+sharply from the null model built from random draws, so `null_sd` stays at
+the same tiny (~0.004) scale as the random arms while the observed statistic
+is orders of magnitude larger. That is the control working as designed, not
+a bug. The actual defect is purely numerical: CPython's float `**` raises
+`OverflowError` when a result mathematically exceeds `float` range (confirmed
+directly: `1e160 ** 2` raises, but `1e160 * 1e160` returns `inf` silently),
+while `+`, `-`, `*`, `/` never raise for the same overflow -- they return
+`inf`, which IS the mathematically correct value, not a clamp. `e_se ** 2`
+in `held_out_error` was the only place in the numeric pipeline still using
+`**` on a value with no bounded range. A grid-searched early-complexity
+expression against a badly-fitting held-out cell (e.g. `ZN_interval`, or any
+`exp(N/B)`-shaped candidate whose predicted value is a legitimately huge but
+finite float) produces exactly this: `e_se` finite but squaring it crosses
+the float-range boundary.
+
+Confirmed via direct reproduction on the committed cache data (this
+dispatch, no fabricated numbers): `stage1_fit_engine.eval_expr` already
+handles internal overflow correctly (its own `try/except (ValueError,
+OverflowError)` around `**`, `math.exp`, etc. returns `None`, never raises).
+The SAME hazard exists, independently, on the TRAINING side:
+`_weighted_sse`'s `((pred - obs) / sd) ** 2` -- reproduced directly by fitting
+`exp(div(N,B))` against `ZN_random_relabelled`'s real training rows (`N=16411,
+B=24` gives `pred~9.27e296`, `obs~1`, `sd~0.004`, so `e_se~2.3e299` and
+`e_se**2` overflows). This second instance had NOT yet crashed the committed
+run only because complexity 1 (single leaves) never produces predictions
+that large; it started firing immediately at complexity 4 once the driver was
+first relaunched (see below) -- caught cleanly by the new per-expression
+guard (item 3), confirming the guard's value independent of the root-cause
+fix.
+
+**Fix applied (both instances, `stage1_fit_engine.py`):**
+- `held_out_error`: `e_se ** 2` -> `e_se * e_se`. Each per-row entry now
+  carries an explicit `"overflow": bool` flag (never silently indistinguishable
+  from a well-behaved small metric), and the returned dict carries a top-level
+  `"held_out_error_overflow": bool`. `rms_null_se` can legitimately be `inf`
+  for a genuinely catastrophic fit -- that is the correct, honest value, not
+  suppressed or clamped.
+- `_weighted_sse` (training-side fit objective, same hazard, found only after
+  relaunching once with the `held_out_error` fix alone -- see below):
+  `((pred - obs) / sd) ** 2` -> `term = (pred - obs) / sd; term * term`. Same
+  reasoning; `total` can legitimately become `inf`, correctly representing
+  "this candidate does not fit," and grid-search comparisons (`<`) with `inf`
+  behave correctly.
+- Added a regression self-test in `stage1_fit_engine.py`'s `__main__` block
+  reproducing the exact overflow shape and asserting no exception, a flagged
+  `held_out_error_overflow: True`, and `rms_null_se == inf`. Passes
+  (`python3 stage1_fit_engine.py`).
+
+**Defense-in-depth guard added (`stage1_grammar_driver.py`,
+`evaluate_level_for_targets`):** the per-expression fit+score body is now
+wrapped in `try/except Exception`; any exception is logged (`SKIPPED expr
+(implementation_error, not evidence): target=... complexity=... expr=...
+error=...`) and that ONE expression is skipped, never the whole run. Skip
+counts are recorded per target/complexity in `front_state` (`n_skipped_errors`)
+so a skip is visible in `pareto-fronts-raw.json`, never silently dropped. This
+is a backstop, not a substitute for the two root-cause fixes above: with only
+the `held_out_error` fix and NOT yet the `_weighted_sse` fix, the first
+relaunch of the grammar driver hit the second (training-side) instance of the
+same bug at complexity 4 and the guard caught it cleanly (415 `SKIPPED` lines
+logged, process stayed alive) -- this was itself the evidence that led to
+finding and fixing `_weighted_sse` before the second relaunch, after which
+zero `SKIPPED` lines occur.
+
+**Relaunch, honestly reported:** neither driver supports resuming an
+in-flight *enumeration/evaluation* level -- `stage1_grammar_driver.py`'s
+`main()` has no checkpoint-read path and always restarts the grammar
+enumeration from complexity 1. In practice this is cheap: complexity 1's
+logged 1368.7s elapsed was almost entirely the one-time
+`own-enumeration-cache.jsonl` data build (`oe.build_own_enumeration_rows_resumable`,
+which IS row-level resumable and skipped all 108 already-cached rows in
+under a second on relaunch), not the grammar evaluation itself (all 14
+complexity-1 per-target log lines land within under 1 second of each other).
+The e-arm-holdout job (`stage1_e_arm_holdout.py`) IS genuinely resumable at
+per-`(geometry, curve_index)` granularity (`build_e_arm_holdout_rows_resumable`,
+keyed off the same cache file) -- confirmed on relaunch: it found `curve_index=1`
+again (curve-finding is fast, not cached) but skipped straight past its
+already-cached geometries and started fresh work at `curve_index=2`, exactly
+as expected, without recomputing the three curve_index=1 rows already in
+`e-arm-holdout-cache.jsonl`.
+
+Both jobs were relaunched (grammar driver twice -- once immediately after the
+`held_out_error` fix alone, then killed and relaunched again after finding
+and fixing the `_weighted_sse` instance, so the currently-running process has
+BOTH fixes) as detached background processes, same commands as
+`command.txt` / the e-arm-holdout invocation pattern established by the prior
+dispatch. Both confirmed alive and checkpointing/logging within a few minutes
+of launch; the grammar driver reached complexity 4 with zero exceptions
+before this report was written.

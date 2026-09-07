@@ -155,32 +155,59 @@ def evaluate_level_for_targets(exprs: List, targets: Dict[str, Dict],
     for target_key, tgt in targets.items():
         best_for_level = None  # (held_out_or_train_metric, expr_str, ...)
         results_at_level = []
+        n_skipped_errors = 0
         for expr in exprs:
-            n_const = fe.const_placeholders(expr)
-            if n_const > 2:
+            # Per-expression guard (this dispatch's follow-up, after the
+            # OverflowError that killed the whole multi-hour driver on one
+            # (target, expr) pair): ANY uncaught exception while fitting or
+            # scoring a single expression against a single target is
+            # recorded and this one expression is skipped, never allowed to
+            # take down the rest of the level/run. This is a defense-in-
+            # depth backstop, not a substitute for fixing known root causes
+            # (see stage1_fit_engine.py's held_out_error fix, this same
+            # dispatch) -- an expression skipped here is implementation_error
+            # territory and must be visible in the log, not silently dropped.
+            try:
+                n_const = fe.const_placeholders(expr)
+                if n_const > 2:
+                    continue
+                const_values, train_sse = fe.fit_constants(expr, tgt["train"], tgt["stat_key"])
+                if const_values is None:
+                    continue
+                ho = None
+                if tgt["held_out"]:
+                    ho = fe.held_out_error(expr, const_values, tgt["held_out"], tgt["stat_key"])
+                metric = ho["rms_null_se"] if ho is not None else train_sse
+                metric_kind = "held_out_rms_null_se" if ho is not None else "train_weighted_sse_no_held_out_available"
+                matches = fe.score_against_known_candidates(expr, const_values, tgt["train"] + tgt["held_out"])
+                entry = {
+                    "expr": ge.to_canonical_string(expr),
+                    "const_values": const_values,
+                    "train_weighted_sse": train_sse,
+                    "held_out": ho,
+                    "metric": metric,
+                    "metric_kind": metric_kind,
+                    "matches_known_candidates": matches,
+                }
+            except Exception as exc:  # noqa: BLE001 -- deliberate, see docstring above
+                n_skipped_errors += 1
+                log(f"  SKIPPED expr (implementation_error, not evidence): "
+                    f"target={target_key} complexity={complexity} "
+                    f"expr={ge.to_canonical_string(expr)!r} error={type(exc).__name__}: {exc}")
                 continue
-            const_values, train_sse = fe.fit_constants(expr, tgt["train"], tgt["stat_key"])
-            if const_values is None:
-                continue
-            ho = None
-            if tgt["held_out"]:
-                ho = fe.held_out_error(expr, const_values, tgt["held_out"], tgt["stat_key"])
-            metric = ho["rms_null_se"] if ho is not None else train_sse
-            metric_kind = "held_out_rms_null_se" if ho is not None else "train_weighted_sse_no_held_out_available"
-            matches = fe.score_against_known_candidates(expr, const_values, tgt["train"] + tgt["held_out"])
-            entry = {
-                "expr": ge.to_canonical_string(expr),
-                "const_values": const_values,
-                "train_weighted_sse": train_sse,
-                "held_out": ho,
-                "metric": metric,
-                "metric_kind": metric_kind,
-                "matches_known_candidates": matches,
-            }
             results_at_level.append(entry)
             if best_for_level is None or metric < best_for_level["metric"]:
                 best_for_level = entry
+        if n_skipped_errors:
+            log(f"  target={target_key} complexity={complexity}: "
+                f"{n_skipped_errors} expression(s) skipped on exception (see SKIPPED lines above)")
         if not results_at_level:
+            if n_skipped_errors:
+                front_state.setdefault(target_key, {"by_complexity": {}})
+                front_state[target_key]["by_complexity"][complexity] = {
+                    "n_evaluated": 0, "n_skipped_errors": n_skipped_errors,
+                    "best": None, "collision_set_size": 0, "collision_set": [],
+                }
             continue
         results_at_level.sort(key=lambda e: e["metric"])
         best_metric = results_at_level[0]["metric"]
@@ -189,6 +216,7 @@ def evaluate_level_for_targets(exprs: List, targets: Dict[str, Dict],
         front_state.setdefault(target_key, {"by_complexity": {}})
         front_state[target_key]["by_complexity"][complexity] = {
             "n_evaluated": len(results_at_level),
+            "n_skipped_errors": n_skipped_errors,
             "best": results_at_level[0],
             "collision_set_size": len(collision_set),
             "collision_set": collision_set[:20],  # cap stored size, never silently drop the count

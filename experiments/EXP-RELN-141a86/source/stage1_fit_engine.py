@@ -107,6 +107,15 @@ def eval_expr(expr: Expr, env: Dict[str, float], const_values: Sequence[float]) 
 
 
 def _weighted_sse(expr: Expr, rows: List[Dict], stat_key: str, const_values: Sequence[float]) -> Optional[float]:
+    """Same overflow hazard as held_out_error (see that function's docstring,
+    this dispatch's follow-up): a candidate expression can predict a
+    genuinely huge but finite value against a row with a tiny null_sd, and
+    `x ** 2` raises OverflowError on the float-range crossing where `x * x`
+    silently (and correctly, per IEEE) returns inf. Squaring via `*` here
+    for the same reason -- this is the grid-search fit objective, called
+    ~thousands of times per level, so it must never raise on a legitimately
+    bad candidate; a bad candidate is exactly what a large/inf SSE already
+    correctly represents."""
     total = 0.0
     n_used = 0
     for row in rows:
@@ -117,7 +126,8 @@ def _weighted_sse(expr: Expr, rows: List[Dict], stat_key: str, const_values: Seq
         sd = row["null_sd"].get(stat_key)
         if obs is None or sd is None or sd <= 0:
             continue
-        total += ((pred - obs) / sd) ** 2
+        term = (pred - obs) / sd  # `/` overflows to inf silently, never raises
+        total += term * term  # `*` overflows to inf silently (unlike `**`), never raises
         n_used += 1
     if n_used == 0:
         return None
@@ -207,9 +217,24 @@ def held_out_error(expr: Expr, const_values: Sequence[float], held_out_rows: Lis
                     stat_key: str) -> Optional[Dict]:
     """RMS over held-out cells of |e(cell)-observed(cell)|/null_sd(cell), per
     specification.yaml metrics.primary; returns None if no held-out row
-    carries this statistic with a usable null_sd (reported, never estimated)."""
+    carries this statistic with a usable null_sd (reported, never estimated).
+
+    DIAGNOSED (this dispatch, follow-up to TASK-20260907-8fd098): an early
+    complexity-level expression can fit a genuinely-departing positive
+    control (e.g. ZN_interval, whose Delta is legitimately O(1e2-1e4) --
+    that IS the control working as designed, see stage1_own_enumeration.py)
+    so badly that e_se = |pred-obs|/sd is itself astronomically large. Python
+    float `**` raises OverflowError when the mathematical result exceeds
+    float range (CPython, confirmed: `1e160 ** 2` raises but `1e160 * 1e160`
+    silently returns `inf`); `e_se ** 2` was therefore crashing the whole
+    multi-hour driver on a held-out error that is REAL and simply enormous,
+    not a data bug. Fixed by squaring via `*` (never raises for this reason;
+    IEEE-consistent inf on overflow, which is the mathematically correct
+    value, not a clamp) and flagging any such row distinctly so a consumer
+    never mistakes silent inf propagation for a well-behaved small metric."""
     sq = []
     per_curve = []
+    any_overflow = False
     for row in held_out_rows:
         obs = row["statistics"].get(stat_key)
         sd = row["null_sd"].get(stat_key)
@@ -218,13 +243,25 @@ def held_out_error(expr: Expr, const_values: Sequence[float], held_out_rows: Lis
         pred = eval_expr(expr, row["leaves"], const_values)
         if pred is None:
             return None
-        e_se = abs(pred - obs) / sd
-        sq.append(e_se ** 2)
-        per_curve.append({"curve_index": row.get("curve_index"), "error_null_se": e_se})
+        e_se = abs(pred - obs) / sd  # `/` overflows to inf silently, never raises
+        sq_val = e_se * e_se  # `*` overflows to inf silently (unlike `**`), never raises
+        overflow = math.isinf(sq_val) or math.isinf(e_se) or math.isnan(sq_val)
+        any_overflow = any_overflow or overflow
+        sq.append(sq_val)
+        per_curve.append({
+            "curve_index": row.get("curve_index"),
+            "error_null_se": e_se,
+            "overflow": overflow,
+        })
     if not sq:
         return None
     rms = math.sqrt(sum(sq) / len(sq))
-    return {"rms_null_se": rms, "n_held_out_rows": len(sq), "per_row": per_curve}
+    return {
+        "rms_null_se": rms,
+        "n_held_out_rows": len(sq),
+        "per_row": per_curve,
+        "held_out_error_overflow": any_overflow,
+    }
 
 
 def leaf_env_for_row(row: Dict) -> Dict[str, float]:
@@ -299,4 +336,23 @@ if __name__ == "__main__":
     matches = score_against_known_candidates(expr, c, rows)
     print(f"matches={matches}", file=sys.stderr)
     assert "INV-A1" in matches
+
+    # Regression self-test (this dispatch's follow-up): a wildly-mismatched
+    # expression against a held-out row with a tiny null_sd -- the exact
+    # ZN_interval-positive-control shape that crashed the driver with
+    # OverflowError on `e_se ** 2` -- must return a large-but-finite/inf
+    # rms_null_se, flagged, and MUST NOT raise.
+    bad_expr = ge.canonicalize(("leaf", "N"))  # N ~ 1e6, obs ~ 1.0, sd tiny
+    bad_held = [{
+        "leaves": {"N": 1048583, "B": 185, "m": 3, "M": 1072445, "mu": 1.02},
+        "statistics": {"Delta": 1.0}, "null_sd": {"Delta": 1e-300},
+        "curve_index": 99,
+    }]
+    ho_bad = held_out_error(bad_expr, [], bad_held, "Delta")
+    print(f"overflow-case held_out={ho_bad}", file=sys.stderr)
+    assert ho_bad is not None
+    assert ho_bad["held_out_error_overflow"] is True
+    assert math.isinf(ho_bad["rms_null_se"])
+    print("stage1_fit_engine.py overflow-guard self-test: OK", file=sys.stderr)
+
     print("stage1_fit_engine.py self-test: OK", file=sys.stderr)
