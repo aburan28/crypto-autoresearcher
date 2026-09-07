@@ -19,10 +19,9 @@ claim to be: a reader comparing it against a working tree needs to know
 which commit they are looking at, and a static page that implied freshness
 would mislead on exactly the point that matters.
 
-Source text is deliberately NOT bundled. 116 MB of YAML would triple the
-site for bytes that are one click away on GitHub, permalinked to the built
-commit and syntax-highlighted there. The local server still inlines it,
-because it costs nothing to read a file that is already on disk.
+Source text is bundled in separate, per-record JSON files. The Source tab
+loads one on demand, so reading a finding does not download its YAML or the
+rest of the corpus. These files are included in the Pages size gate.
 """
 
 from __future__ import annotations
@@ -160,6 +159,8 @@ def build(repo: Path, out: Path, clean: bool = True,
     for n, record_id in enumerate(index.records, 1):
         payload = payloads.record_payload(index, record_id, include_raw=False)
         total += write_json(data / "records" / f"{record_id}.json", payload)
+        total += write_json(data / "sources" / f"{record_id}.json",
+                            payloads.source_payload(index, record_id))
         if verbose and n % 2000 == 0:
             say(f"    {n}/{len(index.records)}")
 

@@ -13,9 +13,8 @@ The one that matters most is `sorryAx`, which is what an unfinished proof
 leaves behind -- the textual scan in LeanWorker catches a literal `sorry`, and
 this catches a dependency on one reached through any other route.
 
-NOTE: this file has not yet been compiled against a live toolchain (the
-container this was written in has no Lean). setup.sh runs it as its last step
-so a mismatch surfaces at setup time rather than mid-campaign.
+Compiled in the pinned Lean smoke suite. setup.sh also runs it as its last
+step, so an incompatible toolchain fails at setup time.
 -/
 import CryptoResearch
 import Lean
@@ -43,7 +42,7 @@ elab "#audit_project" : command => do
   if failures.isEmpty then
     logInfo m!"axiom audit: {audited} theorem(s), all standard axioms only"
   else
-    throwError "AXIOM AUDIT FAILED:{indentD (MessageData.joinSep failures.toList \", \")}"
+    throwError "AXIOM AUDIT FAILED:{indentD (MessageData.joinSep failures.toList ", ")}"
 
 end CryptoResearch.AxiomAudit
 

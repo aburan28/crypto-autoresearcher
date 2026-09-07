@@ -1799,16 +1799,21 @@ async function viewRecords(params) {
 // ---------------------------------------------------------------------------
 // Record detail
 // ---------------------------------------------------------------------------
-async function viewRecord(id) {
+async function viewRecord(id, params = new URLSearchParams()) {
   setCrumb(id);
   const root = fill(view(), loading());
   let body;
   try {
     body = await getJSON(`records/${encodeURIComponent(id)}.json`);
-  } catch {
-    fill(root, h('div', { class: 'banner bad' },
-      h('div', {}, h('b', {}, `${id} is not in the index. `),
-        'It may be a run, a coordination task, or a dangling reference.')));
+  } catch (err) {
+    fill(root, h('div', { class: 'empty stack', role: 'alert' },
+      h('h2', {}, err.status === 404 ? 'Record unavailable' : 'Could not load this record'),
+      h('p', {}, err.status === 404
+        ? `${id} is not included in this snapshot. It may be a run, coordination task, or unresolved reference.`
+        : 'The request failed. Try again to reload the record.'),
+      h('div', { class: 'row' },
+        h('button', { class: 'btn', onclick: () => viewRecord(id, params) }, 'Try again'),
+        h('a', { class: 'btn', href: '#/records?q=' + encodeURIComponent(id) }, 'Search records'))));
     return;
   }
   const s = body.summary;
@@ -1817,11 +1822,20 @@ async function viewRecord(id) {
   const front = isEntry && body.body && typeof body.body === 'object' ? body.body : null;
 
   const panes = {};
-  const paneHost = h('div', { class: 'panel-body' });
-  const tabs = h('div', { class: 'tabs' });
-  function show(key) {
+  const paneHost = h('div', { class: 'panel-body record-pane', role: 'tabpanel', id: 'record-pane', tabindex: '0' });
+  const tabs = h('div', { class: 'tabs', role: 'tablist', 'aria-label': 'Record views' });
+  function show(key, updateUrl = true) {
     fill(paneHost, panes[key] ??= buildPane(key, body, src));
-    for (const t of tabs.children) t.setAttribute('aria-selected', t.dataset.key === key);
+    paneHost.setAttribute('aria-labelledby', `record-tab-${key}`);
+    for (const t of tabs.children) {
+      const active = t.dataset.key === key;
+      t.setAttribute('aria-selected', String(active));
+      t.tabIndex = active ? 0 : -1;
+    }
+    if (updateUrl) {
+      const query = new URLSearchParams({ tab: key });
+      history.replaceState(null, '', `#/record/${encodeURIComponent(id)}?${query}`);
+    }
   }
   const tabList = isEntry
     ? [['entry', 'entry'], ['structured', 'front matter']]
@@ -1829,7 +1843,17 @@ async function viewRecord(id) {
   tabList.push(['source', 'source'],
     ['links', `links (${body.links.out.length}↗ ${body.links.in.length}↙)`]);
   for (const [key, label] of tabList) {
-    tabs.append(h('button', { class: 'tab', 'data-key': key, onclick: () => show(key) }, label));
+    tabs.append(h('button', { class: 'tab', role: 'tab', id: `record-tab-${key}`,
+      'aria-controls': 'record-pane', 'data-key': key, onclick: () => show(key),
+      onkeydown: (event) => {
+        const keys = ['ArrowLeft', 'ArrowRight', 'Home', 'End'];
+        if (!keys.includes(event.key)) return;
+        event.preventDefault();
+        const items = [...tabs.children], at = items.indexOf(event.currentTarget);
+        const next = event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1
+          : (at + (event.key === 'ArrowRight' ? 1 : -1) + items.length) % items.length;
+        show(items[next].dataset.key); items[next].focus();
+      } }, label));
   }
 
   const linkList = (title, ids) => h('section', { class: 'panel' },
@@ -1880,7 +1904,9 @@ async function viewRecord(id) {
             headerTags,
             s.date ? timeEl(s.date, { label: 'declared by the record', dateOnly: true, style: 'date' }) : null),
           parseBadge),
-        s.title ? h('h2', { style: 'font-size:16px;line-height:1.4' }, s.title) : null,
+        s.title ? h('h1', { class: 'record-title' }, s.title) : null,
+        front?.proof_status && PROOF_NOTE[front.proof_status]
+          ? h('p', { class: 'proof-basis' }, h('b', {}, 'Proof basis: '), PROOF_NOTE[front.proof_status], '.') : null,
         isEntry && Array.isArray(front?.tags) && front.tags.length
           ? h('div', { class: 'row', style: 'gap:4px' }, front.tags.slice(0, 12).map((t) => tag(String(t)))) : null,
         h('div', { class: 'row faint mono', style: 'font-size:11px' },
@@ -1897,26 +1923,71 @@ async function viewRecord(id) {
       h('section', { class: 'panel' }, tabs, paneHost),
       h('aside', { class: 'stack' },
         linkList('Cited by', body.links.in), linkList('Cites', body.links.out)))));
-  show(tabList[0][0]);
+  const requested = params.get('tab');
+  show(tabList.some(([key]) => key === requested) ? requested : tabList[0][0], false);
+}
+
+/** Long findings remain readable without losing their original wording. */
+function entryReader(markdown) {
+  const article = renderMarkdown(markdown);
+  const headings = [...article.querySelectorAll('h2,h3,h4')];
+  if (headings.length < 3) return article;
+  const outline = h('details', { class: 'entry-outline' }, h('summary', {}, 'On this page'));
+  const items = h('nav', { 'aria-label': 'Entry sections' });
+  headings.forEach((heading, i) => {
+    heading.id = `entry-section-${i}`;
+    heading.tabIndex = -1;
+    items.append(h('button', { class: 'outline-link', onclick: () => {
+      heading.scrollIntoView({ block: 'start' }); heading.focus({ preventScroll: true });
+    } }, heading.textContent));
+  });
+  outline.append(items);
+  return h('div', { class: 'entry-reader' }, outline, article);
+}
+
+function sourceReader(body, src) {
+  const host = h('div', { class: 'source-reader', 'aria-live': 'polite' }, loading());
+  async function load() {
+    fill(host, loading());
+    try {
+      const source = typeof body.raw === 'string' ? { raw: body.raw, path: body.summary.path }
+        : await getJSON(`sources/${encodeURIComponent(body.summary.id)}.json`, { cached: false });
+      if (typeof source.raw !== 'string') throw new Error('Source text missing');
+      const note = h('span', { class: 'faint', role: 'status' });
+      const copy = h('button', { class: 'btn', onclick: async () => {
+        try { await navigator.clipboard.writeText(source.raw); note.textContent = 'Source copied'; }
+        catch { note.textContent = 'Copy unavailable. Select the text below or download the file.'; }
+      } }, 'Copy source');
+      const download = h('button', { class: 'btn', onclick: () => {
+        const url = URL.createObjectURL(new Blob([source.raw], { type: 'text/plain;charset=utf-8' }));
+        const link = h('a', { href: url, download: body.summary.path.split('/').pop() });
+        document.body.append(link); link.click(); link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      } }, 'Download source');
+      fill(host, h('div', { class: 'source-toolbar row' }, copy, download,
+        src ? h('a', { href: src, target: '_blank', rel: 'noreferrer' }, 'View on GitHub ↗') : null, note),
+        h('pre', { class: 'raw', tabindex: '0', 'aria-label': 'Record source text' }, source.raw));
+    } catch {
+      fill(host, h('div', { class: 'empty stack', role: 'alert' },
+        h('p', {}, 'Source could not be loaded. Retry, or read the same record on GitHub.'),
+        h('div', { class: 'row' }, h('button', { class: 'btn', onclick: load }, 'Retry source'),
+          src ? h('a', { class: 'btn', href: src, target: '_blank', rel: 'noreferrer' }, 'View on GitHub ↗') : null)));
+    }
+  }
+  load();
+  return host;
 }
 
 function buildPane(key, body, src) {
   if (key === 'entry') {
-    if (typeof body.markdown === 'string' && body.markdown.trim()) return renderMarkdown(body.markdown);
+    if (typeof body.markdown === 'string' && body.markdown.trim()) return entryReader(body.markdown);
     return h('div', { class: 'empty stack', style: 'gap:10px' },
       h('div', {}, 'This entry has no body text.'),
       src ? h('a', { class: 'btn', href: src, target: '_blank', rel: 'noreferrer' },
         `open ${body.summary.path} on GitHub ↗`) : null);
   }
   if (key === 'source') {
-    // The live server inlines the file; the published snapshot links it on
-    // GitHub at the built commit rather than shipping 116 MB of YAML.
-    if (typeof body.raw === 'string') return h('pre', { class: 'raw' }, body.raw);
-    return h('div', { class: 'empty stack', style: 'gap:10px' },
-      h('div', {}, 'Source text is not bundled into the published snapshot.'),
-      src ? h('a', { class: 'btn', href: src, target: '_blank', rel: 'noreferrer' },
-        `open ${body.summary.path} on GitHub ↗`)
-        : h('div', { class: 'faint' }, 'and no repository URL was recorded at build time'));
+    return sourceReader(body, src);
   }
   if (key === 'links') {
     return h('div', { class: 'stack' },
@@ -2239,7 +2310,7 @@ async function route() {
       return;
     }
     if (path.startsWith('/goal/')) return await viewGoal(decodeURIComponent(path.slice(6)));
-    if (path.startsWith('/record/')) return await viewRecord(decodeURIComponent(path.slice(8)));
+    if (path.startsWith('/record/')) return await viewRecord(decodeURIComponent(path.slice(8)), params);
     if (path === '/findings') return await viewFindings(params);
     if (path === '/goals') return await viewGoals();
     if (path === '/records') return await viewRecords(params);
