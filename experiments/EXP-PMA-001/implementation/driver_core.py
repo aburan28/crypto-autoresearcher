@@ -31,6 +31,12 @@ def run_instance(d_values, domain, field_label, kind):
         "kind": kind,
         "d_values": {str(k): v for k, v in d_values.items()},
         "predicate_verdict": a_res["verdict"],
+        # Module A's own per-anchor-triple certificates (divisor factors,
+        # valuations, residual constant class) are carried through here so
+        # the aggregation stage (RUN-PMA4-001-d) can report obstruction
+        # witnesses without re-deciding anything -- this is Module A's own
+        # already-computed output, not a new computation.
+        "predicate_triple_certificates": a_res.get("triple_certificates"),
     }
 
     if degenerate or a_res["verdict"] == "DEGENERATE":

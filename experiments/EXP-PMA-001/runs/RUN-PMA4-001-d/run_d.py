@@ -16,7 +16,7 @@ from pathlib import Path
 from collections import Counter
 
 start = time.time()
-RUNS_DIR = Path(__file__).resolve().parents[1] / "runs"
+RUNS_DIR = Path(__file__).resolve().parents[1]
 
 a = json.load(open(RUNS_DIR / "RUN-PMA4-001-a" / "raw-result.json"))
 b = json.load(open(RUNS_DIR / "RUN-PMA4-001-b" / "raw-result.json"))
@@ -61,6 +61,54 @@ for field, fr in b["fields"].items():
 per_field_grid_sizes["Q"] = {"n_instances": len(c["q_field"]["instances"]), "widening_used": c["q_field"]["widening_used"]}
 
 decided_vs_undecided = {"decided": n_decided, "undecided": 0, "degenerate_excluded": n_degenerate}
+
+# Obstruction witnesses: per OBSTRUCTED instance, Module A's own per-anchor-
+# triple certificate(s) that were odd-valuation (or nonsquare residual),
+# carried through unmodified from driver_core.py's
+# "predicate_triple_certificates" field (Module A's own already-computed
+# output; no re-derivation here).
+obstruction_witnesses = []
+for r in all_instances:
+    if r["classification"] != "agreement_obstructed_confirmed":
+        continue
+    certs = r.get("predicate_triple_certificates") or {}
+    obstructing_triples = {
+        tri: cert for tri, cert in certs.items()
+        if isinstance(cert, dict) and cert.get("is_square") is False and not cert.get("degenerate")
+    }
+    obstruction_witnesses.append({
+        "field": r["field"],
+        "kind": r["kind"],
+        "d_values": r["d_values"],
+        "obstructing_triple_certificates": obstructing_triples,
+    })
+
+# Degenerate-branch and exceptional-locus counts, broken out by declared
+# class where the driver's classification distinguishes them (the actual
+# grid run in b/c produced zero instances landing in either exclusion
+# category; the calibration-only fixtures in run_a are reported separately,
+# not folded into this grid count).
+degenerate_branch_count_by_class = {
+    "q_ij_zero_or_other_degenerate_in_grid": n_degenerate,
+}
+exceptional_locus_count_by_class = {
+    "pole_collision_or_cancellation_in_grid": 0,
+    "note": "driver_core.py's classification does not separate exceptional-locus "
+            "exclusions from degenerate-branch exclusions as distinct grid outcomes; "
+            "the actual b/c grid runs produced zero instances of either kind "
+            "(n_degenerate_in_grid=0), so this distinction did not need to be drawn "
+            "on the executed grid. The pole-collision fixture was exercised only as "
+            "a calibration-stage disclosure in RUN-PMA4-001-a (not scored either way).",
+}
+
+# Per-stage wall-clock timing: each stage's own measured elapsed_seconds,
+# read from that stage's own raw-result.json (already recorded by that
+# stage), plus this aggregation stage's own timing below.
+per_stage_wall_clock_seconds = {
+    "implementation_and_calibration (RUN-PMA4-001-a)": a["elapsed_seconds"],
+    "finite_field_grid (RUN-PMA4-001-b)": b["elapsed_seconds"],
+    "rational_grid_witnesses_and_grobner (RUN-PMA4-001-c)": c["elapsed_seconds"],
+}
 
 controls = {
     "CTRL-PMA4-GROUND-TRUTH": {
@@ -121,6 +169,10 @@ report = {
         "per_field_grid_sizes": per_field_grid_sizes,
         "classification_counts": dict(classification_counts),
         "groebner_crosscheck_outcomes": c["groebner_subsample"],
+        "obstruction_witnesses": obstruction_witnesses,
+        "degenerate_branch_count": degenerate_branch_count_by_class,
+        "exceptional_locus_count": exceptional_locus_count_by_class,
+        "per_stage_wall_clock_seconds": per_stage_wall_clock_seconds,
     },
     "controls": controls,
     "falsification_classification": {
