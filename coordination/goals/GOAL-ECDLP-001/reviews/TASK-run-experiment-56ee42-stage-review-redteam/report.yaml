@@ -1,0 +1,271 @@
+# ============================================================================
+# NON-CONFORMING PRELIMINARY REVIEW -- NOT THE OFFICIAL REVIEW ROUND.
+# ============================================================================
+# This report was produced by a session-dispatched red-team agent under an ad
+# hoc task structure that does NOT conform to the pre-committed, mutually-blind
+# review_plan in ledger/handoffs/TASK-20260904-410404.yaml (joint J1, owned by
+# a validator) and ledger/handoffs/TASK-20260904-a897dc.yaml (joint J2, owned
+# by a red team). That plan's own committed write_scope for this joint is
+# experiments/EXP-ECDLP-56ee42/reviews/round-1/red-team/, not this path.
+#
+# The OFFICIAL, plan-conforming round has been separately dispatched (this
+# session, 2026-09-06) against the real TASK-20260904-410404 (validator, joint
+# J1 only) and TASK-20260904-a897dc (red-team, joint J2 only), each properly
+# scoped and mutually blind, writing to experiments/EXP-ECDLP-56ee42/reviews/
+# round-1/{validator,red-team}/. THAT round, once both sides return, is what
+# actually discharges DEC-20260904-92dec2's required "two independent,
+# mutually-blind" review obligation -- not this one.
+#
+# This report is archived here, rather than discarded, because its
+# SUBSTANTIVE findings are independently computed, real, and load-bearing:
+# most critically OBJ-2/OBJ-3 below, which found that the CONTROL-C
+# comparator statistic (amendment v2's positive control for C2) is not
+# "nearly balanced" as the amendment claims, but is imbalanced by 3-5 orders
+# of magnitude at every ladder rung, and that the correctly-implemented
+# NULL-2 shuffle mechanism -- run for real on the actual frozen data -- fails
+# C2's <=0.5 threshold at every rung tested (T17: 0.89, T19: 0.96-0.99, T21:
+# 0.85). This means the C2 calibration run dispatch this program was
+# considering must NOT proceed as amendment v2 currently specifies it.
+#
+# DISPOSITION: this finding must be read by whoever synthesizes the official
+# round's J1+J2 results into a Coordinator decision, and by the amendment's
+# own author, before any further action on EXP-ECDLP-56ee42. It is NOT itself
+# a verdict this program acts on directly (it did not go through the
+# committed blind procedure), but a Coordinator ignoring it without
+# independently checking would be negligent given how concrete and
+# reproducible the computation is (see "Held results" and the worked
+# arithmetic below).
+#
+# Returned verbatim by the dispatching agent (policy review-adversarial,
+# reasoning_effort xhigh, model claude-sonnet-5, model_verified: false,
+# independent_session: true) as this session's return value; it wrote
+# nothing itself to the repository (no on-disk report -- this file is the
+# top-level session transcribing that return value to disk for durable
+# archival, verbatim, immediately after receipt, with no edits to its
+# substance).
+# ============================================================================
+
+red_team_report:
+  id: null   # not minted; non-conforming preliminary artifact, not an official reviewed record
+  task_id: NON-CONFORMING-adhoc-dispatch-2026-09-06
+  joint_owned: "J2 -- CONTROL-C adjudication of DEC-20260904-92dec2 and amendment v2's two-sided control design, plus the proves_too_much control"
+  claim_under_review: >-
+    DEC-20260904-92dec2's finding F-control (the frozen CONTROL-C gate encoded
+    a miscalibrated known answer, not evidence against H1) and amendment v2's
+    C1 (T4 survival band) + C2 (comparator collapse) as the two-sided fix that
+    "actually discriminates a working NULL-2 from a broken one," clearing the
+    C2 calibration run for dispatch.
+  requested_policy: review-adversarial
+  requested_reasoning_effort: xhigh
+  fallback_allowed: false
+  degraded_allowed: false
+  resolved_model_id: claude-sonnet-5
+  model_provenance: "Claude Code CLI, direct session, backend resolved by the runtime; not independently probe-verified this session (doctor --probe not run)"
+  independent_session: true
+  model_verified: false
+
+  verdict: REVISE
+  verdict_summary: >-
+    The amendment must NOT be dispatched as written. Beyond the no-op gap the
+    Coordinator already flagged, a load-bearing factual error was found in the
+    amendment's own premise: the COMPARATOR ("top bit of x") is not "nearly
+    balanced" -- it is catastrophically imbalanced at every ladder rung, and
+    its own q_maj - 1/2 is measured, by direct computation on the frozen
+    estimator, at 0.4998 (essentially the theoretical ceiling), ~460x larger
+    than T1's 0.00109 at the same n. This means C2's positive control is
+    itself a T4-type unbalanced statistic, not a point-structure control, and
+    numerical checks (three rungs, official seed formula) show C2's <=0.5
+    threshold is not met by the CORRECT, fully-random NULL-2 shuffle -- i.e.
+    the calibration run as specified is very likely to fail for a reason that
+    has nothing to do with whether NULL-2 works.
+
+  objections:
+    - id: OBJ-1-genuine-signal-case
+      target: "DEC-92dec2 finding F-control"
+      objection: >-
+        At every one of the six ladder rungs, T4's pre-shuffle A_noDC exceeds
+        the MAX of all 8 NULL-2 shuffles (T17: 0.014515 > max=0.011389; T19:
+        0.007240 > max=0.006764; T21: 0.003994 > max=0.003309; T23: 0.002032
+        > max=0.001585; T25: 0.001016 > max=0.000869; T27: 0.000548 >
+        max=0.000446). Under exchangeability, P(pre-shuffle is the unique max
+        of 9) = 1/9 per rung; observing this at all 6 has probability
+        ~(1/9)^6 ~= 1.9e-6.
+      counterexample_or_check: >-
+        Checked the point-at-infinity fixed-position explanation and ruled it
+        out quantitatively: contributes ~7.5e-9 at T27, four+ orders of
+        magnitude below the observed ~5.5e-4 value.
+      verdict_on_this_objection: >-
+        Does not fully survive scrutiny as a "genuine signal" claim, but does
+        survive as an unresolved gap: T4 is diagnostic not primary; 6 rungs
+        share one mechanism (not fully independent trials); T4's pre-shuffle
+        A_noDC decays at ~n^-0.5 across the ladder, consistent with either
+        closure or a weak genuine correlation at the same rate. NET: the
+        DEC's "calibration defect, not evidence" reading is undersupported as
+        stated -- it never rules out this rank anomaly -- but the anomaly
+        does not rise to proof of a real effect either.
+
+    - id: OBJ-2-comparator-not-balanced
+      target: "amendment v2, C2, disclosed_limitations"
+      objection: >-
+        DECISIVE, LOAD-BEARING FINDING. The amendment states the comparator's
+        level sets are "nearly, not exactly, balanced" -- this is FALSE, not
+        merely imprecise. Because the frozen ladder selector picks the FIRST
+        prime p >= 2^T for each rung, the "1" fiber (top_bit_fiber) is a tiny
+        interval just above 2^(bit_length-1): fiber-1 fraction is 0.0221% at
+        T17, down to 0.000022% at T27 -- between 1:4500 and 1:4,600,000, and
+        it worsens (relatively) as the ladder scales up.
+      counterexample_or_check: >-
+        Direct computation on the actual T17 rung using the frozen
+        estimator.py: comparator fiber sizes {0: 131081, 1: 32} (n=131113),
+        COMPARATOR q_maj = 131081/131113 = 0.99975594, q_maj-1/2 = 0.49975594
+        (essentially the ceiling). T1 (Thue-Morse) q_maj-1/2 = 0.00108685 at
+        the same rung. T4 (popcount mod 4), by contrast, is genuinely close
+        to balanced at the same rung: {0: 32949, 1: 32736, 2: 32750, 3:
+        32678} against n/4=32778, within ~1%. The comparator is far MORE
+        imbalanced than the statistic the design flagged as "unbalanced."
+      downstream_consequence: >-
+        specification.yaml v1's primary metric P1 is "A(v) and q_maj-1/2 for
+        T1,T2,T3 MINUS the SAME quantities for the COMPARATOR." If the
+        comparator's own q_maj-1/2 is pinned near 0.5 by its marginal, the P1
+        difference at every rung would read approximately -0.4987 -- a value
+        the frozen two-branch rule was never built to interpret, and read as
+        unsigned |diff|>=0.05 would mechanically trigger LEAD for a reason
+        unrelated to digit-family structure. This exceeds the CONTROL-C
+        remit but is a direct consequence of the same comparator-balance
+        question and should block Stage 3 independent of how C1/C2 resolve.
+
+    - id: OBJ-3-C2-non-discriminating
+      target: "amendment v2, C2"
+      objection: >-
+        Given OBJ-2, C2 ("comparator collapse ratio <= 0.5") cannot do the
+        job it is assigned. Running the ACTUAL, correctly-implemented NULL-2
+        mechanism (numpy default_rng.permutation, frozen algorithm, official
+        8-seed formula) on the real T17/T19/T21 comparator sequences: T17 (8
+        official seeds) ratio = 0.8898 (100-seed sweep: 0.72-0.93, median
+        0.80); T19 (40 seeds): 0.96-0.99; T21 (8 official seeds): 0.8477
+        (20-seed sweep: 0.76-0.82). None approach C2's required <=0.5, across
+        three rungs, using the genuine, correctly-seeded shuffle. A
+        deliberately weak contiguous-block shuffle also failed to sneak under
+        0.5 (T17: 0.77-0.83).
+      verdict_on_this_objection: >-
+        C2 as instantiated is UNCONDITIONALLY NON-DISCRIMINATING: a correct
+        shuffle and a deliberately weak one land in the same failing range.
+        C2 currently carries ZERO information about whether NULL-2 works.
+
+  proves_too_much_table:
+    - object: "no-op (identity)"
+      t4_c1_ratio: "1.0 exactly"
+      comparator_c2_ratio: "1.0 exactly"
+      c1_verdict: ACCEPT
+      c2_verdict: REJECT
+      combined: REJECT
+      required: reject
+      holds: true
+    - object: "max-preserving (cyclic rotation)"
+      t4_c1_ratio: "1.0 exactly"
+      comparator_c2_ratio: "1.00000000 (measured)"
+      c1_verdict: ACCEPT
+      c2_verdict: REJECT
+      combined: REJECT
+      required: reject
+      holds: true
+      note: "DFT magnitude shift-invariant; confirmed numerically to 8 decimal places on real T17 comparator and T1 data"
+    - object: "o2 P2 dlog-int [old ctrl] row"
+      g_minus_1_survival_ratio: "0.0002-0.021 (recomputed); DEC's ~20x factor confirmed: 20.0122/1.0030=19.95"
+      classification: collapse
+      required: "classify as collapse"
+      holds: true
+
+  attack_step_b_survives_vs_imbalance: >-
+    rt_exp_1.py line 113's comment ("A positive alpha that SURVIVES this is
+    signal; one that does not is imbalance") is inverted relative to the
+    mechanism and relative to the script's own P2 usage: a matched-marginal
+    shuffle preserves level-set sizes exactly, so excess produced purely by
+    size imbalance is exactly preserved (should survive); genuine
+    positional/additive dependence is destroyed by relabeling (should
+    collapse). Confirmed by the script's own P2 control (deliberately
+    structural, G:20.01->1.003, collapses) vs popcount/digitsum (G-1 survives
+    at 92-99% and 79-98%). The DEC's lean on the result document ("survival =
+    imbalance") is mechanistically correct.
+
+  attack_step_a_recomputed_o2_numbers: >-
+    Digitsum G-1 survival ratios (0.7870-0.9766) match the DEC's quoted
+    "0.79-0.98" closely. Popcount does NOT: recomputed range is
+    0.9207-0.9916, not the DEC's quoted "0.97-0.99" (p=1033 and p=2063
+    columns, 0.9207 and 0.9627, fall below the claimed floor). Minor
+    citation-precision defect, doesn't change the qualitative conclusion, but
+    should be corrected before any KN-FIND promotion.
+
+  held_results:
+    - "F-static (T3 provenance flag is a scanner false positive): independently re-read rudin_shapiro_sign_array; k is exactly a local bit-length loop counter indexing a value-keyed table, never a discrete-log input. CONFIRMED."
+    - "Digitsum G-1 survival range (0.79-0.98): confirmed by independent recomputation."
+    - "P2 dlog-int classification as collapse: confirmed both by recomputed ratios and by mechanism."
+    - "C1's underlying mechanism (marginal floor survives a matched-marginal shuffle): confirmed correct in principle -- the flaw is in C2's chosen instance, not the C1/C2 logical structure."
+    - "Fixture (284/529), POS-A, POS-B gates: outside this joint (J1); nothing found contradicts them."
+
+  narrowest_supported_statement: >-
+    The stage-2 CONTROL-C stop is not yet resolved by amendment v2. What is
+    established: (1) C1's no-op gap (Coordinator's own finding) stands; (2)
+    the comparator statistic is imbalanced by 3-5 orders of magnitude at
+    every ladder rung (q_maj-1/2 ~= 0.4998 vs T1's ~= 0.00109 at matched n),
+    unfit as C2's positive control, and placing the frozen Stage-3 P1 metric
+    itself at risk; (3) using the correct, unmodified NULL-2 mechanism, C2's
+    <=0.5 threshold is not met at any of the three rungs directly tested; (4)
+    a separate, unaddressed rank-order anomaly in the archived T4 data
+    (p~=1.9e-6 under naive exchangeability) means the DEC's "calibration
+    defect" reading is asserted more confidently than the evidence supports,
+    though it does not rise to a demonstrated genuine signal either. None of
+    this reaches the H1 CLOSURE/LEAD question itself -- no Stage-3 data
+    exists yet.
+
+  next_concrete_action_recommended: >-
+    Do NOT dispatch the C2 calibration run as currently specified. Before any
+    Stage-2 recalibration or Stage-3 dispatch: (1) republish the comparator's
+    true level-set balance and q_maj/A_noDC at all six rungs; (2) replace or
+    supplement C2's positive control with a statistic carrying known,
+    non-marginal point structure (POS-B run through NULL-2 is the cheapest
+    option, reusing existing code); (3) re-derive C1's band from a null
+    simulation specific to this instrument (>=64 shuffles) rather than the
+    borrowed o2 band, and use the larger ensemble to test the T4 rank anomaly
+    (OBJ-1) directly; (4) correct the DEC's popcount citation range before
+    any KN-FIND promotion; only then re-open the review round on a revised
+    amendment.
+
+  blindness_attestation: >-
+    Read the full snapshot named in the (non-conforming) task: specification,
+    amendment, all cited run records, all implementation files, the o2-lane
+    reference RT-EXP-1-RESULT.md and rt_exp_1.py in full, H-ECDLP-a4be60,
+    DEC-20260904-92dec2, and the two ledger handoffs TASK-20260904-a897dc /
+    TASK-20260904-410404 that carry the Coordinator's review_plan. Did NOT
+    read, list, or open anything under
+    coordination/goals/GOAL-ECDLP-001/reviews/TASK-run-experiment-56ee42-stage-review-validator/
+    or under experiments/EXP-ECDLP-56ee42/reviews/round-1/validator/.
+    Performed independent, read-only verification computations (curve
+    enumeration, DFT, q_maj_exact) using the frozen estimator.py as a
+    computational library, in scratchpad only; executed no stage of the
+    experiment and created no run record; wrote nothing to the repository.
+
+  key_file_paths_reviewed:
+    - experiments/EXP-ECDLP-56ee42/specification.yaml
+    - experiments/EXP-ECDLP-56ee42/amendments/v2_control_c_recalibration.yaml
+    - experiments/EXP-ECDLP-56ee42/implementation/estimator.py
+    - experiments/EXP-ECDLP-56ee42/implementation/stage0.py
+    - experiments/EXP-ECDLP-56ee42/implementation/stage1.py
+    - experiments/EXP-ECDLP-56ee42/implementation/stage2.py
+    - experiments/EXP-ECDLP-56ee42/implementation/runrecord.py
+    - experiments/EXP-ECDLP-56ee42/implementation/selftest.py
+    - experiments/EXP-ECDLP-56ee42/implementation/runs/RUN-ECDLP-56ee42-S0/
+    - experiments/EXP-ECDLP-56ee42/implementation/runs/RUN-ECDLP-56ee42-S1/
+    - experiments/EXP-ECDLP-56ee42/implementation/runs/RUN-ECDLP-56ee42-S2/
+    - experiments/EXP-ECDLP-56ee42/design/ladder.json
+    - experiments/EXP-ECDLP-56ee42/design/select_ladder.py
+    - ledger/decisions/DEC-20260904-92dec2.yaml
+    - ledger/hypotheses/H-ECDLP-a4be60.yaml
+    - ledger/handoffs/TASK-20260904-a897dc.yaml
+    - ledger/handoffs/TASK-20260904-410404.yaml
+    - analysis/o2-sum-compatible-filters/reviews/RT-EXP-1-RESULT.md
+    - analysis/o2-sum-compatible-filters/rt_exp_1.py
+    - AGENTS.md
+    - agents/red-team.md
+    - docs/claims-and-verification.md
+    - docs/task-lifecycle.md
