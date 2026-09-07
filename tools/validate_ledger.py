@@ -840,6 +840,9 @@ def load_run_supersessions(path: str | None = None) -> dict[str, dict]:
         if key in entries:
             raise ValueError(f"run supersession registry lists {superseded} "
                              f"more than once")
+        extraction = raw.get("superseded_id_extraction")
+        if "superseded_id_extraction" in raw:
+            _validate_superseded_id_extraction(extraction, str(raw["run_id"]).strip())
         entries[key] = {
             "run_id": str(raw["run_id"]).strip(),
             "superseded_path": key,
@@ -848,6 +851,8 @@ def load_run_supersessions(path: str | None = None) -> dict[str, dict]:
                 os.path.join(REPO, superseding)),
             "superseding_sha256": digests["superseding_sha256"],
         }
+        if extraction is not None:
+            entries[key]["superseded_id_extraction"] = dict(extraction)
     return entries
 
 
@@ -992,11 +997,57 @@ def check_schema_redirects(ctx: Ctx,
                     "record", force=True)
 
 
-def _run_id_of(path: str) -> str | None:
+def _validate_superseded_id_extraction(extraction: object, run_id: str) -> None:
+    """Validate an explicit identity binding, never a permissive YAML parser."""
+    if (not isinstance(extraction, dict)
+            or set(extraction) != {"kind", "line_number", "exact_line"}
+            or extraction.get("kind") != "unique_first_line_run_id_header"
+            or type(extraction.get("line_number")) is not int
+            or extraction.get("line_number") != 1
+            or not RUN_ID.fullmatch(run_id)
+            or extraction.get("exact_line") != f"run_id: {run_id}"):
+        raise ValueError("invalid superseded_id_extraction binding")
+
+
+def _malformed_superseded_run_id(path: str, entry: dict | None) -> str | None:
+    """Extract identity only from an opted-in, hash-pinned malformed original.
+
+    This helper cannot validate the original or replace any field check on the
+    complete superseding manifest. Recheck path and bytes here so even callers
+    outside check_run_supersessions cannot use a binding for another file.
+    """
+    if not entry or "superseded_id_extraction" not in entry:
+        return None
+    run_id = str(entry.get("run_id") or "")
+    extraction = entry["superseded_id_extraction"]
+    try:
+        _validate_superseded_id_extraction(extraction, run_id)
+        if (os.path.abspath(path) != entry.get("superseded_path")
+                or os.path.basename(os.path.dirname(path)) != run_id):
+            return None
+        with open(path, "rb") as handle:
+            content = handle.read()
+        if hashlib.sha256(content).hexdigest() != entry.get("superseded_sha256"):
+            return None
+        lines = content.decode("utf-8").splitlines()
+    except (OSError, UnicodeError, ValueError):
+        return None
+    if not lines or lines[0] != extraction["exact_line"]:
+        return None
+    identity_headers = [line for line in lines
+                        if re.match(r"^(?:run_id|id|run)\s*:", line)]
+    if identity_headers != [extraction["exact_line"]]:
+        return None
+    return run_id
+
+
+def _run_id_of(path: str, *, superseded_entry: dict | None = None) -> str | None:
     try:
         with open(path, encoding="utf-8") as handle:
             doc = yaml.safe_load(handle)
-    except (OSError, yaml.YAMLError):
+    except yaml.YAMLError:
+        return _malformed_superseded_run_id(path, superseded_entry)
+    except OSError:
         return None
     body = doc.get("run") if isinstance(doc, dict) else None
     if isinstance(body, dict):
@@ -1043,7 +1094,8 @@ def check_run_supersessions(ctx: Ctx, supersessions: dict[str, dict]) -> None:
                         f"supersede it instead of editing it",
                         force=True)
                 continue
-            found = _run_id_of(file_path)
+            found = _run_id_of(
+                file_path, superseded_entry=entry if role == "superseded" else None)
             if found != entry["run_id"]:
                 ctx.err(file_path,
                         f"registered {role} run manifest declares run id "
