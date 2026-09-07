@@ -38,6 +38,29 @@ This repository defines a multi-agent operating system for reproducible ECDLP ex
 
 Only the Coordinator may change the official status of a hypothesis or research direction.
 
+## Standing user authorization for ideas and experiments
+
+On 2026-09-06 the user directed: "all is approved. ideas/experiments should be always approved".
+This is standing user authorization for current and future idea intake,
+experiment design, and execution within this research program. Do not ask the
+user to select or approve each idea, confirm each frozen protocol, or reapprove
+an experiment. The Coordinator selects ranked work and records protocol
+approval under this standing authorization as soon as the contract is complete.
+
+User authorization is already satisfied; protocol readiness remains a
+Coordinator responsibility. Required controls, metrics, budgets, stopping
+rules, artifact paths, dependencies, inference policy and committed handoffs
+must still be present before dispatch. An incomplete protocol is completed or
+records its concrete technical impediment; it never waits for user approval.
+Ranking, resource limits and independent evidence review still apply. Approval
+to perform work does not assert that its hypothesis is true or its results are
+validated, and it does not rewrite historical proposal or experiment records.
+
+This instruction applies to the five CM proposals and their subsequent
+experiments as well. Their earlier requests for user selection or confirmation
+are superseded prospectively. Existing immutable artifacts stay intact; new
+canonical contracts and approval decisions cite this standing authorization.
+
 ## Model policy
 
 Role permissions and model selection are separate concerns, and neither names a
@@ -330,7 +353,8 @@ python3 tools/ecc_priority.py --budget-violations   # instruction 1's check
    These are ranked work: `/design-experiment` produces a hypothesis and a
    frozen contract for them. Designing is **not** approving — a designed
    contract sits at `approved_by: null` until a committed Coordinator decision
-   approves it, and that gate is unchanged.
+   approves it. The Coordinator supplies that decision under standing user
+   authorization once the protocol is complete; no user confirmation is needed.
 
 ## Target result profile
 
