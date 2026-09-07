@@ -3,12 +3,12 @@
 Post-run escalation audit for EXP-SSI-697354 (specification.yaml
 escalation_rules, and H-SSI-7fe2bf predictions.preregistered_locus_lower_bound).
 
-This is a SEPARATE PASS over the artifacts RUN-SSI-697354-a already emitted.
+This is a SEPARATE PASS over the artifacts RUN-SSI-697354-b already emitted.
 It performs no new modelling: it reads p_star_table.json and asks, of every
 emitted cell, whether it reports BOTH a numeric p* <= 512 AND memory
 feasibility log2 w >= L_mem(p*) at log2 w <= 40.  L_mem is the same
 piecewise-linear interpolation of the committed T2 column used by the run
-(imported from crossover.py, not re-derived).
+(imported from crossover_reissued.py, not re-derived).
 
 It also records, per log2 w, whether the pre-registered bound is satisfied
 substantively or VACUOUSLY SATISFIED (satisfied only because the assessed
@@ -21,10 +21,10 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import crossover  # noqa: E402
+import crossover_reissued  # noqa: E402
 
 RUN = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                   "runs", "RUN-SSI-697354-a")
+                   "runs", "RUN-SSI-697354-b")
 
 
 def main():
@@ -86,7 +86,7 @@ def main():
 
     out = {
         "audit": "F3 escalation check + vacuous-satisfaction disclosure",
-        "source_artifact": "runs/RUN-SSI-697354-a/p_star_table.json",
+        "source_artifact": "runs/RUN-SSI-697354-b/p_star_table.json",
         "n_cells_examined": len(rows),
         "criterion": ("a cell reporting BOTH a numeric p* <= 512 AND "
                       "log2 w >= L_mem(p*), at log2 w <= 40"),

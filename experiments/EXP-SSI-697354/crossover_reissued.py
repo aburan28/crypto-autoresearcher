@@ -39,7 +39,7 @@ import time
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 EXPERIMENT_ID = "EXP-SSI-697354"
-RUN_ID = "RUN-SSI-697354-a"
+RUN_ID = "RUN-SSI-697354-b"
 SEED = 0  # form only; no randomness is used anywhere
 
 # ---------------------------------------------------------------------------
@@ -563,7 +563,7 @@ def main():
     t_start = time.time()
     started_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
 
-    say("== EXP-SSI-697354 / RUN-SSI-697354-a ==")
+    say("== EXP-SSI-697354 / RUN-SSI-697354-b ==")
     say("Deterministic arithmetic on committed numbers. seed=%d (form only)." % SEED)
     say("Memory cap applied (RLIMIT_AS bytes): %r" % mem_cap_applied)
 
@@ -595,7 +595,7 @@ def main():
             COST_MODEL_PATH: sha256_file(rp(COST_MODEL_PATH)),
             RED_TEAM_PATH: sha256_file(rp(RED_TEAM_PATH)),
             SPEC_PATH: sha256_file(rp(SPEC_PATH)),
-            "experiments/EXP-SSI-697354/crossover.py": sha256_file(os.path.abspath(__file__)),
+            "experiments/EXP-SSI-697354/crossover_reissued.py": sha256_file(os.path.abspath(__file__)),
         },
         "freeze_receipt": {
             "specification_path": SPEC_PATH,

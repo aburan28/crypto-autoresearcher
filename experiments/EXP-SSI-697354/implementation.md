@@ -1,12 +1,12 @@
 # EXP-SSI-697354 — implementation note
 
-Executor note for `RUN-SSI-697354-a`, written under handoff
+Executor note for `RUN-SSI-697354-b`, written under handoff
 `TASK-20260817-4d5e6f`. Observations only; no judgement on `H-SSI-7fe2bf`, no
 security claim.
 
 ## What was built
 
-`crossover.py` (stdlib-only primary path, Python 3.11.15) implements the frozen
+`crossover_reissued.py` (stdlib-only primary path, Python 3.11.15) implements the frozen
 contract end to end:
 
 - **Step 0** writes `environment.json` with the interpreter, the
@@ -37,7 +37,7 @@ vacuous-satisfaction disclosure. See deviation DEV-1 below.
 ## Deviations from the approved protocol
 
 1. **DEV-1 — F3 audit ran outside the main program.** The escalation scan was
-   not implemented inside `crossover.py`. Rather than re-execute the single
+   not implemented inside `crossover_reissued.py`. Rather than re-execute the single
    authorized run, it was performed by `f3_escalation_check.py` over
    `p_star_table.json` and the committed T2 `L_mem` column, writing
    `f3_escalation_check.json`. No emitted number changed. Result: zero F3
@@ -46,7 +46,7 @@ vacuous-satisfaction disclosure. See deviation DEV-1 below.
    a scratch directory outside the repository preceded the recorded run, and one
    followed it to verify the determinism guarantee. None wrote into
    `experiments/`; no artifact in this package came from them. The single
-   authorized protocol run is `RUN-SSI-697354-a`, executed once, exit status 0.
+   authorized protocol run is `RUN-SSI-697354-b`, executed once, exit status 0.
 3. **DEV-3 — A-invariant solve caching.** `Delta` does not depend on `A`, which
    cancels between `T_B` and `T_A`. Each cell is solved once per
    `(law, S, c, MC, log2 w, log2 k_DG)` and the outcome attached to all four
