@@ -1,0 +1,108 @@
+handoff:
+  id: TASK-20260904-a6f3da
+  from: coordinator
+  to: executor
+  created_at: '2026-09-04'
+  experiment_id: EXP-MONO-d4840b
+  hypothesis_id: H-MONO-dd666a
+  question_id: RQ-MONO-001
+  goal_id: GOAL-MONO-001
+
+  objective: >-
+    Execute EXP-MONO-d4840b: find a curve satisfying Z=3, h_+>=1, h_->=1,
+    max(h_+,h_-)>=2 via a genuinely O(p^2) root-pair enumeration (not the
+    O(p^3) (A,B)-scan approach that resource-exhausted twice in
+    EXP-MONO-8ec0e5), then run the same M6/Stage-1/Stage-2 pipeline as
+    before.
+
+  authorized_by: coordinator
+  authorization_basis: >-
+    DEC-20260904-826703's own named next_action, correcting the search
+    ALGORITHM (not the scientific claim) after two resource_exhaustions.
+
+  background_you_need: >-
+    Read `experiments/EXP-MONO-d4840b/specification.yaml` in full for
+    the exact declared search order -- this is your authoritative
+    contract. Read `experiments/EXP-MONO-8ec0e5/implementation/
+    run_amended_bivariate_test.py` for the M6/Stage-1/Stage-2 logic you
+    will reuse UNMODIFIED (only Stage 0's own search method is new).
+
+    THE KEY INSIGHT: a short-Weierstrass cubic f(X)=X^3+AX+B has NO X^2
+    term, so its three roots ALWAYS sum to zero. This means every curve
+    with Z=3 (three distinct rational roots r1,r2,r3) can be generated
+    DIRECTLY by choosing r1,r2 freely in F_p, setting r3=-(r1+r2) mod p,
+    and computing A = r1*r2+r1*r3+r2*r3 mod p, B = -r1*r2*r3 mod p. This
+    (A,B) is GUARANTEED to have exactly those three roots -- no need to
+    scan range(p) checking each candidate (A,B) pair for whether it
+    splits, which is what cost O(p) per pair and caused
+    EXP-MONO-8ec0e5's own two resource_exhaustions. This is a genuine
+    O(p^2) total algorithm (choosing r1,r2 is O(p^2) total across a
+    prime; A,B computation is O(1) per pair) instead of O(p^3).
+
+  what_to_do:
+    - >-
+      STAGE 0: for each prime p ascending in [101,2000]: enumerate
+      unordered pairs (r1,r2) with r1 < r2, BOTH in range(p), in the
+      fixed order "r1 ascending 0..p-1 (outer), r2 ascending r1+1..p-1
+      (inner)". For each pair: compute r3 = (-(r1+r2)) mod p. If r3==r1
+      or r3==r2, SKIP (this means the triple isn't 3 distinct roots --
+      a genuine, declared degenerate case, not something to work around).
+      Otherwise compute A = (r1*r2 + r1*r3 + r2*r3) mod p and
+      B = (-(r1*r2*r3)) mod p. Verify (as a sanity check on your own
+      implementation, at least for the first several hundred candidates)
+      that f(X)=X^3+A*X+B mod p actually has roots {r1,r2,r3} by direct
+      substitution -- this is your own correctness check, not part of
+      the declared search logic. Then check the curve is non-singular
+      (guaranteed by construction since r1,r2,r3 are distinct, but verify
+      anyway) and ordinary (trace mod p != 0). Compute h_+, h_- using the
+      SAME fast character-based method EXP-MONO-8ec0e5's own script used
+      (cross-check against brute-force 4-torsion counting for the first
+      250 candidates, exactly as that script's own FILTER_AUDIT_N
+      practice did). Take the FIRST (A,B) satisfying h_+>=1 AND h_->=1
+      AND max(h_+,h_-)>=2. Report the exact number of (r1,r2) pairs
+      examined before success (or full exhaustion of the declared range).
+    - >-
+      STAGE M6: identical to EXP-MONO-8ec0e5's own sanity check -- verify
+      D_sum != D_prod via h_-*(h_+-1)*n_+ + h_+*(h_--1)*n_- != 0 on the
+      found curve, before proceeding. If this fails, STOP and report
+      specification_error.
+    - >-
+      STAGE 1/2: identical to EXP-MONO-8ec0e5's own logic -- exhaustive
+      distinct-split census via EXP-MONO-0e6e8f's own already-verified
+      construction, then compare against D_sum and D_prod, reporting
+      R1_sum, R2_sum, R1_prod, R2_prod exactly.
+
+  constraints:
+    - Do not alter the declared root-pair search order (r1 ascending, then r2 ascending, r1<r2) after seeing any result.
+    - Do not hard-code, look up, or special-case any specific (r1,r2), (A,B), or curve.
+    - Report the exact number of root pairs examined, per prime if the search spans more than one prime.
+    - Compute an ACTUAL sha256 for command.txt in the manifest -- no placeholders.
+    - One run directory: runs/RUN-MONO-d4840b-1/, with `id, experiment_id, status, code, environment, inputs, timing, result` all present at top level.
+    - Budget: 900s wall, 900s CPU, 128MiB RSS, 1 worker, no network.
+    - Do not run git commands, do not commit, do not push.
+    - STAY IN THE LOOP until your script finishes and you have real numbers; complete your OWN manifest.yaml and execution_report.yaml before ending your session.
+    - If Stage 0 still does not find a qualifying curve within budget, report resource_exhaustion honestly with Stage-0-specific timing data (to measure the actual speedup vs. EXP-MONO-8ec0e5's own two attempts) -- do not silently extend any internal time limit.
+
+  budget: see experiments/EXP-MONO-d4840b/specification.yaml `budget` block.
+
+  completion_gate: >-
+    execution_report.yaml filed with Stage 0's exact search outcome
+    (curve found with full parameters and exact scan count, or full-range
+    exhaustion, or resource_exhaustion with timing data), M6's result,
+    and (if M6 passed) Stage 1/2's exact residuals -- before any snapshot
+    archive or dispatch to independent review.
+
+  next_step_after_completion: >-
+    Coordinator isolated snapshot archive, then independent Validator +
+    Red Team dispatch, with a joint specifically auditing the root-pair-
+    to-(A,B) construction's own correctness and the search order's good
+    faith.
+
+  inference:
+    requested_policy: executor-implementation
+    reasoning_effort: medium
+    runtime: claude_code
+    resolved_model_id: claude-sonnet-5
+    model_verified: true
+    fallback_used: false
+    degraded_requirements: []

@@ -1,5 +1,29 @@
 # Crypto Autoresearcher Agent Contract
 
+## Research budgets: progress first
+
+User instruction, 2026-09-06. Applies to this researcher across all areas and
+supersedes older instructions that stop routine work on time/CPU/batch estimates.
+Research cost estimates are advisory, may be null, and require no repeated user
+approval. The Coordinator continues justified work within the authorized research
+scope. CPU usage is measured for algorithm comparisons, not rationed by default.
+
+Only an exceptional, committed Coordinator stagnation review may activate a
+research spending cap: at least **90 days without documented progress**, explicit
+evidence and scope, a concrete next action, and a recent assessment (within seven
+days). Missing telemetry, inactivity, outages and exhausted estimates alone are
+not stagnation. New evidence or progress requires reassessment; expiry never
+automatically renews a restriction. See `docs/research-budget-policy.md` and
+`orchestration/research_budget.py`.
+
+Memory/concurrency limits and explicitly justified process watchdogs remain
+machine protection. Watchdog expiry checkpoints a task; it does not exhaust the
+campaign or require another user budget approval. Fixed scientific sample counts,
+locked execution plans, zero-run tasks, write scopes, controls, immutable records,
+independent review and the Bedrock prohibition still bind. Changing a frozen
+scientific protocol uses an additive amendment; never rewrite historical records.
+
+
 This repository defines a multi-agent operating system for reproducible ECDLP experimentation.
 
 ## Roles
@@ -13,6 +37,29 @@ This repository defines a multi-agent operating system for reproducible ECDLP ex
   proposed conclusion.
 
 Only the Coordinator may change the official status of a hypothesis or research direction.
+
+## Standing user authorization for ideas and experiments
+
+On 2026-09-06 the user directed: "all is approved. ideas/experiments should be always approved".
+This is standing user authorization for current and future idea intake,
+experiment design, and execution within this research program. Do not ask the
+user to select or approve each idea, confirm each frozen protocol, or reapprove
+an experiment. The Coordinator selects ranked work and records protocol
+approval under this standing authorization as soon as the contract is complete.
+
+User authorization is already satisfied; protocol readiness remains a
+Coordinator responsibility. Required controls, metrics, budgets, stopping
+rules, artifact paths, dependencies, inference policy and committed handoffs
+must still be present before dispatch. An incomplete protocol is completed or
+records its concrete technical impediment; it never waits for user approval.
+Ranking, resource limits and independent evidence review still apply. Approval
+to perform work does not assert that its hypothesis is true or its results are
+validated, and it does not rewrite historical proposal or experiment records.
+
+This instruction applies to the five CM proposals and their subsequent
+experiments as well. Their earlier requests for user selection or confirmation
+are superseded prospectively. Existing immutable artifacts stay intact; new
+canonical contracts and approval decisions cite this standing authorization.
 
 ## Model policy
 
@@ -247,13 +294,12 @@ or to lower a bar, and the three guarantees pausing used to carry all survive it
    `validator-breakthrough` to get a claim moving is the exact silent downgrade
    the policy layer forbids, and it is no more permitted now than before.
    What is blocked is the claim, not the campaign.
-3. **An exhausted budget is still a hard stop on spending.** It does not become
-   licence to keep going. The next batch requires a committed Coordinator
-   budget decision with a recorded rationale. Never quietly raise a budget to
-   keep a campaign turning.
+3. **Routine estimates do not stop research.** Only an exceptional restriction
+   passing the months-long stagnation policy can limit spending. Machine
+   protection remains separate; a watchdog stop is not campaign exhaustion.
 
 Terminal retirement remains available and unchanged: `completed` on a met
-criterion, `closed_at_budget` when the budget ran out without one, `cancelled`
+criterion, `closed_at_budget` only under the exceptional stagnation policy, `cancelled`
 when the campaign is abandoned. Each is a deliberate Coordinator act with a
 committed decision — never the automatic response to an impediment.
 
@@ -307,7 +353,8 @@ python3 tools/ecc_priority.py --budget-violations   # instruction 1's check
    These are ranked work: `/design-experiment` produces a hypothesis and a
    frozen contract for them. Designing is **not** approving — a designed
    contract sits at `approved_by: null` until a committed Coordinator decision
-   approves it, and that gate is unchanged.
+   approves it. The Coordinator supplies that decision under standing user
+   authorization once the protocol is complete; no user confirmation is needed.
 
 ## Target result profile
 

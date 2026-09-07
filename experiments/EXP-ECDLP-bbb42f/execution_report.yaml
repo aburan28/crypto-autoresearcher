@@ -1,0 +1,297 @@
+execution_report:
+  experiment_id: EXP-ECDLP-bbb42f
+  implementation_commit: 0fd8faab119415237bd08c5a9e11718e44fa8466
+  implementation_commit_note: >-
+    HEAD as observed at manifest-write time; this shared branch received
+    unrelated concurrent commits during this task's execution (normal for
+    this repository's multi-worktree model). All driver/ files are new,
+    untracked, uncommitted at time of writing (dirty: true in every run
+    manifest) -- this Executor never commits (AGENTS.md rule; agents/executor.md
+    prohibitions); the Coordinator's snapshot archive is a separate,
+    later action.
+  contract_validation:
+    status_field: approved
+    approved_by: coordinator
+    anomaly: >-
+      specification.yaml's status_note (lines 14-21) is stale draft
+      boilerplate stating "NOT APPROVED ... NO RUN OF THIS CONTRACT IS
+      AUTHORIZED," contradicting status: approved and the later,
+      dated, more specific approved_by_note (lines 409-416) which
+      explicitly authorizes execution. Proceeded on approved_by_note +
+      the dispatching handoff TASK-20260903-58449b's independent
+      instruction to execute; recommend the Coordinator scrub status_note
+      in a protocol amendment. See implementation.md section 0.
+  protocol_deviations:
+    - id: PD-1
+      description: >-
+        isogeny_step_primes = {2, 3}, not a single fixed prime. ell_0=2 is
+        provably vacuous for this experiment's entire curve population
+        (curve_sampling_rule requires prime N; a rational ell-torsion point
+        requires ell | N, impossible for prime N != ell -- confirmed
+        empirically, 0/60 census curves had any 2-torsion, before being
+        proven via Lagrange). ell_0=3 was added because, unlike ell_0=2, a
+        degree-3 kernel does not require an F_p-rational point (only a
+        Frobenius-fixed x-coordinate), so it is not subject to the same
+        obstruction -- though it is itself usable only when p == 1 (mod 3)
+        (proven and confirmed empirically; see implementation.md section 3
+        and PD-4). Disclosed rather than silently substituted; no metric
+        definition, success criterion, or budget was changed.
+      severity: none
+      affects_criteria: false
+    - id: PD-2
+      description: >-
+        "Meet-in-the-middle" implemented as a single bounded BFS of the
+        reachable isogeny class, not a two-sided search. Tate's isogeny
+        theorem (1966) proves every same-field-isogeny-reachable curve
+        shares the origin's N, so E1/E2/E3 truth value is fixed at the
+        origin and there is no independent target side to meet from; a
+        second search side would be vacuous by construction. Confirmed as
+        a running correctness check (Tate spot-checks) every 200 visited
+        nodes across every real BFS in this experiment; never violated.
+      severity: none
+      affects_criteria: false
+    - id: PD-3
+      description: >-
+        E2 (low embedding degree) special-curve solver (MOV/Frey-Ruck
+        pairing reduction) is not implemented -- out of this task's
+        implementation scope given the astronomically low probability of
+        an E2 hit at these sizes. Zero E2 hits occurred across all 60
+        unplanted census curves, so this code path was never exercised.
+        Had a hit occurred, the driver's fallback path reports C_special as
+        an explicitly labeled MODELED (not measured) order-of-magnitude
+        estimate and flags the instance as an anomaly for Coordinator
+        attention rather than silently counting it toward S1/F1.
+      severity: none
+      affects_criteria: false
+    - id: PD-4
+      description: >-
+        CTRL-PLANTED-PATH's planted_path_construction literally specifies
+        "walk a short random chain" (length >= 1). This is mathematically
+        impossible for the E1 family at 20 and 24 bits (both primes are ==
+        2 mod 3; an anomalous curve's trace t=1 always, and the Frobenius-
+        eigenvalue-mod-3 condition needed for any rational ell_0=3 kernel
+        requires N == 0 mod 3 in that case, impossible for prime N -- see
+        implementation.md section 3.2). The driver falls back to
+        chain_len=0 at those two bit sizes, which still satisfies every
+        explicit sub-condition of CTRL-PLANTED-PATH's own description (path
+        found within budget, solver run on the target, log pulled back,
+        certificate re-verified) -- disclosed per-outcome via
+        achieved_chain_len / fallback_to_chain_len_0 / fallback_reason, not
+        silently substituted. At 28 bits (p == 1 mod 3) a genuine
+        chain_len=4 (forward_degree=81) walk was achieved and used.
+      severity: none
+      affects_criteria: false
+  runs:
+    completed:
+      - id: RUN-ECDLP-bbb42f-1
+        description: 20-bit unplanted census
+        status: completed_valid
+        wall_seconds: 0.84
+        curves_processed: 20
+      - id: RUN-ECDLP-bbb42f-2
+        description: 24-bit unplanted census
+        status: completed_valid
+        wall_seconds: 1.99
+        curves_processed: 20
+      - id: RUN-ECDLP-bbb42f-3
+        description: 28-bit unplanted census
+        status: completed_valid
+        wall_seconds: 3.98
+        curves_processed: 20
+      - id: RUN-ECDLP-bbb42f-4
+        description: planted-path positive controls, all three bit sizes
+        status: completed_valid
+        wall_seconds: 338.45
+        outcome: PASS at all three tested bit sizes (20, 24, 28 bits)
+      - id: RUN-ECDLP-bbb42f-5
+        description: synthetic random-regular-graph null (CTRL-NULL-RRG)
+        status: completed_valid
+        wall_seconds: 1.15
+      - id: RUN-ECDLP-bbb42f-6
+        description: dedicated exit-map consistency spot-check
+        status: completed_valid
+        wall_seconds: 0.001
+        outcome: 30/30 positive controls correctly flagged, 30/30 negative controls correctly not flagged
+    invalid: []
+    failed: []
+  observations:
+    - metric: min_charged_transfer_ratio
+      pooled_unplanted_curves: 60
+      curves_with_ratio_computed: 0
+      curves_with_status_NOT_FOUND: 60
+      note: >-
+        Every one of the 60 unplanted census curves (20 per bit size)
+        returned NOT_FOUND: no E1/E2/E3 hit was reached within the degree
+        budget ell_max = floor(sqrt(N)). This is expected and, for the E1
+        channel specifically, mathematically forced: unplanted curves are
+        sampled with N prime and N != p, and per Tate's isogeny theorem
+        (PD-2) no same-field isogeny can ever reach a curve with a
+        different N, so E1 membership (which depends only on N) can never
+        become true partway through a walk if it was false at the origin
+        -- and it is false at the origin by the sampling rule itself. No
+        min_charged_transfer_ratio value could therefore be computed for
+        any unplanted curve; NOT_FOUND is reported per specification.yaml's
+        own "or NOT_FOUND" clause rather than a fabricated ratio.
+    - metric: fraction_of_unplanted_curves_with_ratio_below_0.7
+      value: 0 / 60
+      note: Vacuously zero, since zero ratios were computed (see above).
+    - metric: certificate_pass_fail
+      unplanted_baseline_certificates: 120 of 120 verified
+      note: >-
+        Every one of the 60 unplanted curves' matched Pollard-rho and BSGS
+        DLP solves (60 rho + 60 BSGS = 120 total) carried an independently
+        re-verified [k]P=Q certificate (driver.certificate.verify_certificate).
+        Zero unverified claims were counted toward any metric.
+      planted_path_certificates: 3 of 3 verified
+    - metric: CTRL-PLANTED-PATH_recovery
+      bit_sizes_tested: [20, 24, 28]
+      recovered_at_every_bit_size: true
+      per_bit_size:
+        - bit_size: 20
+          harness_recovered_path: true
+          sssa_solved_correctly: true
+          achieved_chain_len: 0
+          fallback_to_chain_len_0: true
+          fallback_reason: p % 3 = 2 != 1; Lemma 2 (implementation.md) proves chain_len>0 impossible for E1 here
+        - bit_size: 24
+          harness_recovered_path: true
+          sssa_solved_correctly: true
+          achieved_chain_len: 0
+          fallback_to_chain_len_0: true
+          fallback_reason: p % 3 = 2 != 1; Lemma 2 (implementation.md) proves chain_len>0 impossible for E1 here
+        - bit_size: 28
+          harness_recovered_path: true
+          sssa_solved_correctly: true
+          achieved_chain_len: 4
+          forward_degree: 81
+          fallback_to_chain_len_0: false
+      note: >-
+        No invalidation of the harness (INV-PLANTED-VOID) was triggered:
+        CTRL-PLANTED-PATH's explicit sub-conditions (path found within
+        budget, special-curve algorithm run on the target, log pulled back,
+        certificate re-verified) all held at every tested bit size.
+    - metric: CTRL-BASELINE_INV-BASELINE_check
+      value: no measured rho cost fell more than 20% below 0.886*sqrt(N) on any tested curve
+      note: >-
+        Measured rho step counts (Floyd cycle-detection overhead included)
+        were consistently ABOVE the 0.886*sqrt(N) model position, by
+        roughly 2-4x at these toy sizes -- normal Floyd-vs-idealized-
+        collision overhead, not a defective-instrument signal (which would
+        require being materially BELOW the model position). INV-BASELINE
+        did not fire.
+    - metric: CTRL-EXITMAP-CONSISTENCY
+      exitmap_voids_during_real_runs: 0
+      dedicated_spotcheck_RUN-6: 30/30 positive controls correctly flagged, 30/30 negative controls correctly not flagged
+      note: >-
+        No credited "special" node beyond a curve's own origin (ell=0,
+        which the self-map check explicitly excludes as not a path at all)
+        occurred during the real census/planted runs, so INV-EXITMAP had no
+        occasion to fire there; the classifier's correctness is
+        independently established by RUN-6.
+    - metric: HEUR-ISO-1_KS_distance_vs_synthetic_null
+      values:
+        - {n: 2000, s: 3, d: 3, ks_distance: 0.2339}
+        - {n: 8000, s: 5, d: 3, ks_distance: 0.2353}
+        - {n: 30000, s: 8, d: 3, ks_distance: 0.2477}
+      note: >-
+        Reported exactly as measured. specification.yaml does not state a
+        numeric pre-declared toy-scale KS tolerance for this control, so
+        this Executor cannot itself classify these values as within or
+        outside tolerance -- that judgment, and any consequence for
+        HEUR-ISO-1's falsification_condition, belongs to /review-evidence.
+        No conclusion about HEUR-ISO-1 is stated here (agents/executor.md
+        item 13).
+    - metric: tail_checks_per_specification.yaml
+      largest_min_charged_transfer_ratio_deficit: not applicable -- zero ratios were computed across all 60 unplanted curves (see min_charged_transfer_ratio above)
+      largest_observed_minimal_ell_vs_null_extreme_value_tail: not applicable for the same reason (min_ell is NOT_FOUND, not a numeric ell, for all 60 unplanted curves)
+    - metric: sensitivity_to_isogeny_evaluation_cost_+-10x
+      status: not computed
+      note: >-
+        Not applicable in a way that would produce a non-trivial number:
+        since C_path=0 (or undefined/NOT_FOUND) for every unplanted curve
+        (see above), a +-10x rescaling of the per-step isogeny-evaluation
+        cost has no effect on any curve's ratio in this run set. Recorded
+        here rather than silently omitted.
+  anomalies:
+    - id: A-1
+      description: >-
+        Structural: this experiment's own curve_sampling_rule (prime N)
+        combined with the fixed small step-prime set makes the isogeny-
+        graph-search component largely vacuous for the unplanted census --
+        exactly and provably for ell_0=2 (Lagrange), and for ell_0=3 at the
+        20-bit and 24-bit primes specifically (both == 2 mod 3, an
+        unfavorable residue -- see implementation.md section 3.2). Real,
+        non-trivial multi-node graph exploration only occurred for a
+        fraction (7/20, all with a real psi_3 root) of the 28-bit census
+        curves. This is disclosed as a significant, protocol-relevant
+        finding materially affecting how the isogeny-search component's
+        C_path measurements should be read, not a data quality defect --
+        every reported value is genuine and every NOT_FOUND is honest.
+      severity: informational
+      requires_coordinator_attention: true
+    - id: A-2
+      description: >-
+        A pre-execution contract anomaly (stale contradictory status_note)
+        -- see contract_validation above.
+      severity: informational
+      requires_coordinator_attention: true
+    - id: A-3
+      description: >-
+        Three successive wrong closed-form derivations of the degree-3
+        Velu isogeny formula were caught and corrected during
+        implementation, each by numeric cross-validation against
+        independent oracles before being trusted -- see implementation.md
+        section 2. No incorrect formula reached any run; recorded here as
+        a disclosed part of the implementation process, per this program's
+        rule against discarding unexpected observations.
+      severity: informational
+      requires_coordinator_attention: false
+  artifact_paths:
+    - experiments/EXP-ECDLP-bbb42f/driver/isogeny_transfer_census.py
+    - experiments/EXP-ECDLP-bbb42f/driver/cost_model.py
+    - experiments/EXP-ECDLP-bbb42f/driver/ecc.py
+    - experiments/EXP-ECDLP-bbb42f/driver/curve_order.py
+    - experiments/EXP-ECDLP-bbb42f/driver/sampler.py
+    - experiments/EXP-ECDLP-bbb42f/driver/predicates.py
+    - experiments/EXP-ECDLP-bbb42f/driver/isogeny2.py
+    - experiments/EXP-ECDLP-bbb42f/driver/isogeny3.py
+    - experiments/EXP-ECDLP-bbb42f/driver/projective_ecc.py
+    - experiments/EXP-ECDLP-bbb42f/driver/sssa.py
+    - experiments/EXP-ECDLP-bbb42f/driver/graph_search.py
+    - experiments/EXP-ECDLP-bbb42f/driver/baselines.py
+    - experiments/EXP-ECDLP-bbb42f/driver/exitmap.py
+    - experiments/EXP-ECDLP-bbb42f/driver/planted.py
+    - experiments/EXP-ECDLP-bbb42f/driver/rrg_null.py
+    - experiments/EXP-ECDLP-bbb42f/driver/certificate.py
+    - experiments/EXP-ECDLP-bbb42f/driver/manifest.py
+    - experiments/EXP-ECDLP-bbb42f/driver/build_summary.py
+    - experiments/EXP-ECDLP-bbb42f/implementation.md
+    - experiments/EXP-ECDLP-bbb42f/results/summary.json
+    - experiments/EXP-ECDLP-bbb42f/results/seed_env_manifest.yaml
+    - experiments/EXP-ECDLP-bbb42f/results/baseline_manifests/bit20_baselines.json
+    - experiments/EXP-ECDLP-bbb42f/results/baseline_manifests/bit24_baselines.json
+    - experiments/EXP-ECDLP-bbb42f/results/baseline_manifests/bit28_baselines.json
+    - experiments/EXP-ECDLP-bbb42f/runs/RUN-ECDLP-bbb42f-1/
+    - experiments/EXP-ECDLP-bbb42f/runs/RUN-ECDLP-bbb42f-2/
+    - experiments/EXP-ECDLP-bbb42f/runs/RUN-ECDLP-bbb42f-3/
+    - experiments/EXP-ECDLP-bbb42f/runs/RUN-ECDLP-bbb42f-4/
+    - experiments/EXP-ECDLP-bbb42f/runs/RUN-ECDLP-bbb42f-4/certificates/
+    - experiments/EXP-ECDLP-bbb42f/runs/RUN-ECDLP-bbb42f-5/
+    - experiments/EXP-ECDLP-bbb42f/runs/RUN-ECDLP-bbb42f-6/
+    - experiments/EXP-ECDLP-bbb42f/tests/
+  executor_assessment:
+    protocol_complete: true
+    data_quality: good
+    requires_rerun: false
+    notes: >-
+      All six declared runs reached a terminal completed_valid state within
+      budget (total wall clock across all six runs: ~346 seconds, against a
+      3600s-per-run / ~12-CPU-h total budget). No run was halted on budget.
+      No invalidation rule fired. All 123 claimed discrete-log solves (60
+      rho + 60 BSGS + 3 SSSA) carry independently re-verified certificates.
+      Every deviation, anomaly, and unexpected observation encountered
+      during implementation is recorded above and in implementation.md,
+      not discarded. This report contains observations only; whether S1 or
+      F1 is met, and any consequence for H-ECDLP-ed5162 or HEUR-ISO-1's
+      status, is the Coordinator's judgment in /review-evidence, not this
+      Executor's.

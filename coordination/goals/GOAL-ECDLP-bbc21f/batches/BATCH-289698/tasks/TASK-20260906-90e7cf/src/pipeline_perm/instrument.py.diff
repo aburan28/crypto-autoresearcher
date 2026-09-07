@@ -1,0 +1,69 @@
+--- /home/user/crypto-autoresearcher/experiments/EXP-ECDLP-612fb1/source/instrument.py	2026-09-06 15:36:54.536122653 +0000
++++ instrument.py	2026-09-06 16:13:44.366471177 +0000
+@@ -17,6 +17,7 @@
+ 
+ import hashlib
+ import math
++import os
+ from dataclasses import dataclass, field
+ from typing import Dict, List, Optional, Tuple
+ 
+@@ -32,6 +33,12 @@
+ U_MAX_MULT = 16                               # U up to 16T
+ FIXTURE_TRIALS = 40000                        # G2 fixture single-walk trials per seed
+ MASK64 = (1 << 64) - 1
++# RED TEAM TASK-20260906-90e7cf, J4(i) proves-too-much object: the walk is selected by
++# environment variable so that NOTHING else in the pipeline changes.
++#   random_function (default) = the producer's keyed random function (unchanged)
++#   permutation              = keyed random BIJECTION of [0, N) (numpy permutation seeded by the walk key K)
++#   affine_xorshift          = keyed bijection x -> affine(odd m) o xorshift o affine(odd m) mod 2^n_bits
++RT_WALK_KIND = os.environ.get("RT_WALK_KIND", "random_function")
+ 
+ _M1 = np.uint64(0xBF58476D1CE4E5B9)
+ _M2 = np.uint64(0x94D049BB133111EB)
+@@ -89,13 +96,24 @@
+         self.seed_phi = 200 + self.seed
+         self.seed_null_a = 300 + self.seed
+         self.seed_tiebreak = 400 + self.seed
++        # RED TEAM J4(i): keyed bijection in place of the random function (bijectivity verified by counting)
++        self.walk_kind = RT_WALK_KIND
++        if self.walk_kind == "permutation":
++            self.perm = np.random.default_rng(self.K).permutation(self.N).astype(np.uint64)
++            assert len(np.unique(self.perm)) == self.N, "not a bijection"
++        elif self.walk_kind == "affine_xorshift":
++            rng = np.random.default_rng(self.K)
++            self.aff = (int(rng.integers(0, self.N)) | 1, int(rng.integers(0, self.N)),
++                        int(rng.integers(0, self.N)) | 1, int(rng.integers(0, self.N)))
++            img = self.step(np.arange(self.N, dtype=np.uint64))
++            assert len(np.unique(img)) == self.N, "not a bijection"
+ 
+     def describe(self) -> dict:
+         return {
+             "n_bits": self.n_bits, "N": self.N, "T": self.T, "a": self.a,
+             "W": self.W, "theta": self.theta, "cap": self.cap, "k": self.k,
+             "U_max": self.U_max, "R_default": self.R_default,
+-            "walk_key_K": self.K, "dp_key": self.K_dp,
++            "walk_key_K": self.K, "dp_key": self.K_dp, "walk_kind": self.walk_kind,
+             "dp_threshold": self.dp_threshold,
+             "bits_per_table_entry": self.bits_entry,
+             "bits_per_pool_entry": self.bits_pool_entry,
+@@ -112,7 +130,18 @@
+ 
+     # -- the walk ----------------------------------------------------------
+     def step(self, x: np.ndarray) -> np.ndarray:
+-        """f(x) = mix64(x XOR K) mod N on a uint64 array."""
++        """f(x) = mix64(x XOR K) mod N on a uint64 array (producer's walk), or the
++        RED TEAM J4(i) keyed bijection when RT_WALK_KIND is set."""
++        if self.walk_kind == "permutation":
++            return self.perm[x.astype(np.int64)]
++        if self.walk_kind == "affine_xorshift":
++            m1, c1, m2, c2 = self.aff
++            mask = np.uint64(self.N - 1)
++            y = (x * np.uint64(m1) + np.uint64(c1)) & mask
++            y = y ^ (y >> np.uint64(9))
++            y = (y ^ (y << np.uint64(5))) & mask
++            y = (y * np.uint64(m2) + np.uint64(c2)) & mask
++            return y
+         return mix64(x ^ np.uint64(self.K)) & np.uint64(self.N - 1)
+ 
+     def is_dp(self, x: np.ndarray) -> np.ndarray:

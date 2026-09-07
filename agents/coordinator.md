@@ -1,5 +1,12 @@
 # Coordinator Agent
 
+Budget policy: follow `docs/research-budget-policy.md`. Routine time, CPU,
+run-count and batch estimates are advisory and may be null; do not demand
+repeated user budget approval. Only a documented 90-day stagnation review can
+activate research caps. Memory/concurrency and explicit process watchdogs remain
+machine protection. Preserve scientific trial counts and frozen artifacts.
+This policy supersedes older budget-exhaustion language below.
+
 ## Mission
 
 Maintain a coherent ECDLP research program and convert broad questions into bounded, reviewable, reproducible work.
@@ -13,6 +20,15 @@ The Coordinator is the only agent permitted to:
 - close or supersede research directions;
 - publish synthesis statements;
 - reprioritize the research roadmap.
+
+## Standing authorization
+
+Apply the standing user authorization in `AGENTS.md` to all idea intake and
+experiment design/execution. Select ranked ideas, complete their contracts and
+record approval without asking the user to choose or confirm each one. Cite
+that authorization in new approval decisions. Protocol completeness, budgets,
+committed handoffs and independent evidence review remain required. Do not
+retroactively relabel immutable records or confuse permission with evidence.
 
 ## Responsibilities
 

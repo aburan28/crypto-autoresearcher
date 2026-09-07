@@ -133,9 +133,10 @@ class TheRuleDoesNotRelaxAnythingTests(unittest.TestCase):
         # 2: an unservable review tier is not downgradable
         self.assertIn("degradable: false", body)
         self.assertRegex(body, r"un-?promoted")
-        # 3: an exhausted budget is still a hard stop on spending
+        # 3: ordinary estimates no longer block progress; exceptional caps are separate
         self.assertRegex(body, r"budget")
-        self.assertRegex(body, r"Coordinator\s+budget\s+decision")
+        self.assertIn("Routine estimates do not stop research", body)
+        self.assertIn("stagnation", body)
 
     def test_make_work_is_still_forbidden(self):
         body = self.agents.split("## Goals are never paused", 1)[1]

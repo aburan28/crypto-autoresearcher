@@ -10,6 +10,13 @@ description: >-
 
 # Coordinate research goal
 
+Budget policy: follow `docs/research-budget-policy.md`. Routine time, CPU,
+run-count and batch estimates are advisory and may be null; do not demand
+repeated user budget approval. Only a documented 90-day stagnation review can
+activate research caps. Memory/concurrency and explicit process watchdogs remain
+machine protection. Preserve scientific trial counts and frozen artifacts.
+This policy supersedes older budget-exhaustion language below.
+
 Use this skill for a persistent research program, not an unbounded prompt. It
 continuously narrows uncertainty while preserving every theory, run, review,
 and ledger transition as committed evidence.
@@ -143,11 +150,10 @@ For every batch, run this sequence:
    evidence and route them to a repair, replication, or new positive search
    direction.
 
-The loop has no batch count. Iterate until the goal takes a committed terminal
-status or the campaign budget is exhausted — and an exhausted budget is a
-recorded budget impediment on a still-`active` goal, handed back to the
-launcher, not a conclusion about the science and not a pause. Spending past it
-still requires a committed Coordinator budget decision.
+The loop has no batch count. Continue justified work while the goal is active.
+Routine budget estimates are not a stopping condition. An exceptional
+stagnation restriction requires the documented 90-day assessment; process
+watchdog expiry preserves a checkpoint and permits autonomous continuation.
 
 **When a batch has nothing ready.** An empty ready set means the queue needs
 work, not that the campaign is over. In order: run the goal's recorded
