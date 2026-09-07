@@ -1,0 +1,98 @@
+handoff:
+  id: TASK-20260907-ca8b6c
+  from: coordinator
+  to: executor
+  recorded_at: '2026-09-07'
+  experiment_id: EXP-ECDLP-6ac801
+  hypothesis_id: H-ECDLP-37dc01
+  objective: >-
+    Implement and execute Stage B'' (PRODUCTION) of specification.v3.yaml's
+    `stage_plan_v3`: the non-blind, commit-pinned exact-basin production
+    measurement over the FULL v3 grid -- N in {2^20, 2^24}; a_grid =
+    {1/16, 1/8, 3/16, 1/4}; r = 2; T_sel = T/2 (32 and 128); seeds 1..25 --
+    plus the v3 control arms: NULL-ORACLE-RAND (uniform, gating null),
+    NULL-ORACLE-RAND (size-biased, diagnostic), NULL-RANDSEL (retained,
+    non-gating), NULL-SHUF (diagnostic, not a G3 null), and the T/4 and T/8
+    top-share readings control (l) needs. Zero online re-selected (RESEL-L)
+    arms -- exact-enumeration measurement only, as in v1/v2. THE N = 2^20 ARM
+    RUNS FIRST (per specification.v3.yaml: "roughly 16x cheaper and shakes
+    the pipeline out before the expensive scale").
+  uncertainty_reduced: >-
+    Whether the production (non-blind) reading of the same v3 quantity,
+    computed with the commit-pinned instrument at the full grid, agrees with
+    the already-sealed Stage A'' blind re-derivation (TASK-20260907-7afa98,
+    commit 818b7a142) on pass-count k and the sign of the mean margin, per
+    (N, a) cell -- the comparison Stage C'' will perform. This task produces
+    ONLY the production reading; it does not perform that comparison and
+    does not classify any cell PASS/FAIL against Stage A''.
+  inputs:
+    - experiments/EXP-ECDLP-6ac801/specification.v3.yaml
+    - experiments/EXP-ECDLP-6ac801/source/run_stageb.py
+    - experiments/EXP-ECDLP-612fb1/source_v2/instrument.py
+  instrument_reuse_note: >-
+    experiments/EXP-ECDLP-6ac801/source/run_stageb.py (v1/v2's own Stage B
+    driver) already reuses experiments/EXP-ECDLP-612fb1/source_v2/instrument.py
+    for the exact basin-partition core (DP predicate, walk step function,
+    pool generation) -- explicitly PERMITTED for Stage B/B'' production per
+    specification.yaml `instrument` (the restriction against reusing prior
+    code binds ONLY the blind Stage A/A'' re-deriver, never this task). That
+    driver currently hardcodes N_BITS=24 (one scale), one seed per invocation
+    (5 total seeds), and NO control arms -- it must be extended, not
+    reused as-is, to cover both scales, 25 seeds, and the v3_r2 control
+    arms. Reusing the underlying instrument.py core is REQUIRED continuity
+    with v1/v2's already-validated basin enumeration; writing a new driver
+    script around it is expected and is not a blind-derivation violation
+    since this is the production (non-blind) stage.
+  constraints:
+    - >-
+      This is NOT a blind re-derivation. Reading specification.v3.yaml,
+      run_stageb.py, instrument.py, and this task's own prior production
+      runs (RUN-ECDLP-6ac801-001..006) is expected and required -- the
+      blindness discipline in specification.v3.yaml's `blind_rederivation`
+      block binds Stage A''/TASK-20260907-7afa98 only, never this task.
+    - >-
+      Do NOT open coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-4433c1/
+      reviews/TASK-20260907-7afa98/ (Stage A'''s own sealed cells/summary)
+      before this task's own runs are committed -- not because of a
+      blindness rule (this task has none), but because Stage C'' comparison
+      is a SEPARATE, later Coordinator step and must not be pre-empted or
+      influenced by this task's own scoring.
+    - Runs are immutable: one new directory per run under experiments/EXP-ECDLP-6ac801/runs/RUN-ECDLP-6ac801-v3-*/, never editing RUN-ECDLP-6ac801-{001..006}.
+    - >-
+      Do not change hypothesis status, classify any cell PASS/FAIL, or
+      draw any feasibility conclusion. Report raw computed fields only,
+      exactly as Stage A'' did.
+    - Cite the exact git commit the run executed against in every manifest, per docs/evidence-and-reproducibility.md.
+    - Classify any non-valid outcome per agents/executor.md; infrastructure failures/timeouts are never negative evidence.
+  deliverables:
+    - experiments/EXP-ECDLP-6ac801/source/run_stageb_v3.py (or equivalent extended driver) plus implementation.md documenting the extension
+    - One immutable runs/RUN-ECDLP-6ac801-v3-*/ directory per (scale, seed) or per scale, per this program's own manifest conventions
+    - The execution_report YAML, run tally by terminal status, and any protocol deviations
+  artifact_paths:
+    - experiments/EXP-ECDLP-6ac801/source/run_stageb_v3.py
+    - experiments/EXP-ECDLP-6ac801/source/implementation.md
+    - experiments/EXP-ECDLP-6ac801/runs/
+  archived_by: null
+  inference:
+    policy: executor-implementation
+    reasoning_effort: null
+    fallback_allowed: false
+    degraded_allowed: false
+    independent_session_required: false
+  budget:
+    wall_clock_seconds: null
+    memory_gb: null
+    maximum_runs: null
+    budget_note: >-
+      Per CLAUDE.md "Research budgets: progress first" and ECC-first
+      unlimited-budget policy (AGENTS.md rule 11), no batch/wall-clock cap
+      is imposed. Machine memory/concurrency limits and CPU measurement for
+      algorithm comparison remain in force per docs/research-budget-policy.md.
+  completion_gate:
+    - Both scales run, N = 2^20 first
+    - All 4 a-values x 25 seeds computed at each scale (200 cells, matching Stage A'''s own grid)
+    - All 5 control arms present per cell (NULL-ORACLE-RAND uniform, size-biased, NULL-RANDSEL, NULL-SHUF, T/4 and T/8 readings)
+    - cycle_mass, capped_mass, capped_walks, residual_fraction reported at every cell (definitions items 1-2)
+    - Every run manifest cites the exact commit executed against
+    - No hypothesis-status transition, no PASS/FAIL classification, no comparison to Stage A''
+  return_format: execution_report YAML per docs/task-lifecycle.md
