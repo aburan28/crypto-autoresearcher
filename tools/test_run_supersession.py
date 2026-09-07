@@ -26,6 +26,7 @@ import shutil
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 import yaml
@@ -145,6 +146,51 @@ class NoRegistryEntryTests(SupersessionFixture):
 
 
 class RegisteredSupersessionTests(SupersessionFixture):
+    def malformed_original(self, header="run_id: RUN-SUP-001"):
+        self.superseded.write_text(header + "\ngit:\n  dirty_summary: modified\n?? unescaped\n")
+
+    def test_malformed_original_requires_explicit_header_locator(self):
+        self.malformed_original()
+        ctx = vl.Ctx(set())
+        vl.check_run_supersessions(ctx, self.registry())
+        self.assertTrue(ctx.errors)
+        ctx = vl.Ctx(set())
+        vl.check_run_supersessions(ctx, self.registry(superseded_id_line=1))
+        self.assertEqual(ctx.errors, [])
+
+    def test_malformed_header_rejects_ambiguous_or_nonliteral_identity(self):
+        for header in ["run_id: RUN-OTHER-001", "id: RUN-SUP-001",
+                       'run_id: "RUN-SUP-001"',
+                       "run_id: RUN-SUP-001\nrun_id: RUN-SUP-001",
+                       "run_id: RUN-SUP-001\n---\nrun_id: RUN-OTHER-001"]:
+            with self.subTest(header=header):
+                self.malformed_original(header)
+                ctx = vl.Ctx(set())
+                vl.check_run_supersessions(ctx, self.registry(superseded_id_line=1))
+                self.assertTrue(ctx.errors)
+
+    def test_malformed_header_still_requires_hash_and_correct_line(self):
+        self.malformed_original()
+        for override in [{"superseded_sha256": "0" * 64}, {"superseded_id_line": 2}]:
+            with self.subTest(override=override):
+                entries = {"superseded_id_line": 1, **override}
+                ctx = vl.Ctx(set())
+                vl.check_run_supersessions(ctx, self.registry(**entries))
+                self.assertTrue(ctx.errors)
+
+    def test_malformed_replacement_never_uses_original_header_locator(self):
+        self.malformed_original()
+        self.superseding.write_bytes(self.superseded.read_bytes())
+        ctx = vl.Ctx(set())
+        vl.check_run_supersessions(ctx, self.registry(superseded_id_line=1))
+        self.assertTrue(any("superseding" in e for e in ctx.errors))
+
+    def test_header_locator_does_not_reinterpret_parseable_non_run_record(self):
+        self.superseded.write_text('run_id: null\ncomment: "RUN-SUP-001"\n')
+        ctx = vl.Ctx(set())
+        vl.check_run_supersessions(ctx, self.registry(superseded_id_line=1))
+        self.assertTrue(ctx.errors)
+
     def test_flat_archived_manifest_id_is_bound_to_replacement(self) -> None:
         self.superseded.write_text(yaml.safe_dump({
             "run_id": "RUN-SUP-001",
@@ -397,6 +443,14 @@ class CommittedRegistryTests(unittest.TestCase):
         entries = vl.load_run_supersessions()
         ctx = vl.Ctx(set())
         vl.check_run_supersessions(ctx, entries)
+        # Match main(): administrative quarantine decisions are validated
+        # before their dependent run records, never mocked as approvals.
+        decision_ids = {entry.get("decision_id") for entry in entries.values()
+                        if entry.get("supersession_kind") == "provenance_quarantine"}
+        for decision_id in decision_ids:
+            vl.check_ledger_record(str(REPO / "ledger" / "decisions" /
+                                       f"{decision_id}.yaml"),
+                                   "coordinator_decision", ctx)
         for key in entries:
             vl.check_run(key, ctx, entries)
         self.assertEqual(ctx.errors, [])
@@ -465,8 +519,14 @@ class CommittedRegistryTests(unittest.TestCase):
                 self.assertEqual(prior.parent, run_dir, str(prior))
                 self.assertTrue(prior.is_file(), str(prior))
                 self.assertEqual(sha256_of(prior), prior_sha256, str(prior))
-                self.assertEqual(vl._run_id_of(str(prior)), entry["run_id"],
-                                 str(prior))
+                prior_id = vl._run_id_of(str(prior))
+                if (prior_id is None and prior == registry_original
+                        and entry.get("superseded_id_line") is not None):
+                    # Both hashes and the direct original binding were
+                    # checked above; use the production identity check.
+                    prior_id = vl._malformed_run_header_id(
+                        str(prior), entry["superseded_id_line"])
+                self.assertEqual(prior_id, entry["run_id"], str(prior))
                 if prior == registry_original:
                     self.assertEqual(prior_sha256,
                                      entry["superseded_sha256"])
