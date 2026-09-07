@@ -26,6 +26,16 @@ scientific protocol uses an additive amendment; never rewrite historical records
 
 This repository defines a multi-agent operating system for reproducible ECDLP experimentation.
 
+## Harness entry point
+
+Use the single public `crypto-autoresearcher-harness` skill for research status,
+ideas/design, named-goal continuation, or a full portfolio run. Its canonical
+source is `plugins/crypto-autoresearcher-harness/skills/crypto-autoresearcher-harness/SKILL.md`;
+repository and legacy adapters delegate there. Read its mode table before work.
+A batch checkpoint continues within the authorized mode; report durable changes,
+owners, and the recorded next action so another session can resume. This routing
+does not replace any authority or evidence gate below.
+
 ## Roles
 
 - **Coordinator** owns priorities, task decomposition, state transitions, and synthesis.
