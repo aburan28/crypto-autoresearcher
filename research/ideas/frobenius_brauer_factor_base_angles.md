@@ -6,7 +6,7 @@ Status: speculative research agenda. Nothing here claims an attack, speedup, or 
 
 Known ECDLP improvements repeatedly exploit structure that is invisible in the generic-group model: Frobenius on binary extension curves, descent, special embeddings, or arithmetic maps. The experiments below ask a narrower question: can representation choice reduce the *total* cost of relation generation or expose independently computable information about the unknown scalar?
 
-Every experiment must compare end-to-end cost against the appropriate Pollard-rho baseline and account for setup, decomposition, relation collection, linear algebra, and individual-log recovery.
+Every experiment must compare end-to-end cost against the appropriate Pollard-rho baseline, including any applicable automorphism/Frobenius speedup, and account for setup, decomposition, relation collection, linear algebra, and individual-log recovery.
 
 ## IDEA-FROB-0: Frobenius orbits as first-class factor-base objects
 
@@ -44,7 +44,7 @@ Applying Frobenius to an entire relation generally gives a scalar/Frobenius tran
 
 ### Why F_(2^131) is interesting
 
-For prime extension degree `m=131`, full-size Frobenius orbits can have size 131. This makes orbit compression potentially large at the linear-algebra layer, but the actual research question is whether relation generation and point decomposition can also exploit this structure. A large matrix shrink is not enough if decomposition remains dominant.
+For prime extension degree `m=131`, full-size Frobenius orbits can have size 131. This can reduce the number of factor-base logarithm unknowns by roughly the orbit size when the chosen base is dominated by full orbits, but the exact linear-algebra savings depend on matrix sparsity and solver choice and must be measured rather than assumed. The actual research question is whether relation generation and point decomposition can also exploit this structure. A large matrix shrink is not enough if decomposition remains dominant.
 
 ### EXP-FROB-ORBIT-1: three-way decomposition encoding benchmark
 
