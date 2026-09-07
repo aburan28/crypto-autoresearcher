@@ -281,6 +281,23 @@ Require ranking to use total projected work, not isolated solver timing, nominal
 5. **Run TORUS representation generation** only through the same benchmark harness.
 6. **Keep BRAUER and REP lanes isolated** from attack claims until their information-flow and construction-cost gates hold.
 
+## Experiment execution checklist
+
+Every experiment in this slate should preregister:
+
+- curve family, field-size ladder, subgroup-selection rules, and seeds;
+- exact factor-base predicate and target cardinality;
+- decomposition arity and solver configuration;
+- per-instance and total compute budgets;
+- RAW/current-baseline arm;
+- Pollard-rho reference cost with applicable curve automorphisms;
+- positive and null controls;
+- relation-independence normalization;
+- timeout/censoring treatment;
+- success, falsification, and stop conditions before execution.
+
+The Executor records observations only. Any claim that an encoding, factor base, representation, or observable improves scaling requires independent validation on held-out parameters and a separate cost-model review.
+
 ## Priority
 
 1. **FROB-0 + FROB-1 + FROB-2**: best near-term experimental track because the repo already has Koblitz/Frobenius and decomposition machinery.
