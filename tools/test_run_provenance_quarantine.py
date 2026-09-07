@@ -61,6 +61,15 @@ class ProvenanceQuarantineTests(SupersessionFixture):
         ctx = self.validate(registry=False)
         self.assertTrue(any("run.code.commit missing" in e for e in ctx.errors))
 
+    def test_direct_historical_archival_commit_cannot_bypass_quarantine(self):
+        body = manifest_body(code={
+            "commit": "a" * 40, "commit_meaning": "archival_source_only",
+            "execution_commit": None, "command": "python3 driver.py"})
+        path = self.write_manifest("historical.yaml", body)
+        ctx = self.context()
+        vl.check_run(str(path), ctx)
+        self.assertTrue(any("not execution provenance" in e for e in ctx.errors), ctx.errors)
+
     def test_cannot_promote_invalid_record_or_hide_gap(self):
         for mutation in [
             lambda b: b.update(status="completed_valid"),
