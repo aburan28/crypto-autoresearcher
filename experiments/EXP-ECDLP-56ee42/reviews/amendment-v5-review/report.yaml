@@ -1,0 +1,802 @@
+red_team_report:
+  id: RT-20260907-56ee42-v5review
+  id_note: >-
+    Task-scoped report identifier, not a minted ledger ID via
+    tools/allocate_id.py (matching the amendment-v4-review's own convention,
+    RT-20260907-56ee42-v4review). Review work product under write_scope only;
+    no ledger, run, or knowledge record is created. Every computation below
+    is scratch verification against PUBLIC curve/ladder parameters, against
+    reconstructed/patched COPIES of estimator.py and stage2.py held only in
+    this review's own write_scope directory (never written back to
+    experiments/EXP-ECDLP-56ee42/implementation/), or a fully independent
+    throwaway git repository under /tmp. No discrete log k is touched, no
+    stage-cache is read, no stage of EXP-ECDLP-56ee42 itself is executed
+    (stage0.py/stage1.py/stage2.py are read and, in stage2.py's case, its
+    real static_provenance_check() function is executed against constructed
+    inputs -- never against the live experiment's own runs/ directory), and
+    no file outside this review's own directory is modified.
+
+  task: >-
+    Independent adversarial review of amendment v5
+    (experiments/EXP-ECDLP-56ee42/amendments/
+    v5_stage2_provenance_and_power_check_budget_repair.yaml, base_version 4
+    -> resulting_version 5), which claims to close all four remaining items
+    the amendment-v4-review (verdict REVISE) found: (1) the new,
+    previously-undiscovered finding that stage2.py's static_provenance_check()
+    scans for the retired T3 function names and will fail the required Stage
+    0-2 re-run's own gate (V5-CHG-1, highest priority); (2) an undisclosed
+    budget-feasibility gap in change_6's power check at its T17-T25 fallback
+    rungs (V5-CHG-2); (3) a content-blindness gap in change_7's
+    `git merge-base --is-ancestor` sequencing check (V5-CHG-3); (4) a minor
+    wording defect mischaracterizing T2 as "x-based" (V5-CHG-4). This review
+    independently verifies each claim by actual code execution (not merely
+    reading the amendment's own "verified_directly_by_this_coordinator"
+    narrative, and not merely re-reading the amendment-v4-review's own
+    scripts), per the task's explicit instruction that this Coordinator's
+    own drafting session disclosed it had no code-execution tool and this
+    review does. Per this experiment's own established review discipline,
+    this review also actively searches for defects v5 introduces or fails to
+    close that neither v4 nor its review caught.
+
+  claim_under_review: >-
+    v5's four changes: V5-CHG-1 (update stage2.py's static_provenance_check()
+    `functions` dict's two T3 entries from the retired
+    rudin_shapiro_sign(_array) search strings to the new
+    rudin_shapiro_sign_true(_array) strings, applied together with V3-CHG-2's
+    estimator.py rename/add and V4-CHG-5's selftest.py replacement as one
+    coherent commit); V5-CHG-2 (a new "Stage 1.5" budget line item, up to 5
+    CPU-hours, for the synthetic power check; a required invocation split
+    {T17,T19,T21,T23} + {T25}; a required pre-dispatch production-timing
+    confirmation gate, V5-RA-2; and a pre-registered N=10 fallback if the
+    confirmed timing exceeds 80% / 4 CPU-hours of that budget line); V5-CHG-3
+    (add a `git show <sha>:<path> | sha256sum` content-verification step
+    alongside V4-CHG-7's unchanged ancestry check, plus naming the
+    tools/validate_ledger.py schema gap as a required follow-up rather than
+    implementing it); V5-CHG-4 (replace change_8's required disclosure
+    sentence's "irregular, natural x-based statistics" with "irregular,
+    natural, coordinate-based (non-planted) statistics").
+
+  # =========================================================================
+  # PER-CHANGE FINDINGS
+  # =========================================================================
+  per_attack_step_findings:
+
+    change_1_stage2_static_provenance_dict_repair_V5_CHG_1:
+      priority: highest_priority_blocking_gate
+      what_was_checked: >-
+        Whether V5-CHG-1's claimed byte-for-byte quote of stage2.py lines
+        66-67 matches the REAL, currently committed file; whether the
+        amendment's claimed before/after behaviour
+        ({found:false,...} before the fix, {found:true, reads_k:false,
+        pass:true} after) is genuinely produced by EXECUTING the real,
+        unmodified stage2.py's own static_provenance_check() function (not a
+        reimplementation, and not merely re-reading the amendment-v4-review's
+        own reconstruction/script) against an INDEPENDENTLY constructed
+        v3-renamed estimator.py; and whether a partial/out-of-order
+        application of the sequencing_dependency (V3-CHG-2 rename applied
+        without V5-CHG-1's dict fix, or vice versa) fails safe or dangerous.
+      method: >-
+        (1) `sed -n '66,67p'` the real, currently committed stage2.py and
+        confirmed byte-for-byte agreement (modulo the YAML literal block's
+        stripped common indent) with V5-CHG-1's
+        old_text_superseded_verbatim_stage2_py_lines_66_67. (2) Wrote a fresh
+        script (verify_v5chg1_stage2_dict_fix.py, in this directory) that
+        independently builds a v3-renamed estimator.py from the REAL
+        committed estimator.py by exact-substring replacement of the two
+        function definitions named in V3-CHG-2's required_vectorized_fix /
+        required_naming_and_wiring (asserting the old text is found first, so
+        a silent mismatch cannot pass), WITHOUT copying or reading as a
+        template the amendment-v4-review's own
+        full_patched_estimator_v3only.py (that file was read earlier in this
+        review purely to confirm it is a faithful V3-CHG-2 reconstruction,
+        not used as a source for this script's replacement text). (3) In a
+        fresh subprocess per scenario, with the constructed estimator.py and
+        (unmodified or V5-CHG-1-patched) stage2.py copied into an isolated
+        directory, ran `import stage2 as S2; S2.static_provenance_check()`
+        -- i.e. executed the REAL stage2.py file's REAL function, not a
+        reimplementation -- for four scenarios: (0) real+real (sanity check
+        against the archived S2 record), (1) v3-renamed estimator +
+        UNMODIFIED stage2.py ("before" V5-CHG-1), (2) v3-renamed estimator +
+        V5-CHG-1-patched stage2.py ("after"), (3) REAL, UN-RENAMED estimator
+        + V5-CHG-1-patched stage2.py (partial application, order A: dict fix
+        without the rename).
+      result: >-
+        ALL FOUR SCENARIOS MATCH THE EXPECTED / CLAIMED BEHAVIOUR EXACTLY,
+        confirmed by genuine code execution (verify_v5chg1_stage2_dict_fix.py
+        / verify_v5chg1_stage2_dict_fix_output.txt, this directory). Scenario
+        0 (real+real) reproduces the archived RUN-ECDLP-56ee42-S2 record's
+        {found:true, reads_k:true, k_refs_in_code:[seven "k"s], pass:false}
+        for "T3 (rudin_shapiro_sign_array)" exactly, confirming the scratch
+        harness itself is faithful. Scenario 1 ("before") gives EXACTLY
+        {found:false, reads_k:null, pass:false} for both T3 entries and
+        all_pass:false, matching V5-CHG-1's claimed "before" state precisely.
+        Scenario 2 ("after") gives EXACTLY {found:true, reads_k:false,
+        k_refs_in_code:[], pass:true} for both renamed T3 entries AND
+        all_pass:true across all eight functions.functions entries (T1/T2,
+        T4, COMPARATOR unaffected, still passing) -- this is the literal
+        outcome V5-RA-1 requires, now CONFIRMED BY ACTUAL EXECUTION rather
+        than by this Coordinator's own disclosed read-only line comparison.
+        Scenario 3 (partial application, dict fix without the rename) gives
+        all_pass:false (found:false for the new T3 entries against the
+        un-renamed source) -- FAILS SAFE, never a false all_pass:true. Since
+        scenario 1 already covers the OTHER partial-application order (rename
+        applied, dict fix not yet applied) and also fails safe, BOTH
+        orderings of an out-of-order, partial application of the
+        sequencing_dependency were tested and BOTH fail safe: a Stage-2
+        gate scored against an incoherent partial commit will correctly
+        report gate_failure, never a false pass that would let an
+        insufficiently-renamed or insufficiently-patched pipeline through.
+      new_minor_finding_incomplete_grep_claim: >-
+        V5-CHG-1's new_text_display_key_note claims "grepped, the only other
+        places these exact key strings appear are the archived, immutable
+        RUN-ECDLP-56ee42-S2/{raw-result.json, static-provenance-check.json}
+        records ... and the amendment-v4-review's own scratch files." This
+        review independently grepped the full repository
+        (`grep -rn "T3 (rudin_shapiro_sign"`) and found a THIRD location the
+        claim misses: experiments/EXP-ECDLP-56ee42/reviews/round-1/validator/
+        check_e_t3_dataflow_and_definition.py lines 41-42 hard-codes the
+        identical key strings ("T3 (rudin_shapiro_sign)": False, "T3
+        (rudin_shapiro_sign_array)": True) in its own STATIC_CHECK_FLAGGED
+        reference dict. Read in full: this is a completed, immutable,
+        round-1 review artifact (a one-off diagnostic script that already
+        ran and reported its findings in round-1's own report), never
+        re-invoked by any live stage, gate, or validator -- so the omission
+        is FUNCTIONALLY HARMLESS (renaming stage2.py's keys does not break
+        this script, since nothing re-runs it), but the "grepped, the only
+        other places" sentence is factually incomplete as written, in the
+        same small-precision-defect family this review chain has repeatedly
+        found and required fixed (cf. v4's "x-based" T2 mischaracterization,
+        v4's S2/S0 T3-citation overstatement).
+      verdict: >-
+        SUSTAINED -- the single highest-priority claim (V5-RA-1's required
+        before/after behaviour) is independently confirmed by ACTUAL CODE
+        EXECUTION, closing exactly the verification gap the amendment's own
+        drafting session disclosed it could not close. One minor, harmless
+        precision defect noted in a supporting claim (the "grepped" location
+        list), not in the operative fix itself.
+
+    change_2_power_check_budget_feasibility_V5_CHG_2:
+      what_was_checked: >-
+        (i) whether specification.yaml's Stage 0/1/2/3/4 budget arithmetic
+        (15h / 19h / 5h-unallocated) is correctly summed; (ii) whether the
+        required_invocation_split's {T17,T19,T21,T23} sum and the T25-alone
+        margin against 7200s are correctly computed from the review's own
+        cited timings; (iii) whether the N=10 fallback and its 80%/4-CPU-hour
+        trigger are self-consistent and pre-registered (stated before any
+        real timing or statistical data, not shaped to fit a result); (iv) an
+        independent, THIRD-sandbox re-timing of the underlying workload to
+        stress-test the "thin margin" characterization with new data, not
+        merely re-reading the amendment-v4-review's own number.
+      budget_arithmetic_result: >-
+        CONFIRMED CORRECT. 1h (Stage 0) + 1h (Stage 1 fixture) + 1h (Stage 2)
+        + 12h (Stage 3) = 15h; +4h contingent Stage 4 = 19h; 24h total minus
+        19h = 5h, exactly as the amendment states. The 0.8 x 5h = 4h trigger
+        threshold is also exactly correct arithmetic.
+      invocation_split_arithmetic_result: >-
+        CONFIRMED CORRECT using the review's own cited x20 timings: 8.90 +
+        40.18 + 218.98 + 1120.10 = 1388.16s for {T17,T19,T21,T23}, well under
+        7200s. T25 alone at 6763.92s is indeed "thin" against 7200s (6.1%
+        margin) as characterized, not a hidden error -- if anything the
+        characterization is appropriately, not excessively, cautious (see
+        the independent re-timing finding below, which suggests the true
+        margin may already be negative on slower hardware).
+      pre_registration_and_circularity_result: >-
+        The N=10 fallback's trigger is a TIMING measurement
+        (V5-RA-2's confirmed production cost vs. the 4-CPU-hour threshold),
+        never the power check's own STATISTICAL separation outcome -- so the
+        fallback decision cannot be shaped by, or correlated with, whether
+        C2a's separation later turns out BLOCKING or DIAGNOSTIC-ONLY. This
+        is genuinely non-circular and stated in advance of any real data, as
+        claimed.
+      NEW_FINDING_independent_cross_sandbox_retiming: >-
+        Independently re-ran the amendment-v4-review's own
+        change6_power_check_timing.py verbatim (byte-identical copy) on THIS
+        review's sandbox (verify_v5chg2_power_check_timing_own_sandbox.py /
+        _output.txt; full analysis in verify_v5chg2_cross_sandbox_note.txt,
+        this directory). T17-T23 completed before this review deliberately
+        killed the run at a 550s wall-clock cap (T25 alone would take
+        10-20+ minutes on this hardware -- disclosed, not hidden). Measured
+        ratios of THIS sandbox's x20 timings to the amendment-v4-review's own
+        sandbox: T17 1.97x, T19 1.64x, T21 1.67x, T23 1.85x slower (mean
+        ~1.78x), on IDENTICAL code and workload. Applying this review's own
+        observed ~1.78x factor to the amendment-v4-review's T25 single-rep
+        timing (338.20s) as an ILLUSTRATIVE, NOT CERTIFIED, extrapolation:
+        ~601.8s/rep x20 =~ 12,036s -- which would EXCEED the 7200s cap by
+        ~67%, not merely be "thin." This is independently-gathered evidence
+        (a genuine third data point, not a re-reading of the review's own
+        number) that cross-sandbox variance for this workload is large
+        enough that the "thin margin" could plausibly already be a REAL
+        excess on production hardware, not merely a close call. This
+        REINFORCES rather than undermines V5-CHG-2's own design: V5-RA-2's
+        required pre-dispatch production-timing confirmation gate is doing
+        real, load-bearing work, and the Coordinator should treat the N=10
+        fallback (or a further re-split) as a LIKELY outcome, not a remote
+        contingency, when interpreting "N=20 proceeds" as the default case.
+        The SAME illustrative ~1.78x factor applied to the N=10 fallback's
+        T25 cost (~601.8*10 =~ 6018s) still fits under 7200s with real
+        margin, and to the {T17,T19,T21,T23} bundle (1388.16*1.78 =~ 2471s)
+        stays comfortably under 7200s even at N=20 -- independent, if
+        illustrative, support that V5-CHG-2's fallback SHAPE (T25 is the
+        rung at risk; the other four are not) is sound, even though exact
+        numbers require V5-RA-2's own production confirmation before any
+        dispatch.
+      NEW_FINDING_stage_count_miscount: >-
+        V5-CHG-2's own budget_line_item_classification paragraph states the
+        power check "is not itself one of Stages 0-4" because
+        specification.yaml's "a run" definition is "scoped to the four
+        numbered stages (0-4)" -- but 0, 1, 2, 3, 4 is FIVE numbered stages,
+        not four (confirmed by direct re-count against specification.yaml's
+        own budget note, which itemizes Stage 0 through Stage 4 inclusive).
+        This is a small, harmless arithmetic/counting slip: it does not
+        change the substantive (and correct) conclusion that the power check
+        is not itself a numbered stage invocation, but it is a load-bearing
+        sentence (the justification for "does NOT count against
+        maximum_runs: 12") stated with an internally inconsistent count.
+        Independently, this review also re-confirmed (grep) that v3's own
+        justification_for_this_choice text contains a DIFFERENT,
+        pre-existing arithmetic slip on the SAME topic (Stage-budget
+        arithmetic): "the budget note already prices Stage 0 at 1h, Stage
+        1's fixture run at 1h, and Stage 2 at 1h (2 CPU-hours combined ...)"
+        -- 1+1+1 = 3, not 2. This v3-era error has now survived FOUR
+        independent review passes (round-1, amendment-v3-review,
+        amendment-v4-review, and this one) uncaught; it is directly on-topic
+        for what this review round was specifically asked to check
+        ("independently redo the arithmetic from specification.yaml's budget
+        note") and is named here for the first time. Neither slip changes
+        any operative conclusion (both undercounted totals, if anything,
+        UNDERSTATE the budget's true committed hours, which is the
+        conservative direction), but both are worth correcting the next time
+        this amendment chain is touched, on the same "small, checkable
+        precision defect in a load-bearing sentence" grounds every prior
+        round in this chain has applied to other text.
+      unresolved_ambiguity_confirmation_gate_rep_counting: >-
+        V5-RA-2 requires the Executor to time "at least one full repetition
+        (17 FFTs) at each of T17, T19, T21, T23, T25" against the ACTUAL
+        production implementation before the full schedule is dispatched.
+        Neither V5-CHG-2 nor V5-RA-2 states whether these confirmation-gate
+        repetitions COUNT toward the eventual N=20 (or N=10) schedule's own
+        repetition count (rep=0 of the "real" schedule, reusing the same
+        deterministic seed_schedule), or are a SEPARATE, discarded
+        measurement (an extra, uncounted 5 repetitions' worth of compute).
+        This does not corrupt the pre-registration discipline either way
+        (the regime rule itself does not change based on which choice is
+        made), but it is an unspecified bookkeeping detail of exactly the
+        "define before you run it" kind this review chain has repeatedly
+        required pinned down elsewhere (cf. V3-CHG-4's seed-manifest
+        requirement, V4-CHG-6's own seed-schedule pinning). Worth a required
+        control naming the choice explicitly before the Executor runs it.
+      maximum_runs_interpretation_note: >-
+        V5-CHG-2's claim that the power check does not count against
+        maximum_runs: 12 rests on an INTERPRETIVE GLOSS of specification.
+        yaml's "a run is one stage invocation over all six rungs" sentence
+        (which itself says nothing explicit about being restricted to
+        Stages 0-4), not a verbatim textual guarantee. The reading is
+        plausible and consistent with the budget note's own stage-by-stage
+        itemization, but it is a reasonable INFERENCE, not a textually
+        forced one -- worth the Coordinator explicitly ratifying this
+        reading in the decision that relies on it, rather than treating it
+        as self-evidently settled by specification.yaml's frozen text alone.
+      verdict: >-
+        SUSTAINED -- the load-bearing arithmetic (budget total, invocation
+        split, trigger threshold) is independently verified correct, and the
+        N=10 fallback is genuinely pre-registered and non-circular. Several
+        minor completeness items (the stage-count miscount, the v3-era "2
+        CPU-hours" slip surfaced in passing, the confirmation-gate
+        rep-counting ambiguity, the maximum_runs interpretation) are named as
+        required_controls below; none of them changes the correctness of
+        V5-CHG-2's core design, and this review's own independent
+        cross-sandbox timing REINFORCES rather than undermines the necessity
+        and realism of the required V5-RA-2 confirmation gate.
+
+    change_3_power_check_content_verification_V5_CHG_3:
+      what_was_checked: >-
+        Whether the added `git show <sha>:<path> | sha256sum` content check
+        genuinely closes the amendment-v4-review's demonstrated
+        content-blindness gap without introducing a new gap of its own (e.g.
+        a crafted-but-matching hash scenario, or an obvious hole in the
+        "Coordinator manually runs both commands" fallback); and whether
+        naming the tools/validate_ledger.py schema gap as a "required
+        follow-up" rather than implementing it now is a reasonable scoping
+        choice or leaves V5-CHG-3 as toothless as V4-CHG-7 was.
+      method: >-
+        Independently built a FRESH throwaway git repository (not a copy of
+        the amendment-v4-review's own change7_ancestor_check_gap_demo.sh;
+        written from scratch as
+        verify_v5chg3_ancestor_check_gap_demo.sh, this directory) with the
+        same four-commit shape (unrelated A, unrelated B, real-artifact C,
+        later-HEAD D), and independently re-ran BOTH V4-CHG-7's ancestry
+        check and V5-CHG-3's added content check against both the correct
+        sha (C) and the wrong-but-ancestor sha (A). Separately, ran a
+        round-trip content-hash test on a REAL, already-committed text file
+        in this repository (verify_v5chg3_sha256_content_check.sh / _output.
+        txt) to confirm `git show HEAD:<path> | sha256sum` reproduces a
+        plain `sha256sum <path>` exactly for a YAML-shaped artifact of the
+        kind power_check_results.yaml would be, and checked the repository's
+        only .gitattributes rule (git-lfs on two specific stage-cache .npy
+        files) does not apply to anything under this experiment's amendments/
+        or reviews/ trees, so no filter/line-ending distortion is a risk for
+        the artifact V5-CHG-3 is meant to protect.
+      result: >-
+        CONFIRMED on both counts. (1) The ancestry check ALONE is confirmed,
+        independently, to pass identically (exit 0) for both the correct sha
+        C and the wrong-but-ancestor sha A -- re-demonstrating the
+        amendment-v4-review's own finding with a freshly written script
+        rather than trusting its output. (2) V5-CHG-3's added content check
+        genuinely closes this EXACT gap: `git show A:<path>` fails outright
+        (exit 128, "path ... exists on disk, but not in <sha A>") because
+        commit A's tree has no such file at all, so the combined check (both
+        required, neither sufficient alone, per V5-CHG-3's own text)
+        correctly rejects A while accepting C. (3) The sha256 round-trip is
+        confirmed byte-identical for a real committed text file in this
+        repository, and no LFS/line-ending filter applies to the artifact
+        type in question -- the mechanism is sound for what it protects.
+        (4) On the "obvious enforcement hole" question: V5-CHG-3 does NOT
+        overclaim automation it lacks -- unlike V4-CHG-7's own text ("MUST
+        be verified mechanically -- not merely asserted in prose," while no
+        tool implemented the check), V5-CHG-3 explicitly and honestly names
+        the current state as a manual, human/Coordinator-run-and-paste
+        stopgap, and defers real tooling (wiring both fields into
+        tools/validate_ledger.py's handoff schema, a mechanical verification
+        script) to a named "required follow-up," consistent with this
+        amendment's own write_scope (amendments/ only, no tools/ edits
+        permitted). This is a genuine improvement in HONESTY over V4-CHG-7's
+        overclaim, even though the underlying automation gap is not closed
+        -- it is now, if anything, LARGER in surface area (two manual
+        commands a Coordinator must remember to run and paste correctly,
+        instead of one), which is worth naming as a required control rather
+        than left purely as a "named but not required" follow-up.
+      verdict: >-
+        SUSTAINED -- the demonstrated content-blindness gap is genuinely
+        closed for the exact scenario the amendment-v4-review exhibited,
+        independently re-confirmed with a fresh throwaway git repository and
+        a real-file sha256 round-trip test. The residual "not yet wired into
+        any validator" limitation is honestly disclosed (not overclaimed,
+        unlike V4-CHG-7), but is now a two-manual-check surface rather than
+        one, and should be escalated from "named follow-up" to a required
+        control given the pattern of every prior manual-only check in this
+        chain eventually needing tooling.
+
+    change_4_c2a_diagnostic_disclosure_wording_fix_V5_CHG_4:
+      what_was_checked: >-
+        Whether "coordinate-based (non-planted)" accurately and precisely
+        characterizes EVERY one of C2a, T1, T2, T3, T4, and the frozen
+        COMPARATOR arm without introducing a NEW mischaracterization, by
+        direct re-check of each arm's own definition in specification.yaml.
+      result: >-
+        CONFIRMED accurate for all six, by direct re-read of
+        specification.yaml's arms block: T1 (Thue-Morse sign of x) and T3
+        (Rudin-Shapiro sign of x) and T4 (popcount of x mod 4) and COMPARATOR
+        (top bit of x) are each a function of the x-coordinate; T2
+        (Thue-Morse sign of y) is a function of the y-coordinate; C2a
+        (x_bucket_partition(x(R), p, s=2), per v3's leg_C2a formula) is a
+        function of x. "Coordinate-based" (a coordinate of the point R,
+        either x or y) covers all six uniformly and correctly, without
+        claiming any of them is specifically a function of x -- resolving
+        exactly the T2 mischaracterization the amendment-v4-review found,
+        with no new mischaracterization introduced anywhere in the six-arm
+        list. "Non-planted" is likewise accurate for all six (none reads k;
+        POS-A/POS-B/NULL-1, which DO read k, are correctly excluded from this
+        parenthetical both before and after the fix).
+      verdict: SUSTAINED -- no break found; the corrected wording is precise and complete.
+
+    additional_findings_beyond_the_four_named_gaps:
+      note_on_scope_boundary_and_nonclaims: >-
+        Confirmed, by direct re-read: v5's authority_boundary (claim_ceiling:
+        protocol_repair_only_no_compute_no_status_transition;
+        execution_authorized_by_this_amendment: false;
+        dispatch_hold_cleared_by_this_amendment: false; no
+        experiment/hypothesis/goal status transition) and nonclaims list
+        (no claim H-ECDLP-a4be60 is supported/refuted/advanced; no claim
+        about C2a's/T3's actual measured values; no claim the 8152.1s timing
+        is certified; no claim of independent re-execution of the review's
+        own scripts beyond what this Coordinator's session could do; no
+        authorization of execution or dispatch-hold clearing) are consistent
+        with each other and with specification.yaml's class: heuristic-
+        validation / "NO ATTACK is run" framing. No ECDLP solve, key
+        recovery, or hypothesis-status claim is made anywhere in v5. This
+        review found NOTHING that expands v5's actual claim beyond what its
+        own nonclaims disclose.
+      note_on_opened_by_null: >-
+        Unlike v2/v3/v4 (each opened_by a specific DEC-* record), v5 is
+        opened_by: null, with an explicit, honest disclosure
+        (opened_by_note) that no Coordinator decision yet directs this
+        drafting task -- it was drafted directly from the amendment-v4-
+        review's own required_controls / next_concrete_action. This is a
+        disclosed departure from this chain's own prior practice, not a
+        silent one, and is consistent with AGENTS.md's "drafting is not
+        authorization" principle (an amendment may exist as a committed,
+        unapproved record before the decision that opens or relies on it).
+        Not a defect; named here only because the task instructions ask this
+        review to read v5 "the amendment under review" carefully in full,
+        and this is a genuine, if minor, procedural difference from its
+        three predecessors worth the Coordinator's attention when it drafts
+        the decision v5's own next_step calls for.
+      pattern_observation: >-
+        Every one of this repair chain's four review rounds to date --
+        round-1 (v2: BROKEN), amendment-v3-review (v3: REVISE, five gaps),
+        amendment-v4-review (v4: REVISE, three required_controls plus one
+        new load-bearing finding) -- found at least one small, independently
+        checkable, "grepped and cited" precision claim to be inaccurate: J1's
+        T3-definition mismatch, the amendment-v3-review's "regardless of what
+        c" Weil-bound overclaim, the amendment-v4-review's "x-based" T2
+        mischaracterization and its S2/S0 T3-citation overstatement. This
+        round is no exception: the "grepped, the only other places" claim in
+        V5-CHG-1 and the "four numbered stages (0-4)" miscount in V5-CHG-2
+        are both, independently, inaccurate in the same small, checkable
+        way, though both are harmless to their surrounding argument's
+        substance. Named here as a STANDING PATTERN (a fatigue/precision
+        observation about how this chain's drafting sessions verify their
+        own "grepped" and "counted" claims), not as a finding that changes
+        this review's verdict on any individual change -- but worth a
+        process note: a drafting session that has no code-execution tool
+        (disclosed, consistently, in every one of v3/v4/v5's provenance
+        blocks) is also, evidently, not running its own grep/count claims
+        through a second pass before committing them, and a cheap fix (a
+        literal `grep -c` or `wc -l` sanity check before asserting a location
+        count or a stage count) would have caught both of this round's
+        instances at zero additional cost.
+
+  # =========================================================================
+  # STANDARD RED-TEAM FIELDS
+  # =========================================================================
+  objections:
+    - >-
+      (V5-CHG-1, minor) The "grepped, the only other places these exact key
+      strings appear" claim is factually incomplete: this review's own grep
+      found a third location, experiments/EXP-ECDLP-56ee42/reviews/round-1/
+      validator/check_e_t3_dataflow_and_definition.py lines 41-42, which the
+      amendment's grep missed. Functionally harmless (that script is a
+      completed, immutable, non-re-invoked round-1 artifact), but the claim
+      as written overstates what was actually checked.
+    - >-
+      (V5-CHG-2, minor) The load-bearing sentence justifying the
+      maximum_runs:12 exemption miscounts specification.yaml's "Stage 0
+      through Stage 4" as "the four numbered stages (0-4)" -- 0-4 inclusive
+      is five stages, not four. Harmless to the conclusion, but a checkable
+      arithmetic slip in a sentence whose entire purpose is precise counting.
+      A related, pre-existing v3-era slip on the same topic ("2 CPU-hours
+      combined" for three separately-priced 1h stages) was also found in
+      passing and has survived four review rounds uncaught until now.
+    - >-
+      (V5-CHG-2, minor) V5-RA-2's required pre-dispatch confirmation gate
+      does not state whether its own single-repetition timing runs at each
+      rung count toward the eventual N=20/N=10 schedule's repetition total,
+      or are separate, discarded measurements -- an unspecified bookkeeping
+      detail of the same "define before you run it" kind this chain has
+      required pinned down elsewhere.
+    - >-
+      (V5-CHG-3, minor) The content-verification fix genuinely closes the
+      demonstrated gap (independently re-confirmed with a fresh throwaway git
+      repository), but its enforcement remains entirely manual
+      (Coordinator-run-and-paste), and is now a TWO-command manual surface
+      rather than V4-CHG-7's one-command surface -- a real, if honestly
+      disclosed, increase in the chance a Coordinator skips, mis-runs, or
+      rubber-stamps one of the two required checks.
+
+  required_controls:
+    - >-
+      Correct V5-CHG-1's new_text_display_key_note to also name
+      reviews/round-1/validator/check_e_t3_dataflow_and_definition.py as a
+      third (harmless, historical) location where the retired key strings
+      appear, so the "grepped, the only other places" claim is accurate as
+      written.
+    - >-
+      Correct V5-CHG-2's "the four numbered stages (0-4)" to "the five
+      numbered stages (0-4)" (or equivalent phrasing), and separately correct
+      v3's own pre-existing "(2 CPU-hours combined ...)" arithmetic (should
+      read 3 CPU-hours) the next time that text is touched.
+    - >-
+      Before V5-RA-2's confirmation-gate timing runs are executed, state
+      explicitly whether each rung's single confirmation repetition is
+      reused as repetition 0 of the eventual N=20/N=10 schedule (same seed)
+      or is a separate, discarded measurement -- committed alongside the
+      other pre-registered choices this amendment already pins.
+    - >-
+      Given that V5-CHG-3 doubles (from one to two) the number of manually
+      run-and-pasted git commands a calibration-run task card depends on,
+      escalate the "required follow-up" tooling (wiring
+      power_check_ancestor_commit_sha and power_check_artifact_sha256 into
+      tools/validate_ledger.py's handoff schema, plus a small verification
+      script implementing both checks mechanically) from a named-but-optional
+      follow-up to an explicit required_control the Coordinator schedules
+      before or alongside the calibration run's task card, rather than
+      indefinitely deferring it.
+    - >-
+      Before ratifying that the power check does not count against
+      maximum_runs: 12, have the Coordinator explicitly record (in the
+      decision that relies on V5-CHG-2) that this is the adopted
+      interpretation of specification.yaml's "a run is one stage invocation
+      over all six rungs" language, since the amendment's own text rests
+      this conclusion on a gloss ("scoped to the four numbered stages")
+      that is not itself verbatim in the frozen specification.
+
+  counterexample_or_mutation: >-
+    The single cheapest, most decisive check available for V5-CHG-1 was
+    exactly the one this review performed: build the v3-renamed
+    estimator.py independently (not from the prior review's own
+    reconstruction file), and ACTUALLY IMPORT AND RUN the real,
+    currently-committed stage2.py's own static_provenance_check() function
+    against it, before and after V5-CHG-1's two-line dict edit -- closing
+    the gap every prior drafting session in this chain (v3, v4, v5 itself)
+    explicitly disclosed it could not close for lack of a code-execution
+    tool. A second, equally cheap mutation -- reversing the order of
+    application (dict fix without the rename) -- surfaced the useful
+    positive finding that an incoherent partial commit fails SAFE rather
+    than dangerously. A third mutation, re-timing the SAME power-check
+    workload on a THIRD sandbox rather than trusting the amendment-v4-
+    review's own single number, surfaced real (~1.7-2x) cross-sandbox
+    variance that materially sharpens (without breaking) the "thin margin"
+    finding V5-CHG-2 already discloses.
+
+  baseline_comparison: >-
+    Not applicable in the Pollard-rho/BSGS sense: EXP-ECDLP-56ee42 is a
+    heuristic-validation digit-statistic measurement (class:
+    heuristic-validation; no attack, no key; confirmed unchanged by v5's own
+    nonclaims), and this amendment is a protocol/process repair of that
+    experiment's control instrumentation and sequencing discipline, not an
+    asymptotic solver claim. No baseline algorithm comparison applies.
+
+  heuristic_challenges:
+    - >-
+      As with the amendment-v4-review, none of v5's four changes touch H1's
+      own random-model justification (A(v) = O(sqrt(log n / n)) for a
+      uniform +-1 sequence heuristic applied to the digit-family Fourier
+      coefficients); this remains exactly the open, untouched question
+      EXP-ECDLP-56ee42 exists to test. Recorded per red-team.md's standing
+      instruction; v5's own nonclaims correctly disclaim any such claim.
+
+  cost_model_challenges:
+    - >-
+      V5-CHG-2's budget-feasibility repair is itself independently confirmed
+      arithmetically sound (15h/19h/5h; the invocation-split sums; the
+      80%/4-CPU-hour trigger), and this review's own independent, third-
+      sandbox re-timing of the underlying workload (~1.7-2x slower than the
+      amendment-v4-review's sandbox on identical code) reinforces rather than
+      undermines the case that the required V5-RA-2 production-timing
+      confirmation gate is load-bearing, not a formality: on this review's
+      own hardware, an illustrative extrapolation of the T25-alone
+      invocation would EXCEED the 7200s cap by roughly two-thirds, whereas
+      the {T17,T19,T21,T23} bundle and the N=10 fallback both retain real
+      margin even under the same illustrative slowdown. Total expected cost
+      here is correctly understood as per-repetition cost x repetitions x
+      rungs actually dispatched, not a single per-attempt number -- exactly
+      the aggregation V5-CHG-2 (unlike v3/v4 before it) now requires be
+      measured and gated before dispatch.
+
+  reduction_and_scope_challenges: []
+  proof_architecture_challenges: []
+
+  narrowest_supported_statement: >-
+    Of v5's four changes: (1) V5-CHG-1 (the stage2.py static-provenance dict
+    fix, the highest-priority item) is verified CORRECT end to end by
+    ACTUALLY EXECUTING the real, unmodified stage2.py's own
+    static_provenance_check() function against an independently constructed
+    v3-renamed estimator.py, both before and after the fix -- the exact
+    before/after behaviour the amendment claims
+    ({found:false,...} / {found:true, reads_k:false, pass:true, all_pass:
+    true}) is reproduced exactly by genuine code execution, and both orders
+    of an incoherent partial application are confirmed to fail SAFE rather
+    than dangerously. One harmless, minor precision defect noted in a
+    supporting "grepped" claim, not in the fix itself. (2) V5-CHG-2 (power-
+    check budget feasibility) has independently-verified-correct arithmetic
+    throughout (the 15h/19h/5h accounting, the invocation-split sums, the
+    80%/4-CPU-hour trigger) and a genuinely pre-registered, non-circular
+    N=10 fallback; this review's own third-sandbox re-timing independently
+    reinforces (does not undermine) the practical necessity of the required
+    V5-RA-2 confirmation gate. Minor completeness gaps remain (a stage-count
+    miscount, an unspecified confirmation-gate rep-counting detail, an
+    interpretive-not-textual reading for the maximum_runs exemption). (3)
+    V5-CHG-3 (power-check content verification) is independently
+    re-confirmed, with a freshly built throwaway git repository, to close
+    the exact demonstrated content-blindness gap; it is honestly (not
+    overclaimed) scoped as a manual stopgap pending real tooling, an
+    improvement in candour over V4-CHG-7's own overclaim, though the
+    now-doubled manual-check surface is worth escalating to a required
+    control. (4) V5-CHG-4 (wording fix) is independently confirmed accurate
+    for every one of the six named arms against their actual
+    specification.yaml definitions, with no new mischaracterization
+    introduced. UNLIKE each of the three prior rounds in this chain (v2
+    BROKEN; v3 REVISE on five gaps; v4 REVISE on three required_controls
+    plus one new load-bearing gap), this review -- despite applying the
+    "added force" scrutiny the drafting session itself requested, including
+    genuine code execution the three prior drafting sessions explicitly
+    disclosed they lacked -- finds NO load-bearing defect, blocking gate
+    failure, or soundness break in v5's four changes. The items found (two
+    small precision/wording slips, one bookkeeping ambiguity, one
+    already-honestly-disclosed manual-enforcement gap) are real and worth
+    fixing but do not, on their own or combined, prevent the required Stage
+    0-2 re-run, the power check, or the C2 calibration run from being
+    dispatched once V5-CHG-1 through V5-CHG-4 are applied together with
+    V3-CHG-2's rename and V4-CHG-5's selftest.py replacement, as the
+    amendment's own sequencing_dependency requires.
+
+  next_concrete_action: >-
+    Before a Coordinator decision authorizes dispatch of the Stage 0-2
+    re-run, the power check, or the C2 calibration run: (a) apply the five
+    required_controls above (two are one-line wording/count corrections; one
+    is a bookkeeping detail to pin down before V5-RA-2's timing runs are
+    executed; one escalates V5-CHG-3's named tooling follow-up to a required,
+    scheduled item; one asks for an explicit Coordinator ratification of the
+    maximum_runs reading) -- none of these blocks dispatch on its own merits,
+    but all are cheap to close now rather than carried forward as open
+    items into a sixth amendment; (b) when the Executor actually runs
+    V5-RA-1's re-verification against the real, post-rename estimator.py and
+    stage2.py, and V5-RA-2's production-timing confirmation, this review's
+    own verify_v5chg1_stage2_dict_fix.py and
+    verify_v5chg2_power_check_timing_own_sandbox.py / cross-sandbox note may
+    be cited directly as prior, independent evidence rather than re-derived
+    from scratch, per this chain's own established practice of citing a
+    prior review's scripts directly (v5 itself did this for the amendment-
+    v4-review's scripts). Given this review's own independent cross-sandbox
+    timing finding, the Coordinator should specifically plan for the N=10
+    fallback (or a further re-split) as the LIKELY outcome of V5-RA-2's
+    confirmation, not a remote contingency, when scheduling the calibration
+    run.
+
+  verdict: SUSTAINED
+  verdict_detail: >-
+    This is the fourth amendment in this repair chain and the first to
+    receive a SUSTAINED verdict from independent review without a
+    completeness-driven REVISE. The verdict is reached ON THE EVIDENCE
+    GATHERED, not against the prior expectation the task explicitly warned
+    against assuming: this review applied the "added force" scrutiny v5's
+    own drafting session requested, including genuine code execution (all
+    three prior drafting sessions -- v3, v4, and v5 itself -- explicitly and
+    consistently disclosed they had no code-execution tool and relied on
+    reading code; this review does have one and used it for exactly the
+    claims that mattered most). V5-CHG-1, the highest-priority item and the
+    one whose predecessor gap (v4's undiscovered stage2.py finding) was the
+    most consequential of any found in this chain, is CONFIRMED CORRECT by
+    actually running the real, unmodified stage2.py's own function against
+    constructed inputs, in both the "before" and "after" states the
+    amendment claims, plus two additional partial-application mutations
+    neither the amendment nor its predecessor review tested, both of which
+    fail safe. V5-CHG-3's content-verification fix is independently
+    re-confirmed with a freshly built (not copied) throwaway git repository.
+    V5-CHG-4's wording fix is independently confirmed accurate against every
+    named arm's actual specification.yaml definition. V5-CHG-2's arithmetic
+    is independently re-derived and confirmed correct, and this review's own
+    third-sandbox timing run adds a genuinely new, independently-gathered
+    data point that REINFORCES (never undermines) the necessity of the
+    required V5-RA-2 confirmation gate. What this review found beyond the
+    four named items is real but consistently minor: two small, checkable
+    precision/counting slips (of the same class every prior round in this
+    chain has also found and required corrected, now named as a standing
+    pattern rather than treated as new evidence of instability), one
+    unspecified bookkeeping detail (confirmation-gate rep-counting), and one
+    honestly-disclosed (not overclaimed) manual-enforcement gap that has
+    grown from one command to two. None of these breaks any of v5's four
+    changes, blocks the required re-run's own gates once V5-CHG-1 is applied
+    together with V3-CHG-2/V4-CHG-5 as specified, or leaves any evidentiary
+    hole comparable to what round-1, the amendment-v3-review, or the
+    amendment-v4-review each found in their respective predecessors. Per
+    this program's "narrowest valid conclusion" discipline and per this
+    chain's own established practice of naming what remains open rather than
+    treating a clean pass as licence to stop scrutinizing: the five
+    required_controls above should still be applied (cheaply, and ideally in
+    the same coherent commit V5-CHG-1's sequencing_dependency already
+    requires for the estimator.py/stage2.py/selftest.py changes), but none
+    of them rises to the level that blocked dispatch in any of the three
+    prior rounds. SUSTAINED, not SUSTAINED-clean: the required_controls are
+    real, not decorative, and should be closed before the Coordinator
+    decision that this amendment's own next_step calls for is finalized.
+
+  # =========================================================================
+  # BLINDNESS / PROCESS ATTESTATION
+  # =========================================================================
+  review_attestation:
+    joints_owned: >-
+      No review_plan was issued for this task (task card assigned all four
+      named changes plus an open-ended search beyond them to this single
+      reviewer; not a multi-reviewer blind round). All four joints
+      (V5-CHG-1 through V5-CHG-4) plus the open-ended search were owned by
+      this review alone.
+    reads_in_order:
+      - experiments/EXP-ECDLP-56ee42/specification.yaml
+      - agents/red-team.md
+      - AGENTS.md
+      - experiments/EXP-ECDLP-56ee42/amendments/v3_comparator_and_t3_repair.yaml
+      - experiments/EXP-ECDLP-56ee42/amendments/v4_power_check_and_selftest_repair.yaml
+      - experiments/EXP-ECDLP-56ee42/reviews/amendment-v4-review/report.yaml
+      - experiments/EXP-ECDLP-56ee42/amendments/v5_stage2_provenance_and_power_check_budget_repair.yaml
+      - experiments/EXP-ECDLP-56ee42/implementation/stage2.py
+      - experiments/EXP-ECDLP-56ee42/implementation/estimator.py
+      - experiments/EXP-ECDLP-56ee42/implementation/stage0.py
+      - experiments/EXP-ECDLP-56ee42/reviews/amendment-v4-review/full_patched_estimator_v3only.py
+      - experiments/EXP-ECDLP-56ee42/reviews/amendment-v4-review/stage2_static_provenance_break.py
+      - experiments/EXP-ECDLP-56ee42/reviews/amendment-v4-review/stage2_static_provenance_break_output.txt
+      - experiments/EXP-ECDLP-56ee42/reviews/amendment-v4-review/change6_power_check_timing.py
+      - experiments/EXP-ECDLP-56ee42/reviews/amendment-v4-review/change6_power_check_timing_output.txt
+      - experiments/EXP-ECDLP-56ee42/implementation/runs/RUN-ECDLP-56ee42-S0/raw-result.json
+      - experiments/EXP-ECDLP-56ee42/implementation/runs/RUN-ECDLP-56ee42-S2/raw-result.json
+      - experiments/EXP-ECDLP-56ee42/reviews/round-1/validator/check_e_t3_dataflow_and_definition.py
+      - .gitattributes
+    git_provenance_check: >-
+      Reviewed the Coordinator-committed snapshot content of every file
+      listed above via direct Read of the working tree, per this task's
+      instructions naming specific committed artifacts (not a HEAD sha to
+      pin). No ledger, amendment, or implementation file was edited by this
+      review. All code-execution verification was performed against
+      RECONSTRUCTED COPIES held only in this review's own write_scope
+      directory (experiments/EXP-ECDLP-56ee42/reviews/amendment-v5-review/)
+      or in an ISOLATED THROWAWAY GIT REPOSITORY under /tmp (deleted after
+      use, per the demo script's own cleanup), built by diffing/substituting
+      against the real committed files read directly, never against the
+      committed implementation files themselves, and never against the
+      live experiment's own runs/ directory.
+    computations_performed: >-
+      verify_v5chg1_stage2_dict_fix.py (independently constructs a
+      v3-renamed estimator.py from the real committed file, and ACTUALLY
+      IMPORTS AND RUNS the real, unmodified/V5-CHG-1-patched stage2.py's own
+      static_provenance_check() function -- not a reimplementation -- across
+      four scenarios, with assertions checking every claimed before/after
+      value and two partial-application orderings); verify_v5chg3_ancestor_
+      check_gap_demo.sh (a freshly written, independent throwaway git
+      repository re-demonstrating V4-CHG-7's content-blindness gap and
+      confirming V5-CHG-3's added check closes it);
+      verify_v5chg3_sha256_content_check.sh (a round-trip sha256 check on a
+      real committed text file in this repository, confirming no LFS/
+      line-ending distortion for the artifact type V5-CHG-3 protects);
+      verify_v5chg2_power_check_timing_own_sandbox.py (an independent,
+      third-sandbox re-timing of the amendment-v4-review's own power-check
+      workload, deliberately time-capped and disclosed as partial). All
+      outputs captured verbatim in this directory's own *_output.txt /
+      *_note.txt files. Total wall clock across all scripts: under 15
+      minutes, well inside the review task's own budget. No stage of
+      EXP-ECDLP-56ee42 was executed; no run record was created; no discrete
+      log k was touched; no stage-cache was read or required.
+    external_retrieval_disclosed: >-
+      None required for this task -- every load-bearing claim checked here
+      was checkable by direct code execution, direct file comparison, or
+      direct arithmetic against files already committed in this repository;
+      no recalled citation was load-bearing to any finding in this review.
+    read_sibling_reports: >-
+      N/A -- no review_plan was issued for this task; round-1, the
+      amendment-v3-review, and the amendment-v4-review reports were read as
+      REQUIRED INPUTS per the task card (to calibrate expected rigor and
+      understand what v5 responds to), not as a blind-sibling constraint.
+    write_scope_respected: >-
+      Wrote only under experiments/EXP-ECDLP-56ee42/reviews/amendment-v5-
+      review/. No spec, amendment, or implementation file was edited. All
+      "patched" estimator.py / stage2.py reconstructions used for
+      verification are held ONLY in this directory's scratch_v5chg1/
+      subdirectory (with __pycache__ directories removed after use) as
+      scratch evidence, never written back over the real implementation
+      files. The one throwaway git repository used for the ancestor-check
+      demonstration was created under /tmp and deleted by the demo script
+      itself after use. No commit was made by this session (commits are the
+      Coordinator's ledger-archive task).
+
+  model_provenance:
+    requested_policy: review-adversarial
+    requested_reasoning_effort: xhigh
+    runtime: claude_code
+    independent_session: true
+    resolved_model_id_self_reported: claude-sonnet-5
+    resolved_model_id_note: >-
+      Genuine self-report from this session's own runtime system context
+      ("You are powered by the model named Sonnet 5. The exact model ID is
+      claude-sonnet-5."), matching this repository's own effort table
+      (CLAUDE.md "Model policy note": red-team -> review-adversarial ->
+      xhigh) and .claude/agents/red-team.md's frontmatter. Not independently
+      probe-confirmed against orchestration/model-bindings.yaml (no live
+      backend probe tool is on this session's surface); this matches the
+      same disclosed, structural limitation round-1, the amendment-v3-
+      review, and the amendment-v4-review each recorded, not a new gap
+      introduced here.
+    fallback_used: false
+    degraded_allowed: false
+    degraded_requirements: []
+
+  artifact_paths:
+    - experiments/EXP-ECDLP-56ee42/reviews/amendment-v5-review/report.yaml
+    - experiments/EXP-ECDLP-56ee42/reviews/amendment-v5-review/verify_v5chg1_stage2_dict_fix.py
+    - experiments/EXP-ECDLP-56ee42/reviews/amendment-v5-review/verify_v5chg1_stage2_dict_fix_output.txt
+    - experiments/EXP-ECDLP-56ee42/reviews/amendment-v5-review/scratch_v5chg1/
+    - experiments/EXP-ECDLP-56ee42/reviews/amendment-v5-review/verify_v5chg2_power_check_timing_own_sandbox.py
+    - experiments/EXP-ECDLP-56ee42/reviews/amendment-v5-review/verify_v5chg2_power_check_timing_own_sandbox_output.txt
+    - experiments/EXP-ECDLP-56ee42/reviews/amendment-v5-review/verify_v5chg2_cross_sandbox_note.txt
+    - experiments/EXP-ECDLP-56ee42/reviews/amendment-v5-review/verify_v5chg3_sha256_content_check.sh
+    - experiments/EXP-ECDLP-56ee42/reviews/amendment-v5-review/verify_v5chg3_sha256_content_check_output.txt
+    - experiments/EXP-ECDLP-56ee42/reviews/amendment-v5-review/verify_v5chg3_ancestor_check_gap_demo.sh
+    - experiments/EXP-ECDLP-56ee42/reviews/amendment-v5-review/verify_v5chg3_ancestor_check_gap_demo_output.txt
