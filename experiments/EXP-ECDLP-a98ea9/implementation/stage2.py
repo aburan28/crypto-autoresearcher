@@ -28,7 +28,7 @@ from runrecord import _dump_yaml, write_run_record
 from static_provenance import check_kfree_module
 
 HERE = Path(__file__).resolve().parent
-RUN_DIR = HERE.parent / "runs" / "RUN-ECDLP-a98ea9-S2"
+RUN_DIR = HERE.parent / "runs" / "RUN-ECDLP-a98ea9-S2b"
 SEEDS = [3, 5, 7, 11, 13, 17, 19, 23]
 WEIGHTS = [1.0, 0.2, 0.06, 0.02]
 SIBLING_XBUCKET = {2: 0.530, 3: 0.394, 4: 0.342, 5: 0.282}
@@ -222,6 +222,7 @@ def known_answer() -> dict:
     values = []
     P = jac_infinity()
     on_fibre = []
+    off_vals: set[int] = set()
     off_large = 0
     for k in range(n):
         if k == 0:
@@ -231,16 +232,17 @@ def known_answer() -> dict:
         ax, _ = affine_xy(curve, P, mod)
         val = valuation((ax - x_ref) % mod, curve.p, r, mod)
         values.append(val)
-        on = k % n in (1, n - 1)
+        on = k in (1, n - 1)
         if on:
             on_fibre.append({"k": k, "valuation": val})
-        elif val >= r:
-            off_large += 1
+        else:
+            off_vals.add(val)
+            if val >= r:
+                off_large += 1
         P = jac_add(curve, P, Shat, mod)
     finite = [v for v in values if v is not None]
     image = sorted(set(finite))
     on_vals = {c["valuation"] for c in on_fibre}
-    off_vals = {finite[k] for k in range(n) if k != 0 and k not in (1, n - 1)}
     two_valued = len(image) == 2
     large = max(image) if image else None
     large_on_pm = on_vals == {large} and large not in off_vals
@@ -419,7 +421,7 @@ def main() -> int:
             "experiment_id": "EXP-ECDLP-a98ea9",
             "hypothesis_id": "H-ECDLP-07c7c6",
             "task_id": "TASK-20260907-77f3b4",
-            "run_id": "RUN-ECDLP-a98ea9-S2",
+            "run_id": "RUN-ECDLP-a98ea9-S2b",
             "authorized_stages": [0, 1, 2],
             "certificate": {"kind": "none"},
             "digit_ADV_computed": False,
