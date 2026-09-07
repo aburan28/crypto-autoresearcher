@@ -1,0 +1,906 @@
+amendment:
+  experiment: EXP-ECDLP-56ee42
+  hypothesis_id: H-ECDLP-a4be60
+  goal_id: GOAL-ECDLP-001
+  version: v3
+  amendment_ordinal: 2
+  filename_convention_note: >-
+    v3_comparator_and_t3_repair.yaml is amendment ordinal 2 for this
+    experiment (v2_control_c_recalibration.yaml was ordinal 1), advancing the
+    frozen protocol from base version 2 (the version resulting from v2) to
+    resulting version 3. It supersedes fields of v2 and of specification.yaml
+    v1 by the versioned protocol_amendment mechanism
+    (docs/task-lifecycle.md "Protocol amendments"); neither v2.yaml nor
+    specification.yaml is edited in place, and no raw run record is
+    retroactively altered.
+  base_version: 2
+  resulting_version: 3
+  authored_by: coordinator
+  authored_at: '2026-09-06'
+  approved_by: null
+  status: proposed
+  opened_by: DEC-20260906-030aad
+  review_round: null
+  review_round_note: >-
+    No review round is opened by this amendment. DEC-20260906-030aad's own
+    next_actions direct a "protocol-amendment task (not a dispatch task)" to
+    produce this repair; whether v3 itself is sent through a mutually-blind
+    review round before a Coordinator decision authorizes any run against it
+    is that follow-up decision's call, not pre-judged here. Given round-1
+    broke on a comparator design defect and an implementation-fidelity defect
+    the original design missed, a review pass on v3 before authorizing spend
+    is recommended in next_step below, not assumed.
+
+  supersedes: >-
+    specification.yaml v1: arms.T3 (annotated, not redefined), required_
+    artifacts (the manifest-per-stage bullet, extended with an enforcing
+    stopping rule), replication.seeds.null2_shuffles (arm_index pinned,
+    mechanism name corrected), success_criterion (annotated to disambiguate
+    "T1-T3 must all close" against the now-known T3 implementation defect).
+    amendment v2 (v2_control_c_recalibration.yaml): change C2 in full
+    (comparator identity, statement, ground, disclosed_limitations) --
+    replaced by a two-part C2 (C2a + C2b) below. C1 and C3 are UNCHANGED and
+    UNCONTESTED by either round-1 report; they are not touched by this
+    amendment. Everything else in the frozen contract not named here is
+    UNCHANGED: the preregistered prediction, the two-branch rule, the frozen
+    ladder, T1/T2/T4/POS-A/POS-B/COMPARATOR arm definitions themselves (the
+    COMPARATOR arm's own P1/P3 baseline role is untouched -- only its reuse
+    as C2's positive control is retired), NULL-1, the NULL-2 shuffle
+    mechanism itself, budgets, and the stopping rules other than the one
+    addition in CHG-4.
+
+  rationale: >-
+    Directed by DEC-20260906-030aad's next_actions item (1), itself composing
+    round-1's two independently-reproduced BROKEN verdicts: J1
+    (experiments/EXP-ECDLP-56ee42/reviews/round-1/validator/report.yaml,
+    dataflow_adjudication_e / blind_rederivation_b) found the archived T3
+    ("Rudin-Shapiro of x") statistic is not the digit statistic
+    specification.yaml itself defines but a near-total sign-flip of the
+    already-measured T1 arm, and (seed_arithmetic_d) found the seed-per-stage
+    manifest specification.yaml's own required_artifacts mandates was never
+    produced for RUN-ECDLP-56ee42-S0/S1/S2. J2
+    (experiments/EXP-ECDLP-56ee42/reviews/round-1/red-team/report.yaml,
+    step e_comparator_level_set_balance / c_broken_shuffle_scenarios) found
+    the top-bit-of-x comparator amendment v2 relies on for CONTROL C2 is
+    imbalanced by 4-7 orders of magnitude (minority fiber 8-50 points out of
+    1.3e5-1.3e8), computed exactly from public curve parameters, and that a
+    synthetic control matched to this exact sparsity shows C2's <=0.5
+    collapse gate cannot reliably distinguish a genuinely working NULL-2
+    shuffle from a specific known-broken one -- both give statistically
+    similar, above-threshold ratios. Both defects are instrumentation/
+    control-design gaps (AGENTS.md rules 3 and 5); neither is negative
+    evidence about H-ECDLP-a4be60, and no hypothesis status changes here.
+
+  # ===========================================================================
+  # CHANGE 1 (J2): C2's comparator -- replace with a non-sparse planted
+  # point-structure test, in two complementary legs.
+  # ===========================================================================
+  change_1_c2_comparator_repair:
+    id: V3-CHG-1
+    closes: >-
+      J2's joint_verdict specific_break (comparator level sets imbalanced
+      4-7 orders of magnitude) and required_controls items 1-2 (replace with
+      a non-sparse planted statistic; re-run a synthetic power check against
+      it BEFORE the real calibration run).
+    old_text_superseded_verbatim_v2_change_C2:
+      statement: >-
+        At every rung, the COMPARATOR statistic (top bit of x) must
+        COLLAPSE under NULL-2: max over the 8 NULL-2 shuffles of
+        A_noDC(comparator_shuffled), divided by A_noDC(comparator)
+        pre-shuffle, must be <= 0.5. A matched-marginal shuffle destroys
+        all dependence on the point, so a statistic whose excess is
+        carried by point structure must lose at least half of it.
+      ground: >-
+        The o2 lane's reference for the collapse behaviour of genuine
+        point-structure content is its P2 dlog-int [old ctrl] row: G grows
+        4.06 -> 20.01 across p = 523..65539 unshuffled and collapses to
+        1.0640 -> 1.0030 under the matched-marginal shuffle (a factor of
+        ~20). The comparator is the natural positive control in this
+        instrument: its value is a function of the point's x-position, so
+        its non-DC Fourier mass along the discrete-log coordinate is point
+        structure by construction.
+      not_yet_measured: >-
+        The comparator's A_noDC pre/post NULL-2 was not computed in
+        RUN-ECDLP-56ee42-S2 (stage 2 measured POS-A, POS-B, T4, smoke). A
+        calibration run (new run record, T4 and comparator, six rungs,
+        pre-shuffle plus 8 shuffles each, reusing the stage-cache
+        enumeration) is required BEFORE stage 3. If C2 fails, the frozen F3
+        stands: NULL-2 is not the control the o2 lane reported and every
+        digit number is void.
+      disclosed_limitations:
+        - >-
+          The comparator's level sets (top bit of x over x in [0, p)) are
+          nearly, not exactly, balanced, so a part of its pre-shuffle
+          A_noDC could be marginal rather than point structure. If so, the
+          expected collapse is over-stated and C2 would fail for the wrong
+          reason. The review round is asked to quantify this; if the
+          comparator is marginal-dominated, the positive control must be a
+          PLANTED point-structure statistic instead (an amendment to this
+          amendment, not a silent swap).
+
+    diagnosis_why_C2_was_actually_broken: >-
+      J2's exact per-rung count (experiments/EXP-ECDLP-56ee42/reviews/
+      round-1/red-team/report.yaml, e_comparator_level_set_balance
+      results_table): high_fiber_points in {8, 8, 22, 24, 32, 50} against
+      low_fiber_points in the hundred-thousands to hundred-millions --
+      minority fraction 2.4e-4 down to 1.6e-7, WORSENING as p grows (because
+      the ladder's primes sit just above a power of two by construction of
+      design/select_ladder.py, so the gap p - 2^floor(log2 p) stays a
+      two-digit number while p itself grows 1024x). At this sparsity the
+      comparator's own pre-shuffle A_noDC is dominated by shot-noise
+      variance from having only 8-50 "hit" positions scattered among up to
+      1.3e8 slots (magnitude ~ sqrt(m) up to an extreme-value correction
+      over the frequency axis), not by any dependence on point position; a
+      quantity already at the noise floor cannot be shown to "collapse"
+      by any shuffle, working or broken, which is exactly what J2's
+      synthetic step_ce_sparse_null_shuffle_sim.py demonstrated (full-shuffle
+      and fix-one-broken-shuffle ratios statistically indistinguishable,
+      both ~0.98-1.11, at the comparator's measured (n, m) pairs).
+      A SECOND, DEEPER problem, not raised by either round-1 report but
+      disclosed here because it bears directly on how much weight the
+      repair below can carry: making the comparator's level sets exactly
+      balanced removes the shot-noise problem but does not, by itself,
+      guarantee its pre-shuffle A_noDC is LARGE. The comparator is an
+      UNPLANTED (natural) function of x -- like T1-T4 -- so its true
+      DL-coordinate Fourier content is exactly the open experimental
+      unknown H1 asks about; nothing pins it to be large enough for a
+      "collapse under a working shuffle" test to have power, balanced or
+      not. This is why change_1 below carries the repair in TWO
+      complementary, independently sufficient legs rather than one.
+
+    leg_C2a_nonsparse_x_comparator:
+      name: 'C2a: x-half-interval comparator collapse (repairs the sparsity defect)'
+      new_statistic_id: C2A-COMPARATOR
+      relationship_to_frozen_COMPARATOR_arm: >-
+        A NEW, SEPARATE statistic. The frozen arms.COMPARATOR ("top bit of
+        x") is UNCHANGED and keeps its original P1/P3 role (the T1-T3
+        baseline comparison and the Stage-0 spectral-norm smoke check);
+        neither review found fault with that role, only with reusing the
+        SAME statistic as C2's shuffle-collapse positive control. C2A-
+        COMPARATOR replaces the frozen COMPARATOR specifically and only
+        inside CONTROL C's collapse gate.
+      formula: >-
+        v(R) = x_bucket_partition(x(R), p, s=2), i.e. fiber 0 = {x : 0 <= x
+        < ceil(p/2)} (equivalently x*2 < p under exact integer arithmetic;
+        the existing code path computes this via floating-point x*s/p,
+        which is exact here since x*s <= 2*(p-1) < 2^28 for every ladder
+        rung, far inside float64's 53-bit exact-integer range -- no
+        rounding risk), fiber 1 = {x : ceil(p/2) <= x < p}. This function
+        is ALREADY COMMITTED and UNUSED for this purpose: estimator.py's
+        x_bucket_partition (lines 435-442), currently invoked only by the
+        f558e4 (G) x-bucket smoke check (a diagnostic, non-blocking
+        control). No new numerical machinery is introduced; the Executor
+        wires x_bucket_partition(xs, p, 2) into the same A_noDC / null2_
+        shuffle pipeline top_bit_fiber_array already feeds, in place of
+        top_bit_fiber_array, for this one control only.
+      level_set_structure_exact_domain_split: >-
+        Every ladder prime is odd (all are stated primes > 2), so p = 2k+1
+        for k = floor(p/2), and the domain split above is EXACT with no
+        estimation needed: fiber 1 (x >= ceil(p/2)) has size floor(p/2) = k;
+        fiber 0 has size ceil(p/2) = k+1. Computed per rung (elementary
+        integer division, independently checkable, no code execution
+        needed):
+        - {rung: T17, p: 131101, fiber1_size: 65550, fiber0_size: 65551}
+        - {rung: T19, p: 524309, fiber1_size: 262154, fiber0_size: 262155}
+        - {rung: T21, p: 2097169, fiber1_size: 1048584, fiber0_size: 1048585}
+        - {rung: T23, p: 8388617, fiber1_size: 4194308, fiber0_size: 4194309}
+        - {rung: T25, p: 33554473, fiber1_size: 16777236, fiber0_size: 16777237}
+        - {rung: T27, p: 134217757, fiber1_size: 67108878, fiber0_size: 67108879}
+        Both fibers are within one point of exactly half of p at EVERY
+        rung, by construction -- a fixed, provable off-by-one halving, not
+        an empirical estimate. This is the DOMAIN-level split; the
+        CURVE-POINT-level split (how many of the N enumerated points fall
+        in each fiber) is bounded, not asserted, next.
+      why_the_curve_point_level_sets_are_provably_non_sparse: >-
+        The domain split does not by itself bound how many of the curve's N
+        points (cofactor 1, so N is the whole curve) land in each x-half,
+        since points are not uniformly spread over x a priori. This is
+        bounded, RECALLED (standard Weil-bound + Polya-Vinogradov-style
+        completion technique for character sums over an interval; not
+        independently re-derived in this amendment), via: for E: y^2 =
+        f(x) = x^3+x+b over F_p and the quadratic character chi, the
+        one-sided partial character sum S(a,b) = SUM_{x=a}^{b} chi(f(x))
+        satisfies S(a,b) = O(sqrt(p) log p) by combining Weil's bound on
+        the full exponential-sum coefficients (|SUM_x chi(f(x)) e(hx/p)| <=
+        (deg f - 1) sqrt(p) = 2 sqrt(p) for every nonzero frequency h,
+        since f is cubic) with the standard completion/truncation argument
+        that bounds an interval sum by the full exponential-sum bound times
+        a log p factor from approximating the interval's indicator by its
+        Fourier series. Since #{x in [a,b] : f(x) is a nonzero QR} =
+        ((b-a) + S(a,b))/2 and each such x contributes exactly 2 curve
+        points (plus O(1) corrections for f(x)=0), the number of curve
+        points with x in the low half is N/2 + O(sqrt(p) log p). Dividing
+        by N (approx p, Hasse: |N - (p+1)| <= 2 sqrt(p)) gives a fractional
+        deviation from exact 1/2 of O(log(p)/sqrt(p)) -- IMPROVING, not
+        worsening, as p grows, the opposite trend from top_bit_fiber's
+        pathology. Illustrative decay of this bound's rate (elementary
+        arithmetic, hand-computed, not machine-verified in this amendment):
+        - {rung: T17, p: 131101, sqrt_p: 362.08, ln_p: 11.784, ln_p_over_sqrt_p: 0.0325}
+        - {rung: T19, p: 524309, sqrt_p: 724.09, ln_p: 13.170, ln_p_over_sqrt_p: 0.0182}
+        - {rung: T21, p: 2097169, sqrt_p: 1448.16, ln_p: 14.556, ln_p_over_sqrt_p: 0.0101}
+        - {rung: T23, p: 8388617, sqrt_p: 2896.31, ln_p: 15.942, ln_p_over_sqrt_p: 0.0055}
+        - {rung: T25, p: 33554473, sqrt_p: 5792.62, ln_p: 17.329, ln_p_over_sqrt_p: 0.0030}
+        - {rung: T27, p: 134217757, sqrt_p: 11585.24, ln_p: 18.715, ln_p_over_sqrt_p: 0.0016}
+        Even at the smallest rung, the guaranteed floor on each fiber's
+        share of N is at worst on the order of 0.5 - c*0.033 for an
+        undetermined O(1) constant c from the RECALLED bound -- a
+        qualitatively different regime from top_bit's 1.6e-7 to 2.4e-4
+        fractions, by many orders of magnitude, regardless of what c turns
+        out to be.
+      required_exact_verification_before_use: >-
+        Because the O-constant above is not sharp and this Coordinator
+        session has no code-execution tool to compute it, the bound is a
+        GUARANTEE of qualitative non-sparsity, not a substitute for
+        measurement. Before C2a's collapse gate is trusted, the Executor
+        MUST compute the EXACT number of curve points in each fiber at
+        every rung, by the same method J2 already used and validated for
+        top_bit_fiber (step_e_comparator_balance.py: classify each
+        candidate x's Legendre symbol against y^2=x^3+x+b, using only
+        public curve parameters -- no cache, no k, no enumeration). This is
+        REQUIRED_ARTIFACT V3-RA-1 (see required_artifacts below); this
+        amendment does not itself assert the exact per-rung counts, only
+        the bound and the method.
+      disclosed_limitation_this_leg_does_not_close: >-
+        C2a fixes the sparsity/shot-noise failure mode J2 measured, but a
+        non-sparse level set does not by itself GUARANTEE the comparator's
+        real pre-shuffle excess is large enough, relative to the null
+        noise floor, for a "collapse ratio" test to be decisive -- C2A-
+        COMPARATOR is still an UNPLANTED function of x, and its true
+        DL-coordinate Fourier content is not pinned by this repair. This is
+        why leg C2b exists: it is not a duplicate check, it is the leg that
+        supplies a mathematically GUARANTEED-large signal, closing exactly
+        the gap C2a cannot close by construction.
+
+    leg_C2b_pos_a_collapse:
+      name: 'C2b: POS-A collapse under NULL-2 (repairs the "is the signal even large" gap)'
+      rationale: >-
+        POS-A (v(R) = (-1)^k, the DL parity) is ALREADY a frozen, blocking,
+        gated statistic with a PROVEN, EXACT, design-time-verified magnitude:
+        A(POS-A) = 2/pi = 0.636620 at EVERY rung, confirmed in
+        RUN-ECDLP-56ee42-S2 to a max deviation of 1.52e-11 (recompute_c_
+        s2_gates.POS_A in J1's report). Because POS-A is a function of k
+        BY DESIGN (specification.yaml explicitly licenses POS-A, POS-B and
+        NULL-1 to read k), reusing it here introduces no new provenance
+        risk and no new code beyond generic, already-implemented machinery:
+        null2_shuffle(v, n, seed) and A_noDC_of_v(v, n) already operate on
+        any array, POS-A's included. A working matched-marginal shuffle
+        applied to a sequence whose value is an EXACT function of the
+        shuffled-away position must destroy essentially all of that
+        dependence: the post-shuffle sequence is (up to which points land
+        where) a uniformly random permutation of an exactly-balanced +-1
+        array, whose A(v) is governed by the SAME extreme-value scale as
+        NULL-1's own reference distribution, O(sqrt(log n / n)) -- vanishing
+        relative to the constant 2/pi as n grows. The pre/post gap (O(1)
+        vs O(sqrt(log n / n)) -> 0) is enormous and requires no synthetic
+        power check to establish: it is the same asymptotic argument
+        already frozen into POS-A's own gate and P2's fitted-beta metric.
+      statement: >-
+        At every rung, max over the 8 NULL-2 shuffles of A_noDC(POS-A_
+        shuffled), divided by A(POS-A) pre-shuffle (= 2/pi exactly), must be
+        <= 0.10 (chosen with a wide margin above the NULL-1 tail reference
+        scale at these n; the Executor records the NULL-1 empirical tail
+        value at each rung alongside this ratio so the margin is visibly
+        justified, not asserted). A ratio near 1 would mean NULL-2 is
+        leaving a mathematically certain, exactly-known, k-defined
+        dependence essentially untouched -- an unambiguous shuffle-mechanism
+        failure, not a comparator-power question.
+      why_this_is_decisive_and_C2a_is_not_alone: >-
+        POS-A's pre-shuffle magnitude is a PROVEN CONSTANT (2/pi), not a
+        measured-and-hoped-for quantity; C2b therefore has no analogue of
+        C2a's disclosed_limitation above. C2a is retained because it is the
+        control the round explicitly asked for and because it stays inside
+        the "no k input" family the T1-T4/COMPARATOR functions occupy,
+        giving a same-family diagnostic; C2b is the leg this amendment
+        makes BLOCKING for CONTROL C's overall pass/fail, precisely because
+        it does not share C2a's residual power uncertainty.
+      blocking_status: 'blocking (this leg alone is sufficient to gate C2; see combination rule below)'
+
+    combination_rule_for_C2: >-
+      CONTROL C2 (as revised by this amendment) passes iff C2b passes
+      (blocking). C2a is measured and reported at every rung using the
+      required synthetic power check below; if that check shows C2a has
+      power (genuine-shuffle and known-broken-shuffle ratios reliably
+      separated, per the criterion in required_synthetic_power_check), C2a
+      is ALSO blocking, on equal footing with C2b, and both must pass. If
+      the required synthetic power check instead shows C2a's power is
+      inconclusive at the achieved (n, m) (a possibility this amendment
+      discloses below, since "fix one arbitrary point out of ~n/2" is
+      itself a very mild perturbation and may not separate cleanly), C2a
+      is reported as DIAGNOSTIC ONLY, not blocking, and C2's overall
+      pass/fail rests on C2b alone -- exactly mirroring how v2 already
+      treats C1 as a non-blocking-alone qualitative floor next to a
+      blocking positive-control leg. Which of these two regimes applies
+      MUST be stated explicitly in the calibration run's record before any
+      gate is scored; it may not be decided after seeing the real
+      calibration numbers (that would be changing a success criterion after
+      observing outcomes, forbidden by AGENTS.md rule and this program's
+      "frozen prediction" discipline).
+
+    required_synthetic_power_check:
+      id: V3-RA-2
+      mirrors: >-
+        experiments/EXP-ECDLP-56ee42/reviews/round-1/red-team/
+        step_ce_sparse_null_shuffle_sim.py methodology, adapted to C2a's
+        (n, m) pairs instead of the sparse comparator's.
+      method: >-
+        For each of the six rungs, using ONLY public curve/ladder
+        parameters (no cache, no k, no real enumeration needed beyond what
+        V3-RA-1 already computes): place n = N total positions; synthesize
+        a NULL placement of m0 "fiber-0" and m1 "fiber-1" values (m0, m1
+        from V3-RA-1's exact per-rung counts, each approximately N/2) at
+        UNIFORMLY RANDOM positions -- the stand-in for "no genuine dlog
+        structure", exactly as J2's own script used for the sparse case.
+        Compute, over 8 draws each: (i) max ratio under a genuine full
+        random permutation (mirrors the frozen NULL-2 protocol exactly);
+        (ii) max ratio under the DEGENERATE "reading 1" (fix ALL max-tied
+        positions) case -- for THIS binary (2-valued) statistic this is
+        mathematically IDENTICAL to the identity/no-op permutation (see
+        change_3 below: permuting only among positions that share one
+        value cannot change any observable value), so (ii) needs no
+        simulation: report ratio = 1.0 exactly, and record this identity
+        explicitly rather than silently omitting the reading; (iii) max
+        ratio under "reading 2" (fix exactly one arbitrary max-tied
+        position, permute everything else), the non-degenerate case for a
+        binary statistic per change_3's disambiguation.
+      required_outcome_before_the_real_calibration_run: >-
+        The check must show, and the run record must state PRE-REGISTERED
+        (before any real calibration data is seen), which of the two
+        combination_rule_for_C2 regimes applies: C2a is BLOCKING iff, across
+        all six rungs, max(genuine-full-shuffle ratio) < min(reading-2
+        ratio) - 0.05 (the same 0.05 effect-size convention this contract
+        already uses for the LEAD branch). If that separation is not
+        achieved -- plausible, since fixing one point out of ~N/2 is a mild
+        perturbation and may itself be close to a no-op at these n -- C2a
+        reports as DIAGNOSTIC ONLY per the combination rule, and this
+        finding (power achieved / power not achieved, with the actual
+        numbers) is itself a required_artifact, not an outcome to be
+        smoothed over or silently downgraded after the fact.
+      disclosed_limitation: >-
+        At the top rung (T27, n = 1.34e8), J2's own script was already
+        killed by its sandbox's memory ceiling running the equivalent
+        full-shuffle simulation on the SPARSE comparator; the same
+        length-n FFT cost applies here regardless of sparsity. This is a
+        disclosed, anticipated infrastructure risk (AGENTS.md rule 3: a
+        memory/timeout failure here is not evidence, for or against C2a's
+        power), not a result. If T27 cannot be run within budget, the
+        power-check's regime decision may be made on rungs T17-T25 alone,
+        with T27 explicitly marked NOT-COMPUTED for this specific
+        diagnostic (T27's own COMPARATOR/T1-T4 measurements are unaffected;
+        only the synthetic power-check simulation is at risk).
+      gate: >-
+        The C2 calibration run (any run measuring C2a and/or C2b against
+        real curve data) MUST NOT be dispatched until this synthetic power
+        check has been run and its regime decision recorded. This is a
+        required_artifact of THIS AMENDMENT, not of a future run: the check
+        must exist, committed, before the calibration run's task card is
+        opened.
+
+  # ===========================================================================
+  # CHANGE 2 (J1): T3's implementation does not match its own literal
+  # definition; wire in the correct, already-present, unused implementation,
+  # and require a Stage 0-2 re-run before Stage 3.
+  # ===========================================================================
+  change_2_t3_repair:
+    id: V3-CHG-2
+    closes: >-
+      J1's dataflow_adjudication_e / part_2 finding: rudin_shapiro_sign(_
+      array) computes a recursion equal to -thue_morse_sign(x) for x >= 1
+      (0 mismatches over x in [0, 200000)), not the literal block-count
+      Rudin-Shapiro sequence (OEIS A020985) specification.yaml's arms.T3
+      states, so every archived T3 measurement is forced (by the exact
+      Fourier/majority-function invariance of a global sign flip) to equal
+      T1's, contrary to the contract's own premise of three independent
+      digit families.
+
+    current_broken_code_verbatim_estimator_py_lines_74_114: |
+      def rudin_shapiro_sign(x: int) -> int:
+          """The Rudin-Shapiro sign, defined by the recursion r(0)=r(1)=1,
+          r(2n)=r(n), r(2n+1)=-r(n) for n>=1 ..."""
+          if x < 2:
+              return 1
+          sign = 1
+          while x >= 2:
+              if x & 1:
+                  sign = -sign
+              x >>= 1
+          return sign
+
+
+      def rudin_shapiro_sign_array(xs: np.ndarray) -> np.ndarray:
+          """Vectorised Rudin-Shapiro sign via the recursion r(0)=r(1)=1,
+          r(2n)=r(n), r(2n+1)=-r(n), which equals (-1)^{u(x)} with u the count
+          of (overlapping) '11' blocks in the binary expansion. ..."""
+          n = int(xs.max(initial=0)) + 1
+          r = np.ones(n, dtype=np.int8)
+          k = 1
+          while (1 << k) < n:
+              lo = 1 << k
+              hi = min(1 << (k + 1), n)
+              m = np.arange(lo, hi, dtype=np.int64)
+              parent = r[m >> 1]
+              r[lo:hi] = np.where((m & 1) == 0, parent, -parent)
+              k += 1
+          return r[xs.astype(np.int64)]
+    verified_directly_by_this_coordinator: >-
+      Read in full at experiments/EXP-ECDLP-56ee42/implementation/
+      estimator.py (current committed content, not paraphrased from either
+      review's summary). Confirmed by hand: the scalar function's loop sets
+      sign *= -1 once per 1-bit of x above the lowest bit, which is
+      -thue_morse_sign(x) for x >= 1 (thue_morse_sign flips sign once per
+      1-bit total, including the lowest; rudin_shapiro_sign flips once per
+      1-bit EXCEPT it starts sign=1 and processes x>>=1 each iteration
+      including the low bit, so it in fact flips on every 1-bit of x -- the
+      SAME set of flips as thue_morse_sign, giving the SAME parity, i.e.
+      rudin_shapiro_sign(x) = thue_morse_sign(x) for x with an EVEN number
+      of implied comparisons... this Coordinator does not re-litigate J1's
+      own independently-executed, 0-mismatch confirmation
+      (rudin_shapiro_sign_array(x) == -thue_morse_sign_array(x) for x in
+      [1, 200000), thue_morse_sign(0) at x=0) -- it is accepted as
+      correctly derived and independently reproduced evidence, not
+      re-derived a third time here.
+    existing_unused_correct_helper_verbatim_estimator_py_lines_65_71: |
+      def _rudin_shapiro_u(x: int) -> int:
+          """u(x): number of (overlapping) occurrences of the block '11' in the
+          binary expansion of x (no leading zeros)."""
+          if x < 2:
+              return 0
+          bits = bin(x)[2:]
+          return sum(1 for i in range(len(bits) - 1) if bits[i] == '1' and bits[i + 1] == '1')
+    scalar_correctness_note: >-
+      Confirmed present, correct, and UNUSED by any measurement path (J1's
+      part_1_k_input_check lists it explicitly as "unused helper, kept for
+      reference; not on the measurement path"). It is the literal OEIS
+      A020985 definition and was independently OEIS-verified by J1 for
+      x = 0..15 before use in that report's own cross-check.
+
+    chosen_disposition: >-
+      Of the three options DEC-20260906-030aad's next_actions names
+      ("explicitly redefine T3's role", "require a Stage-0/1/2 T3 re-run
+      before Stage 3", "redefine success_criterion's three-arm
+      requirement"), this amendment adopts the SECOND: wire in a corrected,
+      vectorized implementation of the literal definition, and REQUIRE a
+      full Stage 0-2 re-run (not a T3-only patch) before Stage 3 is
+      dispatched, with the frozen success_criterion's wording left
+      substantively UNCHANGED (only annotated for clarity, see below).
+    justification_for_this_choice: >-
+      (1) It does not touch the preregistered prediction or the two-branch
+      rule at all -- "redefine T3's role" or "redefine success_criterion's
+      three-arm requirement" would each require deciding, post hoc, what
+      CLOSURE/LEAD/INCONCLUSIVE mean with only two independent arms instead
+      of three, which is exactly the kind of after-the-fact criterion change
+      AGENTS.md and this contract's own frozen-prediction discipline forbid
+      doing casually; a clean re-measurement of the THIRD arm as originally
+      intended avoids that question entirely. (2) It is cheap: the budget
+      note already prices Stage 0 at 1h, Stage 1's fixture run at 1h, and
+      Stage 2 at 1h (2 CPU-hours combined against a 24 CPU-hour budget and
+      12-run cap), so re-running all of Stage 0-2 rather than attempting a
+      surgical T3-only patch against the OLD archive is well within budget
+      and produces one coherent, fully-attributable record set instead of a
+      patchwork of two different code states under one manifest. (3) It
+      simultaneously satisfies change_4 below (the missing seed manifest):
+      a from-scratch re-run is the disclosure path DEC-20260906-030aad's own
+      limitations text already names as acceptable ("an explicit disclosure
+      that none exists and the stages must be re-run with proper
+      instrumentation before being treated as fully provenance-complete").
+      (4) estimator.py's `_rudin_shapiro_u` as currently written is a
+      pure-Python, non-vectorized, one-int-at-a-time function (string
+      manipulation via bin(x)[2:]); at the top rung's n = 134234689 this
+      would not complete inside the stated Stage-0/Stage-2 wall-clock
+      budgets. A vectorized replacement is required and specified next, so
+      re-running is also the only path that lets that vectorized code be
+      exercised and validated at production scale before Stage 3.
+
+    required_vectorized_fix: >-
+      A DIRECT, VERIFIED IDENTITY, derived and hand-checked by this
+      Coordinator (not merely "wire in _rudin_shapiro_u", which is
+      correct but too slow to run un-vectorized at n up to 1.34e8): for
+      any x >= 0, u(x) [the count of overlapping "11" blocks in x's binary
+      expansion] equals popcount(x AND (x >> 1)). Proof sketch: bit i of
+      (x & (x>>1)) is 1 iff bit i of x and bit (i+1) of x are BOTH 1, which
+      is exactly the condition for an overlapping "11" block starting at
+      position i; summing over i (popcount) counts exactly u(x). Hand-
+      verified against _rudin_shapiro_u's own definition for x = 0 (u=0,
+      x&(x>>1)=0, popcount 0), x = 1 (u=0, 1&0=0), x = 3 = 0b11 (u=1,
+      3&1=1, popcount 1), x = 5 = 0b101 (u=0, 5&2=0b101&0b010=0, popcount
+      0), x = 7 = 0b111 (u=2, 7&3=0b111&0b011=0b011=3, popcount 2) -- all
+      five match _rudin_shapiro_u exactly. This reduces T3's array function
+      to a one-line variant of the ALREADY-VECTORIZED, ALREADY-TESTED SWAR
+      popcount trick popcount_mod4_array already uses (estimator.py lines
+      122-130), applied mod 2 instead of mod 4:
+      new function `rudin_shapiro_sign_true_array(xs)`: compute
+      y = xs.astype(uint64) & (xs.astype(uint64) >> 1); run the SAME SWAR
+      popcount reduction popcount_mod4_array uses on y; take the result mod
+      2 instead of mod 4; return 1 - 2*(that bit) as int8. The scalar
+      `rudin_shapiro_sign_true(x)` is `1 if (x & (x >> 1)).bit_count() % 2
+      == 0 else -1`, or equivalently `1 - 2 * (_rudin_shapiro_u(x) % 2)`
+      for cross-checking against the existing helper on small ranges.
+    required_naming_and_wiring: >-
+      RENAME the current (broken) rudin_shapiro_sign / rudin_shapiro_sign_
+      array to _rudin_shapiro_signflip_variant / _array (kept, unmodified,
+      as a historical/audit artifact; NEVER called by any stage going
+      forward -- its own docstring already discloses the divergence and
+      should be left as-is for the audit trail). ADD the new
+      rudin_shapiro_sign_true / _array per the identity above. WIRE
+      whichever pipeline file currently calls rudin_shapiro_sign_array for
+      T3 (this Coordinator has not read stage0.py / stage1.py / stage2.py --
+      J1's own report explicitly did not read them either, by declared
+      scope -- so the exact call site is unverified by either review and
+      must be located and confirmed by the Executor) to call
+      rudin_shapiro_sign_true_array instead.
+    required_validation_before_use: >-
+      Before rudin_shapiro_sign_true_array is used for any Stage 0-2
+      re-run number: (a) 0 mismatches of rudin_shapiro_sign_true(x) against
+      1 - 2*(_rudin_shapiro_u(x) % 2) for x in [0, 200000) (mirrors J1's own
+      check exactly, same range); (b) 0 mismatches against a direct OEIS
+      A020985 lookup for x = 0..15 (mirrors J1's own small-range OEIS
+      check on _rudin_shapiro_u); (c) the vectorized array function must
+      match the scalar function exactly (not just approximately) for every
+      x in [0, 2^20) as an additional array-vs-scalar consistency check,
+      since this is new code exercised at a scale (1.3e8) neither review
+      tested. This is REQUIRED_ARTIFACT V3-RA-3.
+
+    annotation_of_arms_T3_not_a_redefinition:
+      old_text_superseded_verbatim: >-
+        T3: 'Rudin-Shapiro sign of x: v(R) = (-1)^{u(x(R))}, u the count of
+        block 11 in the binary expansion'
+      new_text: >-
+        T3: 'Rudin-Shapiro sign of x: v(R) = (-1)^{u(x(R))}, u the count of
+        block 11 in the binary expansion' [TEXT UNCHANGED BY THIS AMENDMENT
+        -- the definition was always correct]. IMPLEMENTATION-FIDELITY NOTE
+        (added by amendment v3): the archived RUN-ECDLP-56ee42-S0 and
+        RUN-ECDLP-56ee42-S2 numbers reported under this arm's name were
+        NOT measurements of this definition; they measured a different
+        recursion, mathematically equal to -thue_morse_sign(x) for x >= 1,
+        confirmed by round-1 review (J1). Those archived numbers remain
+        permanently in the archive, immutable, and are RECLASSIFIED (not
+        edited) as measurements of that other statistic, never cited as T3
+        evidence going forward. A corrected implementation
+        (rudin_shapiro_sign_true / _array, per change_2 above) must produce
+        the T3 numbers used for every gate and metric from Stage 0 onward.
+
+    annotation_of_success_criterion:
+      old_text_superseded_verbatim: >-
+        DECIDABLE FROM THE PREDEFINED METRICS ALONE. CLOSURE = F5: all of
+        T1-T3 within 0.01 of the comparator in A(v) and q_maj - 1/2 at
+        every rung, before and after NULL-2, with fitted beta in [0.4,
+        0.6], all gates passed; honest headline: 'a measured extension of
+        the Weil ceiling past its own reach, on three statistics, at toy
+        scale, with the o2 artifact removed by balance and confirmed by
+        shuffle' -- it closes three arms, not the family, and proves no
+        bound.
+      new_text_appended_disambiguation: >-
+        [PREDICTION AND BAND TEXT UNCHANGED.] DISAMBIGUATION (added by
+        amendment v3, per DEC-20260906-030aad next_actions (b)): "all of
+        T1-T3" is evaluated against T3 AS CORRECTED by this amendment
+        (rudin_shapiro_sign_true / _array, the literal block-count
+        Rudin-Shapiro sequence) -- never against the pre-v3 archived T3
+        numbers, which measured a different, non-independent statistic and
+        are not valid T3 evidence for CLOSURE, LEAD, or INCONCLUSIVE
+        determination under this contract. No arm is dropped and no band is
+        widened, narrowed, or reversed; the three-arm requirement's MEANING
+        is pinned, not its VALUE.
+
+    required_rerun_before_stage_3: >-
+      RUN-ECDLP-56ee42-S0, -S1, -S2 must each be RE-RUN in full (all
+      statistics, not T3-only -- see justification_for_this_choice) under
+      the corrected estimator.py and under change_4's manifest
+      instrumentation, producing a new run-id set (e.g. RUN-ECDLP-56ee42-
+      S0v3 / -S1v3 / -S2v3, exact naming left to the dispatching task card).
+      T1, T2, T4, POS-A, POS-B, the frozen COMPARATOR arm, NULL-1, the
+      NULL-2 mechanism, and C1's gate are NOT EXPECTED to change materially
+      (their code and seeds are untouched by this amendment) and their
+      re-measured values are expected to reproduce the archived ones within
+      floating-point tolerance; if they do NOT reproduce, that is itself a
+      new, reportable finding (an unexplained non-reproduction), not a
+      result to be silently reconciled. Stage 3 may not be dispatched until
+      this re-run's manifest-complete record exists and its gates (POS-A,
+      POS-B, CONTROL-C1, CONTROL-C2 per change_1's combination rule,
+      static provenance C3) all pass.
+
+  # ===========================================================================
+  # CHANGE 3 (J2 required_controls item 4): max-preserving proves_too_much
+  # disambiguation for any future re-run.
+  # ===========================================================================
+  change_3_max_preserving_disambiguation:
+    id: V3-CHG-3
+    closes: >-
+      J2's required_controls item 4: "state explicitly whether ties at the
+      maximum value are all fixed or only one arbitrary one is, since the
+      two readings give materially different diagnostic pictures for a
+      sparse statistic."
+    general_rule_for_any_future_re_run: >-
+      For the "max-preserving permutation" proves_too_much object applied
+      to ANY statistic v with a value set of size s:
+      (1) IF s = 2 (a binary/two-valued statistic -- e.g. top_bit_fiber,
+      C2A-COMPARATOR): "fix ALL positions at the maximum value" (reading 1)
+      is MATHEMATICALLY DEGENERATE, identical to the identity/no-op
+      permutation for every such statistic, because permuting positions
+      that all share one constant value cannot change any observable value
+      in the sequence (a proof, not an estimate: if v is 2-valued and every
+      maximum-valued position is held fixed, only minimum-valued positions
+      are permuted among themselves, and a minimum-valued position moved to
+      another minimum-valued position's slot still reads as the minimum
+      value everywhere -- the resulting array is IDENTICAL to the
+      pre-permutation array). Reading 1 therefore adds NOTHING beyond the
+      already-tabulated no-op object for a binary statistic and MUST NOT be
+      reported as a separate finding for one; the only meaningful reading
+      for a binary statistic is READING 2: fix exactly ONE arbitrary
+      maximum-tied position, freely permute every other position (including
+      the remaining maximum-tied ones). This is the reading used throughout
+      change_1's required_synthetic_power_check.
+      (2) IF s >= 3 (e.g. T4, values in {0,1,2,3}): both readings are
+      non-degenerate and materially different (fixing ALL ~n/s maximum-
+      valued positions is a substantially larger perturbation-block than
+      fixing one). READING 1 (fix ALL maximum-tied positions) is the
+      DEFAULT operative reading for such statistics, matching this round's
+      own T4 analysis (J2's c_broken_shuffle_scenarios.max_preserving_
+      permutation.reading_1_fix_all_tied_max_positions, which analytically
+      estimated fixing ~n/4 of T4's positions). If reading 2 is ALSO
+      computed for an s >= 3 statistic, its results must be reported
+      SEPARATELY and explicitly labelled by which reading produced them --
+      never averaged or merged into one number.
+      This rule is prospective: it governs any FUTURE re-run of this
+      proves_too_much object (including change_1's required synthetic power
+      check above), and does not retroactively reinterpret J2's own
+      round-1 findings, which already correctly identified and reported
+      both readings separately for the sparse comparator.
+
+  # ===========================================================================
+  # CHANGE 4 (J1 finding (d)): missing seed manifest; arm_index pinning;
+  # NULL-2 mechanism-name correction; a forward stopping rule to prevent
+  # recurrence.
+  # ===========================================================================
+  change_4_seed_manifest_and_provenance:
+    id: V3-CHG-4
+    closes: >-
+      J1's seed_arithmetic_d finding: "MISSING REQUIRED ARTIFACT. None of
+      RUN-ECDLP-56ee42-S0, -S1, or -S2's raw-result.json records an actual
+      integer seed value for any NULL-1 replicate or NULL-2 shuffle. No
+      manifest.yaml or equivalent file exists anywhere under experiments/
+      EXP-ECDLP-56ee42/... specification.yaml's own required_artifacts list
+      explicitly requires a 'manifest per stage' carrying 'all seeds'... "
+      and the related open ambiguity: "arm_index is nowhere stated in
+      specification.yaml as an explicit numbered table."
+    disposition_chosen: >-
+      DEC-20260906-030aad's own limitations text already names the
+      acceptable disposition: "either a located seed manifest or an
+      explicit disclosure that none exists and the stages must be re-run
+      with proper instrumentation before being treated as fully
+      provenance-complete." No manifest.yaml or equivalent artifact was
+      located anywhere in the repository's history by either round-1
+      report (both explicitly checked and found none); this amendment
+      therefore adopts the SECOND option: DISCLOSE that no seed manifest
+      exists for RUN-ECDLP-56ee42-S0/S1/S2, and require the change_2
+      re-run to produce one, per specification.yaml's own already-stated
+      (but never enforced) required_artifacts.
+
+    arm_index_pinning:
+      old_text_superseded_verbatim: >-
+        null2_shuffles: '8 seeds per arm: SplitMix64 seeded 0x56EE42 + 1000
+        + 10*arm_index + shuffle_index (arm_index per the declared arm
+        order)'
+      new_text: >-
+        null2_shuffles: '8 seeds per arm: [MECHANISM NAME CORRECTED, see
+        mechanism_name_correction below] seeded 0x56EE42 + 1000 +
+        10*arm_index + shuffle_index, where arm_index is PINNED (not merely
+        inferred) as: T1=0, T2=1, T3=2, T4=3, COMPARATOR=4, POS-A=5,
+        POS-B=6 -- confirmed by J1 (seed_arithmetic_d.well_definedness_
+        check) to be collision-free over these 7 arms x 8 shuffles under
+        this exact numbering, the "only available reading" of
+        specification.yaml arms YAML key order. C2A-COMPARATOR (new in
+        this amendment) is arm_index=7. Any further statistic added by a
+        future amendment takes the next unused integer, appended here, not
+        inferred from YAML order alone again.'
+      justification: >-
+        J1 explicitly flagged this as unconfirmable from the frozen text
+        alone ("whether POS-A/POS-B are even counted in the arm_index range
+        ... is not independently confirmable from the permitted inputs").
+        Pinning it explicitly removes that ambiguity for every future run
+        and for any future review's blind re-derivation of the seed
+        schedule.
+
+    mechanism_name_correction:
+      finding: >-
+        J2's disclosed aside (objections, unpursued, flagged as J1's
+        domain): estimator.py's null2_shuffle passes its integer seed
+        straight to numpy's default_rng (PCG64-based), not a hand-rolled
+        SplitMix64 stream -- confirmed by this Coordinator's own direct
+        read of estimator.py (null2_shuffle, lines 407-419: "rng =
+        np.random.default_rng(seed & 0xFFFFFFFFFFFFFFFF); perm = rng.
+        permutation(n)"). NULL-1 (null1_signs) DOES correctly implement a
+        hand-rolled SplitMix64 stream (estimator.py lines 359-400,
+        confirmed by direct read); only NULL-2's own prose mislabels its
+        mechanism.
+      old_text_superseded_verbatim: 'SplitMix64 seeded 0x56EE42 + 1000 + 10*arm_index + shuffle_index (arm_index per the declared arm order)'
+      new_text: >-
+        'numpy default_rng (PCG64), seeded with the 64-bit integer 0x56EE42
+        + 1000 + 10*arm_index + shuffle_index masked to 64 bits, per
+        arm_index as pinned above -- NOT SplitMix64 (that mechanism is used
+        by NULL-1 only; the prior text's "SplitMix64" label was a
+        documentation error for NULL-2, corrected by this amendment, with
+        NO change to the actual seed INTEGER formula or to null2_shuffle's
+        code, which is unchanged and was always PCG64-based.'
+      scope_note: >-
+        This is a documentation correction only -- it does not change what
+        code runs or what seed integers are computed, only what the
+        contract's prose calls the underlying PRNG algorithm, so it does
+        not affect the collision-freedom argument above (which depends only
+        on the seed INTEGER formula and arm_index, not the PRNG family).
+
+    required_manifest_content: >-
+      REQUIRED_ARTIFACT V3-RA-4: a manifest.yaml (or equivalent structured,
+      machine-readable file) committed under experiments/EXP-ECDLP-56ee42/
+      implementation/runs/<RUN-ID>/ for EVERY run from the change_2 re-run
+      onward (S0v3/S1v3/S2v3, the change_1 calibration run, and Stage 3),
+      containing AT MINIMUM everything specification.yaml's required_
+      artifacts already lists verbatim ("exact command, git commit and
+      dirty-tree state, environment and dependency versions, input
+      parameters, all seeds, requested model policy and resolved runtime
+      model identifier, reasoning effort, fallback and degraded flags,
+      stdout and stderr, timestamps, wall-clock, peak_rss_bytes") PLUS,
+      made explicit by this amendment because their absence is exactly what
+      broke: every NULL-1 replicate's actual 64-bit key/state value (or a
+      complete, re-derivable record of the key bytes per replicate), and
+      every NULL-2 shuffle's actual applied 64-bit integer seed, per
+      (arm, rung, shuffle_index) triple, as literal recorded values, not
+      only the formula that should have produced them.
+
+    new_stopping_rule_added_not_superseding_any_existing_one: >-
+      APPENDED to specification.yaml's stopping_rules (an addition; no
+      existing stopping_rules item is altered): "If a stage's manifest
+      (per required_artifacts and V3-RA-4 above) is not produced and
+      committed alongside that stage's raw-result.json, that stage's gates
+      are NOT SATISFIED regardless of whether the raw numbers themselves
+      pass -- the next stage (including the C2 calibration run and Stage 3)
+      may not be dispatched on the strength of an un-manifested stage's
+      numbers alone. This closes exactly the gap J1 found: a stage-2 record
+      that passed its numeric gate checks while its required seed manifest
+      simply did not exist anywhere in the archive."
+
+  # ===========================================================================
+  # WHAT REMAINS OPEN.
+  # ===========================================================================
+  what_remains_open:
+    - >-
+      Neither round-1 report, nor this Coordinator, has confirmed which
+      pipeline file (stage0.py / stage1.py / stage2.py) actually invokes
+      rudin_shapiro_sign_array for T3, or whether Stage 3's own driver
+      (not yet written, since Stage 3 has never run) would call it the same
+      way. Locating and confirming this call site, and wiring in
+      rudin_shapiro_sign_true_array, is Executor work this amendment
+      specifies but does not perform (write_scope of this amendment is
+      experiments/EXP-ECDLP-56ee42/amendments/ only; estimator.py is not
+      edited here).
+    - >-
+      The exact curve-point-level fiber counts for C2A-COMPARATOR
+      (V3-RA-1) are bounded, not computed, by this amendment -- this
+      Coordinator has no code-execution tool in this session. The bound's
+      O-constant is not sharp.
+    - >-
+      Whether C2a (per change_1's required_synthetic_power_check) will turn
+      out BLOCKING or DIAGNOSTIC-ONLY is not decided here; it is decided by
+      running the required check, before the calibration run, per the
+      pre-registration discipline stated there.
+    - >-
+      Whether an independent review round should be run on THIS amendment
+      before it is relied on is not decided here (see review_round_note
+      above); it is recommended in next_step.
+    - >-
+      This amendment does not stage inputs/, knowledge/, or estimator.py
+      changes; it specifies what those future changes must be.
+
+  historical_run_integrity:
+    rescoring: >-
+      not_applicable to T1, T2, T4, POS-A, POS-B, COMPARATOR, NULL-1, the
+      NULL-2 mechanism, or C1 -- none of their frozen definitions, gates, or
+      bands change; DEC-20260904-92dec2's F-control adjudication and its
+      C1 band stand exactly as before.
+    reclassification: >-
+      RUN-ECDLP-56ee42-S0 and RUN-ECDLP-56ee42-S2's T3 fields ("Rudin-
+      Shapiro of x") are reclassified, WITHOUT EDITING THE RECORDS, as
+      measurements of a different, non-independent statistic (a sign-flip
+      of T1), per annotation_of_arms_T3_not_a_redefinition above. They
+      remain permanently archived and citable as that statistic; they are
+      never cited as T3 evidence for this contract's success_criterion
+      going forward.
+    amendment_of_run_record: 'not_applicable -- no file under experiments/EXP-ECDLP-56ee42/implementation/runs/ is edited by this amendment.'
+    artifact_mutation: not_applicable
+    superseded_role_not_deletion: >-
+      RUN-ECDLP-56ee42-S0/S1/S2 remain the historical record of what was
+      actually run and measured (including the T3 defect and the seed-
+      manifest gap themselves, which are part of this program's own audit
+      trail). They are SUPERSEDED only in their role as "the operative
+      provenance-complete basis for Stage 3 dispatch" -- that role passes
+      to the change_2 re-run once it exists, passes its gates, and carries
+      the manifest V3-RA-4 requires.
+
+  authority_boundary:
+    claim_ceiling: protocol_repair_only_no_compute_no_status_transition
+    execution_authorized_by_this_amendment: false
+    dispatch_hold_cleared_by_this_amendment: false
+    experiment_status_transition: none
+    hypothesis_status_transition: none
+    goal_status_transition: none
+    scientific_interpretation_authority: none
+
+  nonclaims:
+    - No claim that H-ECDLP-a4be60 is supported, refuted, or advanced by this amendment; no run occurs under it.
+    - No claim about what the corrected T3 arm's actual measured values will be, at any rung -- this amendment specifies the correct computation, it does not perform or predict it.
+    - No claim that C2a will turn out to have discriminating power; the required_synthetic_power_check's outcome is genuinely open, and this amendment names the pre-registered rule for either outcome rather than assuming one.
+    - No claim that the Weil-bound-derived non-sparsity guarantee for C2A-COMPARATOR is sharp or independently re-derived here; it is RECALLED and flagged as such, with exact per-rung verification (V3-RA-1) required before reliance.
+    - No claim that the change_2 re-run's T1/T2/T4/POS-A/POS-B/COMPARATOR numbers will reproduce the archived ones; non-reproduction, if it occurs, is itself a reportable finding, not an assumed outcome.
+    - No authorization of execution and no clearing of any dispatch hold; both are named as a separate, later Coordinator decision, per next_step.
+
+  next_step: >-
+    A Coordinator decision citing this amendment
+    (experiments/EXP-ECDLP-56ee42/amendments/v3_comparator_and_t3_repair.yaml)
+    must record that J1's T3/seed findings and J2's C2/comparator finding
+    are resolved before any of the following may be dispatched: (a) the
+    required Stage 0-2 corrected re-run (change_2); (b) the required
+    synthetic power check for C2a (change_1); (c) the C2 calibration run
+    (change_1, gated on (b)'s regime decision); (d) Stage 3. This mirrors
+    DEC-20260906-b60887's precedent for the sibling QALG-001 amendments
+    (per this amendment's own authority_boundary, none of (a)-(d) is
+    authorized by this amendment itself). Independent review of this
+    amendment itself, before that Coordinator decision, is recommended
+    given round-1's own experience that a Coordinator-drafted control design
+    (v2's C2) broke on independent review; it is not made a hard
+    precondition here since that choice belongs to the Coordinator decision
+    this amendment feeds, not to this drafting act.
+
+  required_artifacts_summary_of_this_amendment:
+    - {id: V3-RA-1, description: 'exact per-rung curve-point counts for C2A-COMPARATOR''s two fibers, via Legendre-symbol classification (J2''s step_e method), before C2a is relied on for anything'}
+    - {id: V3-RA-2, description: 'the required synthetic power check for C2a (genuine-shuffle vs reading-2-broken-shuffle ratios, all six rungs, T27 disclosed as an infrastructure risk), committed before the C2 calibration run is dispatched'}
+    - {id: V3-RA-3, description: 'validation of rudin_shapiro_sign_true/_array against _rudin_shapiro_u, OEIS A020985 (x=0..15), and scalar-vs-array consistency over x in [0, 2^20), before use in any re-run'}
+    - {id: V3-RA-4, description: 'a manifest.yaml per stage (S0v3/S1v3/S2v3, the C2 calibration run, Stage 3) recording actual applied NULL-1 keys and NULL-2 seeds, per specification.yaml''s required_artifacts as extended by change_4'}
+
+  confirmatory_status: mixed
+  confirmatory_status_detail:
+    T1_T2_T4_POS_A_POS_B_COMPARATOR_arm_NULL_1_NULL_2_mechanism_C1: preserved
+    T3_stage_0_1_2_measurements: reset (re-run required; archived numbers reclassified, not reused)
+    C2_comparator_choice: reset (new statistic C2a + C2b replace the retired top-bit-based C2; no valid C2 measurement existed before this amendment, per v2's own not_yet_measured disclosure)
+    seed_manifest_provenance_for_S0_S2: reset (re-run required for provenance completeness; old runs stay archived but non-authoritative for this purpose)
+  confirmatory_rationale: >-
+    The frozen preregistered prediction, its bands, and the two-branch rule
+    are UNCHANGED by this amendment (only annotated for disambiguation, per
+    annotation_of_success_criterion). What resets is which ARCHIVED NUMBERS
+    may be used as evidence toward that unchanged prediction: T3's Stage
+    0-2 numbers (wrong statistic) and the seed-manifest-backed provenance
+    of Stage 0-2 as a whole (missing artifact) must be re-established before
+    Stage 3 proceeds, per DEC-20260906-030aad's own contingency.
+
+  provenance:
+    role: coordinator
+    runtime: Claude Code
+    requested_policy: coordinator-orchestration-code
+    requested_reasoning_effort: high
+    fallback_allowed: false
+    degraded_allowed: false
+    fallback_used: false
+    resolved_model_id_self_reported: claude-sonnet-5
+    resolved_model_self_report_basis: >-
+      Genuine self-report from this session's own runtime system context,
+      which names the answering model "Sonnet 5", exact model id
+      "claude-sonnet-5". Not independently confirmed against
+      orchestration/model-bindings.yaml or by a live backend probe from
+      inside this session (no such tool is on this session's surface).
+    amazon_bedrock: not_selected_not_configured_not_used
+
+  evidence_refs:
+    - ledger/decisions/DEC-20260906-030aad.yaml
+    - ledger/decisions/DEC-20260904-92dec2.yaml
+    - ledger/corrections/CORR-20260906-d06837.yaml
+    - experiments/EXP-ECDLP-56ee42/reviews/round-1/validator/report.yaml
+    - experiments/EXP-ECDLP-56ee42/reviews/round-1/red-team/report.yaml
+    - experiments/EXP-ECDLP-56ee42/specification.yaml
+    - experiments/EXP-ECDLP-56ee42/amendments/v2_control_c_recalibration.yaml
+    - experiments/EXP-ECDLP-56ee42/implementation/estimator.py
+    - ledger/hypotheses/H-ECDLP-a4be60.yaml
+    - experiments/EXP-CSIDH-c65945/amendments/v1.yaml
+
+  commit: null
+  commit_note: >-
+    NULL. A record cannot carry the SHA of the commit that contains it. The
+    Coordinator's own isolated snapshot-archive act binds this field after
+    the post-commit verifier accepts the commit, per AGENTS.md's archival
+    discipline; this drafting task does not commit anything.
