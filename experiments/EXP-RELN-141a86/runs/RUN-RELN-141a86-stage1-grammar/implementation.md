@@ -24,18 +24,55 @@ manifest)
    deviation. See `manifest.yaml`'s
    `scope_and_protocol_deviation_disclosure` for the full reasoning.
 
-2. **`EXP-RELN-f202be` sibling data checked and found unusable.** Read
-   `RUN-RELN-f202be-N14/N16/N18/N20/curve_results.json`: fields are
-   `E3_direct_unreduced/reduced`, `delta_unreduced/reduced`,
-   `forced_negation_gap_measured/expected`, `predicate_T_S_*`, an m=2
-   x-class *signed* convention with a completely different statistic
-   vocabulary (no `R_k`, no generic `Delta`/`E_m`/`coverage`/
-   `third_factorial_moment` field). This does NOT satisfy
-   `specification.yaml`'s `sibling_enumeration.primary_source` field-list
-   validation, so per that clause ("the adapter validates the field set...
-   and reports any missing field; it never fills one in"), this source was
-   NOT used. This triggered the Stage-0e own-enumeration fallback (deviation
-   #1 above).
+2. **`EXP-RELN-f202be` sibling data checked and found unusable -- CORRECTED
+   and expanded on 2026-09-07 (follow-up dispatch, same TASK).** The prior
+   note here said "an m=2 x-class signed convention"; that was WRONG and is
+   corrected: f202be's own `specification.yaml` fixes `arity_m: 3` (line
+   375, `fixed: {arity_m: 3, ...}`), the same m=3 as this contract. Re-read
+   directly (`RUN-RELN-f202be-N20/curve_results.json`, its `cells/` tree's
+   `histogram.json`/`count-vector.npy`, and f202be's `specification.yaml`
+   `object_bases`/`sign_conventions`/`base_size_conventions` blocks) to
+   pin down the ACTUAL mismatch precisely, since "field-incompatible" was
+   too compressed to act on:
+   - **Geometry**: f202be's object bases are `x_interval_low` (smallest-x),
+     `x_interval_mid` (smallest-x >= p/2), and `qr_class` (smallest QR-class
+     x) -- constructed by a *smallest-x* selection rule. This contract's
+     E-arm geometries are `high_bit_interval` (TOP bit-window, largest-x),
+     `small_height` (rational-reconstruction height ordering, unrelated to
+     x-magnitude) and `coset_union` (multiplicative-subgroup cosets).
+     Different constructions, not just different names for the same object.
+   - **Sign convention**: every one of f202be's object bases is
+     NEGATION-CLOSED, `W = V union -V`, run under its `unreduced` (all
+     `C(B+2,3)` multisets from `W`, including forced `{P,-P,Q}` triples) or
+     `reduced` (excludes any multiset containing a `{P,-P}` pair)
+     convention. This contract's `fb3_unsigned_m3` convention is explicitly
+     "a base of B elements NOT required to be negation-closed" (this
+     contract's own `inputs.committed_fb3_cells.convention`) -- f202be's own
+     spec calls that case "plain" and reserves "plain" for its NULL/CONTROL
+     bases (random points, Z/N random, Z/N interval, E small-multiples,
+     Bose-Chowla) only, never for an x-interval-shaped OBJECT arm. So the
+     one convention that WOULD be compatible (`plain`) exists in f202be only
+     for objects that are not the E-arm geometry this contract needs.
+   - **B convention**: f202be uses `B_1`/`B_2` (even-rounded for
+     negation-closed arms; `B_2` from a Bose-Chowla `q^3-1` rule), not this
+     contract's single `B0 = ceil((6N)^(1/3))`.
+   - **Statistic vocabulary**: f202be's per-cell fields are
+     `E3_direct/spectral/ord`, `delta_unreduced/reduced`, a
+     `forced_negation_gap` diagnostic, and Boolean-predicate counts
+     `P1..P7`/`ANCHOR-LOG` -- no `R_k`, no `coverage`, no
+     `third_factorial_moment`, and one `NULL_A` band per (curve, B-conv,
+     sign-conv) rather than a null_mean/null_sd per statistic.
+   Conclusion (unchanged from before, now with the actual reasons instead of
+   "field-incompatible"): this is a genuine construction/convention
+   mismatch across geometry, sign convention and B-rule simultaneously, not
+   a field-naming difference an adapter could paper over -- doing so would
+   be exactly the "convention mismatch resolved by rescaling ... rather
+   than by reading each record's convention" `invalidation_rules` forbid.
+   f202be's data was correctly NOT used as a stand-in for the E-arm held-out
+   check. This triggered the Stage-0e own-enumeration fallback (deviation
+   #1 above), which itself explicitly declines to synthesize E-arm data via
+   a Z/N surrogate (deviation #4) -- see deviation #9 below for how the
+   actual gap this leaves was closed.
 
 3. **No committed FB3 2^20 data exists at all** (`EXP-FB3-001/runs/` has
    only N14, N16, N18, FAMILY, CTRL). Consequently the E x-interval arms
@@ -116,6 +153,71 @@ manifest)
    limit on the `scored-candidate-list.json`-equivalent output, not a
    silently narrowed claim.
 
+9. **REAL held-out 2^20 E-arm data generated (2026-09-07, follow-up
+   dispatch), closing deviation #3's gap rather than leaving it
+   unaddressed.** Deviations #2/#3 correctly ruled out both available
+   external sources (f202be genuinely incompatible; committed FB3 has no
+   2^20 run at all) and deviation #4 correctly ruled out a Z/N surrogate for
+   the E-arm geometries specifically (that IS the `ZN_interval` positive
+   control, not a stand-in for the null geometry). Rather than stop there
+   and report "not available" as final, `source/stage1_e_arm_holdout.py`
+   (new this follow-up) generates the missing data directly: it imports
+   `EXP-FB3-001/implementation/fb3_core.py` UNMODIFIED (no new curve or
+   geometry definition invented) and calls its own frozen `find_curve`,
+   `matched_size`, `geom_high_bit_interval`, `geom_small_height`,
+   `geom_coset_union` at `bits=20` -- a bit-length FB3-001 itself never ran,
+   so this collides with none of its existing curves under the identical
+   seed formula (`curve_seed_base*1000 + bits*10 + curve_index`) -- to build
+   4 new real prime-order curves at N ~ 2^20, select the three E-arm bases
+   on each, and count exact decomposition vectors via `count_vectors.py`'s
+   cyclic-convolution engine (same module Stage 0e already uses,
+   unmodified). Before trusting any 2^20 number, the module's own
+   `self_test_reproduce_committed_n14()` runs the IDENTICAL code path at
+   `bits=14, curve_index=1` and asserts its output (`N`, `B`, `sum_counts`,
+   `mean`, `coverage`, `concentration`, `window_W`, `x_min`, `x_max`) equal,
+   bit-for-bit, to the already-committed `RUN-FB3-001-N14` cell
+   (`geometry=high_bit_interval, curve_index=1, rep_seed=1,
+   evaluation_domain=whole_group`) -- this PASSED exactly (see the module's
+   `__main__` output, reproduced verbatim in the executor's turn transcript:
+   every one of the 9 checked fields matched to the value printed, `mean =
+   1.1276087887875634`, `concentration = 1.254666748271008`, etc.) before
+   any 2^20 curve was generated. The 2^20 build was then launched as its own
+   detached, per-(geometry,curve_index)-checkpointed background process,
+   writing `e-arm-holdout-cache.jsonl` in this run directory (12 target
+   cells: 3 geometries x 4 curve replicates, ~290s/cell measured, so ~1h
+   total; `coset_union`/`small_height` may report `infeasible_reason` per
+   cell if the geometry cannot reach size B on a given curve -- recorded,
+   never silently dropped or estimated). `stage1_grammar_driver.py`'s
+   `build_targets` was extended (read defensively: absent-file is a no-op,
+   identical to pre-follow-up behaviour) to merge these rows into the
+   `E_arms_fb3_<geometry>` and `E_arms_fb3_combined` target groups as
+   `held_out=True` rows, so the EXISTING train/held split and fit/scoring
+   logic in `evaluate_level_for_targets` picks them up with no other
+   change. **This wiring is NOT yet live in the currently-running
+   `RUN-RELN-141a86-stage1-grammar` grammar-fit process (PID recorded in
+   `command.txt`/`driver-progress.log`)**: that process was started before
+   this module existed and already has the old `build_targets` loaded in
+   memory (Python does not hot-reload); it was deliberately left
+   undisturbed per this follow-up's explicit instruction not to touch it,
+   and because `stage1_grammar_driver.py` has no true resume-from-checkpoint
+   for the grammar ENUMERATION itself (only the row-generation caches
+   resume; `by_complexity`/`front_state` restart at complexity 1 on any
+   fresh process, a pre-existing limitation, not introduced here -- see
+   `experiments/EXP-RELN-141a86/amendments/v1.yaml` if referenced above, or
+   record it there if not). Consequence: this run's own `pareto-fronts-raw.json`
+   for the `E_arms_fb3_*` targets will finish with `held_out: null` /
+   `metric_kind: train_weighted_sse_no_held_out_available`, exactly as
+   deviation #3 disclosed, UNLESS a follow-up task launches a fresh
+   `stage1_grammar_driver.py` invocation (same command, new/adjacent run
+   directory or this one after the current process reaches a terminal
+   state) after `e-arm-holdout-cache.jsonl` has 12 (or fewer, with
+   `infeasible_reason` accounting for the rest) rows. That re-run is
+   NECESSARY to actually score the E-arm Delta/E_3 held-out check the
+   contract's success/falsification criteria depend on; it is bounded,
+   ordinary re-computation (re-deriving the SAME grammar enumeration up to
+   complexity 12, now against a target list that additionally has real
+   held-out rows for 4 of its groups), not a new protocol.
+
 ## PySR re-check (stage1_pysr_fits)
 
 See `environment.json`. `pip install pysr` succeeds (version 2.2.1, a
@@ -131,6 +233,15 @@ per the frozen contract's own pinning clause.
 
 ## What a follow-up task should do
 
+0. Check on the E-arm holdout job (`pgrep -af stage1_e_arm_holdout.py`;
+   `e-arm-holdout-stderr.log`'s last lines; `wc -l e-arm-holdout-cache.jsonl`,
+   target 12). When it reaches 12 rows (or fewer + accounted
+   `infeasible_reason`s), launch a FRESH `stage1_grammar_driver.py`
+   invocation (same command as `command.txt`, over the SAME
+   `e-arm-holdout-cache.jsonl` this run directory now has) so the
+   `build_targets` wiring (deviation #9) actually scores the E-arm
+   Delta/E_3 held-out check -- the currently-running grammar-fit process
+   (item 1 below) does NOT have this data, having started before it existed.
 1. Check on the detached job (`pgrep -af stage1_grammar_driver.py`; read
    `driver-progress.log`'s last lines and `enumeration-checkpoint.json` /
    `pareto-fronts-raw.json`'s `last_updated_utc`).

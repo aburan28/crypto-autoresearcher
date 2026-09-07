@@ -33,6 +33,7 @@ import grammar_engine_checkpoint as gc
 import stage1_fit_engine as fe
 import stage1_own_enumeration as oe
 import stage1_fb3_table as fb3t
+import stage1_e_arm_holdout as eah
 
 PACK = "fb3_unsigned_m3_and_enum_unsigned_m3"
 
@@ -43,6 +44,33 @@ def _utc_now() -> str:
 
 def _row_leaves(row: Dict) -> Dict[str, float]:
     return {"N": row["N"], "B": row["B"], "m": row["m"], "M": row["M"], "mu": row["mu"]}
+
+
+def out_dir_for_holdout(out_dir: str) -> str:
+    """The E-arm holdout cache lives alongside this run's other caches, in
+    the SAME run directory the driver was invoked with (out_dir) -- never a
+    new directory, so a resumed/re-invoked driver reads whatever the
+    background stage1_e_arm_holdout.py process has written so far."""
+    return out_dir
+
+
+def _load_e_arm_holdout_rows(cache_path: str, log) -> List[Dict]:
+    if not os.path.exists(cache_path):
+        log(f"E-arm holdout cache not found at {cache_path}: proceeding with NO held-out "
+            f"2^20 rows for the E-arm targets (as before this dispatch's follow-up).")
+        return []
+    rows: List[Dict] = []
+    with open(cache_path) as fh:
+        for line in fh:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                rows.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue  # torn last line from a kill mid-write; skip, never guess
+    log(f"E-arm holdout cache loaded: {len(rows)} rows from {cache_path}")
+    return rows
 
 
 def build_targets(out_dir: str, log) -> Dict[str, Dict]:
@@ -58,7 +86,19 @@ def build_targets(out_dir: str, log) -> Dict[str, Dict]:
     log(f"own-enumeration table ready: {len(own_rows_raw)} rows in {time.time()-t0:.1f}s")
 
     fb3_rows_raw = fb3t.build_fb3_e_arm_rows()
-    log(f"FB3 E-arm table ready: {len(fb3_rows_raw)} rows (training only, no 2^20 available)")
+    log(f"FB3 E-arm table ready: {len(fb3_rows_raw)} rows (training only, committed FB3 has no 2^20 rung)")
+
+    # REAL held-out 2^20 E-arm rows (TASK-20260907-8fd098 follow-up): generated
+    # by stage1_e_arm_holdout.py, which reuses EXP-FB3-001's own frozen
+    # fb3_core.py geometries on 4 new curves at N~2^20 (self-test-verified
+    # bit-for-bit against the committed N14 cell before any 2^20 row is
+    # trusted -- see that module's docstring and implementation.md). Read
+    # defensively: if the cache file does not exist yet (background
+    # generation still running or not yet launched in this invocation), the
+    # E-arm targets simply have no held-out rows, exactly as before, and the
+    # run report says so via held_out_status on the FB3 training rows.
+    e_arm_holdout_path = os.path.join(out_dir_for_holdout(out_dir), "e-arm-holdout-cache.jsonl")
+    e_arm_holdout_rows_raw = _load_e_arm_holdout_rows(e_arm_holdout_path, log)
 
     def prep(rows_raw):
         out = []
@@ -70,17 +110,29 @@ def build_targets(out_dir: str, log) -> Dict[str, Dict]:
 
     own_rows = prep(own_rows_raw)
     fb3_rows = prep(fb3_rows_raw)
+    e_arm_holdout_rows = prep(e_arm_holdout_rows_raw)
 
     arm_groups: Dict[str, List[Dict]] = {}
     for r in own_rows:
         arm_groups.setdefault(r["arm"], []).append(r)
     for r in fb3_rows:
         arm_groups.setdefault("E_arms_fb3_" + r["arm"], []).append(r)
+    # REAL held-out 2^20 rows join the SAME arm groups as their training-side
+    # FB3 counterparts (same geometry name, same fb3_unsigned_m3 convention),
+    # so build_targets' existing train/held split below picks them up with
+    # no other change to the fitting logic.
+    for r in e_arm_holdout_rows:
+        if r.get("infeasible_reason"):
+            log(f"E-arm holdout geometry={r['arm']} curve_index={r['curve_index']} "
+                f"INFEASIBLE at 2^20: {r['infeasible_reason']} (row excluded from fit, recorded)")
+            continue
+        arm_groups.setdefault("E_arms_fb3_" + r["arm"], []).append(r)
     # Also a merged "E_arms_fb3_combined" group over all three untyped
     # geometries together (the group later_review_requirements actually
     # names: "the Delta front on the E x-interval arm ... fb3_unsigned_m3
     # pack", not any one single geometry).
-    arm_groups["E_arms_fb3_combined"] = list(fb3_rows)
+    arm_groups["E_arms_fb3_combined"] = list(fb3_rows) + [
+        r for r in e_arm_holdout_rows if not r.get("infeasible_reason")]
 
     STATS = ["Delta", "E_3"]
     targets: Dict[str, Dict] = {}
