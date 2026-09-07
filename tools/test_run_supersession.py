@@ -59,6 +59,19 @@ def sha256_of(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def _is_experiment_correction(path: Path, repo_root: Path) -> bool:
+    """True for experiments/<EXP>/corrections/<file> under repo_root."""
+    try:
+        parts = path.resolve().relative_to(repo_root).parts
+    except ValueError:
+        return False
+    return (
+        len(parts) >= 4
+        and parts[0] == "experiments"
+        and parts[2] == "corrections"
+    )
+
+
 class SupersessionFixture(unittest.TestCase):
     """A temporary run directory with a defective manifest beside a repair."""
 
@@ -410,6 +423,19 @@ class CommittedRegistryTests(unittest.TestCase):
             registry_original = Path(entry["superseded_path"]).resolve()
             run_dir = registry_original.parent
             current = Path(entry["superseding_path"]).resolve()
+            # Fourth vocabulary: experiment-level corrections/ next to runs/.
+            # The registry is the binding; the immutable correction may omit
+            # a supersedes block and must not be rewritten to add one.
+            if _is_experiment_correction(current, repo_root):
+                body = yaml.safe_load(
+                    current.read_text(encoding="utf-8"))["run"]
+                self.assertEqual(body.get("id"), entry["run_id"], str(current))
+                self.assertEqual(sha256_of(current),
+                                 entry["superseding_sha256"], str(current))
+                self.assertEqual(sha256_of(registry_original),
+                                 entry["superseded_sha256"],
+                                 str(registry_original))
+                continue
             self.assertEqual(current.parent, run_dir, str(current))
             seen: set[str] = set()
             while True:

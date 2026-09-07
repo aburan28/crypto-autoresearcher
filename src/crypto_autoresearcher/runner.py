@@ -343,6 +343,19 @@ def _max_rss_bytes(usage: resource.struct_rusage) -> int:
     return int(usage.ru_maxrss) * 1024
 
 
+def _no_claim_certificate() -> dict[str, Any]:
+    """Schema-required result.certificate when this wrapper makes no claim.
+
+    `schemas/run-manifest.schema.json` requires `result.certificate` with
+    `kind`, `verified`, and `verifier`. This runner does not independently
+    re-verify a child-declared discrete_log, decomposition, or key_recovery
+    witness (docs/claims-and-verification.md). A claimed solve stays in
+    raw-result.json; the wrapper record is `kind: none` so a missing field
+    cannot be read as an implicit success.
+    """
+    return {"kind": "none", "verified": None, "verifier": None}
+
+
 def _parse_stdout(stdout: str) -> tuple[dict[str, Any], str | None]:
     try:
         value = loads_json_strict(stdout, "child stdout")
@@ -1865,6 +1878,7 @@ def run_experiment(
                 "metrics": metrics,
                 "valid": status == "completed_valid",
                 "invalid_reason": invalid_reason,
+                "certificate": _no_claim_certificate(),
             },
             "artifacts": core_artifacts,
         }
