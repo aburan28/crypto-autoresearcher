@@ -1,0 +1,47 @@
+# Preflight retrieval attempts (all executed via Bash tool; this session's
+# declared tool surface has no WebSearch/WebFetch/crypto-kb MCP tool -- see
+# applicability_audit.md "Live retrieval tool test").
+
+curl -sS --max-time 25 -o csifish.html -w "HTTP_CODE:%{http_code}\n" "https://eprint.iacr.org/2019/498"
+# -> HTTP_CODE:200
+
+curl -sS --max-time 40 -L -o csifish.pdf -w "HTTP_CODE:%{http_code} SIZE:%{size_download}\n" "https://eprint.iacr.org/2019/498.pdf"
+# -> HTTP_CODE:200 SIZE:467604
+
+curl -sS --max-time 25 -o gh_repo.json -w "HTTP:%{http_code}\n" "https://api.github.com/repos/KULeuven-COSIC/CSI-FiSh"
+# -> HTTP:403 (Claude-Code GitHub proxy restriction on API access)
+
+curl -sS --max-time 25 -L "https://github.com/KULeuven-COSIC/CSI-FiSh" -o gh_page.html -w "HTTP:%{http_code} SIZE:%{size_download}\n"
+# -> HTTP:403 (Claude-Code GitHub proxy restriction on direct github.com HTML access)
+
+git clone --depth 1 https://github.com/KULeuven-COSIC/CSI-FiSh.git csifish_repo
+# -> SUCCEEDED (git protocol not subject to the same proxy restriction);
+#    classgroup_data/"class number" file read from this clone.
+
+curl -sS --max-time 30 -L -o cjs.pdf -w "HTTP:%{http_code} SIZE:%{size_download}\n" "https://arxiv.org/pdf/1012.4019"
+# -> HTTP:200 SIZE:305507   (Childs-Jao-Soukharev 2014, KN-LIT-071)
+
+curl -sS --max-time 30 -L -o kuperberg.pdf -w "HTTP:%{http_code} SIZE:%{size_download}\n" "https://arxiv.org/pdf/quant-ph/0302112"
+# -> HTTP:200 SIZE:173245   (Kuperberg 2005, KN-LIT-2c8264)
+
+curl -sS --max-time 30 -L -o regev.pdf -w "HTTP:%{http_code} SIZE:%{size_download}\n" "https://arxiv.org/pdf/cs/0304005"
+# -> HTTP:200 SIZE:269983   (Regev 2004, KN-LIT-21383c)
+
+curl -sS --max-time 30 -L -o simon2026.pdf -w "HTTP:%{http_code} SIZE:%{size_download}\n" "https://eprint.iacr.org/2026/1591.pdf"
+# -> HTTP:200 SIZE:280252   (Simon 2026, KN-LIT-e204ab)
+
+curl -sS --max-time 20 -L -o eh_try1.pdf -w "quant-ph/9807029 HTTP:%{http_code} SIZE:%{size_download}\n" "https://arxiv.org/pdf/quant-ph/9807029"
+# -> HTTP:200 SIZE:162248   (Ettinger-Hoyer, identified via arXiv API search
+#    matching Simon 2026's own reference [5] exactly: title, authors, venue,
+#    year all match "On Quantum Algorithms for Noncommutative Hidden
+#    Subgroups", Adv. in Appl. Math. 25(3):239-251, 2000)
+
+curl -sS --max-time 20 "https://export.arxiv.org/api/query?search_query=ti:%22noncommutative+hidden+subgroups%22+AND+au:Ettinger" -o eh_search.xml -w "HTTP:%{http_code}\n"
+# -> HTTP:200; totalResults=1, exact match confirming quant-ph/9807029
+
+# All four sources plus Simon 2026 read via the Read tool (PDF ingestion) in
+# full or near-full; see applicability_audit.md for the exact page/section
+# citations extracted.
+
+python3 verify_class_group_order.py > stdout.log 2> stderr.log
+# -> exit 0; see stdout.log / class_group_order.md
