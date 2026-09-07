@@ -140,10 +140,70 @@ run:
     checkpoint_progress_at_check: "levels 1-6 complete (cumulative_registered 54078 at level 6); level 7 under construction (expected ~375s per the prior run's own timing for this same level)"
     conclusion: "process alive, both artifacts (checkpoint file, memory-timeseries file) actively updating with fresh timestamps; job progressing as expected."
 
+  restart_history:
+    - event: container_restart_killed_job
+      detected_at_utc: '2026-09-07T19:17:40Z'
+      evidence: >-
+        `uptime` showed the container up only 4 minutes; monitor PID 10969
+        and worker PID 10971 both confirmed dead (empty `ps -p` and empty
+        `pgrep -af "target_enumerate\|run_stage0c"`); no
+        worker-result-INV-7_p_exist.json or
+        pexist-extended-search-raw-result.json exists (only written on
+        clean exit), confirming the job did not complete -- it was killed
+        by the container restart mid-level-7, at the same checkpoint level
+        as the last protective commit (112145e5b), so no additional
+        progress was lost beyond the interrupted level-7 recomputation
+        (~7 minutes of work at most).
+      classification: failed_infrastructure
+      note: >-
+        Never treated as a negative or positive mathematical result, per
+        AGENTS.md rule 3 and this handoff's own constraint. This is the
+        SECOND container restart observed this session (the first, earlier,
+        killed an unrelated stray monitor with no unreported results).
+      action_taken: >-
+        Relaunched the identical command (same script, same CLI arguments,
+        same target/pack/caps) at 2026-09-07T19:22:5x UTC. New monitor PID
+        1778 (own session/pgid 1778), worker PID 1780. Re-verified alive
+        and checkpointing within ~10s: levels 1-5 reproduced
+        cumulative_registered counts 6, 20, 179, 949, 8087 -- identical to
+        both the original stage0c-minimality run and the first
+        pexist-extended attempt, confirming determinism across all three
+        invocations. This consumes the second of the two runs authorized
+        by this handoff's budget.maximum_runs: 2. If a third restart is
+        needed, that exceeds this handoff's authorized run count and
+        requires a fresh Coordinator decision/handoff rather than a
+        further unilateral relaunch by this executor.
+    - event: send_later_check_in_retightened
+      note: >-
+        Given two container restarts observed within roughly 40 minutes of
+        session wall-clock (an empirical rate, not assumed periodic -- the
+        container was also observed stable for a further ~9-13 minutes
+        between checks with no restart), the originally-scheduled ~15 hour
+        check-in (trig_01Nw6bBfbwxDSdSb3eCTEdhy) is being replaced with a
+        much shorter one so a future dead job is caught and, if within
+        budget, relaunched promptly rather than discovered many hours
+        later. See coordinator-facing report for the decision this
+        implies for Stage-0c closure timing.
+
+  process:
+    relaunch_2:
+      launch_mechanism: "setsid nohup python3 run_stage0c_pexist_extended_monitor.py >> stdout.log 2>> stderr.log < /dev/null & disown"
+      monitor_pid: 1778
+      worker_pid_at_launch: 1780
+      launched_at_utc: 'approximately 2026-09-07T19:22:53Z (first ps check 2s after launch showed ELAPSED=00:02; checkpoint last_updated_utc at first read was 2026-09-07T19:23:14.491180Z, consistent)'
+      caps_unchanged: true
+
   timing:
     started_at: '2026-09-07T18:57:26Z'
+    restarted_at: 'approximately 2026-09-07T19:22:53Z'
     finished_at: null
-    note: not yet terminal; see status_note above
+    note: >-
+      Not yet terminal; see status_note above. This run has now been
+      launched twice under the same RUN-ID and handoff (the first
+      invocation died to a container restart before completing any level
+      past 7; see restart_history above) -- both launches used the exact
+      same command, target, and caps, so this remains one experimental
+      attempt at INV-7 p_exist, not two.
 
   result:
     certificate:
@@ -163,7 +223,7 @@ run:
     requested_memory_gb: 16
     actually_enforced_memory_cap_gb: 12.5
     maximum_runs_this_handoff: 2
-    runs_used_this_handoff: 1
+    runs_used_this_handoff: 2
 
   review_reservation: >-
     Per TASK-20260907-8e0165: review_required true; results are
