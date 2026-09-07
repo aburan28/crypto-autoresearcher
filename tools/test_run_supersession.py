@@ -39,6 +39,16 @@ REPO = Path(vl.REPO)
 ARTIFACTS = ("command.txt", "environment.json", "stdout.log", "stderr.log",
              "raw-result.json")
 
+# These immutable records arrived on main at eae06fdfaca2 with prose-only
+# supersession declarations. Pin that historical vocabulary to exact bytes;
+# new records still require a structured reverse binding. The registry and
+# both identities/hashes remain checked, without endorsing the prose claims.
+PROSE_SUPERSESSION_SHA256 = {
+    "RUN-JMV-001-a": "00aa431b5d3b223643af3261ad6ebfddd2eb6b0825dd2a9de224cbee08d84839",
+    "RUN-JMV-004-a": "94780b39782bf6705d513500e45d3d1c693b8c2ceba264b77fb04998122bcec4",
+    "RUN-CSIDH-c65945-001": "ef4c50276450a0613f2400657db02d9357dce2307d8f1c795d3d69e8e484d1cc",
+}
+
 
 def manifest_body(**over) -> dict:
     """A run manifest that validates clean, before any field is removed."""
@@ -491,6 +501,19 @@ class CommittedRegistryTests(unittest.TestCase):
                                  str(registry_original))
                 continue
             self.assertEqual(current.parent, run_dir, str(current))
+            if entry["run_id"] in PROSE_SUPERSESSION_SHA256:
+                self.assertEqual(sha256_of(current),
+                                 PROSE_SUPERSESSION_SHA256[entry["run_id"]])
+                self.assertEqual(sha256_of(current), entry["superseding_sha256"])
+                self.assertEqual(sha256_of(registry_original),
+                                 entry["superseded_sha256"])
+                self.assertEqual(vl._run_id_of(str(registry_original)), entry["run_id"])
+                body = yaml.safe_load(current.read_text(encoding="utf-8"))["run"]
+                self.assertEqual(body.get("id"), entry["run_id"])
+                self.assertIn(registry_original.name, body["supersession_note"])
+                self.assertIn("tools/run_supersession_registry.yaml",
+                              body["supersession_note"])
+                continue
             seen: set[str] = set()
             while True:
                 self.assertNotIn(str(current), seen, entry["superseding_path"])
