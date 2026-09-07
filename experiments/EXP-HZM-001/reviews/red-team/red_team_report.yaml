@@ -1,0 +1,386 @@
+red_team_report:
+  id: RT-20260907-e9f097
+  task_id: null
+  review_context: >-
+    No TASK-YYYYMMDD-NNN handoff record exists yet dispatching this specific
+    review; this session was instructed directly by the launching agent to
+    independently red-team the EXP-HZM-001 run package as committed on this
+    branch at commit 54aa83b92 (and its parent chain), attacking the l-vs-l'
+    manuscript-alignment finding and the resulting inconclusive_misalignment
+    classification. Reviewed fresh, without coordinating with, or reading,
+    any validator report already present at
+    experiments/EXP-HZM-001/reviews/validator/. No hypothesis, experiment, or
+    ledger status was changed by this review.
+  independent_review: true
+  snapshot:
+    reviewed_commit: 54aa83b92c16104aeed9356d5e055033ad7f99ce
+    reviewed_paths:
+      - experiments/EXP-HZM-001/specification.yaml
+      - experiments/EXP-HZM-001/manuscript_alignment.md
+      - experiments/EXP-HZM-001/analysis.md
+      - experiments/EXP-HZM-001/execution-report.yaml
+      - experiments/EXP-HZM-001/runs/RUN-HZM-001-a/
+      - experiments/EXP-HZM-001/runs/RUN-HZM-001-d/
+      - ledger/hypotheses/H-HZM-001.yaml
+      - coordination/goals/GOAL-CRYPTO-001/batches/BATCH-003/tasks/TASK-20260723-303/ (prior red team)
+      - ledger/decisions/DEC-20260906-e4a2f7.yaml
+    validate_ledger_status: >-
+      python3 tools/validate_ledger.py reports 18 new errors on this branch;
+      none are under experiments/EXP-HZM-001/ or ledger/hypotheses/H-HZM-001.yaml
+      (all belong to DEC-20260905-*, TASK-20260905-2c383f, EXP-CSIDH-c65945,
+      EXP-JMV-001, EXP-JMV-004 -- unrelated concurrent work). No new schema
+      error traces to this run package.
+  claim_under_review: >-
+    RUN-HZM-001-a's claim that it retrieved arXiv:2607.09814v1 live, found
+    the manuscript's own displayed q/M formulas use base l' while its H
+    formula (Section 4.1) uses base l = 2*l' two sentences apart in the same
+    subsection, that specification.yaml's pinned identity H = M*d/(L+1) does
+    not correspond to the manuscript as written, that stopping_rules[0]
+    therefore correctly prevented RUN-HZM-001-b/-c from opening, that this
+    "independently reproduces" RT-20260723-303's RT303-O3 objection against
+    the primary source, and that the experiment correctly terminated at
+    inconclusive_misalignment.
+  objections:
+    - id: RTHZM1-O1
+      topic: stopping_rule_scope_is_broader_than_the_defect_it_fired_on
+      severity: major
+      finding: >-
+        The l-vs-l' mismatch is real (independently re-verified below), but
+        CTRL-HZM-MANUSCRIPT-ALIGNMENT's pass_condition is an unconditional,
+        whole-9-config-grid test (d in {1,2,3}), and stopping_rules[0] is a
+        blanket stop with no carve-out for sub-ranges where the mismatch is
+        numerically inert. It is: at d=1, H = binom(n, d-1) = binom(n, 0) = 1
+        for ANY base n -- so the manuscript's H is IDENTICAL (=1) whether the
+        base is l or l' = l/2. Both of H-HZM-001's declared "primary gate
+        sizes," (12,1) and (16,1), are d=1. The one metric the
+        success/falsification decision actually turns on
+        (charged_expected_work_vs_rho_bound) is therefore computable from the
+        spec's own formulas with ZERO dependence on the ambiguity that halted
+        the experiment. Using the spec's own lower-bound formula
+        (charged_expected_work >= H/q, q <= min(1,M/N), M=L+1, verified with
+        sympy: binomial(n,0)=1 for symbolic n):
+          (L,d)=(12,1): N=2^12=4096, M=13, H=1 => H/q >= N/M ~= 315.1 vs
+          rho_bound=ceil(sqrt(4096))=64  (~4.9x over the bound)
+          (L,d)=(16,1): N=2^16=65536, M=17, H=1 => H/q >= N/M ~= 3855.1 vs
+          rho_bound=ceil(sqrt(65536))=256  (~15.1x over the bound)
+        Both figures already clear the rho bound using only the conservative
+        H/q lower bound (before the spec's own additional +setup
+        +reconstruction+verification charges and the 9 named cost_ledger
+        stages, all of which can only raise the total further, never lower
+        it). This is arithmetic anyone can redo from
+        specification.yaml's own preregistered_prediction; it needs no toy
+        enumeration and no resolution of the d>=2 base ambiguity.
+      consequence: >-
+        `inconclusive_misalignment` is a mechanically correct read of
+        CTRL-HZM-MANUSCRIPT-ALIGNMENT's pass_condition as literally written
+        (this is not an executor error), but as a terminal, whole-experiment
+        classification it forfeits a decisive answer to H-HZM-001's headline
+        question that is already available at essentially zero additional
+        cost. See required_controls RTHZM1-C1 and next_concrete_action.
+    - id: RTHZM1-O2
+      topic: characterization_of_continuity_with_RT-20260723-303
+      severity: minor
+      finding: >-
+        RT303-O3's actual text (re-read in full from
+        coordination/goals/GOAL-CRYPTO-001/batches/BATCH-003/tasks/TASK-20260723-303/red_team_report.yaml)
+        is an anchoring/citation-gap objection: "The snapshot gives no
+        theorem, equation, page, or pseudocode anchors showing that q, M,
+        and H refer to the same outer restriction, defect choice, and
+        stopping rule." It is agnostic about whether such anchors, once
+        located, would show alignment or misalignment -- it never predicts a
+        specific base-2 (l vs l') mechanism, which is genuinely new to this
+        run. manuscript_alignment.md's phrase "confirms the same
+        base-mismatch concern is real" and the archive commit's "independently
+        reproducing RT-20260723-303's RT303-O3 concern" blur the distinction
+        between (a) an evidentiary gap (no anchors were shown) and (b) a
+        positive finding (anchors exist and disagree). (b) resolves (a) in
+        the unfavorable direction, and is a legitimate, stronger validation
+        of RT303-O3's underlying worry -- but it is not literally "the same
+        defect," and a reader skimming only the headline could believe
+        RT-303 had already identified the l/l' split, which it had not.
+      consequence: >-
+        Not a fabrication and not disqualifying -- the underlying logical
+        relationship (this run resolves the gap RT303-O3 flagged, against
+        it) is sound. Recommend the ledger phrasing be sharpened on the next
+        touch to "confirms RT303-O3's anchoring-gap concern was well founded"
+        rather than "reproduces the same concern," to keep the evidentiary
+        chain precise for later readers who only see the summary.
+    - id: RTHZM1-O3
+      topic: PDF_source_fetched_and_hashed_but_never_parsed_by_the_audit_script
+      severity: minor
+      finding: >-
+        alignment_audit.py (runs/RUN-HZM-001-a/alignment_audit.py) checks
+        `PDF_PATH.exists()` but every extraction (`extract_tex`, all four
+        anchors) reads only HTML_PATH. The "confirmed unambiguously ... from
+        the arXiv HTML math markup" claim in manuscript_alignment.md is
+        therefore single-pipeline (LaTeXML's HTML rendering only), even
+        though the PDF was fetched, cached, and sha256-hashed. This review
+        independently re-derived the same anchors from the cached PDF via
+        `pdftotext -layout` (poppler, a different rendering pipeline from
+        LaTeXML) and found the identical base split: matrix A "(l'+d)xd"
+        (primed) immediately followed by H "binom(l+d,d-1)" (unprimed) in
+        the same sentence -- so the finding survives a second, independent
+        extraction pipeline. But that cross-check exists only in this
+        review, not in the run's own artifact chain.
+      consequence: >-
+        Does not change the verdict (I closed the gap myself and it holds),
+        but the run's "unambiguously" language oversells what its own script
+        actually checked. A one-line addition to alignment_audit.py doing a
+        cheap regex cross-check against the cached PDF's extracted text
+        would make the claim match what was actually verified.
+    - id: RTHZM1-O4
+      topic: pinned_v1_is_not_a_stale_draft_defect
+      severity: minor
+      finding: >-
+        arXiv:2607.09814 has a v2 (submitted 2026-08-06, after v1's
+        2026-07-10), which is neither fetched nor mentioned anywhere in this
+        experiment's artifacts (the pin is deliberately v1, which is a valid
+        and disclosed choice). This review independently fetched
+        https://arxiv.org/html/2607.09814v2 fresh (sha256 not previously
+        cached anywhere in this repo) and found the identical construction:
+        matrix A "(l'+d)xd" immediately followed by hashtable H
+        "binom(l+d,d-1)" (unprimed l), verified directly against the raw TeX
+        annotation, not a summarized read. The base mismatch is therefore
+        not a v1 draft typo the author has since fixed; it persists verbatim
+        in the latest available version.
+      consequence: >-
+        Strengthens confidence that RTHZM1's finding (and the underlying
+        RUN-HZM-001-a finding) reflects the author's actual intent or a
+        genuine unnoticed error, not a transient rendering or drafting
+        artifact -- worth recording in a future amendment so nobody later
+        re-litigates "maybe it's fixed in v2."
+  required_controls:
+    - id: RTHZM1-C1
+      control: >-
+        Evaluate charged_expected_work_vs_rho_bound at exactly (L,d) in
+        {(12,1),(16,1)} using H=1 (base-invariant, see RTHZM1-O1), applying
+        the spec's frozen cost_ledger.py's full 9-stage charged accounting
+        (not just the H/q lower bound used above) -- this does not require
+        RUN-HZM-001-b (the full 9-config grid) and does not require
+        resolving the d>=2 l-vs-l' ambiguity.
+      pass_condition: >-
+        Not a pass/fail control on the existing run; this is the proposed
+        next measurement. If the fully-charged cost still exceeds
+        ceil(N^(1/2)) at both sizes (expected, given the H/q lower bound
+        already clears it by 5x-15x), branch (b) of falsification_criterion
+        is satisfied and H-HZM-001's gate-survival question becomes
+        decidable now.
+    - id: RTHZM1-C2
+      control: >-
+        Add a PDF-vs-HTML cross-check to alignment_audit.py (or a successor
+        script) so "confirmed unambiguously" claims are backed by two
+        independent rendering pipelines in the run's own artifact chain, not
+        only in an outside reviewer's ad hoc check.
+      pass_condition: Both extractions agree on every anchor's base symbol.
+    - id: RTHZM1-C3
+      control: >-
+        Record in a future amendment that arXiv:2607.09814v2 exists and
+        independently reproduces the identical l/l' base split (this
+        review's finding, not yet in any committed artifact).
+      pass_condition: n/a (disclosure control, not a pass/fail gate).
+  counterexample_or_mutation: >-
+    Reuse RT-20260723-303's own RT303-C2 "d=1 boundary mutation" (already
+    named in H-HZM-001.yaml's test_boundary as the reason (12,1)/(16,1) were
+    chosen as primary gate sizes) as the discriminating control against the
+    misalignment finding itself: at d=1, binom(n,0)=1 for every n, so the
+    exact defect RUN-HZM-001-a found (l vs l'=l/2 as the base of H) produces
+    no numeric difference whatsoever at the two sizes the headline decision
+    depends on. This is the cheapest available check -- pure arithmetic, no
+    new code, no enumeration -- and it was already sitting on top of the
+    finding without being applied to it.
+  baseline_comparison:
+    pollard_rho: >-
+      ceil(N^(1/2)) group-operation-equivalents (KN-TECH-005 convention),
+      matching this experiment's frozen_rho_bound. My RTHZM1-O1 arithmetic
+      (H/q ~= 315 at N=4096, ~=3855 at N=65536) exceeds this bound by 4.9x
+      and 15.1x respectively using only a lower-bound estimate, consistent
+      with and strengthening RT-20260723-303's RT303-O2 conditional-negative
+      expectation (H/q >= N*d/(L+1) = N^(1-o(1))).
+    baby_step_giant_step: >-
+      Unchanged from RT-20260723-303's baseline_comparison
+      (N^(1/2+o(1)) time and stored elements); not separately re-derived
+      here since no new measurement bearing on BSGS occurred in this run.
+    closest_specialized_baseline: >-
+      Still the cited 2018/2023/2026 zero-minor/hyperplane-signature line
+      itself (RT303-O6's conclusion), not re-litigated by this review; this
+      run neither strengthens nor weakens that baseline-completeness gap,
+      since RUN-HZM-001-c (which would have measured against it) never
+      opened.
+    dominated_by_check: >-
+      Not applicable to this record. EXP-HZM-001 is a cost-gate audit of an
+      externally published claimed attack, not a proposal asserting a
+      Pareto-frontier speedup; neither IDEA-20260723-002 nor H-HZM-001.yaml
+      carries a `dominated_by` or `sota_delta` field to check, verified by
+      direct grep. Noting this explicitly per the operating instruction
+      rather than silently skipping it.
+  heuristic_challenges:
+    - id: RTHZM1-H1
+      target: HEUR-001 (occupancy law q=1-(1-1/N)^M <= min(1,M/N))
+      finding: >-
+        Completely untested by this experiment -- RUN-HZM-001-b (the only
+        run that would have compared measured zero-minor hit rates against
+        this law, the designated secondary metric
+        measured_zero_minor_hit_rate_vs_occupancy_law) never opened.
+        H-HZM-001.yaml's own random_model_justification for HEUR-001
+        ("Absent a proved elliptic central-subarrangement bias, the
+        arrangement induced by a generic evaluation matrix is modeled as
+        random") is one sentence with no cited rigorous bound and no
+        classical distribution theorem pairing (contrast the target-profile
+        exemplar's Theorem-1.5-plus-Canfield-Erdos-Pomerance pairing), and
+        it names no cheapest experiment to expose a deviation -- e.g., no
+        stated null-object control comparing the measured hit-rate against a
+        randomly permuted or randomly generated matrix of the same shape as
+        L grows, which is exactly the control docs/inventor-protocol.md
+        Section 3 calls for before crediting any occupancy signal. This gap
+        predates and is untouched by RUN-HZM-001-a/-d; it is not a defect
+        introduced by this run, but it remains open and should not be read
+        as satisfied just because CTRL-HZM-MANUSCRIPT-ALIGNMENT's failure
+        stopped the experiment before reaching it.
+  cost_model_challenges:
+    - id: RTHZM1-CM1
+      finding: >-
+        See RTHZM1-O1: the spec's charged-cost lower bound (H/q) is
+        computable now at both primary gate sizes without any toy run, and
+        already exceeds the rho bound by a wide margin using only the most
+        conservative accounting (no setup, reconstruction, verification, or
+        the 9 named cost_ledger stages included yet -- all of which are
+        strictly additive).
+    - id: RTHZM1-CM2
+      finding: >-
+        No van Oorschot-Wiener time-memory interpolation appears anywhere in
+        this experiment's artifacts, because Stage 2/3 never opened. If
+        RTHZM1-C1 is executed, the frozen_rho_bound convention (small serial
+        memory) should be checked against a memory-scaled interpolation
+        given RT303-O5's finding that the zero-minor route's own table is
+        near-linear in entries for constant-success d=Theta(L) -- a fair
+        time-vs-rho comparison at fixed memory, not just a raw time-exponent
+        comparison, is still owed whenever this route's cost is actually
+        computed.
+  reduction_and_scope_challenges:
+    - id: RTHZM1-RS1
+      finding: >-
+        No scope inflation found. H-HZM-001.yaml's interpretation_limits
+        correctly restrict any eventual gate failure to "only this
+        defect/signature interface, not all nonlinear zero-minor locators or
+        all non-generic ECDLP representations," and this run's own
+        analysis.md Limitation section explicitly declines to extend its
+        finding to a judgment about the manuscript's underlying algorithm or
+        about HEUR-001/H-HZM-001 as a whole. No corollary-via-cited-reduction
+        claim (OneEnd/EndRing/Isogeny-style) appears in this experiment;
+        not applicable.
+  proof_architecture_challenges:
+    - id: RTHZM1-PA1
+      finding: >-
+        Not applicable. EXP-HZM-001 is an empirical/audit cost-gate
+        experiment against an external publication, not a proof-oriented
+        proposal carrying a `proof_search_map` under
+        docs/inventor-protocol.md Section 8; there is no target theorem
+        statement here for the observation-fiber, quantifier-order,
+        boundary/strictness, method-ceiling, or nearby-object attacks to
+        engage.
+  fabrication_and_provenance_check:
+    - >-
+      sha256 of both cached sources (sources/arxiv_2607.09814v1.{html,pdf})
+      independently recomputed by this review and match raw-result.json's
+      recorded values exactly (pdf: c308faaf...; html: 07f83b7c...).
+    - >-
+      specification.yaml's stopping_rules[0] and falsification_criterion
+      text are byte-identical across every commit touching this file since
+      its initial content commit 6fa77ee6e3ff (2026-07-27 16:24:30 -0700),
+      through the pause (22a9f461, 2026-08-08) and re-approval (53aac6d8,
+      2026-09-06 16:44:01 UTC) commits -- only the `status` and
+      `status_enactment_note` fields changed. RUN-HZM-001-a executed at
+      2026-09-06T16:50:29Z, six minutes after the last content-neutral
+      status-field commit. The stopping rule was genuinely pre-registered
+      more than five weeks before the manuscript was ever fetched in this
+      run; nothing in it was written or edited post-hoc to justify this
+      run's outcome.
+    - >-
+      DEC-20260906-e4a2f7 (cited authorization), DEC-20260807-5adc24,
+      DEC-20260727-002, KN-TECH-005, and KN-LIT-011 all exist as real,
+      readable records with content matching what specification.yaml,
+      manifest.yaml, and execution-report.yaml claim about them; no
+      fabricated citation found anywhere in this run package.
+    - >-
+      python3 tools/validate_ledger.py run fresh by this review: 18 new
+      errors on this branch, none under experiments/EXP-HZM-001/ or
+      ledger/hypotheses/H-HZM-001.yaml.
+    - >-
+      required_artifacts: every artifact listed in specification.yaml for
+      the two runs that actually opened (RUN-HZM-001-a, RUN-HZM-001-d) is
+      present on disk; the three artifacts that presuppose RUN-HZM-001-b/-c
+      (their manifests etc.) are correctly and explicitly absent with
+      recorded reasons, not silently missing. No unjustified claim-tier
+      statement found (claim_tier: toy and certificate.kind: none are
+      applied consistently and correctly throughout).
+  narrowest_supported_statement: >-
+    RUN-HZM-001-a's central finding -- the manuscript's own displayed H
+    formula (Section 4.1: matrix A is "(l'+d)xd", then two clauses later the
+    hashtable A' "has a maximum length of binom(l+d,d-1)", unprimed l = 2*l')
+    uses a different base symbol than its q/M formulas (base l' throughout
+    Sections 6 and 8) -- is genuine, and this review independently
+    reproduced it via two different extraction pipelines (LaTeXML-rendered
+    HTML and poppler's pdftotext) against the same sha256-verified cached
+    v1 sources, and additionally against a freshly fetched v2 of the same
+    preprint, where the identical split persists verbatim. This correctly
+    defeats specification.yaml's pinned identity H=binom(L+d,d-1)=M*d/(L+1)
+    as literally written for the full 9-config grid (d in {1,2,3}), and
+    stopping_rules[0]'s firing is a mechanically correct, genuinely
+    pre-registered (since 2026-07-27, unchanged in content) application of
+    that finding -- not an executor error, and not a post-hoc rule.
+    "inconclusive_misalignment" is the right label for the general
+    9-config formula-tracking claim as CTRL-HZM-MANUSCRIPT-ALIGNMENT is
+    written. It is nonetheless an over-broad terminal label for the
+    experiment as a whole: at exactly the two "primary gate sizes" that
+    H-HZM-001's success/falsification decision turns on -- both d=1 -- the
+    found ambiguity is provably inert (binom(n,0)=1 for any base n), and the
+    spec's own lower-bound cost formula, evaluated with zero new compute,
+    already exceeds the frozen rho bound by 4.9x-15.1x at both sizes. That
+    number is not a run and is not evidence on its own, but it is a strong
+    signal that the headline gate question is decidable now, at near-zero
+    marginal cost, rather than genuinely blocked pending a future
+    "protocol amendment."
+  next_concrete_action: >-
+    Coordinator: authorize a narrow, cheap follow-up -- either an actual
+    RUN-HZM-001-c restricted to exactly (L,d) in {(12,1),(16,1)} (no d>=2,
+    no full 9-config grid, since H=1 is base-invariant there and does not
+    depend on resolving the general l-vs-l' ambiguity), or a zero-compute
+    algebra addendum in the same style as RT-20260723-303's RT303-O2 -- to
+    evaluate charged_expected_work_vs_rho_bound at those two sizes using the
+    spec's own frozen cost_ledger.py stages. This does not reopen the
+    general formula-alignment question (still correctly blocked for d>=2 by
+    CTRL-HZM-MANUSCRIPT-ALIGNMENT) and does not require a new manuscript
+    re-pin; it only asks whether the one metric the current hypothesis
+    statement is actually gated on can be resolved with the arithmetic that
+    is already sitting in the frozen contract.
+  artifact_paths:
+    - experiments/EXP-HZM-001/specification.yaml
+    - experiments/EXP-HZM-001/manuscript_alignment.md
+    - experiments/EXP-HZM-001/analysis.md
+    - experiments/EXP-HZM-001/execution-report.yaml
+    - experiments/EXP-HZM-001/runs/RUN-HZM-001-a/manifest.yaml
+    - experiments/EXP-HZM-001/runs/RUN-HZM-001-a/raw-result.json
+    - experiments/EXP-HZM-001/runs/RUN-HZM-001-a/alignment_audit.py
+    - experiments/EXP-HZM-001/runs/RUN-HZM-001-a/sources/arxiv_2607.09814v1.html
+    - experiments/EXP-HZM-001/runs/RUN-HZM-001-a/sources/arxiv_2607.09814v1.pdf
+    - experiments/EXP-HZM-001/runs/RUN-HZM-001-d/manifest.yaml
+    - experiments/EXP-HZM-001/runs/RUN-HZM-001-d/raw-result.json
+    - experiments/EXP-HZM-001/runs/RUN-HZM-001-d/aggregate_and_classify.py
+    - ledger/hypotheses/H-HZM-001.yaml
+    - coordination/goals/GOAL-CRYPTO-001/batches/BATCH-003/tasks/TASK-20260723-303/red_team_report.yaml
+    - coordination/goals/GOAL-CRYPTO-001/batches/BATCH-003/tasks/TASK-20260723-303/falsification_review.md
+    - ledger/decisions/DEC-20260906-e4a2f7.yaml
+  safety_scope:
+    classification: non_operational_academic_mathematics
+    real_keys: none
+    deployed_systems: none
+    standardized_curve_execution: none
+    key_recovery_software: none
+    operational_compromise_instructions: none
+    conclusion_boundary: >-
+      Scoped only to whether this run's manuscript-alignment finding and its
+      resulting classification are sound and complete; no universal ECDLP
+      impossibility, solve, breakthrough, or cryptographic-scale claim is
+      made or implied by this review.
+  verdict: HOLDS_WITH_UNRESOLVED_DECISIVE_OPPORTUNITY
+  status_changes_made: none
