@@ -34,7 +34,9 @@ The worker runs:
 
 ```bash
 lake build
+lake build +CryptoResearch.YourModule
 lake env lean AxiomAudit.lean
+# The worker also generates and runs an audit of the exact requested theorem.
 ```
 
 and rejects proof sources containing `sorry`, `admit`, custom `axiom`
@@ -57,3 +59,9 @@ The initial design is inspired by Mira-acc/cvp: keep the executable formal
 proof, a human-readable argument, a pinned toolchain/dependency graph, and a
 separate axiom audit. We reuse that verification discipline rather than
 copying CVP-specific lattice definitions into the autoresearcher.
+
+For existing proofs, use `autoresearch formal verify --task-file <spec>
+--artifact-out <new-receipt>` without MathCode. See
+[the direct Lean workflow](../docs/formal-research-lane.md#running-lean-directly).
+The pinned dependency-free `smoke/` project and `tests/test_lean_live.py` qualify
+the verifier using real positive and negative controls before research use.

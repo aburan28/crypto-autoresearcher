@@ -170,6 +170,33 @@ independent review, then a Coordinator-only ledger archive before a state
 transition. Use merges, never rebases, for branches carrying pushed research
 records. Do not manufacture a new task merely to fill capacity.
 
+### Proof-oriented work uses the Lean lane
+
+For a new proof-oriented experiment or review, the Coordinator identifies a
+load-bearing lemma or finite certificate suitable for Lean and records a
+formalization task in the proof-search map. If formalization is not yet useful,
+record the exact missing definition or library dependency and a revisit trigger.
+Start with the smallest decision-changing obligation; do not replace the full
+human claim with an easier statement and call the claim proved.
+
+Use `docs/formal-research-lane.md` and the existing `formal/targets/` task schema.
+A formal task remains an Executor task with the normal committed handoff,
+claim, snapshot, independent semantic review and Coordinator decision gates.
+Existing Lean sources can be checked with `autoresearch formal verify
+--task-file <frozen-spec> --artifact-out <new-receipt>`; MathCode is optional
+for verification. Freeze the theorem's assumptions, quantifier order, module,
+qualified name, toolchain and dependency manifest before execution. Pair the
+positive theorem with a known-false or weakened-assumption control.
+
+The verifier must compile the requested module and audit the requested theorem's
+transitive axioms. A successful build of another module, an empty audit, or a
+proof using `sorryAx` is not verification of the target. Archive the Lean source,
+build/audit logs, exact input hashes and semantic-review report. A machine-checked
+statement remains pending semantic review until its correspondence with the
+research claim has been checked independently; existing findings retain their
+recorded proof status. Toolchain failures and unresolved proof obligations are
+not mathematical refutations.
+
 ## 5. Make progress visible, then continue within mode
 
 Read [progress](references/progress.md) and use the bundled read-only
