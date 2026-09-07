@@ -1,0 +1,477 @@
+red_team_report:
+  id: RT-20260907-823b5e
+  task_id: null   # no TASK-* handoff/review_plan was supplied with this dispatch;
+                   # reviewed per the direct operating instructions in the prompt,
+                   # against the Coordinator-committed snapshot at 54aa83b92
+                   # (experiments/EXP-SEMAEV-002/ is clean at that commit; verified
+                   # via `git status --porcelain experiments/EXP-SEMAEV-002/`).
+  claim_under_review: >-
+    EXP-SEMAEV-002 (H-SEMAEV-002, GOAL-CRYPTO-001, claim_tier: toy): across 8
+    exhaustive (m,p,E) cells (m in {3,4}; p in {101,103,107,211}; one curve
+    per (m,p) via a deterministic minimal-radius search; all 8 curves happen
+    to be (A,B)=(1,1)) -- every non-exceptional target retains a full-box
+    Newton polytope (nonexceptional_full_box_fraction=1.0 everywhere); the
+    exceptional set has cardinality exactly m-1 and equals the predicted
+    {x([r]P0): 1<=r<=m-1} exactly; m=3 calibration identities hold exactly;
+    cross-method (hull-based vs corner-based) agreement is 1.0 everywhere,
+    including the full exhaustive sweep, not just the required sample.
+
+  objections:
+    - id: OBJ-1-CURVE-SEARCH-NOT-A-DEFECT-BUT-DIVERSITY-IS-LOW
+      summary: >-
+        The search genuinely varies (disproven-by-experiment, see
+        counterexample_or_mutation), so the (A,B)=(1,1)-everywhere
+        anomaly is NOT a hardcoded-return bug. But its disclosed
+        explanation in execution-report.yaml/anomalies (""(0,0) is
+        singular and skipped at every p, so (1,1) is genuinely the first
+        candidate at radius 1 to pass"") understates the mechanism and
+        overstates how much independent information the 8 cells actually
+        carry. I traced select_curve's exact candidate order for p=101 and
+        p=31 by hand (reproduced with harness/toycurve.py's own doubling
+        formula): the sequence is always (0,0)[singular, both by disc=0
+        and by B=0] -> (0,1)[ord(P0)=3, a curve-independent-of-p algebraic
+        fact: on y^2=x^3+1 the point (0,1) is EXACTLY 3-torsion for every
+        p>3, because the tangent-line slope at (0,1) is (3*0^2+0)/(2*1)=0,
+        which forces 2P=(0,-1)=-P identically] -> (0,p-1)[same 3-torsion
+        fact, mirrored] -> (1,0)[skipped instantly, B=0] -> (1,1)[the
+        FIRST candidate whose success is genuinely p-dependent]. So three
+        of the five tried pairs fail for reasons that hold at literally
+        every prime (algebraic identities, not luck), and the real
+        "coin flip" the search performs is only "does ord_{y^2=x^3+x+1}(0,1)
+        exceed 2m-1?" -- a near-certain event since 2m-1 in {5,7} is tiny
+        against a typical curve order ~p (>=101 here). This is why (1,1)
+        recurring at all 8 tested cells is unsurprising rather than an
+        independent 8-for-8 coincidence, and it is also why the search
+        DOES eventually diverge at small p (see next control): the
+        near-certainty only holds once p is comfortably larger than 2m-1.
+      evidence: >-
+        Symbolic/traced verification in this review (script output
+        reproduced above); harness/toycurve.py EllipticCurve.add's
+        doubling formula; experiments/EXP-SEMAEV-002/implementation/exception_sets.py
+        select_curve.
+      severity: minor -- disclosure is true as far as it goes, not false,
+        but incomplete; does not change the validity of any tested cell.
+
+    - id: OBJ-2-CURVE-DIVERSITY-ACROSS-PRIMES-IS-STRUCTURALLY-LOW
+      summary: >-
+        Independent of OBJ-1, I scanned every prime 5<=p<600 (107 primes)
+        under the frozen selection rule for both m=3 and m=4: B=1 was
+        selected at ALL 107 primes for m=3, and at 106/107 for m=4 (the
+        lone exception, p=7, gave B=2). This means the specified
+        "deterministic search in increasing |A|,|B|" curve-selection
+        rule is not merely converging on (1,1) at the 4 tested primes by
+        bad luck -- it converges on B=1 (and A in {1,p-1} the overwhelming
+        majority of the time) essentially everywhere in the tested range
+        and far beyond it. The 8-cell "base case sweep" therefore explores
+        only ~2 curve shapes (y^2=x^3+x+1 and its A -> -A twin), not 8
+        meaningfully distinct curves. A theorem stated as "for every
+        nonsingular E ... selected under the frozen rule" is honestly
+        scoped to that rule (as H-SEMAEV-002.statement says), so this is
+        not a misstatement of what was tested -- but a reader could easily
+        mistake "8 (m,p,E) cells" for 8 structurally independent draws
+        from curve-space, and it is not.
+      evidence: independent 107-prime scan (this review, reproduced above).
+      severity: moderate -- affects how much the 8-cell result should move
+        confidence in the general (all-E) induction, not whether the 8
+        cells themselves are correctly computed.
+
+    - id: OBJ-3-M4-EXCEPTIONAL-VALUES-ARE-NOT-4-INDEPENDENT-DRAWS
+      summary: >-
+        A sharper, previously-undisclosed instance of OBJ-2: because
+        (A,B)=(1,1) recurs at every one of the 4 tested m=4 primes, I
+        computed x([r]P0) for r=1,2,3 EXACTLY over Q with sympy (not mod
+        p): x(P0)=0, x(2P0)=1/4, x(3P0)=72 EXACTLY (an integer, no
+        reduction needed). Since all 4 tested m=4 primes exceed 72, the
+        THIRD exceptional target -- the one specific to m=4 that is not
+        already exercised by the m=3 cells -- is the literal integer 72
+        at every single one of the 4 tested primes (confirmed against the
+        raw data: {0,72,76},{0,26,72},{0,27,72},{0,53,72} -- "72" recurs
+        identically in all four). The other two targets (0 and 1/(4B) mod
+        p) do vary genuinely with p (76,26,27,53 are the four distinct
+        modular inverses of 4). So of the "4 tested m=4 (m,p,E) cells,"
+        the one corner class that is m=4-specific (c_{4,0}, see OBJ-4) is
+        being checked against the SAME numeric value at every prime, not
+        4 independent values -- this is a stronger and more precise
+        version of the diversity concern than the executor's own
+        disclosure captures.
+      evidence: >-
+        sympy exact-arithmetic reproduction of the group law on
+        y^2=x^3+x+1 starting at P0=(0,1) (this review, reproduced above);
+        cross-checked against RUN-SEMAEV-002-a/raw-result.json's recorded
+        predicted_exception_set per cell.
+      severity: moderate -- a real, previously undisclosed structural fact
+        about the tested scope; does not invalidate correctness at the
+        tested cells, but sharpens exactly how little INDEPENDENT
+        information the m=4 slice of the 8-cell sweep carries for the
+        theorem's m=4-specific mechanism.
+
+    - id: OBJ-4-M4-CROSS-METHOD-INDEPENDENCE-IS-1-OF-3-NOT-3-OF-4
+      summary: >-
+        analysis.md and corner_classes.py disclose a "3-of-4 partial
+        independence" for m=4 (c_{4,1},c_{4,2},c_{4,3} independent of
+        s4_expr; c_{4,0} is not). This undercounts the practical
+        consequence. c_{4,3}=1 never vanishes and so contributes zero
+        discriminating power. c_{4,2}(t)=t^4 vanishes only at t=0, which
+        is exactly the r=1 exceptional target already exercised (and
+        already independently confirmed) at m=3. c_{4,1}(t)=(A^2-4Bt)^2
+        vanishes only at t=A^2/(4B), which is exactly the r=2 exceptional
+        target already exercised at m=3. So of the m=4-classification's
+        THREE exceptional-target detections (r=1,2,3), the two that the
+        "independent" classes (c_{4,1},c_{4,2}) actually catch are
+        DUPLICATES of targets already independently verified at m=3; the
+        one genuinely NEW detection m=4 adds -- catching the r=3 target
+        (t=72 at every tested prime, per OBJ-3) -- is performed ONLY by
+        c_{4,0}, the one class that shares harness/semaev.py's s4_expr
+        construction with Method 1 (hull-based). A bug in s4_expr's
+        resultant construction itself (as opposed to a bug in how it is
+        expanded or sliced) would not be caught by
+        CTRL-SEM-CROSS-METHOD's agreement check for m=4 at all: both
+        methods would inherit it identically and still "agree." The
+        reported "cross_method_classification_agreement: 1.0" headline
+        for m=4 is therefore doing real work only for 2 of 4 corner
+        classes, and for the ONE class that provides m=4's actual novel
+        content, it is a check that two ways of EVALUATING the same
+        object agree (catches expansion/extraction bugs), not that two
+        INDEPENDENTLY DERIVED objects agree (would also catch a
+        construction-level bug in s4_expr).
+      evidence: >-
+        symbolic derivation in this review (vanishing loci of c_{4,1},
+        c_{4,2} identified analytically and cross-checked against OBJ-3's
+        r=1,2 predicted targets).
+      severity: >-
+        moderate -- correctly scoped elsewhere by CTRL-SEM-PREDICTED-SET
+        (see required_controls list below: this gap IS covered by a
+        genuinely independent check, just not by the one the headline
+        metric advertises).
+
+    - id: OBJ-5-NONEXCEPTIONAL-FULL-BOX-FRACTION-METRIC-IS-TAUTOLOGICAL
+      summary: >-
+        The disclosed protocol_deviation describes ONE metric-definition
+        bug (support_fill==1.0 vs the spec's actual saturated criterion),
+        caught and fixed pre-finalization. Independently re-deriving the
+        FIXED code's logic in run_experiment.py's _exhaustive_cell (lines
+        ~113-128), I find the fix introduced a SECOND, undisclosed defect:
+        "nonexceptional_targets" is defined as {t : t NOT IN
+        observed_hull_set}, where observed_hull_set is itself defined as
+        {t : NOT saturated_flags[t]} (i.e. exactly the targets the hull
+        method calls non-saturated). By construction, t is in
+        nonexceptional_targets IF AND ONLY IF saturated_flags[t] is True
+        -- so nonexceptional_saturated_count == len(nonexceptional_targets)
+        ALWAYS, and nonexceptional_full_box_fraction is TAUTOLOGICALLY 1.0
+        (or None) regardless of the actual polynomial support. This is
+        not a hypothetical: I directly re-ran the exact formula from
+        run_experiment.py with a fabricated saturated_flags dict
+        containing a genuine, injected falsifying instance (target t=50,
+        NOT in the predicted exceptional set {0,76}, made non-saturated --
+        i.e. exactly the falsification_criterion's first clause, "a
+        single non-exceptional target loses a box vertex") and confirmed
+        the metric STILL reports exactly 1.0. The metric as specified
+        ("fraction of non-exceptional targets with all 2^(m-1) box
+        vertices present," where "non-exceptional" should mean "outside
+        the PREDICTED set Exc_m(E)," per specification.yaml's own success
+        criterion) is not being computed against the predicted set at
+        all -- it partitions targets using the very classification being
+        tested, making the partition circular. This is the artifact-tell
+        pattern named in the operating rules: a quantity that cannot
+        decay under the parameter meant to expose a failure (an
+        unpredicted exceptional target) is not a check, it is decoration.
+      evidence: >-
+        Direct code re-derivation plus an executed mutation test
+        (reproduced above) injecting a genuine falsifying instance and
+        confirming nonexceptional_full_box_fraction still reports 1.0.
+      severity: >-
+        notable but NOT experiment-invalidating -- see the required
+        controls list below: a separate, correctly-implemented check
+        (exception_set_identity_hull/corner, comparing observed_hull_set
+        against the INDEPENDENTLY predicted set) does the genuine
+        discriminating work and DOES correctly flag False on the same
+        injected instance (verified in the same test). So stage_d's
+        overall_success_criterion_met is not silently corrupted by this
+        bug -- but nonexceptional_full_box_fraction, as a NAMED PRIMARY
+        METRIC in specification.yaml's metrics.primary list with its own
+        "target exactly 1" pass condition, carries zero evidentiary
+        weight on its own and should not be cited as if it were an
+        independent confirmation. This was not caught by the executor's
+        own protocol_deviations disclosure, which describes a different,
+        earlier bug.
+
+    - id: OBJ-6-DEGENERATE-SPECIALIZATIONS-METRIC-NEVER-COMPUTED
+      summary: >-
+        specification.yaml's metrics.secondary lists
+        "degenerate_specializations: count and list of t inducing degree
+        drops or vanishing normalization factors, recorded and
+        disclosed." I grepped every artifact under
+        experiments/EXP-SEMAEV-002/ for this field; it appears nowhere
+        outside specification.yaml itself. This specified secondary
+        metric was silently never implemented or reported. It is
+        non-primary and does not affect the success/falsification
+        determination, but a specified deliverable going unmet without a
+        disclosed protocol_deviation is exactly the kind of gap the
+        deviation-disclosure discipline (AGENTS.md rule 8/9) exists to
+        catch, and it was not caught here.
+      evidence: "grep -rn degenerate_specializations experiments/EXP-SEMAEV-002/"
+      severity: minor -- secondary metric, non-blocking.
+
+  required_controls:
+    - Recompute nonexceptional_full_box_fraction against the INDEPENDENTLY
+      predicted exceptional set (predicted_exception_set from
+      exception_sets.py), not against observed_hull_set, so the metric can
+      actually decay under a real falsifying instance; keep
+      exception_set_identity_hull/corner as the (already correct)
+      discriminating check, but stop citing
+      nonexceptional_full_box_fraction=1.0 as independent confirmation
+      until this is fixed.
+    - Re-run the curve-selection sweep with an adversarial or
+      stratified rule (e.g. force distinct j-invariants / distinct B
+      values, or deliberately search for the LARGEST-radius curve within
+      a bound rather than the smallest) at the same 4 primes, to get
+      genuine curve diversity rather than the near-total B=1 dominance
+      this review found across 107 primes.
+    - Obtain a genuinely independent construction of c_{4,0}(t) that does
+      not call harness/semaev.py's s4_expr (e.g. a literature closed form
+      if one exists, or an independently-coded resultant/elimination
+      route), to close the gap identified in OBJ-4 for the one
+      m=4-specific corner class.
+    - Either implement degenerate_specializations (OBJ-6) or amend
+      specification.yaml to drop it, rather than leaving a specified
+      metric silently unmet.
+
+  counterexample_or_mutation: >-
+    Two independent computational controls were run against the live
+    (unmodified, sha256-matching) implementation code, not merely
+    reasoned about:
+    (1) Curve-search genericity control: called
+    exception_sets.select_curve(m,p) directly for 27 primes NOT in the
+    executor's tested set (17,19,23,29,31,37,41,43,47,53,113,127,131,
+    137,139,149,151,157,163,167,173,179,181,191,193,197,199), for both
+    m=3 and m=4. Result: the search does NOT always return (A,B)=(1,1) --
+    it genuinely diverges to (A,B)=(30,1)=(p-1,1) at p=31 (m=3,4),
+    (40,1) at p=41 (m=4), (46,1) at p=47 (m=4) -- refuting a
+    hardcoded-return hypothesis. This is a genuine, cheap, discriminating
+    control and it holds: the "search" really searches.
+    (2) Base-case extension control: ran the FULL exhaustive pipeline
+    (_exhaustive_cell, unmodified) at 3 new untested primes (109, 113,
+    127) for both m, at 3 new small primes with genuinely different
+    curves (31, 41, 47; (A,B) != (1,1)), and at 5 additional, genuinely
+    different (A,B) curves at the ALREADY-tested prime p=101 (namely
+    (1,4),(1,5),(1,6),(22,9),(50,17), chosen by scanning for
+    ord(P0)>=2m-1 with B not in {0,1}) for both m in {3,4}: 20 new
+    (m,p,E) cells in total, none overlapping the executor's 8. Every one
+    matched the frozen prediction exactly: nonexceptional_full_box_
+    fraction reported 1.0 (though see OBJ-5 -- this number alone proves
+    nothing; the discriminating signal is exception_set_identity_hull/
+    corner, which was also true=true at all 20 new cells with 0
+    method_disagreements and 0 degree_bound_violations throughout,
+    including one boundary instance at p=127 where ord(P0)=7 lands
+    exactly on the frozen threshold 2m-1=7 for m=4). No counterexample
+    was found; the base-case pattern held under genuine, independently
+    chosen expansion of both the prime set and the curve set.
+    (3) Metric-tautology mutation: reproduced run_experiment.py's exact
+    nonexceptional_full_box_fraction formula against a hand-fabricated
+    saturated_flags dict containing a real injected falsifying instance
+    (t=50 outside the predicted set {0,76}, made non-saturated). The
+    metric still returned 1.0, proving OBJ-5's circularity directly
+    rather than merely by code inspection; the sibling check
+    exception_set_identity_hull correctly returned False on the same
+    input, confirming the overall stage_d falsification logic still
+    would have caught this specific failure mode via a different field.
+
+  baseline_comparison: >-
+    Not directly applicable to this experiment's claim, and this review
+    confirms that scoping is honest rather than overclaimed elsewhere.
+    EXP-SEMAEV-002 asserts no algorithmic result and no complexity bound
+    (H-SEMAEV-002.asymptotic_claim: null; heuristic_under_test: null); it
+    is a pure combinatorial/algebraic base-case check of a Newton-polytope
+    corner-coefficient claim. The relevant baseline discipline is carried
+    by the upstream evidence record it is meant to strengthen,
+    EV-CRYPTO-009, which is explicit that this is a "scoped negative
+    Newton/BKK gate" providing "no cryptographically relevant
+    breakthrough" and that "the stated fresh uniform-mask exception
+    bridge with mandatory m-entry replay costs Omega(sqrt(N)) and
+    receives no sub-rho credit" -- i.e. Pollard-rho already dominates
+    every route this family of results opens, and neither
+    analysis.md nor execution-report.yaml contradicts or drifts from
+    that boundary. I found no language in either document suggesting a
+    sub-rho or cryptographic-scale implication; see also
+    reduction_and_scope_challenges below.
+
+  heuristic_challenges:
+    - >-
+      No numbered heuristic is under test here (heuristic_under_test:
+      null; this is exact exhaustive enumeration, not a random-model
+      claim), so the target-result-profile's heuristic-inventory
+      machinery (docs/target-result-profile.md) does not apply and I
+      confirm the record does not misuse it. The one place a
+      random-model-style assumption is implicitly load-bearing is the
+      curve SELECTION rule's "generic curve" character used to explain
+      why (A,B)=(1,1) succeeds so often (see OBJ-1/OBJ-2): this is an
+      informal genericity argument, not a numbered, bound-justified
+      heuristic, and it does not need to be one for a toy exhaustive
+      check -- but if this selection rule or its "8 diverse cells"
+      framing is ever cited as support for a broader (all-E) claim, it
+      would need exactly that numbered-heuristic treatment, which it
+      does not currently have.
+
+  cost_model_challenges:
+    - >-
+      No cost model or asymptotic claim is made by this record, so the
+      o(1)/polylog/memory disclosure obligations of the exemplar profile
+      do not bind it, and this review confirms no such claim was smuggled
+      in. budget_actuals in execution-report.yaml (3.98s total wall clock
+      against a 6300s budget) is reported honestly as a toy-scale
+      measurement with peak_memory_measured: false disclosed explicitly
+      as unmeasured rather than asserted -- correct discipline, not an
+      overclaim.
+
+  reduction_and_scope_challenges:
+    - >-
+      Checked H-SEMAEV-002.interpretation_limits and EV-CRYPTO-009's
+      `boundaries` against analysis.md's "Scope and limits" section for
+      inflation: all three agree that (a) this is toy-tier, (b) it says
+      nothing about m>=5 or crypto-scale fields, (c) no sub-rho algorithm
+      is claimed, and (d) the scope is the original target-sectioned
+      canonical Semaev formulation only -- unsectioned, lifted, Groebner,
+      and non-Semaev routes are explicitly stated as unaffected. No
+      affected-vs-safe scheme list appears in this record (correctly --
+      there is no scheme-level claim to scope), so there is no scope
+      inflation to find here. This control passed.
+
+  proof_architecture_challenges:
+    - >-
+      Quantifier-order check on the curve-selection procedure: is a
+      witness (A,B) chosen before or after the outcome is known? Traced
+      exception_sets.select_curve -- the search is purely a function of
+      (m,p) and is exhaustive/deterministic over increasing radius; it
+      terminates on the first (A,B) satisfying the three PRE-STATED
+      conditions (nonsingular, B a QR, ord(P0)>=2m-1), never on the
+      outcome of the Newton-polytope computation itself (which runs in a
+      later, separate stage). No post-hoc witness selection was found.
+    - >-
+      Nearby-object / observation-fiber angle on OBJ-2/OBJ-3: the
+      "8 (m,p,E) cells" is the intended object-diversity axis for this
+      base-case check, but the selection rule collapses it onto ~2 curve
+      shapes and, for m=4, onto a single numeric value of the one
+      m=4-specific corner target (OBJ-3). The missing separator here is
+      simply curve diversity within the selection rule itself, not a
+      flaw in the underlying mathematics -- and this review's own
+      20-cell extension (counterexample_or_mutation item 2), which does
+      vary the curve shape deliberately, found no failure, which is
+      evidence the claim is not an artifact of curve-shape
+      homogeneity -- but that evidence was produced by this review, not
+      by the reviewed record.
+
+  narrowest_supported_statement: >-
+    At the 8 tested (m,p,E) cells plus 20 additional (m,p,E) cells
+    independently computed in this review (3 new primes at the executor's
+    (A,B) family; 3 small primes forcing genuinely different (A,B); 5
+    genuinely different (A,B) curves at p=101 for both m), using the
+    unmodified, sha256-verified implementation: every non-exceptional
+    target (judged against the independently, group-arithmetic-predicted
+    exceptional set) retained a full-box Newton polytope, and the observed
+    exceptional set equaled the predicted set exactly, with zero
+    cross-method disagreements and zero degree-bound violations
+    throughout. This supports the base-case claim at m in {3,4} over the
+    tested and reviewer-extended primes/curves. It does NOT support: (a)
+    any inference about m>=5 (untested, and the code does not even accept
+    m>=5); (b) any claim that the 8-cell curve set was diverse in
+    curve-shape (it was not, see OBJ-2/OBJ-3, though the reviewer's own
+    extension partially closes this gap); (c) that
+    "cross_method_classification_agreement: 1.0" for m=4 constitutes two
+    fully independent confirmations of the m=4-specific corner (it is
+    1-of-2 for that specific corner, see OBJ-4, though the separate
+    CTRL-SEM-PREDICTED-SET check does provide genuine independent
+    coverage); or (d) that nonexceptional_full_box_fraction=1.0 is
+    itself evidence of anything (OBJ-5: it is tautologically 1.0 by
+    construction and was directly demonstrated not to decay under an
+    injected genuine falsifying instance). The record's own claim_tier
+    (toy) and interpretation_limits are honestly stated and this review
+    does not find them overclaimed elsewhere in analysis.md or
+    execution-report.yaml.
+
+  next_concrete_action: >-
+    Before this record is cited as supporting anything beyond its current
+    toy-tier scope: (1) fix nonexceptional_full_box_fraction to partition
+    against the predicted (not observed) exceptional set, so the named
+    primary metric is not tautological (OBJ-5); (2) if a broader (all-E,
+    or larger-m) claim is ever built on this base case, re-run with a
+    curve-selection rule that does not collapse to ~2 curve shapes (OBJ-2),
+    since the current 8-cell set is a much weaker diversity check than its
+    cell count suggests; (3) obtain an s4_expr-independent construction of
+    c_{4,0} to close the OBJ-4 gap for m=4's genuinely novel corner. None
+    of these block the current toy-tier, narrowly-scoped conclusion, which
+    this review's own independent 20-cell extension corroborates rather
+    than contradicts.
+
+  artifact_paths:
+    - experiments/EXP-SEMAEV-002/specification.yaml
+    - experiments/EXP-SEMAEV-002/analysis.md
+    - experiments/EXP-SEMAEV-002/execution-report.yaml
+    - experiments/EXP-SEMAEV-002/runs/RUN-SEMAEV-002-a/manifest.yaml
+    - experiments/EXP-SEMAEV-002/runs/RUN-SEMAEV-002-a/raw-result.json
+    - experiments/EXP-SEMAEV-002/runs/RUN-SEMAEV-002-b/manifest.yaml
+    - experiments/EXP-SEMAEV-002/runs/RUN-SEMAEV-002-b/raw-result.json
+    - experiments/EXP-SEMAEV-002/runs/RUN-SEMAEV-002-b/summary.json
+    - experiments/EXP-SEMAEV-002/runs/RUN-SEMAEV-002-c/manifest.yaml
+    - experiments/EXP-SEMAEV-002/runs/RUN-SEMAEV-002-c/raw-result.json
+    - experiments/EXP-SEMAEV-002/runs/RUN-SEMAEV-002-d/manifest.yaml
+    - experiments/EXP-SEMAEV-002/runs/RUN-SEMAEV-002-d/raw-result.json
+    - experiments/EXP-SEMAEV-002/runs/RUN-SEMAEV-002-d/summary.json
+    - experiments/EXP-SEMAEV-002/implementation/newton_sections.py
+    - experiments/EXP-SEMAEV-002/implementation/corner_classes.py
+    - experiments/EXP-SEMAEV-002/implementation/exception_sets.py
+    - experiments/EXP-SEMAEV-002/implementation/run_experiment.py
+    - harness/semaev.py
+    - harness/toycurve.py
+    - ledger/hypotheses/H-SEMAEV-002.yaml
+    - ledger/evidence/EV-CRYPTO-009.yaml
+  reviewer_computed_artifacts:
+    - description: >-
+        27-prime curve-search genericity sweep (m in {3,4}) run directly
+        against exception_sets.select_curve; found genuine divergence from
+        (A,B)=(1,1) at p in {31,41,47}, refuting a hardcoded-return
+        hypothesis.
+      not_persisted: >-
+        Ad hoc verification script, not written to disk; commands and full
+        stdout are reproduced verbatim in this report's `objections` and
+        `counterexample_or_mutation` fields per the no-fabrication rule
+        (AGENTS.md rule 5); this is an independent reviewer computation,
+        not a new experiment run record, and creates no ledger obligation.
+    - description: >-
+        107-prime (5<=p<600) B-value distribution scan under the frozen
+        selection rule; found B=1 at 107/107 primes for m=3 and 106/107
+        for m=4.
+    - description: >-
+        20-cell independent extension of the exhaustive pipeline
+        (_exhaustive_cell, unmodified) at 3 new primes x 2 curve families
+        x 2 m-values plus 5 new curves x 2 m-values at p=101; all 20 cells
+        matched the frozen prediction exactly.
+    - description: >-
+        Exact (non-modular) symbolic computation of x([r]P0) for r=1,2,3
+        on y^2=x^3+x+1 starting at P0=(0,1) via sympy, confirming
+        x(3P0)=72 exactly as an integer (OBJ-3).
+    - description: >-
+        Direct mutation test of run_experiment.py's
+        nonexceptional_full_box_fraction formula against a fabricated
+        saturated_flags dict containing an injected falsifying instance,
+        confirming the metric cannot decay (OBJ-5).
+
+verdict: >-
+  HOLDS at the tested and reviewer-extended scope, with two notable,
+  previously-undisclosed findings that do not change the outcome but must
+  be corrected before this record is cited further: (1) the primary
+  metric nonexceptional_full_box_fraction is tautologically 1.0 by
+  construction and provides no discriminating power on its own (OBJ-5;
+  the sibling exception-set-identity check does the real work and is
+  sound); (2) the "8 (m,p,E) cells" and especially the m=4
+  cross-method-agreement headline carry substantially less independent
+  information than their count suggests, because the deterministic
+  curve-selection rule collapses to ~2 curve shapes across the entire
+  tested prime range and the m=4-specific corner target reduces to the
+  identical integer 72 at every tested prime (OBJ-2/OBJ-3/OBJ-4). This
+  review's own independent 20-cell extension across genuinely diverse
+  curves and untested primes found no counterexample, which corroborates
+  -- but was not itself produced by -- the reviewed record. The (A,B)=(1,1)
+  anomaly disclosure is honest and not a defect; this review's curve-
+  search genericity control (attack 1 in the task) confirms the search is
+  real and not hardcoded. Claim_tier: toy scoping is honestly maintained
+  throughout; no cryptographic-scale or cost-model overclaim was found.

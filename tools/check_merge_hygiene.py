@@ -344,12 +344,61 @@ def check_prospective_goal_ids(base: str) -> list[str]:
     ]
 
 
+def _identical_to_base(path: str, base: str) -> bool:
+    """True when the candidate's current content at ``path`` equals ``base``'s.
+
+    Used to exclude a path from the touched-files set when it is provably
+    unchanged relative to ``base`` -- the case a merge commit creates for
+    every file `main` altered since the branch's last commit, which a plain
+    diff against pre-merge HEAD cannot distinguish from a path the branch
+    itself edited (see the note on ``touched_files`` below). Compares the
+    candidate's committed blob first (covers the ordinary "merged, not
+    otherwise touched" case without a filesystem read), then the worktree
+    file, so a file also matches when the working tree still holds the
+    identical content pre-commit.
+    """
+    try:
+        base_blob = _run("git", "show", f"{base}:{path}")
+    except UnicodeDecodeError:
+        return False  # binary or non-UTF-8 content: leave the cautious default
+    if base_blob.returncode != 0:
+        return False  # path does not exist at base: cannot be "unchanged"
+    try:
+        candidate_blob = _run("git", "show", f":{path}")
+    except UnicodeDecodeError:
+        candidate_blob = None
+    if candidate_blob is not None and candidate_blob.returncode == 0 \
+            and candidate_blob.stdout == base_blob.stdout:
+        return True
+    try:
+        with open(os.path.join(REPO, path), encoding="utf-8", errors="surrogateescape") as fh:
+            worktree_text = fh.read()
+    except OSError:
+        return False
+    return worktree_text == base_blob.stdout
+
+
 def touched_files(base: str) -> list[str] | None:
     """Committed, staged, or tracked-worktree candidate destinations.
 
     Returns None when `base` cannot be resolved, so the caller falls back to the
     absolute sweep rather than silently checking nothing.  Untracked paths are
     intentionally absent until they enter the index.
+
+    MERGE COMMITS. The three diffs below all compare against ``HEAD``, which
+    is the branch's PRE-merge tip while a merge is staged but not yet
+    committed. For an ordinary content-authoring commit that is exactly the
+    right comparison. For a merge, it is not: every file `base` changed since
+    the branch's last commit now differs from that stale `HEAD`, even where
+    the merge introduced byte-for-byte identical content from `base` with no
+    branch-authored change at all. Left uncorrected, that inflates the
+    touched set to most of `base`'s own recent history and reintroduces
+    exactly the failure mode PR-scoping exists to avoid: blaming a branch for
+    breakage that was already on `base` (see the module-level comment above
+    `main()`). The fix is narrow: drop any path whose candidate content is
+    provably identical to `base`'s own content at that path, since such a
+    path cannot carry branch-introduced breakage regardless of why it showed
+    up in a HEAD-relative diff.
     """
     if _run("git", "rev-parse", "--verify", "--quiet", base + "^{commit}").returncode:
         return None
@@ -359,7 +408,9 @@ def touched_files(base: str) -> list[str] | None:
     committed = _diff_destination_paths(merge_base, "HEAD")
     staged = _diff_destination_paths("--cached", "HEAD")
     tracked_worktree = _diff_destination_paths()
-    return sorted(committed | staged | tracked_worktree)
+    candidates = committed | staged | tracked_worktree
+    touched = {p for p in candidates if not _identical_to_base(p, base)}
+    return sorted(touched)
 
 
 def check_markers(paths: list[str]) -> list[str]:
