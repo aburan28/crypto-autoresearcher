@@ -1,0 +1,165 @@
+coordinator_decision:
+  id: DEC-20260907-5b500d
+  decision_type: amendment_adoption_and_dispatch_authorization
+  goal_id: GOAL-CRYPTO-001
+  experiment_id: EXP-HZM-001
+  hypothesis_id: H-HZM-001
+  recorded_at: '2026-09-07'
+  recorded_by: coordinator
+  decided_by: coordinator
+  decided_at: '2026-09-07'
+  decision: revise
+  decision_note: >-
+    "revise" per this program's decision vocabulary (not approve/reject):
+    this decision adopts a narrow protocol amendment and authorizes exactly
+    one bounded follow-up computation under EXP-HZM-001, without
+    transitioning H-HZM-001's status and without touching the general,
+    still-correctly-blocked d in {1,2,3} manuscript-alignment question.
+
+  context:
+    - >-
+      RUN-HZM-001-a found CTRL-HZM-MANUSCRIPT-ALIGNMENT fails (the
+      manuscript's own displayed H formula uses a different base symbol,
+      l=2*l', than the q/M formulas' base l'), so specification.yaml's
+      stopping_rules[0] correctly prevented RUN-HZM-001-b/-c from opening
+      and the experiment terminated at inconclusive_misalignment
+      (committed 54aa83b92).
+    - >-
+      Independent validator review (experiments/EXP-HZM-001/reviews/
+      validator/validation-report.yaml) and independent red-team review
+      (RT-20260907-e9f097, experiments/EXP-HZM-001/reviews/red-team/
+      red_team_report.yaml, committed fa79a2158, verdict
+      HOLDS_WITH_UNRESOLVED_DECISIVE_OPPORTUNITY) both confirmed this
+      finding is genuine and correctly applied.
+    - >-
+      RT-20260907-e9f097's central finding (RTHZM1-O1): H-HZM-001's own
+      declared `primary_gate_sizes: [[12, 1], [16, 1]]` are both d=1, and
+      binom(n, d-1) = binom(n, 0) = 1 for ANY base n -- so the exact
+      l-vs-l' ambiguity that halted the experiment has NO effect on H's
+      value at exactly the two sizes this experiment's own
+      success_criterion and falsification_criterion(b) turn on. Using the
+      spec's own H/q lower-bound formula, the review computed H/q >= 315.1
+      (vs rho_bound 64) at (12,1) and H/q >= 3855.1 (vs rho_bound 256) at
+      (16,1) -- both already clearing falsification_criterion(b)'s bar.
+    - >-
+      This Coordinator independently re-verified that arithmetic by hand
+      (exact match) AND by actually running cost_ledger.py's
+      model_charged_cost(N, L, d) directly at both points:
+      model_charged_cost(4096, 12, 1) -> charged_expected_signatures=
+      315.5387244911908, survives_rho_gate=False;
+      model_charged_cost(65536, 16, 1) -> charged_expected_signatures=
+      3855.5294333064226, survives_rho_gate=False. Both confirm the
+      review's hand arithmetic (the small numeric differences are q's
+      exact closed form vs the review's own rounding, not a discrepancy).
+    - >-
+      This Coordinator also found and corrected an overclaim in the
+      review's own next_concrete_action wording before it could propagate:
+      cost_ledger.py's model_charged_cost computes only the H/q
+      "signature-count bottleneck term" (per the function's own disclosed
+      `optimistic_assumptions`), not a sum of the frozen ledger's nine
+      named charged_stages. This does not weaken the falsification
+      reading -- every omitted stage can only add cost, never subtract,
+      so the true fully-charged figure is >= the reported lower bound at
+      both gate sizes -- but the amendment drafted under this decision is
+      worded to describe accurately what is measured, not to claim a full
+      9-stage accounting that does not exist in this repository today.
+    - >-
+      Drafted protocol amendment: experiments/EXP-HZM-001/amendments/
+      v2_primary_gate_cost_check.yaml (base_version 1, resulting_version
+      2, status proposed, committed 00d4f312d). It adds ONE narrow,
+      explicit carve-out to stopping_rules[0] ("a toy run is never opened
+      on unaligned formulas"), restricted to exactly the two base-invariant
+      primary gate sizes, authorizing ONLY a direct call to
+      cost_ledger.py's model_charged_cost(N, L, d) at (12,1) and (16,1) --
+      no curve instance, no toy enumeration, no signature construction, no
+      call into signature_enumeration.py or brute_force_control.py. The
+      general d in {1,2,3} manuscript-alignment block, RUN-HZM-001-b, and
+      the general-scope portion of RUN-HZM-001-c remain completely
+      untouched and correctly blocked.
+
+  amendment_adopted: experiments/EXP-HZM-001/amendments/v2_primary_gate_cost_check.yaml
+  amendment_adoption_note: >-
+    The amendment's V2-CHG-1 carve-out is adopted exactly as drafted, with
+    no further modification. Its own required_artifact (V2-RA-1) and
+    scope_boundary sections govern what the authorized dispatch below may
+    and may not do; this decision does not restate them, it binds them.
+
+  execution_authorized: true
+  execution_authorization_scope: >-
+    Authorizes exactly ONE bounded Executor task: call cost_ledger.py's
+    model_charged_cost(4096, 12, 1) and model_charged_cost(65536, 16, 1)
+    (public toy-curve-independent, closed-form combinatorial arithmetic
+    only -- no curve instance is generated or read, no toy-curve seed is
+    consumed, no signature is constructed), and archive the complete
+    output (every ChargedCostModel field, including
+    optimistic_assumptions verbatim) as a new run,
+    RUN-HZM-001-c-primary-gate-only, under experiments/EXP-HZM-001/runs/.
+    Nothing else is authorized: not RUN-HZM-001-b, not the general-scope
+    portion of RUN-HZM-001-c, not any standardized-curve or real-target
+    work (stopping_rules[4] remains fully in force).
+  dispatch_hold_cleared: >-
+    Clears the dispatch hold on this ONE narrow computation only. The
+    general block on RUN-HZM-001-b/-c (full scope) is NOT cleared and
+    remains exactly as stopping_rules[0]'s unmodified general text
+    requires.
+
+  review_requirement: >-
+    Per this experiment's existing review pattern (RUN-HZM-001-a/-d both
+    received independent validator + red-team review) and per the
+    amendment's own next_step, RUN-HZM-001-c-primary-gate-only must be
+    sent through independent review-adversarial review (validator +
+    red-team, xhigh effort -- NOT review-breakthrough, since this
+    computation evaluates a cost gate on an externally published route
+    and, if the gate is not cleared, closes that route as non-sub-rho
+    under its own model; it does not itself claim a break, speedup, or
+    proposed goal closure) before any evidence-review decision cites its
+    charged-cost figures.
+
+  target_ids:
+    - EXP-HZM-001
+    - H-HZM-001
+    - GOAL-CRYPTO-001
+    - RT-20260907-e9f097
+
+  knowledge_promotion:
+    promoted: []
+    not_warranted: >-
+      not_warranted at this stage: this decision authorizes a measurement,
+      it does not itself record one. If RUN-HZM-001-c-primary-gate-only
+      confirms survives_rho_gate=False at both primary gate sizes under
+      independent review, the resulting evidence record (a genuine
+      falsification of the defect-scaled hyperplane-signature route under
+      falsification_criterion(b), on its own published model, independent
+      of the general d in {1,2,3} alignment question) would likely warrant
+      a KN-FIND promotion at that later step -- named here so the next
+      session does not have to re-derive the warrant, not decided now.
+
+  next_actions:
+    - >-
+      Dispatch an Executor task (fresh handoff, write_scope
+      experiments/EXP-HZM-001/runs/ only) to produce
+      RUN-HZM-001-c-primary-gate-only per execution_authorization_scope
+      above.
+    - >-
+      Once produced, Coordinator snapshot-archive the run, then dispatch
+      independent validator + red-team review per review_requirement.
+    - >-
+      After review, a Coordinator evidence-review decision records the
+      outcome and, if warranted, promotes a KN-FIND per knowledge_promotion
+      above.
+
+  authority: >-
+    This Coordinator session's own review of the drafted amendment and the
+    cited evidence, following AGENTS.md rule 1 (only the Coordinator
+    changes hypothesis status or approves experiments -- this decision
+    approves a narrow protocol amendment and a bounded dispatch, not a
+    hypothesis-status transition, which stays untouched) and the
+    established precedent for EXP-ECDLP-56ee42's own amendment-adoption
+    decisions this session (DEC-20260906-030aad, DEC-20260906-da1212).
+
+  inference:
+    requested_policy: coordinator-orchestration-code
+    requested_reasoning_effort: high
+    resolved_model_id: claude-sonnet-5
+    resolved_model_id_note: Genuine self-report from this session's own runtime system context.
+    fallback_used: false
