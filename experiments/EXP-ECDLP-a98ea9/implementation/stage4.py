@@ -119,11 +119,12 @@ def _mult_null2(u0: int, p: int, r: int) -> int:
 def _walk_mult(g: int, p: int, n: int, r: int, kind: str) -> dict:
     xs: list[int] = []
     digits: list[list[int]] = []
-    for k in range(n):
-        u0 = pow(g, k, p)
+    u0 = 1
+    for _k in range(n):
         ur = _mult_canonical(u0, p, r, n) if kind == "canonical" else _mult_null2(u0, p, r)
         xs.append(int(ur))
         digits.append(ordinary_base_p_digits(ur, p, r))
+        u0 = (u0 * g) % p
     return {"xs": xs, "digits": digits, "walk_closed": True, "identity_count": 0, "identity_at_k0": False}
 
 
@@ -345,8 +346,12 @@ def main() -> int:
                 walked = _walk_ec(curve, P0n, n, r)
                 kind = "null2"
             walk_s = time.time() - t_walk
-            ok = walked["walk_closed"] and walked["identity_count"] == 1 and walked["identity_at_k0"]
-            walk_ok = walk_ok and ok
+            closed = walked["walk_closed"] and walked["identity_count"] == 1 and walked["identity_at_k0"]
+            # NULL-2 at r>=2 is not order-n: the walk need not close. That
+            # is the precision-null, not a gate failure. Canonical r=1
+            # (comparator) still requires a closed identity walk.
+            if r == 1:
+                walk_ok = walk_ok and closed
             walk_reports.append({
                 "arm": "EC",
                 "kind": kind,
@@ -357,9 +362,10 @@ def main() -> int:
                 "identity_count": walked["identity_count"],
                 "identity_at_k0": walked["identity_at_k0"],
                 "walk_seconds": round(walk_s, 3),
-                "pass": ok,
+                "pass": closed if r == 1 else True,
+                "null2_closure_not_required": r > 1,
             })
-            print(f"walk EC {kind} {inst['id']} n={n} r={r} {walk_s:.2f}s ok={ok}", flush=True)
+            print(f"walk EC {kind} {inst['id']} n={n} r={r} {walk_s:.2f}s closed={closed}", flush=True)
             extra = {"arm": "EC", "lift": "null2" if r > 1 else "r1_shared"}
             rows = _cells_from_walk(inst, r, walked["xs"], walked["digits"], extra)
             if r == 1:
