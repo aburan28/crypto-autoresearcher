@@ -106,7 +106,13 @@ mixing but is not authentication and does not make peer data authoritative.
 State the mode once. Preserve it across checkpoints and user status questions;
 a later "continue" resumes the recorded scope and next_action.
 
-| Request | Mode and boundary |
+Apply `AGENTS.md` standing user authorization for ideas and experiments.
+The Coordinator selects ranked candidates and approves complete frozen
+protocols without another user selection or confirmation prompt. Continue
+through the protocol, dispatch and archival gates below; an incomplete
+contract is a technical prerequisite to resolve, not a request for permission.
+
+| User intent | Required behavior |
 | --- | --- |
 | Status, doctor, orientation | **status**: read-only preflight and status; use goal_portfolio_health.py --no-deepen. Report without claims, records, fetches or dispatch. |
 | Generate ideas / design experiments | **ideas/design**: read [intake](references/intake.md); archive and publish the requested proposals/designs, then stop unless execution was requested. |

@@ -1,0 +1,506 @@
+red_team_report:
+  id: RT-20260904-6e6099
+  task_id: TASK-20260904-e14b04
+  experiment_id: EXP-MONO-ee06e2
+  hypothesis_id: H-MONO-fa4cb9
+  question_id: RQ-MONO-001
+  goal_id: GOAL-MONO-001
+  run_ids: [RUN-MONO-ee06e2-1]
+  reviewer_role: red-team
+  reviewed_at: '2026-09-04'
+
+  review_attestation:
+    joints_owned: [J3-NO-HARDCODING-AUDIT, J4-DERIVATION-AUDIT-STEP4-STEP5]
+    verdicts: {J3: holds, J4: holds}
+    read_sibling_reports: false
+    sibling_report_path: experiments/EXP-MONO-ee06e2/reviews/validator/validation-report.yaml
+    disclosure: >-
+      experiments/EXP-MONO-ee06e2/reviews/validator/validation-report.yaml
+      already existed on disk when I began (confirmed by `ls -la` at the
+      start of this session: it was written at 19:10, well before I opened
+      any file). I did NOT open it, and have still not opened it, at any
+      point before or during the writing of this report. Everything below
+      was formed from: the task card, specification.yaml, H-MONO-fa4cb9,
+      IDEA-20260904-4f614a's mechanism field (STEP 1-5) in full,
+      run_linear_vs_quadratic.py in full, execution_report.yaml,
+      raw-result.json's stage_0.found_curve block, and my own independent
+      from-scratch Python re-derivations (not imported from any archived
+      file) run in my own scratch directory. I also read
+      experiments/EXP-MONO-4e6faa/reviews/red-team/red-team-report.yaml,
+      which is a cited `source_ref` of both H-MONO-fa4cb9 and
+      EXP-MONO-ee06e2's specification (background material on the PRIOR
+      experiment, not a sibling review of THIS one, so reading it is not a
+      blindness violation) -- doing so AFTER I had already independently
+      derived the fixed-point-disjointness argument below, and it
+      corroborated (did not originate) that finding. I also read
+      EXP-MONO-4e6faa's own implementation script only for a line-by-line
+      diff against this experiment's script (J3), which is explicitly
+      permitted by the task ("ADAPTED, STRUCTURE UNCHANGED, from ...").
+
+  claim_under_review: >-
+    Per TASK-20260904-e14b04, scoped to J3 and J4 only. J3: does Stage 0 of
+    run_linear_vs_quadratic.py contain any hard-coding, literal, or
+    search-order bias toward (A,B)=(1,33) or p=101, such that the
+    "independent re-discovery" of that pair is not actually independent?
+    J4: is IDEA-20260904-4f614a's STEP 4/5 argument -- that the #1^4 excess
+    D = h_+*n_- + h_-*n_+ arises as a sum of h_++h_- independent,
+    non-interacting per-pair contributions -- a sound derivation of
+    linearity in h_+/h_-, on its own terms, independent of whether it
+    happens to match the observed data?
+
+  objections:
+    - id: OBJ-J3-1
+      target: J3
+      statement: >-
+        NO hard-coding found. Stage 0 (run_linear_vs_quadratic.py lines
+        223-353) is a plain nested loop:
+          `for p in primes_in(PRIME_LO, PRIME_HI):`
+          `    ...`
+          `    for A in range(p):`
+          `        for B in range(p):`
+        with PRIME_LO, PRIME_HI = 101, 2000 (the same declared range as the
+        prior h_-=1 experiment) and A, B both ranging over the FULL 0..p-1
+        (no offset, no `range(1, p)`, no reverse order). The only filter
+        constant introduced by this experiment relative to its parent
+        (run_h_minus_stress.py) is `H_MINUS_MIN = 2`, used generically as
+        `if hm < H_MINUS_MIN: continue` (line 272) and re-checked at line
+        288 (`if h_minus < H_MINUS_MIN: continue`) -- a threshold on a
+        COMPUTED quantity, not a literal on (A,B) or p. I grepped the full
+        667-line file for "33" and "101": "33" does not appear anywhere;
+        "101" appears only as PRIME_LO (a range bound identical to the
+        parent script's, not specific to this run) and inside three
+        unrelated `range(1, ...)` idioms in `chi_table`/point-sqrt-search
+        loops that have nothing to do with curve search. A full diff
+        against EXP-MONO-4e6faa/implementation/run_h_minus_stress.py shows
+        the ONLY substantive changes are (1) the H_MINUS_MIN threshold
+        (from `hm <= 0` to `hm < H_MINUS_MIN` with H_MINUS_MIN=2) and (2)
+        Stage 2's added D_quad computation -- nothing in Stage 0's search
+        loop itself was touched beyond that one threshold constant.
+    - id: OBJ-J3-2
+      target: J3
+      statement: >-
+        I independently re-verified the found curve and its scan count from
+        scratch, writing my own driver (no import of RC/UC, no reuse of any
+        archived file) with my own naive group law (double-and-add,
+        brute-force point enumeration). Scanning p=101 with A in {0,1} in
+        the declared ascending order, my own code independently finds: A=0
+        has exactly one singular pair (B=0) and zero Z=3 curves; A=1's Z=3
+        ordinary curves occur at B = 0, 10, 12, 15, 29, 30, 31, 33, ...,
+        with h_- values 1, 0, 0, 0, 0, 1, 0, **3**, 1, 1, 3, 0, 1, 0, 0, 0,
+        0 respectively (h_-=1 candidates at B=0 and B=30 are correctly
+        SKIPPED by the h_->=2 filter). The FIRST (A,B) pair satisfying
+        h_->=2 is exactly (A=1, B=33), and my own independent count of
+        (A,B) pairs examined up to and including that point is 135
+        (101 pairs for A=0, plus 34 for A=1, B=0..33) -- bit-for-bit
+        matching `curves_examined_before_success: 135`,
+        `nonsingular_examined: 134`, and `z3_curves_examined: 8` in
+        raw-result.json's own stage_0.found_curve block, and matching
+        `N=108, Nd=96, e4=4, e4d=16, hp=0, hm=3`. The arithmetic identity
+        135 = 101 + 34 is exactly what an unbiased ascending A=0-then-A=1
+        scan predicts and gives no room for a shortcut: the script did not
+        "know" to stop at B=33, it stopped there because that is where the
+        generic filter first fires, which I confirmed by re-running the
+        filter myself.
+    - id: OBJ-J3-3
+      target: J3
+      statement: >-
+        execution_report.yaml's own `matches_prior_red_team_pair` block
+        already discloses, unprompted, that (A,B)=(1,33) coincides with the
+        pair the Red Team's own prior free-standing census named -- this is
+        the correct disclosure posture (report the coincidence rather than
+        hide it) and is corroborated, not merely asserted: EXP-MONO-4e6faa's
+        own red-team report independently found 200 of 10,100 non-singular
+        pairs at p=101 have (h_+,h_-)=(0,3), so a 34th-A=1-pair hit landing
+        on one of 200 such curves at the very first prime tried is
+        unremarkable base-rate behavior, not evidence of a rigged search.
+      status: J3 verdict -- HOLDS. No hard-coding, no literal, no
+        comment-guided shortcut, no offset bias found in Stage 0; confirmed
+        both by full-file reading and by an independent from-scratch
+        re-derivation of the exact same scan-count and found curve.
+    - id: OBJ-J4-1
+      target: "J4(i) -- exactly one pair per halvable T', no double counting"
+      statement: >-
+        VERIFIED SOUND by independent derivation, not merely by trusting
+        the prose. The claim reduces to: for T' a nontrivial 2-torsion
+        point, define Half(T') = {Q in E(F_pbar) : 2Q = T'}; this set has
+        exactly 4 elements (mult-by-2 is a degree-4 isogeny) forming two
+        negation-pairs {Q,-Q} and {Q+T'',Q+T'''} (T'',T''' the other two
+        2-torsion points), since -Q = Q+T' whenever 2Q=T' (because
+        -2Q=-T'=T', T' being 2-torsion). Their x-coordinates give the TWO
+        fixed points {x0,x1} of mu_T' -- I verified `mu_T'` genuinely fixes
+        them (x(Q)=x(-Q)=x(Q+T')). For a DIFFERENT halvable T''!=T', suppose
+        some x-coordinate were shared between Half(T')'s image and
+        Half(T'')'s image: x(Q')=x(Q) for Q in Half(T'), Q' in Half(T'')
+        forces Q'=Q or Q'=-Q; either way 2Q'=2Q=T' or 2Q'=-2Q=T' (T'
+        2-torsion), contradicting 2Q'=T'' unless T'=T''. So FixedPts(mu_T')
+        and FixedPts(mu_T'') are PROVABLY DISJOINT for T'!=T'' -- not
+        generically, but always (given only that the roots e1,e2,e3 are
+        pairwise distinct, which Z=3 guarantees). I also directly verified
+        x0 can never coincide with a root e_j of f (the equation this would
+        require, (e_j-e_i')(e_j-e_k)=0, contradicts distinctness of roots),
+        so chi(f(x0)) is always well-defined (+-1, never 0). This closes
+        the exact double-counting/omission risk the task asks about, by
+        argument rather than by trusting IDEA-20260904-4f614a's own
+        assertion "exchanged by the other two involutions and by nothing
+        else," which the idea's own text does NOT prove -- it only states
+        it. (I later found EXP-MONO-4e6faa's own red-team report,
+        RT-20260904-f4c9a2, independently reached the identical conclusion
+        via the identical argument on its own OBJ-J4-1/proof_architecture
+        section -- a second independent confirmation, not the source of
+        mine.)
+    - id: OBJ-J4-2
+      target: "J4 -- WHICH chi-half a halvable T' sits in"
+      statement: >-
+        The idea text ASSERTS (STEP 4's "Counting" sentence) that h_+ pairs
+        sit in the chi=+1 half and h_- pairs in the chi=-1 half, but does
+        not show why. I derived this directly and it is, in fact, close to
+        tautological: if T' is halvable over E(F_p) itself (contributing to
+        h_+), there exists a RATIONAL point P0=(x0,y0) in E(F_p) with
+        2P0=T'; y0 in F_p forces f(x0)=y0^2 to be a square, i.e.
+        chi(f(x0))=+1. If T' is halvable only over the twist E^d(F_p)
+        (contributing to h_-), the twist's equation d*y^2=f(x) has a
+        rational solution, i.e. f(x0)/d is a square, i.e.
+        chi(f(x0))=chi(d)=-1 (d a fixed non-residue). This is airtight and
+        is the SAME fact the implementation's own `_check_D1` diagnostic
+        empirically confirms on the archived run (common_chi_f_on_fixed
+        points = [-1] for all three roots at h_+=0,h_-=3, T_in_2E_Fp=false
+        for all three, consistent).
+    - id: OBJ-J4-3
+      target: "J4(ii) -- STEP 5's 'chi mu-invariant forces all-equal on a
+        second collision' and the D/2+1+1 double-counting boundary"
+      statement: >-
+        VERIFIED SOUND, by direct derivation. If t2=mu_Ta(t1) and
+        t3=mu_Tb(t2) for Ta!=Tb, then closure of the Klein-four group
+        {id,mu_T1,mu_T2,mu_T3} forces t3=mu_{Tc}(t1) with Tc the THIRD
+        involution (mu_Ta*mu_Tb=mu_Tc), and since STEP 1's chi-invariance
+        applies to every mu_T uniformly, chi(f(t1))=chi(f(t2)) (from the
+        first relation) and chi(f(t2))=chi(f(t3)) (from the second), so all
+        three ARE forced equal -- this is a correct, checkable consequence
+        of STEP 1, not a bare assertion. I also independently verified the
+        harder question the task specifically flags -- whether this
+        actually PREVENTS overlap between STEP 4's D-term and STEP 5's
+        A_+n_-+A_-n_+ term -- by re-deriving STEP 5's own claimed formula
+        A_+ = 3n_+/2 - 3h_+ from scratch via TWO independent routes: (a) a
+        multiplicity-counting argument (summing (n_+-F_T^+)/2 over the
+        three involutions counts every ORDINARY pair once and every SPECIAL
+        (fixed-point) pair exactly twice -- since I showed above the other
+        two involutions swap, and only they swap, a given T'-special pair
+        -- giving Sum = A_+ + 2h_+ = 3n_+/2 - h_+, hence A_+ = 3n_+/2 -
+        3h_+ exactly); and (b) a direct 4-element-orbit decomposition (a
+        generic V-orbit {a,b,c,d} under the Klein four-group yields all
+        C(4,2)=6 pairs as mu-2-cycles, 2 per involution, so
+        (n_+-2h_+)/4 generic orbits give 6*(n_+-2h_+)/4 = 3n_+/2-3h_+
+        ordinary pairs, MATCHING (a) exactly, including at h_+=3, the
+        boundary case where every 2-torsion point is special). Both routes
+        reproduce STEP 5's formula exactly and agree with each other,
+        confirming the special (STEP 4) and ordinary (STEP 5) pair-counts
+        are complementary and non-overlapping BY CONSTRUCTION of the
+        counting, not merely by an unverified assertion that they don't
+        overlap.
+    - id: OBJ-J4-4
+      target: "J4(iii) -- does the derivation structurally FORCE linearity"
+      statement: >-
+        YES -- and more strongly than the task's framing suggests. This is
+        not "the derivation is compatible with linear and merely fails to
+        rule out one quadratic guess": route (b) above (the 4-orbit
+        decomposition) is a DIRECT PROOF that D is a sum of h_++h_-
+        mutually disjoint (pair, opposite-chi-third-element) incidences,
+        each contributing exactly 1 to the corresponding class-1^4 excess,
+        with the per-pair contribution (n_- or n_+) determined ONLY by
+        which chi-half the pair sits in -- NEVER by how many OTHER special
+        pairs exist. For an h_-^2-style (or any other superlinear)
+        alternative to hold, some mechanism would have to make one special
+        pair's contribution DEPEND on the presence of another special pair
+        -- e.g. a cross term counting triples built from TWO DIFFERENT
+        special pairs' elements. I checked this directly: I showed
+        FixedPts(T') and FixedPts(T'') are disjoint SETS (OBJ-J4-1) for
+        T'!=T'', so a triple mixing one element from each of two different
+        special pairs (e.g. {x0(T'_a), x0(T'_b), t3}) is NOT one of the
+        (pair, third) triples STEP 4 counts, and its own relations (if any)
+        reduce to the STEP-3/STEP-5 "ordinary" or "all-chi-equal" cases,
+        contributing zero NEW excess. The derivation gives literally no
+        combinatorial slot for an h_+*h_- or h_-^2 term to live in. This
+        makes EXP-MONO-ee06e2's decisive exclusion of D_quad (R1_quad=-312,
+        R2_quad=936 against R1_lin=R2_lin=0) a real, specific corroboration
+        of THIS additive/disjoint-pair mechanism, not merely "two data
+        points now agree with an arbitrary one-parameter family" -- the
+        mechanism, once granted, leaves no room for D_quad (or any other
+        superlinear f(h_-)) to be correct on ANY curve, not just the one
+        tested.
+
+  required_controls:
+    - id: RC-J4-1
+      statement: >-
+        The MOST VALUABLE remaining gap is not another h_- value alone but
+        the completely untested JOINT regime h_+>0 AND h_->0
+        simultaneously: both EXP-MONO-4e6faa (h_+=0,h_-=1) and
+        EXP-MONO-ee06e2 (h_+=0,h_-=3) have h_+=0, so the "h_+*n_-" term of
+        D_lin has literally never been exercised against ANY rival --
+        including a cross-interaction term (e.g. D = h_+n_- + h_-n_+ +
+        c*h_+*h_-) that the additive-pair mechanism (OBJ-J4-4) predicts
+        must have c=0, but which no run has ever had the power to detect,
+        since 0*anything=0 regardless of c. I checked by hand (STEP 1-5's
+        own algebra, cases on chi(-1)) whether h_+>0 and h_->0 can even
+        coexist on one curve: at p=101 (p=1 mod 4, chi(-1)=+1) they
+        PROVABLY cannot (I re-derived EXP-MONO-4e6faa's red-team report's
+        observation as a general fact for ALL p=1 mod 4, not just p=101:
+        the three pairwise root-characters force (h_+,h_-) in
+        {(3,0),(0,3),(1,0),(0,1)} only). But for p=3 mod 4 (chi(-1)=-1) I
+        derived, and then CONFIRMED BY DIRECT COMPUTATION, that both can be
+        positive: p=103 (which is 3 mod 4, the very next prime after 101
+        in this experiment's own declared [101,2000] range), curve A=1,
+        B=11 has Z=3, ordinary reduction (N=120, trace=-16, not
+        supersingular), n_+=58, n_-=42, and h_+=1, h_-=1 SIMULTANEOUSLY
+        (verified via brute-force 4-torsion counting on both the curve and
+        its twist, independent of any archived code). This curve is a
+        genuine, cheap (stratum size C(100,3)=161,700, comparable to the
+        152,096 already censused, well within the existing 900s budget),
+        immediately actionable next test that this experiment's own
+        declared search range would have reached had Stage 0 not stopped
+        at the first hit (p=101).
+    - id: RC-J4-2
+      statement: >-
+        The idea record (IDEA-20260904-4f614a) should be amended to include
+        the actual proofs of its STEP 4/5 claims -- fixed-point-set
+        disjointness across distinct 2-torsion points (OBJ-J4-1), the
+        E-vs-twist chi-half tautology (OBJ-J4-2), and the
+        multiplicity/orbit re-derivation of A_+=3n_+/2-3h_+ (OBJ-J4-3) --
+        rather than stating them as asserted facts. I found all three to be
+        correct on independent re-derivation, but the WRITTEN record
+        currently asks a reader to take them on faith; a knowledge-corpus
+        promotion of this closed form should carry the proof, not just the
+        conclusion, especially since this is exactly the genre of claim
+        (docs/target-result-profile.md: exponent/structure claims justified
+        by "an explicit numbered heuristic plus a rigorous bound," not
+        prose assertion) this program holds itself to.
+    - id: RC-J4-3
+      statement: >-
+        Lower priority than RC-J4-1: a curve with h_-=2 (the one value in
+        {0,1,2,3} still untested on the h_+=0 side) would close out the
+        univariate h_- sweep, but since h_-=1 and h_-=3 already
+        discriminate linear from quadratic (1 vs 1 is uninformative, 3 vs 9
+        is decisive and matched), h_-=2 would mainly add a third confirming
+        point on a line already pinned down by two points plus a sound
+        mechanism -- useful but strictly less informative than RC-J4-1.
+
+  counterexample_or_mutation: >-
+    p=103, A=1, B=11 (Z=3, ordinary, N=120, twist order 88, n_+=58, n_-=42,
+    h_+=1, h_-=1): D_lin = 1*42 + 1*58 = 100 and D_quad = 1*42 + 1^2*58 =
+    100 -- IDENTICAL at this point (since 1^2=1, same degeneracy the
+    "proves-too-much" check on the h_-=1 curve already names), so this
+    specific curve does NOT discriminate D_lin from D_quad. Its value is
+    orthogonal to that: it is the cheapest available curve that exercises
+    BOTH h_+ and h_- simultaneously for the first time, directly testing
+    whether an h_+*h_- cross term exists (predicted absent by OBJ-J4-4's
+    disjoint-pair mechanism; any such curve with a nonzero measured
+    residual under D_lin would falsify the additive-independence claim in a
+    way neither archived run could). I verified this curve's basic
+    parameters independently (brute-force point/torsion counting, no
+    archived code reused) but did NOT run Stage 1's exhaustive census on it
+    -- that would be a new, unauthorized experiment, out of scope for a
+    red-team pass.
+
+  baseline_comparison: >-
+    Not applicable in the ECDLP-attack sense, and this record does not
+    claim one: `target_complexity` in H-MONO-fa4cb9 states "Not applicable;
+    no ECDLP complexity claim. Pollard rho (KN-OPEN-001) untouched," and
+    nothing in specification.yaml, implementation.md, or the two mechanism
+    changes (H_MINUS_MIN threshold, D_quad computation) smuggles in a
+    relation-rate or solver-cost framing. The only "baseline" here is the
+    ALREADY-NAMED quadratic rival D_quad, which is the correct comparator
+    for this specific functional-form question and is treated honestly
+    (pre-registered, computed before Stage 1 is read, all four residuals
+    reported including the nonzero ones).
+
+  heuristic_challenges:
+    - target: H1 (H-MONO-fa4cb9) -- occupancy of a Z=3, h_->=2 curve in
+        [101,2000]
+      challenge: >-
+        H1 is an existence claim, not a distributional one, and this run's
+        own Stage 0 independently re-verified it by direct search rather
+        than by citing the prior free-standing count -- correct handling.
+        My own from-scratch scan additionally confirms the SPECIFIC
+        transition points (h_-=1 at B=0,30; h_-=3 at B=33,68) bit for bit,
+        so there is no reason to doubt the occupancy claim at this prime.
+      status: confirmed
+    - target: "H-MONO-fa4cb9's own transfer_assumption -- 'a confirmed
+        linear match on ONE h_->=2 curve supports but does not prove the
+        linear form for every possible h_- value'"
+      challenge: >-
+        This is honestly stated and, per OBJ-J4-4, actually UNDERSELLS the
+        strength of the result: the derivation (once independently
+        verified as I did above) does not merely leave room for
+        extrapolation from one data point -- it structurally forces
+        linearity for every (h_+,h_-) pair in {0,..,3}^2 with h_++h_-<=3
+        (the only algebraically possible values given tau=4). The
+        empirical test at h_-=3 corroborates the MECHANISM, which in turn
+        covers the untested values, not merely the one tested. This is a
+        stronger, not weaker, epistemic position than a naive
+        "N=2 data points" reading would suggest -- but it is NOT yet
+        stronger for the (h_+>0, h_->0) joint regime, which the mechanism
+        also covers in principle but which no run has yet exercised (see
+        RC-J4-1).
+      status: partially_understated_in_the_record
+
+  cost_model_challenges:
+    - statement: >-
+        No cost-model claim is made anywhere in this record (toy tier,
+        O(p)/O(p^3) measurement-cost statements only, unchanged from
+        EXP-MONO-4e6faa). I checked `target_complexity`, `claim_ceiling`,
+        and `scale_relevance` in both specification.yaml and
+        H-MONO-fa4cb9.yaml and found no relation-rate, exponent, or
+        solver-cost framing smuggled in anywhere; the o(1)/polylog,
+        van Oorschot-Wiener, and total-expected-cost checks from the
+        exemplar profile do not apply to this record.
+
+  reduction_and_scope_challenges:
+    - statement: >-
+        No cited reduction (OneEnd/EndRing/Isogeny-style) is claimed; not
+        applicable. No scheme is named affected or safe; the record's own
+        `what_this_is_not` block explicitly disclaims any ECDLP, relation-
+        rate, or cryptographic-scale reading, and I found nothing in the
+        implementation or execution report that widens that scope. The
+        claim boundary (Z=3 distinct-split stratum, toy prime range,
+        m=4 only) is held consistently across the idea, hypothesis,
+        specification, and execution report; no scope inflation found.
+
+  proof_architecture_challenges:
+    - attack: compositional-invariant
+      target: "STEP 4's 'exchanged by the other two involutions and by
+        nothing else' clause"
+      finding: >-
+        Deleting this clause (i.e. allowing two different halvable T's
+        fixed-point pairs to overlap) is exactly the failure mode that
+        would break the "exactly one pair per T'" count and hence the
+        entire linear-sum structure. I checked this specific deletion
+        directly from the group law (OBJ-J4-1: 2Q=T' and 2Q=T'' sharing an
+        x-coordinate forces T'=T'' since 2-torsion points are
+        self-negative) and confirmed the clause holds absolutely, not
+        merely generically -- it survives for every Z=3 curve, not just
+        the two tested. This closes, by argument rather than data, exactly
+        the failure mode EXP-MONO-4e6faa's own red-team report
+        (RT-20260904-f4c9a2) flagged as unverified for h_->=2 configurations.
+    - attack: nearby-object
+      target: "the untested (h_+>0, h_->0) regime"
+      finding: >-
+        The nearest object for which the claimed mechanism (disjoint,
+        non-interacting pairs) COULD plausibly fail is a curve where a
+        special h_+ pair and a special h_- pair coexist and share
+        proximity in some way the disjointness proof does not anticipate
+        (e.g. an accidental extra rational relation between the two
+        pairs' elements at small p). I located a concrete instance of this
+        nearby object (p=103, A=1, B=11, h_+=1, h_-=1) and verified its
+        basic parameters hold up under brute-force computation; I did not
+        run its full census (out of scope, see counterexample_or_mutation),
+        so this remains a NAMED, cheap, unexecuted control rather than a
+        completed one.
+    - attack: quantifier-order
+      target: "STEP 4/5's 'each halvable T' contributes exactly one pair'"
+      finding: >-
+        Rewriting with explicit quantifiers: "for every Z=3 ordinary
+        curve, for every nontrivial 2-torsion point T' with chi(f'(e_T'))
+        in {computed from that curve alone}, the fixed-point pair {x0,x1}
+        is determined purely by T' and the curve -- no witness is chosen
+        after seeing the census result." I confirmed this by construction:
+        Stage 2's D_lin/D_quad computation reads ONLY (n_+,n_-,h_+,h_-)
+        (found BEFORE Stage 1 runs, per the code's own stage ordering and
+        the manifest's `computed_before_reading_stage_1` disclosure), so
+        no witness-after-the-fact selection is structurally possible in
+        the EXECUTED pipeline. No quantifier-order violation found.
+
+  narrowest_supported_statement: >-
+    On the found curve p=101, A=1, B=33 (Z=3, tau=4, n_+=52, n_-=46, h_+=0,
+    h_-=3), Stage 0's search was genuinely unbiased (independently
+    re-verified from scratch, matching the archived scan count exactly:
+    135 (A,B) pairs, 134 nonsingular, 8 with Z=3), and the exhaustive
+    census (152,096 base points) matches the linear D3 closed form exactly
+    (R1_lin=R2_lin=0) while decisively excluding the named quadratic rival
+    (R1_quad=-312, R2_quad=936). IDEA-20260904-4f614a's own STEP 4/5
+    derivation of this linear form is SOUND on independent re-derivation:
+    the "exactly one pair per halvable T', no double counting" claim
+    (i), the "chi mu-invariance prevents D/2+1+1 overlap" claim (ii), and
+    the claim that this mechanism structurally FORCES linearity rather
+    than merely being compatible with it (iii) all check out via direct
+    group-law argument, not merely by matching the observed numbers. This
+    makes the exclusion of D_quad a real corroboration of the specific
+    additive/disjoint-pair mechanism, valid for every algebraically
+    possible (h_+,h_-) pair with h_+=0 or h_-=0 (all four such values,
+    {(0,1),(0,3),(1,0),(3,0)}, are now either tested or provably reachable
+    by the same mechanism). It does NOT yet establish the mechanism for the
+    completely untested joint regime h_+>0 AND h_->0 simultaneously
+    (concretely reachable at p=103, A=1, B=11, per RC-J4-1) -- a
+    cross-interaction term is predicted absent by the mechanism but has
+    never had the chance to be observed if present, since every curve
+    tested so far has had h_+*h_-=0 identically. Do not cite this record,
+    or a "supported" status derived from it, as covering the joint regime
+    until that gap is closed.
+
+  discretionary_promotion_assessment: >-
+    Advisory only; not a status change. I recommend NOT promoting to
+    "supported" / knowledge-corpus status yet, despite the derivation being
+    sound and both univariate tests (h_-=1, h_-=3) passing decisively. Two
+    concrete, cheap reasons: (1) RC-J4-1 -- the h_+*n_- term and any
+    cross-interaction term have literally zero empirical exercise across
+    both archived runs (h_+=0 in both), and a genuinely discriminating
+    curve (p=103, A=1, B=11, h_+=1, h_-=1) already sits in the declared
+    search range at negligible extra cost (a third run of the identical,
+    already-validated Stage 0/1/2 pipeline); (2) RC-J4-2 -- the written
+    derivation asserts several nontrivial group-theoretic facts (fixed-
+    point disjointness, the chi-half assignment, the A_+ bookkeeping) that
+    I found to be TRUE but that the record itself does not prove; a
+    corpus-promoted closed form should carry its proof, and I have
+    supplied the missing pieces above for the Coordinator/idea-generator to
+    fold in. A third h_- value (RC-J4-3) is a legitimate but lower-priority
+    ask given the mechanism's generality already covers it. If the
+    Coordinator judges the mechanism verification in this report sufficient
+    on its own (i.e. does not require re-running Stage 1 on the p=103
+    curve before promotion), that is a defensible call given how much of
+    the "why" I was able to independently re-derive rather than merely
+    trust -- but the joint-regime gap should be named explicitly in
+    whatever record follows, not silently absorbed into "supported."
+
+  next_concrete_action: >-
+    Design and run (via a new EXP, not this red-team pass) the same
+    Stage 0/1/2 pipeline restricted to p=103, A=1, B=11 (already located
+    and parameter-verified above; Z=3, ordinary, h_+=1, h_-=1, n_+=58,
+    n_-=42, stratum size C(100,3)=161,700), reporting R1_lin/R2_lin against
+    D_lin=100 and explicitly testing a named h_+*h_- cross-term rival
+    (e.g. D_cross = h_+n_- + h_-n_+ + h_+*h_-*k for some small integer k,
+    or simply flagging whether ANY nonzero residual appears, which the
+    disjoint-pair mechanism predicts should not happen for k!=0). This is
+    the cheapest available control that exercises a genuinely new axis of
+    the closed form (joint h_+,h_- positivity) rather than re-testing an
+    axis (pure h_- scaling) already twice confirmed.
+
+  artifact_paths:
+    - experiments/EXP-MONO-ee06e2/specification.yaml
+    - experiments/EXP-MONO-ee06e2/implementation/run_linear_vs_quadratic.py
+    - experiments/EXP-MONO-ee06e2/implementation.md
+    - experiments/EXP-MONO-ee06e2/execution_report.yaml
+    - experiments/EXP-MONO-ee06e2/runs/RUN-MONO-ee06e2-1/raw-result.json
+    - ledger/hypotheses/H-MONO-fa4cb9.yaml
+    - ledger/proposals/IDEA-20260904-4f614a.yaml
+    - ledger/handoffs/TASK-20260904-e14b04.yaml
+    - experiments/EXP-MONO-4e6faa/implementation/run_h_minus_stress.py
+    - experiments/EXP-MONO-4e6faa/reviews/red-team/red-team-report.yaml
+
+  overall_verdict: >-
+    J3 HOLDS: Stage 0's search is a genuine, unbiased, plain ascending scan
+    with no hard-coding, literal, or shortcut toward (A,B)=(1,33) or p=101;
+    confirmed by full-file reading, a line-by-line diff against the parent
+    script, and an independent from-scratch re-derivation of the exact scan
+    count and found curve. J4 HOLDS: IDEA-20260904-4f614a's STEP 4/5
+    derivation of D=h_+n_-+h_-n_+ is a genuine, sound mathematical argument
+    -- not a curve fit dressed as a derivation, and not merely
+    "plausible" -- verified independently via direct group-law/2-descent
+    reasoning that reconstructs proofs the written record only asserts.
+    The derivation structurally forces linearity (no combinatorial slot
+    exists for an h_-^2 or h_+*h_- term under the stated disjoint-pair
+    mechanism), so EXP-MONO-ee06e2's exclusion of D_quad is a real,
+    specific corroboration of that mechanism. The one substantive gap is
+    scope, not soundness: the joint (h_+>0, h_->0) regime remains entirely
+    untested and is cheaply reachable (p=103, A=1, B=11) at the very next
+    prime in this experiment's own declared search range -- this is the
+    single next action I recommend before any "supported"/corpus-promotion
+    claim covering the FULL bivariate closed form, as opposed to its
+    already-well-supported univariate (h_+=0 or h_-=0) restriction.

@@ -1,0 +1,421 @@
+validation_report:
+  id: VAL-20260904-904394
+  task_id: TASK-20260904-904394
+  experiment_id: EXP-MONO-005b49
+  hypothesis_id: H-MONO-1d50ac
+  question_id: RQ-MONO-001
+  goal_id: GOAL-MONO-001
+  run_ids: [RUN-MONO-005b49-1]
+  joints_owned: [J1-CELL-SELECTION-INTEGRITY, J2-TEST-CORRECTNESS]
+  note_on_scope: >-
+    Per agents/validator.md "Working under a review plan," this report
+    gives a verdict on J1 and J2 (plus the blind_rederivation entry, which
+    is assigned to this joint set) only, not on the whole claim under
+    review (claims A/B in the task card). J3-REPLICATION-LOGIC and
+    J4-CROSS-CELL-SYNTHESIS are the red-team's joints and are not
+    adjudicated here beyond incidental, explicitly out-of-scope
+    observations.
+
+  # =====================================================================
+  # J1-CELL-SELECTION-INTEGRITY
+  # =====================================================================
+  j1_cell_selection_integrity:
+    verdict: holds
+    method: >-
+      Wrote a from-scratch, independent Python implementation of the
+      Stage-0 construction (seed_bytes/SHA-256 domain-separated draws,
+      is_prime/primes_in_range, construct_ordinary, construct_cm_j0,
+      construct_cm_j1728, count_points, two_torsion_count, is_singular),
+      following the documented, declared-unchanged reuse from
+      EXP-MONO-64aaa4/implementation/run_experiment.py and the domain
+      string "EXP-MONO-005b49/v1" declared in specification.yaml's
+      `inputs.domain` -- NOT by copying EXP-MONO-005b49's own
+      implementation/run_experiment.py (read separately, afterward, only
+      to confirm the shared-library loading and Stage-0 loop structure
+      match; see sources_read). Ran this independent implementation over
+      the full ascending scan of primes_in_range(3001,20000), excluding
+      617, checking at each admissible prime whether the constructed
+      ordinary curve's (N,tau) matches either CM candidate's (N,tau),
+      breaking at the first match.
+    tau_definition_confirmed: >-
+      Confirmed from EXP-MONO-64aaa4/implementation/run_experiment.py's
+      own `two_torsion_count`: tau = (number of roots of x^3+Ax+B mod p,
+      i.e. affine 2-torsion points) + 1 (for O) -- the full order of
+      E(F_p)[2] as a group (1, 2, or 4), not merely "Z" alone. This
+      definition was used unmodified in my own independent
+      re-implementation.
+    curve_reconstruction_at_p3541:
+      my_independent_result:
+        ordinary: {A: 577, B: 1628, N: 3600, tau: 4, trials: 1}
+        cm_j0: {A: 0, B: 2728, N: 3600, tau: 4, trials: 1}
+      archived_raw_result_json:
+        ordinary: {A: 577, B: 1628, N: 3600, tau: 4, trials: 1}
+        cm_j0: {A: 0, B: 2728, N: 3600, tau: 4, trials: 1}
+      discrepancy: none, exact match on every field.
+      sanity_check: >-
+        p=3541 mod 3 = 1 (3541 = 3*1180+1), so the matched j=0 curve is
+        NOT the supersingular case for j=0 (supersingular iff p = 2 mod
+        3); independently confirmed ordinary by direct point count
+        (N=3600 != p+1=3542). tau=4 divides N=3600 exactly (3600/4=900),
+        consistent with E(F_p)[2] having order 4. Both checks pass.
+    full_preceding_range_check:
+      method: >-
+        My independent scan does not stop-and-verify only p=3541; it
+        evaluates EVERY admissible prime from 3001 upward IN ORDER and
+        checks each one's own (N,tau) match status before proceeding,
+        breaking only at the first true match encountered. This is what
+        makes the check capable of catching a skipped earlier match
+        (see proves_too_much_control below) rather than merely confirming
+        "does 3541 work."
+      result: >-
+        Zero matches found among the primes preceding 3541 in
+        [3001,3541); my scan's first (and, by construction, only-checked)
+        match is at p=3541, after evaluating exactly 66 admissible primes
+        (3001..3541 inclusive; independently verified by direct prime
+        enumeration that there are exactly 66 primes in [3001,3541], none
+        of them 617). Every one of the 65 preceding admissible primes
+        produced a valid ordinary curve (no `construct_ordinary` failure
+        was observed at any prime in this range) whose (N,tau) did not
+        equal either CM candidate's (N,tau).
+      cross_check_against_archived_scan_metadata: >-
+        raw-result.json's stage0 block reports `primes_scanned: 66`,
+        `last_prime_scanned: 3541`, `stopped_early_on_soft_deadline:
+        false` -- all three match my independent count and result
+        exactly.
+    stage1_downstream_reproduction_beyond_minimum_scope: >-
+      As an additional (not strictly required by the joint's attack plan,
+      but strengthening confidence that the reported cell's parameters are
+      the ones actually measured downstream, not merely the ones reported
+      in Stage 0) check: loaded the two shared, read-only library files
+      (EXP-MONO-64aaa4/implementation/run_experiment.py's `measure_curve`,
+      and EXP-MONO-cb905d/implementation/run_experiment_v2_part_a_corrected.py's
+      `measure_group_uniform_v2`, both inspected and confirmed to
+      implement their respective governing specs/amendments -- see
+      j2_test_correctness.sampler_provenance below) with a FRESH driver
+      script I wrote myself (not copied from EXP-MONO-005b49's own
+      implementation/run_experiment.py), using the exact curve parameters
+      found above (p=3541, ord A=577/B=1628, cm A=0/B=2728) and the same
+      domain string. Result: tr_ord=98, tr_cm=94, gu_ord=233 (167
+      tuples-with-collision), gu_cm=201 (151 tuples-with-collision) --
+      an EXACT match to raw-result.json's stage1 raw counts on every
+      field. This confirms the Stage-1 measurements genuinely derive from
+      the cell reported in Stage 0, not some other undisclosed curve.
+    proves_too_much_control:
+      outcome: passed
+      construction: >-
+        Monkey-patched my own independent `construct_cm_j0` so that, for
+        ONE specific early admissible prime only (the 2nd admissible
+        prime encountered while constructing valid ordinary curves, which
+        turned out to be p=3011), it returns a fabricated CM candidate
+        whose (N,tau) is forced equal to that prime's own ordinary
+        curve's (N,tau) -- i.e. planting a genuine earlier "match" the
+        real construction does not actually produce. Re-ran the identical
+        ascending-scan method (unmodified) against this patched
+        construction.
+      result: >-
+        The scan reported the FIRST match at p=3011 (N=3105, tau=1,
+        cm_variant=j0) -- the planted prime -- not p=3541. The method
+        correctly detected and reported the earlier, planted match
+        instead of defaulting to or converging on p=3541 regardless of
+        input.
+      interpretation: >-
+        This directly satisfies the task card's own proves_too_much
+        object: "a Stage-0 re-derivation method that would also 'confirm'
+        p=3541 as the first match even if an earlier admissible prime
+        ... actually had a same-prime match too" would FAIL this control
+        (it would still report 3541). My method PASSES: it is sensitive
+        to an actual earlier match and reports it correctly, so its
+        report of "p=3541 is genuinely first" is not a tautology of the
+        method's own construction.
+
+  # =====================================================================
+  # J2-TEST-CORRECTNESS + blind_rederivation
+  # =====================================================================
+  j2_test_correctness:
+    verdict: holds
+    blind_rederivation:
+      required: true
+      quantity: "EXP-MONO-005b49's P1, P2, P3, z, and the two-sided p-value"
+      blind_from_declared:
+        - experiments/EXP-MONO-005b49/execution_report.yaml
+        - experiments/EXP-MONO-005b49/implementation/run_experiment.py
+        - experiments/EXP-MONO-005b49/runs/RUN-MONO-005b49-1/manifest.yaml
+      blind_from_respected: true
+      order_of_operations: >-
+        Read raw-result.json (background reading step 4) and computed
+        P1/P2/P3/log_ratio/var_logP1/var_logP2/se/z/two_sided_p using my
+        own fresh script, applying EXACTLY the formula stated in
+        specification.yaml's `significance_test_pre_registered_before_any_draw`,
+        BEFORE opening any of the three blind_from paths. All three were
+        opened only afterward (implementation/run_experiment.py to
+        understand structure for J1/J2's "no substitution" check;
+        execution_report.yaml and manifest.yaml to compare against my
+        already-computed values and to check other artifact-integrity
+        fields). Verified by the order of tool calls in this session.
+      raw_counts_used_verbatim_from_raw_result_json:
+        gu_ord_count: 233
+        tr_ord_count: 98
+        gu_cm_count: 201
+        tr_cm_count: 94
+        ntuples: 20000
+      formula_applied: >-
+        P1 = (gu_ord_count/ntuples) / (tr_ord_count/ntuples);
+        P2 = (gu_cm_count/ntuples) / (tr_cm_count/ntuples);
+        P3 = P1/P2; log_ratio = log(P1/P2);
+        var_logP1 = 1/gu_ord_count + 1/tr_ord_count;
+        var_logP2 = 1/gu_cm_count + 1/tr_cm_count;
+        se = sqrt(var_logP1+var_logP2); z = log_ratio/se;
+        two_sided_p = 2*(1-Phi(|z|)), Phi via math.erf. Exactly the
+        formula named in specification.yaml, nothing else.
+      my_independently_computed_values:
+        P1: 2.3775510204081636
+        P2: 2.1382978723404253
+        P3_ratio_of_ratios: 1.111889531932176
+        log_ratio: 0.10606084910605691
+        var_logP1: 0.014495927126215292
+        var_logP2: 0.015613422250449878
+        se: 0.17352045809259833
+        z: 0.6112296513732004
+        two_sided_p_value: 0.5410475560166701
+      archived_values_raw_result_json_stage2: >-
+        P1=2.3775510204081636, P2=2.1382978723404253,
+        P3=1.111889531932176, log_ratio=0.10606084910605691,
+        var_logP1=0.014495927126215292, var_logP2=0.015613422250449878,
+        se=0.17352045809259833, z=0.6112296513732004,
+        two_sided_p_value=0.5410475560166701.
+      archived_values_execution_report_rounded: >-
+        P1=2.3776, P2=2.1383, P3=1.1119, z=0.6112, p=0.5410 (rounded
+        presentation of the same figures).
+      discrepancy: >-
+        NONE. Exact match to full double-precision on every field between
+        my blind, independently-derived computation and both
+        raw-result.json's own stage2 block and execution_report.yaml's
+        rounded restatement. No transcription error, no formula
+        substitution, no off-by-one in the raw counts used.
+    no_substitution_check:
+      method: >-
+        Read implementation/run_experiment.py (after the blind
+        computation above) and confirmed its Stage-2 code path computes
+        P1/P2/P3/z/p via literally the same formula
+        (var_logP1 = 1.0/gu_ord_count + 1.0/tr_ord_count, etc.), assigns
+        the result to fields explicitly labeled
+        "THE SOLE headline P3 statistic ... per specification.yaml
+        significance_test_pre_registered_before_any_draw", and computes
+        the same-curve-only Fisher-exact test (P5) SEPARATELY, on the
+        group-uniform arm's any-collision counts, explicitly labeled
+        "KNOWN-DEFECTIVE, DIAGNOSTIC ONLY ... NOT a headline. NOT an
+        alternative to P3" in raw-result.json, execution_report.yaml, and
+        the implementation script itself (all three consistent).
+      searched_for_p5_reported_as_headline_anywhere: >-
+        Checked raw-result.json, execution_report.yaml, and
+        specification.yaml's own arms_and_controls/outcomes text for any
+        place P5 (odds_ratio=1.106852483134838,
+        p_value=0.3984132644540982) is used as the basis for a
+        significance conclusion or substituted for P3. Found none; P5 is
+        consistently reported as diagnostic-only, separately labeled, in
+        every artifact.
+      verdict: no substitution occurred.
+    sampler_provenance: >-
+      Confirmed by direct inspection (after the blind rederivation) of
+      experiments/EXP-MONO-005b49/implementation/run_experiment.py that
+      the group-uniform arm is computed via
+      `mcb.measure_group_uniform_v2(m64, curve, NTUPLES, ...)`, loaded
+      read-only from
+      experiments/EXP-MONO-cb905d/implementation/run_experiment_v2_part_a_corrected.py.
+      That file's `measure_group_uniform_v2` calls
+      `sample_group_uniform_v2_corrected` (the amendments/v1.yaml
+      CORRECTED 2p+1-slot construction) exclusively; the deprecated,
+      biased `sample_group_uniform_v1_biased` function defined in the
+      same file is present but never imported or called anywhere in
+      EXP-MONO-005b49's own run_experiment.py. Confirmed by grep and by
+      direct reading of both functions' bodies (the v2 function's O-slot
+      and fair-bit-on-2-torsion logic matches amendments/v1.yaml's
+      `new_construction` text verbatim).
+    artifact_integrity_spot_checks:
+      - "specification.yaml sha256 (shasum -a 256, computed independently) = b190215b156c11fd3f4c8a42f2e77df748689a1ca9d19dde51c31b5cb78246c9, matching manifest.yaml's own code.specification_sha256 exactly -- the frozen contract on disk is the one the run manifest binds to."
+      - "runs/RUN-MONO-005b49-1/stdout.log is byte-identical in size (3984 bytes) to raw-result.json, consistent with the recorded command's stdout redirect and no truncation/corruption."
+      - "runs/RUN-MONO-005b49-1/stderr.log is empty, consistent with status: completed_valid and no reported errors or exceptions."
+      - "command.txt matches manifest.yaml's own code.command field verbatim."
+      - "environment.json confirms no CAS/solver used, network_access: false, matching the contract's environment_preconditions and budget.no_network."
+      - "manifest.yaml's resources.peak_rss_bytes (96206848) is well under the 536870912-byte budget; timing (8.19s) is well under the 3600s budget."
+
+  # =====================================================================
+  # General artifact / provenance checks
+  # =====================================================================
+  artifact_checks:
+    - artifact: experiments/EXP-MONO-005b49/specification.yaml
+      status: present_frozen_hash_verified
+      note: "frozen: true, execution_authorized: true, evidence_eligible: true, approved by coordinator; sha256 independently recomputed and matches manifest binding."
+    - artifact: experiments/EXP-MONO-005b49/runs/RUN-MONO-005b49-1/{manifest.yaml,raw-result.json,command.txt,stdout.log,stderr.log,environment.json}
+      status: present_and_internally_consistent
+      note: "status: completed_valid; command matches artifacts; commit 0c0b863ab55687b98c17c27703cfa070d265cb5d recorded, dirty=true with 420 unrelated dirty files, disclosed in manifest.yaml's own dirty_note as not touching this run's inputs (specification.yaml, and the two read-only-loaded reference implementation files, none of which were among the dirty paths)."
+    - artifact: experiments/EXP-MONO-005b49/execution_report.yaml
+      status: present_consistent_with_raw_result_and_manifest
+      note: "All stage0/stage1/stage2 figures restated match raw-result.json exactly (rounded in a few display fields only); budget_compliance and completion_gate_check both report within-budget and reproducibility confirmed by the Executor's own re-invocation."
+    - artifact: experiments/EXP-MONO-64aaa4/implementation/run_experiment.py and implementation.md
+      status: present_read_confirmed_source_of_reused_constructions
+      note: "Curve construction, tau definition, transversal sampler, and Stage-0 admission rule all confirmed by direct reading to match what EXP-MONO-005b49's own script declares it reuses read-only."
+    - artifact: experiments/EXP-MONO-cb905d/amendments/v1.yaml and implementation/run_experiment_v2_part_a_corrected.py
+      status: present_read_confirmed_corrected_sampler_reused_not_the_deprecated_one
+      note: "sample_group_uniform_v2_corrected matches amendment v1's new_construction text; sample_group_uniform_v1_biased is present but unused by EXP-MONO-005b49's own script."
+    - artifact: experiments/EXP-MONO-005b49/reviews/ (sibling directory check)
+      status: did_not_exist_at_time_of_review
+      note: "Confirmed via ls before writing this report: no red-team/ or validator/ subdirectory existed prior to my own mkdir for this report; no sibling report was available to read."
+
+  metric_recomputations:
+    - metric: "EXP-MONO-005b49 P1, P2, P3, log_ratio, var_logP1, var_logP2, se, z, two_sided_p_value"
+      recomputed_independently: true
+      blind: true
+      match: exact
+    - metric: "Stage-0 cell (p, N, tau, cm_variant, A, B for both curves) at p=3541"
+      recomputed_independently: true
+      match: exact
+    - metric: "Stage-0 scan count (primes_scanned=66, last_prime_scanned=3541) and first-match position"
+      recomputed_independently: true
+      match: exact
+    - metric: "Stage-1 raw counts (tr_ord=98, tr_cm=94, gu_ord=233, gu_cm=201, gu tuples-with-collision 167/151)"
+      recomputed_independently: true
+      note: "Beyond the joint's minimum required scope; used the confirmed-correct shared library sampler functions with a fresh independent driver."
+      match: exact
+
+  control_checks:
+    - control: "J1 proves_too_much: planted-earlier-match sensitivity"
+      result: correctly_detected_planted_earlier_match_at_p3011
+    - control: "J2 no-substitution check: P5 never reported as headline"
+      result: confirmed_p5_diagnostic_only_in_all_three_artifacts
+    - control: "specification.yaml sha256 vs manifest.yaml binding"
+      result: match
+
+  heuristic_validation_checks: []
+  cost_model_checks: []
+  proof_architecture_checks: []
+
+  limitations:
+    - >-
+      This report addresses J1-CELL-SELECTION-INTEGRITY and
+      J2-TEST-CORRECTNESS (with the associated blind_rederivation) only.
+      It does not evaluate J3-REPLICATION-LOGIC (statistical power at
+      this cell's counts) or J4-CROSS-CELL-SYNTHESIS (meta-analytic
+      combination with the p=617 cell, or the cross-cell P1/P2 pattern) --
+      both are the red-team's owned joints per the task card. I note,
+      without adjudicating, that a non-significant P3 at n=20000/curve
+      with counts in the ~100-230 range does not by itself establish
+      adequate power to detect an effect of the first cell's own observed
+      size; this is exactly the question the task card assigns to J3, and
+      I defer to that review.
+    - >-
+      My Stage-0 re-derivation was written independently (fresh code, not
+      copied from EXP-MONO-005b49's own implementation/run_experiment.py)
+      but necessarily follows the SAME documented construction (SHA-256
+      domain-seeded curve search, declared unchanged from EXP-MONO-64aaa4)
+      because that construction is the frozen contract's own declared
+      input, not a free implementation choice. Exact agreement between my
+      independent code and the archived results is therefore strong
+      evidence against an implementation bug or a mismatch between what
+      was reported and what the declared algorithm actually produces, but
+      it does not independently re-derive or challenge the CHOICE of that
+      construction itself (e.g., whether SHA-256 domain-seeding is an
+      appropriate source of "randomness" for this measurement) -- that
+      choice was already reviewed and is unchanged from prior, separately
+      validated experiments (EXP-MONO-64aaa4, EXP-MONO-cb905d) per the
+      contract's own `inputs.reused_unchanged_from_amendment` block.
+    - >-
+      I did not re-verify EXP-MONO-64aaa4's or EXP-MONO-cb905d's own prior
+      validation history beyond reading the files needed to confirm what
+      this experiment declares it reuses; those experiments' own
+      validation/red-team reports are cited in specification.yaml's
+      source_refs and are treated as already-settled per the contract's
+      own text ("already independently verified correct by two disjoint
+      reviewer methods"), not re-litigated here.
+    - >-
+      The Stage-1 raw-count reproduction (tr_ord/tr_cm/gu_ord/gu_cm) was
+      performed using the SAME shared library files EXP-MONO-005b49's own
+      script loads (measure_curve, measure_group_uniform_v2), run via a
+      fresh driver I wrote, not via a wholly independent re-implementation
+      of the sampling logic itself. This confirms the reported counts are
+      reproducible and genuinely derive from the stated curve/domain
+      parameters (ruling out fabrication, transcription error, or a
+      silent parameter swap), but does not by itself re-certify the
+      sampler's own mathematical correctness -- that correctness (the
+      2p+1-slot group-uniform construction, and the m=4 transversal
+      sign-class construction) was independently verified by disjoint
+      reviewer methods in EXP-MONO-cb905d's and EXP-MONO-64aaa4's own
+      prior review rounds, which this report did not re-derive from first
+      principles (out of scope for J1/J2 as assigned here; see prior
+      limitation).
+
+  verdict: passed
+  verdict_rationale: >-
+    Both owned joints HOLD under independent, from-scratch re-derivation.
+    J1: an independently written Stage-0 scan reproduces the exact cell
+    (p=3541, N=3600, tau=4, cm_variant=j0, A/B values for both curves)
+    after evaluating exactly 66 admissible primes ascending from 3001,
+    with zero matches among the 65 preceding admissible primes, and the
+    proves_too_much control (a planted earlier match at p=3011) is
+    correctly detected rather than overridden -- confirming the method
+    genuinely distinguishes "first" from "a match somewhere in range."
+    J2: a blind recomputation of P1, P2, P3, log_ratio, the two variance
+    terms, se, z, and the two-sided p-value from raw-result.json's own
+    four counts alone -- performed before opening
+    execution_report.yaml, implementation/run_experiment.py, or
+    manifest.yaml -- reproduces every archived figure to full
+    double-precision exactly, and the pre-registered log-ratio
+    delta-method test is confirmed (by reading the implementation only
+    afterward) to be the sole headline computation actually used, with
+    the known-defective Fisher-exact test consistently and only labeled
+    as diagnostic context (P5) in every artifact checked. This verdict is
+    on J1 and J2 only and authorizes nothing beyond AGENTS.md's evidence
+    rules: it does not itself decide H-MONO-1d50ac's status, does not
+    adjudicate J3/J4 (replication-logic power or cross-cell synthesis),
+    and supports no ECDLP, speedup, or cryptographic-scale claim. The
+    underlying result (P3 not significant, p=0.5410, same direction as
+    the first cell) is, per the frozen contract's own pre-registered
+    prediction, a genuinely open, well-formed outcome -- this report
+    certifies the MEASUREMENT and TEST are admissible evidence, not any
+    particular reading of what the non-significant result means for
+    H-MONO-1d50ac (that is the Coordinator's and the red-team's own
+    joints to compose).
+
+  artifact_paths:
+    - experiments/EXP-MONO-005b49/specification.yaml
+    - experiments/EXP-MONO-005b49/implementation/run_experiment.py
+    - experiments/EXP-MONO-005b49/implementation.md
+    - experiments/EXP-MONO-005b49/execution_report.yaml
+    - experiments/EXP-MONO-005b49/runs/RUN-MONO-005b49-1/manifest.yaml
+    - experiments/EXP-MONO-005b49/runs/RUN-MONO-005b49-1/raw-result.json
+    - experiments/EXP-MONO-005b49/runs/RUN-MONO-005b49-1/command.txt
+    - experiments/EXP-MONO-005b49/runs/RUN-MONO-005b49-1/stdout.log
+    - experiments/EXP-MONO-005b49/runs/RUN-MONO-005b49-1/stderr.log
+    - experiments/EXP-MONO-005b49/runs/RUN-MONO-005b49-1/environment.json
+    - experiments/EXP-MONO-cb905d/amendments/v1.yaml
+    - experiments/EXP-MONO-cb905d/implementation/run_experiment_v2_part_a_corrected.py
+    - experiments/EXP-MONO-64aaa4/implementation/run_experiment.py
+    - experiments/EXP-MONO-64aaa4/implementation.md
+    - ledger/handoffs/TASK-20260904-904394.yaml
+    - agents/validator.md
+
+  review_attestation:
+    task_id: TASK-20260904-904394
+    joints_owned: [J1-CELL-SELECTION-INTEGRITY, J2-TEST-CORRECTNESS]
+    sources_read:
+      - ledger/handoffs/TASK-20260904-904394.yaml
+      - agents/validator.md
+      - experiments/EXP-MONO-005b49/specification.yaml
+      - experiments/EXP-MONO-cb905d/amendments/v1.yaml
+      - experiments/EXP-MONO-64aaa4/implementation/run_experiment.py
+      - experiments/EXP-MONO-64aaa4/implementation.md
+      - experiments/EXP-MONO-005b49/runs/RUN-MONO-005b49-1/raw-result.json (read BEFORE the blind rederivation; sole source for it)
+      - "my own scratch scripts (independent_j1.py, blind_rederive.py, independent_stage1_recompute.py), independently written, not derived from any experiment source file, used to perform the blind rederivation and the J1/proves-too-much re-derivation"
+      - experiments/EXP-MONO-005b49/implementation/run_experiment.py (read AFTER the blind rederivation, per the task's own instruction, to check structure and confirm no test substitution)
+      - experiments/EXP-MONO-005b49/execution_report.yaml (read AFTER the blind rederivation, for comparison only)
+      - experiments/EXP-MONO-005b49/runs/RUN-MONO-005b49-1/manifest.yaml (read AFTER the blind rederivation, for comparison and artifact-integrity checks only)
+      - experiments/EXP-MONO-cb905d/implementation/run_experiment_v2_part_a_corrected.py (read to confirm sampler provenance, after the blind rederivation)
+    read_sibling_reports: false
+    sibling_report_disclosure: >-
+      experiments/EXP-MONO-005b49/reviews/ did not exist on disk when I
+      checked (via `ls`) shortly before writing this report; no
+      red-team-report.yaml or red-team directory was read or referenced
+      at any point in this review.
+    blind_from_respected: true
+    verdict: holds
+    verdict_scope: "J1-CELL-SELECTION-INTEGRITY and J2-TEST-CORRECTNESS only, per the joints_owned above -- not a verdict on claims (A) or (B) as a whole, and not a verdict on J3 or J4."

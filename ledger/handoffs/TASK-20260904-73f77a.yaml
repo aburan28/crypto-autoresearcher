@@ -1,0 +1,116 @@
+handoff:
+  id: TASK-20260904-73f77a
+  from: coordinator
+  to: executor
+  created_at: '2026-09-04'
+  experiment_id: EXP-MONO-8ec0e5
+  hypothesis_id: H-MONO-dd666a
+  question_id: RQ-MONO-001
+  goal_id: GOAL-MONO-001
+
+  objective: >-
+    Execute EXP-MONO-8ec0e5 under protocol_amendment v1_to_v2: the SAME
+    declared search (Z=3, h_+>=1, h_->=1, max(h_+,h_-)>=2, primes
+    ascending in [101,2000] then A then B ascending) but with a verified-
+    equivalent, much faster Z-determination method, since RUN-MONO-8ec0e5-1
+    resource-exhausted (863.6s, only 91 of 278 primes reached) using the
+    O(p)-per-pair `cubic_roots` scan.
+
+  authorized_by: coordinator
+  authorization_basis: >-
+    experiments/EXP-MONO-8ec0e5/amendments/v1_to_v2.yaml, filed after
+    RUN-MONO-8ec0e5-1's own disclosed resource_exhaustion outcome and the
+    prior Executor's own explicit escalation (it correctly did not
+    unilaterally widen scope or change the search).
+
+  background_you_need: >-
+    Read `experiments/EXP-MONO-8ec0e5/amendments/v1_to_v2.yaml` IN FULL --
+    it is your authoritative contract for this run, on top of the
+    already-frozen `specification.yaml` (whose declared search order,
+    range, and qualifying filter are UNCHANGED). Read
+    `experiments/EXP-MONO-8ec0e5/implementation/
+    run_corrected_bivariate_test.py` (the version 1 script that
+    resource-exhausted) and `experiments/EXP-MONO-8ec0e5/execution_report.yaml`
+    (version 1's own disclosure of the bottleneck: `cubic_roots(A,B,p)` is
+    an O(p) scan called for EVERY non-singular (A,B) pair just to
+    determine Z, which is the dominant cost -- NOT the brute-force
+    4-torsion counting, which is already correctly gated and rare).
+
+  what_to_do:
+    - >-
+      Implement the fast splitting test exactly as defined in the
+      amendment's own `definitions_frozen.fast_splits_completely_test`:
+      represent F_p[X]/(f(X)) via ordinary degree-<3 polynomial
+      arithmetic mod p (reducing X^3 -> -AX-B mod f), compute X^p mod f(X)
+      by repeated squaring (O(log p) polynomial multiplications, each
+      O(1) since deg f < 3), and conclude f splits completely into 3
+      distinct F_p-rational roots iff the result equals X exactly (the
+      basis tuple for X in {1,X,X^2}) -- non-singularity (already checked
+      before this test runs) rules out repeated roots for a short-
+      Weierstrass cubic, so this single congruence check is sufficient.
+    - >-
+      MANDATORY, BLOCKING EQUIVALENCE GATE (amendment change A2, SR-A1):
+      before using the fast test for the real search, exhaustively verify
+      it agrees with the EXISTING, already-trusted `cubic_roots`-based
+      Z-determination (i.e. `len(cubic_roots(A,B,p)) == 3` iff your fast
+      test says "splits completely") on EVERY non-singular (A,B) pair for
+      ALL primes in [101,199] (reuse the already-verified non-singularity
+      check; do not skip pairs). If ANY disagreement is found, STOP
+      immediately: do not run the real search, and instead write a
+      complete manifest/execution_report classifying this as
+      `specification_error` with the exact (p,A,B) counterexample(s).
+    - >-
+      If the gate passes: run the real Stage-0 search using the fast test
+      as the PRIMARY splitting check for every (A,B) pair; ONLY when it
+      says "splits completely" fall back to the existing, unmodified
+      `cubic_roots(A,B,p)` to get the actual root values (needed for
+      n_+/n_-/h_+/h_- and the downstream Q_e(T) construction, exactly as
+      version 1 did once Z=3 was established). The declared search order
+      (prime asc, A asc, B asc), range ([101,2000]), and qualifying
+      filter (Z=3 AND h_+>=1 AND h_->=1 AND max(h_+,h_-)>=2) are
+      UNCHANGED -- do not alter them in any way.
+    - >-
+      Once a qualifying curve is found: run the SAME M6 sanity check,
+      Stage 1 (exhaustive census), and Stage 2 (D_sum/D_prod comparison)
+      exactly as version 1's own script already implements (reuse that
+      logic unmodified; only the Z-determination inside Stage 0 changes).
+
+  constraints:
+    - Do not change the declared search order, range, or qualifying filter under any circumstances.
+    - Do not skip or weaken the SR-A1 equivalence gate to save time -- it is mandatory and blocking.
+    - Do not discard or explain away any nonzero residual in Stage 2, if reached.
+    - >-
+      Budget is UNCHANGED (900s wall/CPU, 128MiB RSS) -- the entire point
+      of this amendment is that the corrected algorithm should comfortably
+      finish the full range inside it. If it does NOT (report exactly why,
+      with timing data for the equivalence gate and the real search
+      separately) -- do not silently raise any internal safety-break
+      constant this time without explicit new Coordinator authorization;
+      report resource_exhaustion again if it occurs and stop.
+    - One run directory: runs/RUN-MONO-8ec0e5-2/, full manifest per docs/evidence-and-reproducibility.md.
+    - No network access. Do not run any git command, do not commit, do not push.
+    - Compute an ACTUAL sha256 for command.txt in the manifest -- no placeholder comments.
+
+  budget: see experiments/EXP-MONO-8ec0e5/amendments/v1_to_v2.yaml `budget` block (unchanged from specification.yaml).
+
+  completion_gate: >-
+    execution_report.yaml filed reporting the SR-A1 equivalence-gate
+    result explicitly (pass/fail, pairs checked, any disagreement), the
+    real search's own Stage-0 outcome, and (if a curve was found and M6
+    passed) Stage 1/2's full results -- before any snapshot archive or
+    dispatch to independent review.
+
+  next_step_after_completion: >-
+    Coordinator isolated snapshot archive of the run package, then
+    independent Validator + Red Team dispatch (with a joint specifically
+    auditing the new fast-splitting-test code and its own equivalence
+    gate), continuing this sub-lane's own established review discipline.
+
+  inference:
+    requested_policy: executor-implementation
+    reasoning_effort: medium
+    runtime: claude_code
+    resolved_model_id: claude-sonnet-5
+    model_verified: true
+    fallback_used: false
+    degraded_requirements: []
