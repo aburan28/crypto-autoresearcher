@@ -212,6 +212,14 @@ def collect_retrievals() -> list[dict]:
                 "goal_id": doc.get("goal_id"),
             })
         for artifact in doc.get("local_artifacts") or []:
+            # Accept both object entries ({path, role, bytes, sha256}) and
+            # bare path strings (JMV-0411378-20260907 and similar packages).
+            # Crashing on the string form made every PR merge-check red once
+            # such a provenance landed on main.
+            if isinstance(artifact, str):
+                artifact = {"path": artifact}
+            elif not isinstance(artifact, dict):
+                continue
             rows.append({
                 "package": package,
                 "provenance_path": _rel(path),
