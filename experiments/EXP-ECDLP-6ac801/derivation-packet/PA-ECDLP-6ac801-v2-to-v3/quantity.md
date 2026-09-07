@@ -284,9 +284,9 @@ monotonicity in `a` can be checked. Report `share_top(T/4)` and
 
 ## 13. The one thing you are told about an outcome, and why
 
-**`T_sel = T/2` at `a = 1/4`, `r = 2`, `N = 2^24` is established
-G3-INFEASIBLE** by prior, independent work outside this batch (evidence record
-`EV-ECDLP-60e266`).
+**`T_sel = T/2` at `a = 1/4`, `r = 2`, `N = 2^24` records G3-INFEASIBILITY at
+strength `preliminary`**, on one execution batch, with no independent
+implementation (evidence record `EV-ECDLP-60e266`).
 
 This is a **known-false object**, and it is the batch's replication control:
 "controls before belief" requires the identical measurement be run against an

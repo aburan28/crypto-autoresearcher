@@ -8,6 +8,10 @@ and evidence scope needed to interpret results at the scale actually tested.
 |---|---|
 | `toycurve.py` | F_p short-Weierstrass arithmetic, exact point counting, deterministic ECDLP instance generation. Also the **independent verifier** for certificates. |
 | `rho.py` | Pollard rho (Teske r-adding walk) — the matched generic baseline (KN-TECH-001). Recovers k using public data only. |
+| `walk.py` | The rho walk as a first-class object: Teske r-adding steps with coefficient bookkeeping, orbit tracing (tail/cycle), distinguished-point walks, and the van Oorschot--Wiener DP collision search. |
+| `kangaroo.py` | Pollard kangaroo over an interval: tame/wild herds meeting at distinguished points, trajectories retained. |
+| `walkviz.py` | Draws what those two produce -- functional graph with one rho highlighted, DP forest with the golden collision, kangaroo herds -- as dependency-free SVG. |
+| `run_walkviz.py` | `python -m harness.run_walkviz --seed 7 --field-bits 16 --out-dir out/`: walk records (JSON) plus figures (SVG) for one instance. |
 | `semaev.py` | Semaev summation polynomials S_2/S_3/S_4 and the S_3 point-decomposition Groebner measurement (KN-TECH-002/003/004). |
 | `runner.py` | Run wrapper: captures commit/env/timing/resources, re-verifies every certificate independently, and writes the immutable run record. Refuses to overwrite a run id. |
 | `run.py` | Experiment entry point (EXP-SEMAEV-001). `python -m harness.run --experiment EXP-SEMAEV-001`. |

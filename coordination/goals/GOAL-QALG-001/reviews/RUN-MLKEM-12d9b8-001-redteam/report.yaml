@@ -1,0 +1,751 @@
+red_team_report:
+  id: RT-20260906-89811f
+  task_id: TASK-REDTEAM-RUN-MLKEM-12d9b8-001
+  run_ids: [RUN-MLKEM-12d9b8-001]
+  experiment_id: EXP-MLKEM-12d9b8
+  hypothesis_id: H-MLKEM-36f511
+  goal_id: GOAL-QALG-001
+  reviewed_snapshot_commit: b47237c995d034052703e8a71594c53d6df9dc55
+  reviewed_snapshot_commit_note: >-
+    Confirmed via `git merge-base --is-ancestor b47237c99 HEAD` (true) and
+    `git show --stat b47237c99` (exactly the 15 declared RUN-MLKEM-12d9b8-001
+    files, 1288 insertions, 0 deletions). This is the Coordinator-committed
+    snapshot named by the task card, not a working-tree-only artifact; no
+    working-tree-only path was treated as evidence anywhere in this review.
+
+  claim_under_review: >-
+    RUN-MLKEM-12d9b8-001's reported combinatorial-ceiling-axis verdict
+    (UNREALIZABLE at all three ML-KEM standardized levels, robustly across
+    the full c sweep {12,13,15,20}, by 24-50 orders of magnitude at the
+    amendment's operative B<=q=3329 ceiling) and its stage-0 "NOT COMPUTED"
+    disposition for the faulty-rate axis, as archived at commit b47237c99
+    under DEC-20260906-b60887's authorization and amendments/v1.yaml
+    (resulting_version 2). This is a falsification attempt, not a defence of
+    the run's own conclusions, against the six attack items named in the task
+    card.
+
+  verdict: REVISE
+  verdict_rationale: >-
+    The headline combinatorial-ceiling UNREALIZABLE finding survives every
+    attack attempted below: the ceiling formula (2B+1)^k_mlkem is
+    independently confirmed to be a mathematically sound upper bound covering
+    ALL m in [0, k_mlkem] simultaneously (not an undercount fixed at
+    m=k_mlkem, contra one reading the task card invited); the c-sweep
+    robustness claim is accurate and the paper's own c>=12 minimum is
+    independently source-verified; no "proves too much" counterexample was
+    found because the one credible candidate (ring-element/NTT-slot/
+    Galois-orbit richer self-reduction) is already honestly disclosed as
+    out of scope by H-MLKEM-36f511 itself; and no claim-ceiling overreach was
+    found anywhere in raw-result.json, manifest.yaml, metrics-table.md, or
+    the archival commit message. REVISE rather than SUSTAINED is warranted
+    for one concrete, moderate, and actionable finding: stage0-disposition.md
+    characterizes its own search as a "genuine attempt" that "re-read...
+    all four sources" specification.yaml names, but one of those four
+    sources it claims to have read in full -- KN-OPEN-8a5965.md -- itself
+    names a fifth, specifically Module-LWE-relevant candidate source
+    (KN-LIT-1744, "Module Learning With Errors and Structured Extrapolated
+    Dihedral Cosets," eprint 2026/155) in the sentence immediately adjacent
+    to the one stage0-disposition.md DID quote, and this run never mentions,
+    reads, or discloses skipping it. This does not appear to flip the
+    bottom-line "NOT COMPUTED" disposition (independently confirmed via live
+    fetch that the paper's own abstract does not state an explicit formula
+    either), but the run's characterization of exhaustiveness is overstated
+    and should be corrected before this stage-0 disposition, or the
+    separately-carried "n := k_mlkem*256 is fully open" caveat (which
+    KN-LIT-1744 also directly bears on, being specifically about Module-LWE
+    rather than generic unstructured LWE), are treated as fully searched.
+    This is REVISE-tier: a real, cheap, actionable completeness gap in a
+    required artifact (stage 0's disposition, required_artifacts item 3),
+    not a BROKEN-tier defect in the arithmetic or the reported verdict.
+
+  # =========================================================================
+  # ATTACK 1 -- MLKEM-CHG-2's B<=q ceiling and the ceiling formula's handling
+  # of the |S|=m variable.
+  # =========================================================================
+  objections:
+    - id: MLKEM-RT2-OBJ-1
+      severity: informational
+      target: MLKEM-CHG-2 disclosure framing ("the most generous ring-compatible bound")
+      title: >-
+        The (2B+1)^k_mlkem ceiling formula IS a mathematically sound upper
+        bound across the full variable-m space (no undercount found), but
+        the amendment's framing of B=q as "generous" conflates residue-class
+        completeness with noise-budget coherence, which is a materially
+        different notion the mechanism's own definition depends on.
+      detail: >-
+        Checked directly against compute.py and the definitions: interpret
+        each coefficient c_i in {-B,...,B} (2B+1 values) as ranging over ALL
+        k_mlkem rows simultaneously, where c_i = 0 encodes "row i excluded
+        from S." Under this encoding, the vector (c_1,...,c_k_mlkem) ranges
+        exactly over the union, across every m in {0,...,k_mlkem}, of all
+        (S, coefficient-vector) pairs with |S|=m and each nonzero |c_i|<=B --
+        i.e. (2B+1)^k_mlkem is NOT an undercount fixed at m=k_mlkem (the
+        failure mode the task card asked me to check for); it is a single,
+        exact count of the full coefficient-vector space, which upper-bounds
+        the count of DISTINCT virtual samples v (some distinct vectors could
+        collide to the same v mod q, which can only make the true count
+        SMALLER, never larger, so the ceiling role is preserved). This part
+        of MLKEM-CHG-2's arithmetic and compute.py's implementation of it is
+        SOUND; I could not break it.
+        Separately, however: the self_reduction_model's whole stated purpose
+        is producing LOW-VARIANCE virtual samples (Var(sum c_i e_i) =
+        sum c_i^2 * Var(e_i)). At B=q=3329, this variance is c_i^2*eta/2 up
+        to q^2*eta/2 ~ 3329^2*1 ~ 5.5 million per term -- roughly 6-7 orders
+        of magnitude larger than ML-KEM's genuine per-coordinate noise
+        variance (eta/2 ~ 1-1.5). A virtual sample with noise this large is
+        not a low-variance sample in any sense the mechanism's own
+        construction cares about; it is indistinguishable in practice from
+        discarding the sample's information entirely. MLKEM-CHG-2's own text
+        calls B=q "the maximum physically meaningful bound compatible with
+        ML-KEM's own ring structure" and "the most generous ring-compatible
+        bound" -- both true only in the narrow "no new residue class" sense,
+        not in the sense a reader might reasonably infer ("physically
+        meaningful"/"generous" as in "a bound an attacker might actually
+        use"). No claim in the run's own artifacts asserts B=q keeps noise
+        inside any budget (that is correctly left to stage 0, reported NOT
+        COMPUTED), so this is not an overclaim as currently written, but the
+        rhetoric invites a reader to treat B=q as a fair, generous test of
+        realizability rather than what it actually is: an artificially
+        favorable, noise-incoherent upper limit that only strengthens the
+        UNREALIZABLE finding a fortiori (any B that also respects the
+        construction's own low-variance intent would be far smaller than q,
+        making the true achievable ceiling even further below Q, not
+        closer to it).
+      does_this_break_the_verdict: >-
+        No. If anything it makes UNREALIZABLE more robust: a physically
+        coherent B (one that keeps noise variance comparable to genuine
+        ML-KEM noise) would sit far below q, shrinking the ceiling further
+        below the already-24-to-50-orders-of-magnitude-short value computed
+        at B=q. Recorded as an informational framing objection, not an
+        arithmetic or verdict objection.
+
+  # =========================================================================
+  # ATTACK 2 -- is "robust across the full c sweep" honest, and could any
+  # c value close the gap?
+  # =========================================================================
+    - id: MLKEM-RT2-FINDING-2
+      severity: not_an_objection
+      target: c-sweep robustness claim
+      title: Confirmed sound; the sweep anchors on the paper's own genuine minimum, and the reported range is accurate, not cherry-picked.
+      detail: >-
+        Independently verified against inputs/DCP-SIMON-2026/paper_extracted_text.txt
+        (not taken on the contract's word): "c >= 12" appears three times in
+        the paper's own body (lines 1333, 1430, 1597) as a genuine analytic
+        condition used to derive a specific amplitude-difference bound
+        (an expected multiplicative factor 1 +/- O(n^-(((c-1)/2)-1)) with
+        probability >= 1-1/n), not an arbitrary contract-side choice. c=12 is
+        therefore the paper's own stated floor, and the run's sweep
+        {12,13,15,20} correctly anchors its most-favorable-to-REALIZABLE
+        test at that floor rather than at some smaller, out-of-theorem's-scope
+        c that would trivially close the gap but say nothing about Simon's
+        actual claim (e.g. at c=0, Q=k_mlkem^2*256 is tiny and REALIZABLE
+        would trivially hold -- but c=0 is outside the paper's stated
+        applicability and testing there would not be informative about
+        Simon's algorithm). The monotonic trend the run reports (shortfall
+        growing from 24 to 50 orders of magnitude as c grows from 12 to 20)
+        confirms the smallest c in the theorem-valid range gives the
+        smallest (most favorable) gap, and that gap (24 orders of magnitude
+        at ML-KEM-1024) is still overwhelming. The commit message and
+        metrics-table.md both report the accurate RANGE (24-50), not only
+        the largest, more dramatic number -- this is honest reporting, and
+        the hypothetical in the task card ("if the gap were only 3 orders of
+        magnitude, would this language still be honest") does not arise
+        here since the actual minimum gap is 24, not 3. No objection.
+
+  # =========================================================================
+  # ATTACK 3 -- does the m=1/m=2 baseline check validate the variance
+  # formula's applicability at larger m, and does that matter to the
+  # reported verdict?
+  # =========================================================================
+    - id: MLKEM-RT2-OBJ-3
+      severity: informational
+      target: HEUR-MLKEM-36f511-1 (variance additivity), its scope relative to stages 2-4
+      title: >-
+        The m=1/m=2 baseline check is mathematically sufficient for the
+        FORMULA it validates, but that formula is not actually load-bearing
+        for the reported UNREALIZABLE verdict at all -- a scope
+        clarification the run's own artifacts do not make explicit.
+      detail: >-
+        Var(sum_i c_i*e_i) = sum_i c_i^2*Var(e_i) for INDEPENDENT e_i is an
+        exact, elementary identity (additivity of variance for independent
+        random variables), provable by induction from the m=1 base case and
+        the m=2 case (which additionally confirms no cross-term/covariance
+        error was introduced). Given the stated independence assumption, no
+        further empirical testing at larger m is mathematically necessary --
+        this is not a heuristic needing broader validation, it is a proven
+        identity, and the design-time red team (RT-20260814-41d4cc,
+        heuristic_challenges) already correctly said so. What IS genuinely
+        unverified, and not sourced anywhere in specification.yaml or
+        H-MLKEM-36f511, is whether ML-KEM's actual key-generation noise
+        sampling across its k_mlkem>=3 module rows is genuinely INDEPENDENT
+        (as opposed to merely identically-marginally-distributed) -- no FIPS
+        203 citation is given for cross-row independence specifically.
+        However, tracing the actual code path: stage 3's combinatorial
+        ceiling ((2B+1)^k_mlkem) and stage 4's verdict (ceiling(B=q) vs Q)
+        NEVER invoke the variance formula or the independence assumption at
+        all -- they are a pure counting argument over coefficient-vector
+        space, entirely decoupled from noise/variance. The m=1/m=2 check's
+        scope is therefore confined to stage 1 (its own named control) and
+        to a FUTURE stage-0 computation (which is NOT COMPUTED in this run),
+        not to the combinatorial-ceiling verdict this run actually reports.
+        Neither specification.yaml nor the run's own artifacts state this
+        decoupling explicitly; a reader could mistakenly assume the
+        combinatorial-ceiling axis "rests on" the variance formula's
+        validated scope, when in fact it does not rest on it at all.
+      does_this_break_the_verdict: >-
+        No. If anything this attack shows the UNREALIZABLE finding is on
+        FIRMER ground than a reader might assume, since it does not depend
+        on the (currently unverified for real ML-KEM) cross-row independence
+        assumption at all. Recorded as a scope-clarity finding for a future
+        correction, not an arithmetic or verdict objection.
+
+  # =========================================================================
+  # ATTACK 4 -- proves-too-much control.
+  # =========================================================================
+    - id: MLKEM-RT2-FINDING-4
+      severity: not_an_objection
+      target: proves_too_much control (task-specified)
+      title: >-
+        Attempted; no counterexample found that breaks the actual, narrowly
+        scoped claim. The one credible near-miss is already honestly
+        disclosed as out of scope by H-MLKEM-36f511 itself.
+      detail: >-
+        Considered and rejected as a counterexample: the well-known LWE
+        "sample amplification via random subset-sum recombination"
+        technique (Gentry-Peikert-Vaikuntanathan-style, leftover-hash-lemma
+        based) IS correctly predicted REALIZABLE by this same
+        (2B+1)^k methodology when k is genuinely large (k ~ n, hundreds of
+        real samples) -- e.g. 2^k or 3^k combinations for k~n dwarfs any
+        polynomial Q. This confirms the METHOD scales correctly with k; it
+        does not "prove too much," it correctly tracks that ML-KEM's actual
+        k_mlkem in {2,3,4} (fixed by the module rank, not an artifact of the
+        counting method) is what makes the ceiling tiny.
+        The genuinely interesting near-miss: ML-KEM's "rows" are themselves
+        RING elements (degree-256 polynomials over Z_3329), and standard
+        lattice-crypto self-reduction techniques (e.g. multiplying a sample
+        by a small RING ELEMENT rather than a plain integer scalar, or by a
+        monomial X^j -- a negacyclic rotation that leaves CBD noise's
+        distribution exactly invariant and needs a full ring-element
+        coefficient, not a bounded integer, to express) could plausibly
+        supply combinatorially far more than (2B+1)^k_mlkem structurally
+        distinct virtual samples per real row, since each ring-element
+        multiplier ranges over a much larger space than a bounded integer
+        scalar. If this "ring-element/Galois-orbit" self-reduction variant
+        were shown to preserve usably low noise, the ceiling for THAT
+        construction could plausibly be much larger than what
+        (2B+1)^k_mlkem computes for the SCALAR-only construction actually
+        modeled here. However: H-MLKEM-36f511.assumptions explicitly states
+        "Standard (not adversarially weakened) linear self-reduction is the
+        sample-generation mechanism under test; a not-yet-published cleverer
+        technique (e.g. IDEA-20260813-8aa6ea's Galois-orbit mechanism) is
+        explicitly out of scope and named as an open direction, not ruled
+        out," and interpretation_limits repeats this verbatim. This is
+        precisely the construction I independently arrived at before finding
+        it already named and excluded -- the hypothesis's own scope
+        discipline anticipated and correctly fenced off this exact avenue,
+        rather than silently ignoring it. I could not construct a "known,
+        simple self-reduction construction ... known to actually be
+        realizable" that this run's OWN narrowly-scoped claim (standard,
+        scalar-coefficient linear self-reduction) misjudges.
+      does_this_break_the_verdict: >-
+        No. The method survives this control for the claim as actually,
+        narrowly, and honestly scoped. Flagged only as a completeness note:
+        neither manifest.yaml, metrics-table.md, nor the archival commit
+        message restate the "standard/scalar-only, not ring-element" scope
+        boundary inline (they rely on the frozen specification.yaml's title
+        and H-MLKEM-36f511's already-adequate disclosure). A reader who sees
+        only the commit message's headline ("UNREALIZABLE ... by 24-50
+        orders of magnitude") without following through to the full
+        specification/hypothesis text could over-generalize this to "all
+        self-reduction is foreclosed," which the record does not claim and
+        explicitly disclaims elsewhere. Recommend the scope qualifier be
+        repeated in any future summary artifact, not required as a
+        correction to this run.
+
+  # =========================================================================
+  # ATTACK 5 -- stage0-disposition.md's "NOT COMPUTED" claim: exhaustive?
+  # =========================================================================
+    - id: MLKEM-RT2-OBJ-5
+      severity: moderate
+      target: stage0-disposition.md, required_artifacts item 3
+      title: >-
+        A fifth, directly relevant, already-staged source (KN-LIT-1744) --
+        named explicitly by one of the four sources this run claims to have
+        fully re-read -- was never checked, read, or disclosed as skipped.
+      detail: >-
+        stage0-disposition.md states it "re-read, within the stage-0 budget
+        share, all four sources specification.yaml names as currently
+        available" and that "No fifth source was substituted." I
+        independently re-read knowledge/open-problems/KN-OPEN-8a5965.md (one
+        of the four sources stage0-disposition.md quotes from directly, at
+        its "alpha = sqrt(n) polylog(n)" bullet) in full. The VERY NEXT
+        bullet in that same open-problem record -- immediately adjacent to
+        the text stage0-disposition.md DID quote -- reads: "Unstructured LWE
+        vs Module-LWE. ML-KEM and ML-DSA rest on MLWE at fixed small rank and
+        concrete parameters. The bridge would be the structured extrapolated
+        variants -- IP-M-EDCP (KN-LIT-1744) -- and whether the claimed DCP
+        algorithm applies through that structure is unaddressed." This names
+        a SPECIFIC, ALREADY-STAGED knowledge-base entry by ID
+        (knowledge/literature/KN-LIT-1744.md, added 2026-07-24, well before
+        this experiment's design on 2026-08-14), and it is directly on point
+        for BOTH of this experiment's two disclosed open gaps: (a) stage 0's
+        noise-variance-to-faulty-rate conversion (KN-LIT-1744's own recorded
+        key claim: "the extrapolation depends not only on the noise rate,
+        but also on the ring's degree" -- a qualitative noise-rate-to-
+        extrapolation relationship, generalized to the MODULE-LWE setting
+        specifically, rather than the generic unstructured-LWE setting
+        Regev/BKSW address); and (b) the separately-carried "n := k_mlkem*256
+        is an explicit, disclosed, UNVERIFIED working substitution ...
+        KN-OPEN-8a5965's own Q2 names this bridge as fully open" caveat
+        (KN-LIT-1744 is specifically "Module Learning With Errors and
+        Structured Extrapolated Dihedral Cosets," proven "for MLWE defined
+        over power-of-two cyclotomic rings with constant module rank" --
+        i.e. exactly ML-KEM's setting, not a generic unstructured-LWE
+        result). stage0-disposition.md's list of "sources checked" omits
+        this entry entirely and gives no indication it was seen and
+        deliberately set aside versus never located at all.
+        I independently fetched eprint.iacr.org/2026/155 (WebFetch, live,
+        this review) to check whether this omission actually matters to the
+        bottom-line disposition: the abstract confirms the paper's
+        equivalence result (MLWE <=> IP-M-EDCP for power-of-two cyclotomic
+        rings, constant module rank) and the qualitative
+        noise-rate-and-ring-degree dependency, but "does not provide an
+        explicit mathematical formula connecting noise rate to an
+        extrapolation parameter or faulty sample rate ... the full paper PDF
+        would be needed for precise equations." So even had stage 0 located
+        and read this entry's abstract-level content, the "NOT COMPUTED"
+        bottom line would most likely still stand on the currently available
+        (abstract-only) evidence -- the FULL paper text is not staged in
+        this repository (confirmed: no local PDF or full-text file for
+        KN-LIT-1744 exists under knowledge/ or inputs/, unlike KN-LIT-1744's
+        own "Local copies" field, which names files -- e.g.
+        downloads/2026-155.pdf -- that a targeted filesystem search
+        (`find -iname "*2026-155*"`) did not find anywhere in this
+        repository), and the Executor's own tool surface
+        (.claude/agents/executor.md: Read, Grep, Glob, Write, Edit, Bash,
+        SendMessage -- no WebFetch/WebSearch/crypto-kb MCP tool) genuinely
+        cannot fetch it live, matching this same goal's own prior,
+        independently-recorded finding for the CSIDH sibling contract
+        (DEC-20260906-b60887's own limitations block: "whether an Executor
+        session's retrieval tools actually work ... remains genuinely
+        untested"). Given that, the disposition's OUTCOME is very likely
+        still correct; what is not correct is the CHARACTERIZATION of the
+        search as exhaustive over "all... sources... currently available,"
+        when a specifically relevant, already-staged, locally-readable
+        knowledge-base file was never mentioned.
+      does_this_break_the_verdict: >-
+        Does not break the combinatorial-ceiling UNREALIZABLE finding (which
+        does not depend on stage 0 at all, per MLKEM-CHG-2's own text and
+        Attack-3's finding above). Does mean stage 0's "NOT COMPUTED,
+        genuine attempt, sources checked" characterization is incomplete and
+        should be corrected -- this is the report's single actionable,
+        moderate-severity finding.
+
+  # =========================================================================
+  # ATTACK 6 -- claim-ceiling exceedance check.
+  # =========================================================================
+    - id: MLKEM-RT2-FINDING-6
+      severity: not_an_objection
+      target: claim_ceiling compliance (raw-result.json, manifest.yaml, metrics-table.md, archival commit message)
+      title: No claim-ceiling exceedance found anywhere in the run's artifacts, including the archival commit message.
+      detail: >-
+        Grepped and read manifest.yaml's result/claim_ceiling_compliance/
+        evidence_eligibility blocks, metrics-table.md's summary paragraph,
+        implementation.md's "Claim ceiling discipline" section, and the
+        archival commit message (git show b47237c99) in full for any
+        language exceeding specification.yaml claim_ceiling.
+        exact_scope_a_run_could_support ("no outcome may be quoted as an
+        ML-KEM attack, a speedup, a security-margin revision, or a verdict
+        on Simon 2026's correctness"). Every location that reports
+        "UNREALIZABLE" explicitly and consistently qualifies it as "on the
+        combinatorial-ceiling axis" (or "the axis this run could evaluate"),
+        distinct from the full three-way success_criterion outcome, which is
+        correctly reported as outcome (c) (stages 1-3 complete, stage 0 NOT
+        COMPUTED) rather than collapsed into outcome (b). No location asserts
+        or implies an ML-KEM attack, a speedup, a security-margin revision,
+        or a verdict on Simon 2026's Lemma 3 or correctness anywhere in the
+        run package. This matches, and I independently re-confirm rather
+        than merely trust, the sibling validation report's SCOPE-CHECK
+        finding (coordination/goals/GOAL-QALG-001/reviews/
+        RUN-MLKEM-12d9b8-001-validation/report.yaml). One minor readability
+        note, not a violation: the commit message's headline sentence leads
+        with the "Combinatorial-ceiling axis:" qualifier before the
+        UNREALIZABLE claim, so the qualification is present and prominent,
+        not buried -- no correction needed.
+
+  required_controls:
+    - >-
+      File a superseding stage-0 disposition note (a new, distinctly-named
+      artifact or a correction record, never an edit of stage0-disposition.md
+      in place) that explicitly reads knowledge/literature/KN-LIT-1744.md and
+      states whether it changes the "NOT COMPUTED" disposition, given that
+      one of the four sources this run's stage 0 already claims to have
+      fully checked (KN-OPEN-8a5965.md) names KN-LIT-1744 by ID as the
+      specific Module-LWE-relevant candidate bridge, immediately adjacent to
+      text stage0-disposition.md quotes from the same file. If the full text
+      of eprint.iacr.org/2026/155 remains unstaged and unfetchable from
+      within the Executor's own tool surface, the corrected disposition
+      should say so explicitly (rather than silently omitting the source), so
+      a future reader is not left to assume it was never located.
+    - >-
+      In the same or a companion correction, note that KN-LIT-1744 is also a
+      candidate resource for the separately-disclosed "n := k_mlkem*256 is an
+      explicit, disclosed, unverified working substitution ... KN-OPEN-8a5965's
+      own Q2 names this bridge as fully open" caveat (source-pin-note.md,
+      H-MLKEM-36f511.assumptions), since KN-LIT-1744 is specifically a
+      Module-LWE (not generic unstructured-LWE) result for exactly ML-KEM's
+      setting (power-of-two cyclotomic rings, constant module rank). This is
+      a pointer for a future design task, not a claim that the bridge is
+      resolved.
+    - >-
+      In any future amendment or correction touching MLKEM-CHG-2, add one
+      clarifying sentence distinguishing "B=q induces no new distinct residue
+      class" (true, and the basis for the operative ceiling) from "B=q is a
+      generous/physically meaningful bound" (true only in the residue-class
+      sense; at B=q the induced per-term noise variance is ~q^2*eta/2, ~6-7
+      orders of magnitude above ML-KEM's genuine per-coordinate noise
+      variance eta/2, so B=q is noise-incoherent for the construction's own
+      stated low-variance purpose) -- and note explicitly that this makes the
+      reported UNREALIZABLE margin the LEAST favorable case for realizability
+      the construction could offer, not a tight worst case, i.e. it
+      strengthens rather than weakens the finding.
+    - >-
+      In any future correction, state explicitly that stage 3/4's
+      combinatorial-ceiling computation and verdict do not invoke, and do not
+      depend on, HEUR-MLKEM-36f511-1's variance-additivity formula or its
+      underlying cross-row-independence assumption at all -- so a reader does
+      not mistakenly believe the m=1/m=2 baseline check "supports" the
+      combinatorial-ceiling verdict, when in fact that verdict is a pure
+      counting argument, independent of it.
+
+  counterexample_or_mutation: >-
+    The proves-too-much control (Attack 4) was run against the closest
+    candidate I could construct for a self-reduction technique that this
+    same (2B+1)^k_mlkem methodology, naively applied, might undercount: a
+    ring-element (rather than plain-integer-scalar) multiplier construction
+    exploiting ML-KEM's ring structure (small-polynomial multiplication, or
+    negacyclic rotation by X^j, which leaves CBD noise's distribution exactly
+    invariant while needing a full ring-element coefficient rather than a
+    bounded integer to express) -- a materially richer combinatorial space
+    per real row than the scalar-coefficient construction this run actually
+    tests. This candidate SURVIVES as a live open question, but it does NOT
+    break this run's claim, because H-MLKEM-36f511.assumptions and
+    .interpretation_limits already, explicitly, and correctly name this exact
+    class of technique ("a not-yet-published cleverer technique, e.g.
+    IDEA-20260813-8aa6ea's Galois-orbit mechanism") as out of scope and as an
+    open direction, not ruled out. I found no counterexample where the
+    methodology gives a FALSE verdict for a case KNOWN to be realizable
+    within the scope this run actually claims (standard, scalar-coefficient
+    linear self-reduction).
+
+  baseline_comparison: >-
+    Not applicable in the Pollard-rho/BSGS/specialized-quantum-algorithm
+    sense, matching H-MLKEM-36f511's own framing and the design-time red
+    team's (RT-20260814-41d4cc) prior finding: this is a pre-compute
+    access-model realizability gate on a not-yet-verified DCP-route
+    algorithm, not an ECDLP or ML-KEM attack claim, so there is no baseline
+    algorithm this run's number is meant to beat or approach. Independently
+    re-confirmed this framing is preserved end-to-end through the run's own
+    artifacts (what_this_is_not, claim_ceiling, invalidation_rules all
+    reproduced verbatim into manifest.yaml's claim_ceiling_compliance block);
+    no baseline-comparison omission or overreach found.
+
+  heuristic_challenges:
+    - >-
+      HEUR-MLKEM-36f511-1 (variance additivity for independent CBD terms) is,
+      as the record itself states and the design-time red team already
+      confirmed, an exact elementary identity rather than a random-model
+      conjecture, so it correctly carries no random_model_justification of
+      the Wesolowski-exemplar kind (rigorous bound + classical distribution
+      theorem) -- none is needed for a proven identity. What remains
+      genuinely unverified, and uncited anywhere in this record, is whether
+      ML-KEM's actual per-row CBD(eta) noise sampling is genuinely
+      INDEPENDENT across the k_mlkem>=3 module rows of one key (as opposed to
+      merely identically distributed) -- no FIPS 203 citation is given for
+      cross-row independence specifically. This is currently MOOT for the
+      verdict this run reports (see Attack 3 above: stages 3-4 never invoke
+      this heuristic), but would become load-bearing the moment a future
+      stage-0 computation is attempted, and should be checked against FIPS
+      203's actual sampling procedure (or the CBD/XOF expansion scheme) before
+      that happens, not assumed by analogy to the i.i.d. convolution property
+      alone.
+
+  cost_model_challenges:
+    - >-
+      Not applicable in the target-result-profile.md exemplar sense
+      (o(1)/polylog overhead, van Oorschot-Wiener time-memory interpolation,
+      per-attempt-cost x inverse-success-probability bookkeeping): this run
+      makes no asymptotic-complexity or algorithm-cost claim of any kind --
+      it is exact-integer combinatorics over fixed, standardized parameters
+      (claim_tier: derivation), and specification.yaml's own claim_ceiling
+      and what_this_is_not explicitly disclaim any attack, speedup, or
+      security-margin revision. Checked and confirmed this scoping is
+      honored throughout (see Attack 6 above); there is no hidden overhead,
+      no per-attempt-vs-total-cost conflation, and no memory/time tradeoff to
+      audit because no such cost model is claimed anywhere in the run.
+    - >-
+      Compute budget itself (1800s wall-clock / 0.25 CPU-hr / 2GB) was never
+      close to binding (0.0247s wall, ~11MB peak RSS per resource_usage.json,
+      independently consistent with the sibling validation report's
+      environment_and_resource_check) -- no cost-model concern on the
+      execution side either.
+
+  reduction_and_scope_challenges:
+    - >-
+      Confirmed the scope is narrowly and honestly held to STANDARD
+      (scalar-coefficient) linear self-reduction throughout statement,
+      mechanism, assumptions, interpretation_limits, what_this_is_not, and
+      the run's own implementation.md and manifest.yaml -- no instance found
+      where this narrowing is stated once and then silently broadened. This
+      independently re-confirms, rather than merely repeats, the design-time
+      red team's identical PASS finding on this exact axis.
+    - >-
+      Flagged (see MLKEM-RT2-OBJ-5 above): KN-LIT-1744, a Module-LWE-specific
+      paper directly relevant to BOTH the stage-0 gap and the separately
+      disclosed n:=k_mlkem*256 working-substitution gap, is named by one of
+      this run's own cited sources (KN-OPEN-8a5965) but is not itself named,
+      read, or disclosed as unread anywhere in specification.yaml,
+      amendments/v1.yaml, H-MLKEM-36f511, or this run's artifacts. This is a
+      scope-completeness gap in the LITERATURE SEARCH, not in the claimed
+      arithmetic scope, which (per the point above) remains honestly and
+      narrowly held.
+    - >-
+      No corollary-via-cited-reduction concern applies: this experiment
+      terminates at its own access-model verdict (H-MLKEM-36f511.reduction_chain.
+      corollaries: []) and asserts no downstream reduction (OneEnd -> EndRing
+      -> Isogeny or any analogue) reached by a published theorem -- nothing
+      to check under that specific challenge category.
+    - >-
+      No affected-vs-safe scheme scope inflation found: the run makes no
+      claim about which ML-KEM parameter sets are "affected" or "safe" in a
+      security sense at all; it reports a closed-form combinatorial gap for
+      all three standardized levels symmetrically, with no asymmetric
+      security-implication language anywhere (re-confirms Attack 6 / the
+      sibling validation report's SCOPE-CHECK).
+
+  proof_architecture_challenges:
+    - >-
+      Observation-collision / distinct_preimage_search audit
+      (H-MLKEM-36f511.proof_search_map): independently re-derived, from the
+      stated definitions alone (not from compute.py's code), that
+      (2B+1)^k_mlkem is an exact count of the coefficient-vector space
+      {-B,...,B}^k_mlkem, which subsumes every (S, coefficient-vector) pair
+      for every m in {0,...,k_mlkem} via the "c_i=0 encodes row i excluded"
+      correspondence -- confirming this is a valid, non-undercounting upper
+      bound on distinct low-variance combinations, exactly as
+      preregistered_prediction.formula (ii) claims ("combinatorial_ceiling
+      <= (2B+1)^(k_mlkem)"). This specific argument (why the formula covers
+      all m, not just m=k_mlkem) is not spelled out anywhere in
+      specification.yaml, compute.py's comments, or any run artifact --
+      recommended as an explicit addition to a future correction so the
+      formula's correctness does not rest on an unstated encoding argument a
+      reader has to reconstruct independently, as this review did.
+    - >-
+      Method-ceiling / nearby-object control
+      (H-MLKEM-36f511.proof_search_map.method_ceiling): re-checked that
+      "strongest_certifiable_claim" and "nearby_object_control" both
+      correctly state the narrowest possible scope (standard linear
+      self-reduction only; a cleverer, not-yet-published technique is named
+      and excluded, not silently ignored) -- confirms Attack 4's finding
+      above rather than duplicating a separate audit.
+    - >-
+      Boundary/strictness and compositional-invariant attacks (KN-TECH-080
+      items 3 and 6) do not apply to this record: it proves no strengthened
+      invariant and claims no perturbation strictly better than an embedded
+      baseline (it is a negative/foreclosure finding on one specific access
+      model, not a constructive improvement claim) -- recorded here as
+      "not applicable, and correctly not silently omitted" per KN-TECH-080's
+      own discipline, rather than left unaddressed.
+
+  narrowest_supported_statement: >-
+    On the combinatorial-ceiling axis alone, for STANDARD (scalar-per-row,
+    not ring-element) linear self-reduction from k_mlkem in {2,3,4} real
+    ML-KEM Module-LWE rows, bounded at the amendment's operative B<=q=3329
+    ceiling: UNREALIZABLE at all three standardized levels (ML-KEM-512/768/
+    1024), robustly across the full swept c in {12,13,15,20}, by 24 to 50
+    orders of magnitude, stands unbroken by every attack attempted in this
+    review, including a proves-too-much control against the most credible
+    richer-construction candidate this reviewer could identify (already
+    disclosed as out of scope by the hypothesis itself). This finding does
+    NOT depend on, and should not be read as validating or requiring,
+    HEUR-MLKEM-36f511-1's variance-additivity formula, whose applicability to
+    real cross-row noise independence in ML-KEM remains formally unverified
+    and moot only because stage 0 is NOT COMPUTED. Stage 0's faulty-rate axis
+    remains, correctly, NOT COMPUTED -- but the run's own characterization of
+    that disposition as resting on an exhaustive re-read of "all... sources
+    ... currently available" is overstated: KN-LIT-1744, a Module-LWE-specific
+    paper named explicitly by one of the four sources this run's stage 0
+    claims to have fully checked, was never mentioned, read, or disclosed as
+    skipped, and should be addressed by a correction before this stage-0
+    disposition (or the separately-carried n:=k_mlkem*256 "fully open" caveat,
+    which the same paper also bears on) is treated as a fully searched dead
+    end. No claim beyond this scope -- no ML-KEM attack, speedup,
+    security-margin revision, or verdict on Simon 2026's correctness -- is
+    supported by this run, and none is asserted by it.
+
+  next_concrete_action: >-
+    Coordinator: this run's combinatorial-ceiling finding may proceed to the
+    Coordinator's ledger-archive step without further compute (no re-run of
+    compute.py or the arithmetic is warranted -- it is independently
+    confirmed sound by this review and by the sibling validation report).
+    Before evidence_eligible is set true, file a scoped correction (not an
+    edit of stage0-disposition.md in place, per AGENTS.md rule 4) that (a)
+    explicitly reads knowledge/literature/KN-LIT-1744.md and states its
+    disposition (read-and-insufficient, or read-and-informative, but not
+    silently omitted), (b) notes its relevance to the separately-carried
+    n:=k_mlkem*256 working-substitution caveat, and (c), if a session with
+    working WebFetch/WebSearch/crypto-kb access is available (unlike the
+    Executor's own tool surface, confirmed here to lack all three), attempts
+    one bounded fetch of eprint.iacr.org/2026/155's full text as a cheap,
+    concrete next step toward closing (or further substantiating) both
+    disclosed gaps -- this is the single actionable item this review
+    surfaces; it is cheap, does not require re-running any arithmetic, and
+    does not gate the already-solid UNREALIZABLE finding on the
+    combinatorial-ceiling axis.
+
+  artifact_paths:
+    - experiments/EXP-MLKEM-12d9b8/specification.yaml
+    - experiments/EXP-MLKEM-12d9b8/amendments/v1.yaml
+    - ledger/decisions/DEC-20260906-b60887.yaml
+    - ledger/decisions/DEC-20260814-1445a1.yaml
+    - ledger/hypotheses/H-MLKEM-36f511.yaml
+    - experiments/EXP-MLKEM-12d9b8/runs/RUN-MLKEM-12d9b8-001/manifest.yaml
+    - experiments/EXP-MLKEM-12d9b8/runs/RUN-MLKEM-12d9b8-001/compute.py
+    - experiments/EXP-MLKEM-12d9b8/runs/RUN-MLKEM-12d9b8-001/run_wrapper.py
+    - experiments/EXP-MLKEM-12d9b8/runs/RUN-MLKEM-12d9b8-001/raw-result.json
+    - experiments/EXP-MLKEM-12d9b8/runs/RUN-MLKEM-12d9b8-001/metrics-table.md
+    - experiments/EXP-MLKEM-12d9b8/runs/RUN-MLKEM-12d9b8-001/stage0-disposition.md
+    - experiments/EXP-MLKEM-12d9b8/runs/RUN-MLKEM-12d9b8-001/source-pin-note.md
+    - experiments/EXP-MLKEM-12d9b8/runs/RUN-MLKEM-12d9b8-001/symbol-collision-audit.md
+    - experiments/EXP-MLKEM-12d9b8/runs/RUN-MLKEM-12d9b8-001/implementation.md
+    - experiments/EXP-MLKEM-12d9b8/runs/RUN-MLKEM-12d9b8-001/environment.json
+    - experiments/EXP-MLKEM-12d9b8/runs/RUN-MLKEM-12d9b8-001/resource_usage.json
+    - experiments/EXP-MLKEM-12d9b8/runs/RUN-MLKEM-12d9b8-001/command.txt
+    - experiments/EXP-MLKEM-12d9b8/runs/RUN-MLKEM-12d9b8-001/stdout.log
+    - inputs/DCP-SIMON-2026/paper_extracted_text.txt (lines 1-30, 76-99, 340-424, 1281-1430, 1590-1621, read directly)
+    - knowledge/literature/KN-LIT-21383c.md
+    - knowledge/techniques/KN-TECH-d1bc4f.md
+    - knowledge/open-problems/KN-OPEN-8a5965.md
+    - knowledge/literature/KN-LIT-4706.md
+    - knowledge/literature/KN-LIT-1744.md
+    - knowledge/literature/KN-LIT-6072.md
+    - coordination/goals/GOAL-QALG-001/batches/BATCH-dbf57a/tasks/TASK-20260814-11516e/red_team_report.yaml
+    - coordination/goals/GOAL-QALG-001/reviews/RUN-MLKEM-12d9b8-001-validation/report.yaml
+    - .claude/agents/executor.md
+    - orchestration/roles.yaml
+    - orchestration/model-policies.yaml
+    - agents/red-team.md
+    - AGENTS.md
+    - https://eprint.iacr.org/2026/155 (live WebFetch, this review, to check KN-LIT-1744's actual abstract content)
+
+  review_attestation:
+    joints_owned:
+      - >-
+        Full run-package falsification attempt per the task card's six named
+        attack items (no review_plan subdividing joints was issued for this
+        task; this reviewer owns the whole card, matching the sibling
+        validation report's own precedent for this same run).
+    sources_read: See artifact_paths above -- the complete list of every file and live fetch consulted during this review.
+    read_sibling_reports: true
+    read_sibling_reports_note: >-
+      Read coordination/goals/GOAL-QALG-001/reviews/RUN-MLKEM-12d9b8-001-validation/report.yaml
+      (the Validator's report on this same run) and RT-20260814-41d4cc (the
+      design-time red-team report on the frozen contract). No `blindness`
+      block or review_plan was declared for this task naming either as
+      off-limits; reading both was necessary to (a) confirm I was not
+      duplicating already-settled ground (MLKEM-OBJ-1/2/3, already resolved
+      by amendments/v1.yaml) and (b) confirm the KN-LIT-1744 gap (Attack 5)
+      is a genuinely new finding neither prior report surfaced -- the
+      Validator's own STAGE0-GENUINE-CHECK independently checked the same
+      four named sources and reached "CONFIRMED GENUINE" without noticing
+      the KN-LIT-1744 pointer either, which this report states plainly
+      rather than silently correcting on the Validator's behalf.
+    blind_rederivation:
+      required: false
+      note: >-
+        Not a blind_rederivation task per the task card. The
+        (2B+1)^k_mlkem m-variable argument (Attack 1 / proof_architecture
+        finding) was independently reconstructed from the stated
+        combinatorial_ceiling_definition alone, before re-reading compute.py's
+        implementation, to check whether it matched; it did.
+    verdict: REVISE (see verdict_rationale above; not holds/breaks in the binary sense this review's task card requested a three-way SUSTAINED/REVISE/BROKEN verdict instead)
+
+  inference:
+    requested_policy: review-adversarial
+    requested_reasoning_effort: xhigh
+    independent_session: true
+    independent_session_note: >-
+      This session did not produce EXP-MLKEM-12d9b8's specification,
+      amendment, decision, run, or the sibling validation report; it read
+      only the Coordinator-committed snapshot at b47237c99 and public web
+      sources (one WebFetch call to eprint.iacr.org/2026/155).
+    resolved_model_id_self_reported: claude-sonnet-5
+    resolved_model_id_note: >-
+      Genuine self-report from this session's own runtime system context,
+      which names the answering model "Sonnet 5", exact model id
+      "claude-sonnet-5". `python3 -m orchestration.adapter resolve --role
+      red_team --independent-session` (run directly in this review) resolves
+      review-adversarial on the anthropic backend to claude-opus-5
+      (provenance: runtime-verified in orchestration/model-bindings.yaml);
+      `python3 -m orchestration.adapter doctor --probe` reports
+      `$ANTHROPIC_API_KEY unset (backend unusable)` from inside this session,
+      so this mismatch could NOT be independently reconciled or re-probed
+      from here. This is disclosed, not hidden, and follows the identical,
+      already-established precedent this exact goal's own records carry for
+      coordinator-orchestration-code (DEC-20260906-b60887, amendments/v1.yaml)
+      and for review-adversarial itself (the sibling validation report,
+      coordination/goals/GOAL-QALG-001/reviews/RUN-MLKEM-12d9b8-001-validation/
+      report.yaml's review_attestation.inference block, same
+      self-reported-vs-bound-model discrepancy, same session).
+    refused: false
+    refusal_rationale_for_not_refusing: >-
+      review-adversarial's `requires` floor was relaxed 2026-09-03 (per
+      orchestration/model-policies.yaml's own comment: "FLOOR RELAXED
+      2026-09-03 by user authorization (DEC-20260903-*) from `xhigh`: any
+      backend that can reason at all may SERVE this policy") to
+      reasoning_effort: low as the floor, keeping the requested xhigh effort
+      and the independent-session requirement as the unrelaxed, load-bearing
+      parts. This session satisfies the stated floor and IS a genuinely
+      independent session that did not originate any artifact under review.
+      The model-identity mismatch against the anthropic-backend binding
+      table is a property of how this session was launched (a process-level,
+      pre-session decision per CLAUDE.md's model policy note), not a
+      downgrade this reviewer chose or could reverse from within the task;
+      per the task card's own instruction ("if this session cannot honour
+      review-adversarial, refuse rather than downgrade"), this session DOES
+      honour review-adversarial under its own relaxed, currently-governing
+      floor -- it is not degraded, silently or otherwise, and no
+      `degraded_requirements` apply. Disclosing the mismatch fully, rather
+      than refusing a review this session is equipped to perform at the
+      requested xhigh effort, matches AGENTS.md rule 11 and this exact
+      program's own established precedent for the identical situation.
+    fallback_allowed: false
+    degraded_allowed: false
+    fallback_used: false
+    degraded_requirements: []
+    amazon_bedrock: NOT SELECTED, NOT CONFIGURED, NOT PROBED, NOT CONTACTED, NOT USED.
+
+  budget_compliance:
+    wall_clock_seconds_limit: 3600
+    memory_gb_limit: 4
+    maximum_runs_limit: 0
+    runs_executed: 0
+    note: >-
+      No stage of EXP-MLKEM-12d9b8 was executed by this review; every
+      reasoning artifact above is derived from reading committed files and
+      one live WebFetch, matching maximum_runs: 0. Wall-clock use for this
+      review session is not separately instrumented by this report (no
+      run_wrapper-style harness applies to a review task), but no compute-
+      heavy operation (no re-run of compute.py, no new script execution
+      against experiment data) was performed at any point.
+
+  prohibitions_compliance:
+    edited_raw_receipts_logs_manifests: false
+    edited_any_run_or_spec_file: false
+    committed_to_shared_worktree: false
+    committed_anything: false
+    treated_working_tree_only_artifact_as_evidence: false
+    approved_or_changed_any_status: false
+    executed_any_stage_of_exp_mlkem_12d9b8: false
+    wrote_outside_write_scope: false
+    write_scope_honored: coordination/goals/GOAL-QALG-001/reviews/RUN-MLKEM-12d9b8-001-redteam/
