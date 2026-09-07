@@ -702,6 +702,9 @@ def check_run(path: str, ctx: Ctx, supersessions: dict[str, dict] | None = None)
     quarantined = check_provenance_quarantine(path, body, entry, ctx)
     if not code.get("commit") and not quarantined:
         ctx.err(path, "run.code.commit missing (not reproducible)")
+    if code.get("commit_meaning") == "archival_source_only":
+        ctx.err(path, "run.code.commit is archival source only, not execution provenance; "
+                "use the canonical provenance quarantine until execution is bound", force=True)
     if not code.get("command"):
         ctx.err(path, "run.code.command missing (not reproducible)")
     # Companion artifacts must exist in the run directory.
@@ -1237,9 +1240,10 @@ def _run_id_of(path: str, *, superseded_entry: dict | None = None) -> str | None
     try:
         doc = yaml.load(text, Loader=IdentityLoader)
     except yaml.YAMLError:
-        recovered = _flat_run_id_with_malformed_dirty_summary(text)
-        if recovered is not None:
-            return recovered
+        # Recovery is allowed only for a hash-verified registered original
+        # with an explicit locator, never as ordinary identity parsing.
+        # Porcelain whole-document recovery stays behind superseded_id_line
+        # / _malformed_run_header_id; extraction bindings use this opt-in.
         return _malformed_superseded_run_id(path, superseded_entry)
     body = doc.get("run") if isinstance(doc, dict) else None
     if isinstance(body, dict):
@@ -1284,6 +1288,8 @@ def _malformed_run_header_id(path: str, line_number: int) -> str | None:
         return None
     value = header[1]
     if not RUN_ID.fullmatch(value):
+        return None
+    if _flat_run_id_with_malformed_dirty_summary(text) != value:
         return None
     return value if os.path.basename(os.path.dirname(path)) == value else None
 

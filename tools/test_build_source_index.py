@@ -120,6 +120,26 @@ class IndexTests(unittest.TestCase):
         """A blocked fetch is provenance: it records that we looked."""
         self.assertGreater(self.index["counts"]["retrieval_attempts_failed"], 0)
 
+    def test_string_local_artifacts_are_accepted(self) -> None:
+        """Bare path strings in provenance.local_artifacts must not crash the index.
+
+        inputs/JMV-0411378-20260907/provenance.json records local_artifacts as
+        a list of path strings rather than {path, role, ...} objects. The
+        collector must normalise that shape so merge-checks stay green.
+        """
+        rows = [
+            r
+            for r in bsi.collect_retrievals()
+            if r.get("provenance_path")
+            == "inputs/JMV-0411378-20260907/provenance.json"
+            and r.get("status") == "local_artifact"
+        ]
+        self.assertEqual(len(rows), 4)
+        paths = {r["vendored_path"] for r in rows}
+        self.assertIn(
+            "inputs/JMV-0411378-20260907/sources/jmv-math-0411378v3.pdf", paths
+        )
+
     def test_render_is_deterministic(self) -> None:
         """--check compares rendered text, so an unstable render would flap CI."""
         self.assertEqual(bsi.render(self.index), bsi.render(bsi.build()))

@@ -157,7 +157,7 @@ class NoRegistryEntryTests(SupersessionFixture):
 
 class RegisteredSupersessionTests(SupersessionFixture):
     def malformed_original(self, header="run_id: RUN-SUP-001"):
-        self.superseded.write_text(header + "\ngit:\n  dirty_summary: modified\n?? unescaped\n")
+        self.superseded.write_text(header + "\ngit:\n  dirty_summary: M runner.py\n?? unescaped\nenvironment:\n  python: '3.12'\n")
 
     def test_malformed_original_requires_explicit_header_locator(self):
         self.malformed_original()
@@ -273,7 +273,7 @@ class MalformedFlatIdentityTests(SupersessionFixture):
     def malformed(self, text=None):
         self.superseded.write_text(self.text if text is None else text,
                                    encoding="utf-8")
-        return self.registry()
+        return self.registry(superseded_id_line=1)
 
     def test_registered_malformed_porcelain_manifest_is_recoverable(self):
         registry = self.malformed()
@@ -292,7 +292,7 @@ class MalformedFlatIdentityTests(SupersessionFixture):
         body = manifest_body()
         body.pop("timing")
         self.write_manifest("manifest_v2.yaml", body)
-        registry = self.registry()
+        registry = self.registry(superseded_id_line=1)
         ctx = vl.Ctx(set())
         vl.check_run_supersessions(ctx, registry)
         vl.check_run(str(self.superseded), ctx, registry)
