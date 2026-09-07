@@ -15,7 +15,7 @@ SPEC.loader.exec_module(mod)
 
 def _write_exp(root: Path, exp_id: str, *, designed_at: str,
                approved: bool = True, report: bool = False,
-               has_runs: bool = False) -> None:
+               has_runs: bool = False, supersedes: str | None = None) -> None:
     d = root / "experiments" / exp_id
     d.mkdir(parents=True)
     body = {"experiment": {
@@ -25,6 +25,7 @@ def _write_exp(root: Path, exp_id: str, *, designed_at: str,
         "frozen": approved,
         "execution_authorized": approved,
         "designed_at": designed_at,
+        "supersedes": supersedes,
     }}
     (d / "specification.yaml").write_text(yaml.safe_dump(body))
     if report:
@@ -70,3 +71,19 @@ def test_newest_runnable_skips_an_experiment_with_a_populated_runs_dir(tmp_path)
 
     rows = mod.newest_runnable(tmp_path)
     assert [r["id"] for r in rows] == []
+
+
+def test_newest_runnable_skips_an_experiment_superseded_before_it_ran(tmp_path):
+    """The mint-a-new-id-per-amendment convention (EXP-SMTH-9d04ba superseded
+    by EXP-SMTH-c83476 before it was ever executed): a frozen, approved,
+    never-run contract that some OTHER experiment's own `supersedes` field
+    names is abandoned research history, not a candidate to belatedly run."""
+    (tmp_path / "orchestration").mkdir()
+    (tmp_path / "orchestration/research-priority.yaml").write_text(
+        "ecc_areas: [ECDLP]\n")
+    _write_exp(tmp_path, "EXP-ECDLP-9d04ba", designed_at="2026-08-03")
+    _write_exp(tmp_path, "EXP-ECDLP-c83476", designed_at="2026-09-01",
+               supersedes="EXP-ECDLP-9d04ba")
+
+    rows = mod.newest_runnable(tmp_path)
+    assert [r["id"] for r in rows] == ["EXP-ECDLP-c83476"]
