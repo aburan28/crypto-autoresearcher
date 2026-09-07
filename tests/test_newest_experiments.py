@@ -30,7 +30,7 @@ def _write_exp(root: Path, exp_id: str, *, designed_at: str,
         (d / "execution-report.yaml").write_text("execution_report: {}\n")
 
 
-def test_newest_runnable_skips_completed_and_orders_newest(tmp_path, monkeypatch):
+def test_newest_runnable_skips_completed_and_orders_newest(tmp_path):
     (tmp_path / "orchestration").mkdir()
     (tmp_path / "orchestration/research-priority.yaml").write_text(
         "ecc_areas: [ECDLP]\n")
