@@ -89,11 +89,11 @@ Use repository-relative paths from the resolved checkout.
 For an empty ready set, distinguish work already owned from absent work.
 Observe owned work; never duplicate it. Otherwise inspect the recorded
 next_action, ranked open hypotheses, justified replications/controls, and
-scoped ideation in that order. Design open ECC ideas using
-python3 tools/ecc_priority.py --open-ideas; an unapproved design still needs
-a committed Coordinator approval before execution. Never create tasks merely
-to fill capacity. Re-render after artifacts, claims or dependencies change;
-repeating an unchanged check is not progress.
+scoped ideation in that order. Never create tasks merely to fill capacity.
+Re-render after artifacts, claims or dependencies change; repeating an
+unchanged check is not progress. Goal mode stays inside the bound GOAL-*
+and its cited questions; it does not run the portfolio-wide open-ideas
+worklist.
 
 Keep impeded goals active. Record condition, what_is_blocked, clears_when,
 recheck and asserts_nothing_about according to AGENTS.md. Infrastructure,
@@ -111,9 +111,12 @@ headroom. Do not request routine budget renewals.
   in-scope action can proceed after checking the impediment.
 - Portfolio mode: after a terminal or impeded goal, select the next ranked
   active goal, ECC first. Recheck each unchanged impediment once per sweep,
-  not in a busy loop. If none offers justified work, report the concrete
-  impediments/rechecks and the last durable progress. Do not open a new goal
-  without an explicit request.
+  not in a busy loop. If none offers justified work, design open ECC ideas
+  using python3 tools/ecc_priority.py --open-ideas; an unapproved design
+  still needs a committed Coordinator approval before execution. If still
+  none offers justified work, report the concrete impediments/rechecks and
+  the last durable progress. Do not open a new goal without an explicit
+  request.
 - A repository-wide integrity or publication failure stops affected durable
   work. Diagnose the actual scope: an unavailable review tier impedes its claim,
   not every task that does not require that tier.
