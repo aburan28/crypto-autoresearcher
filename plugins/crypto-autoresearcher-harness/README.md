@@ -10,14 +10,73 @@ and state transitions.
 
 | Host | Adapter | How it is discovered |
 | --- | --- | --- |
-| Codex | `.codex-plugin/plugin.json` plus `skills/` | Install from the repository's Codex marketplace. |
-| Claude Code | `.claude-plugin/plugin.json` plus the same `skills/` | Install from the repository's Claude marketplace. |
+| Codex | `.agents/skills/crypto-autoresearcher-harness/` | Repository discovery; installation is optional. |
+| Claude Code | `.claude/skills/crypto-autoresearcher-harness/` | Repository discovery; plugin installation is optional. |
 | OpenCode | `.agents/skills/crypto-autoresearcher-harness/` | OpenCode discovers the project-local agent-compatible skill automatically. |
 
 The OpenCode integration is intentionally an Agent Skill rather than an
 in-process V2 plugin. The harness needs shared operating instructions, not
 event hooks, and OpenCode's V2 plugin API is explicitly beta. Its generated
 `.opencode/agent/` bindings stay authoritative for role permissions.
+
+## One entry point, explicit scope
+
+In a repository task, invoke `$crypto-autoresearcher-harness` with your request:
+
+- `status`: read-only diagnosis.
+- `generate ideas and design experiments for <question>`: published proposals
+  and designs, without silently running them.
+- `run GOAL-...`: continue that goal through successive batches.
+- `keep the full harness running`: continue across the ranked active portfolio.
+
+The canonical skill and its shared references live under
+`skills/crypto-autoresearcher-harness/`. The repository adapter and the legacy
+Claude `launch-research-harness` / `coordinate-research-goal` aliases are
+generated delegates. Stage skills remain available as implementation references.
+There is one authored lifecycle; old command names continue to work.
+
+After editing adapter generation, run:
+
+```sh
+python3 plugins/crypto-autoresearcher-harness/scripts/entrypoints.py --repo . --write
+python3 plugins/crypto-autoresearcher-harness/scripts/entrypoints.py --repo . --check
+python3 -m unittest discover -s plugins/crypto-autoresearcher-harness/tests -v
+```
+
+Preflight and CI check adapter drift. They do not prove that a model will always
+select the skill implicitly; the explicit invocation removes that ambiguity.
+For a fresh-session acceptance check, ask for status and verify no research
+writes, then use a disposable approved fixture queue to check the lifecycle
+through producer, snapshot, independent review and ledger archive. Do not use a
+live campaign as an installation smoke test.
+
+### Duplicate discovery
+
+A repository adapter and an installed plugin may both appear in a host's skill
+selector. Keep one enabled source for this checkout. Prefer the repository
+adapter when developing here; use the plugin for portable installation. Inspect
+additional known skill directories without editing host configuration:
+
+```sh
+python3 plugins/crypto-autoresearcher-harness/scripts/entrypoints.py --repo . \
+  --check --skill-root /absolute/path/to/installed/plugin/skills
+```
+
+This reports filesystem candidates, not whether the host enabled them. Check
+the host selector and disable the redundant source there or in its skill
+configuration. The repository never uninstalls a plugin or edits user settings.
+An already installed cache does not update merely because this PR changes the
+checkout; refresh that installation if it is the source you keep enabled.
+
+### Progress you can compare
+
+`scripts/checkpoint.py` runs the existing dispatcher with archive verification
+and claim refs and emits a read-only JSON observation. Supply `--previous` to
+compare two observations of the same queue. It reports ready tasks, owners,
+deferred reasons, verified archives and new completed/failed tasks; unchanged
+observations say so. Pair this with the committed goal/lane next_action and PR.
+It grants no authority and is not a scheduler. See
+`skills/crypto-autoresearcher-harness/references/progress.md`.
 
 ## Local peer check-in service
 
@@ -79,7 +138,10 @@ Clone the repository, install its normal Python dependencies, and start in the
 checkout. The plugin makes no credential, backend, or marketplace changes by
 itself.
 
-### Codex
+### Codex (optional plugin installation)
+
+The repository adapter already works in a checkout. Install only if you prefer
+the plugin source, and check duplicate discovery above.
 
 ```sh
 codex plugin marketplace add /absolute/path/to/crypto-autoresearcher
