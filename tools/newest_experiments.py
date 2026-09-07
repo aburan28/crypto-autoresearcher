@@ -62,8 +62,6 @@ def newest_runnable(repo: Path = REPO) -> list[dict[str, Any]]:
 
     # Standing policy says ECC first at every selection point. Within each
     # policy class, newest designed_at wins; id makes same-day ordering stable.
-    rows.sort(key=lambda r: (0 if r["ecc"] else 1, r["designed_at"], r["id"]),
-              reverse=False)
     ecc = [r for r in rows if r["ecc"]]
     non = [r for r in rows if not r["ecc"]]
     ecc.sort(key=lambda r: (r["designed_at"], r["id"]), reverse=True)
