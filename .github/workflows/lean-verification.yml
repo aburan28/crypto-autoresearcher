@@ -1,0 +1,57 @@
+name: lean-verification
+on:
+  pull_request:
+    paths:
+      - 'formal/**'
+      - 'orchestration/formal/**'
+      - 'tests/test_lean_live.py'
+      - 'tests/test_formal*.py'
+      - 'tests/test_mathcode_formalizer.py'
+      - '.github/workflows/lean-verification.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'formal/**'
+      - 'orchestration/formal/**'
+      - 'tests/test_lean_live.py'
+      - 'tests/test_formal*.py'
+      - 'tests/test_mathcode_formalizer.py'
+      - '.github/workflows/lean-verification.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: lean-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  kernel-controls:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install pytest PyYAML
+      - uses: leanprover/lean-action@v1
+        with:
+          lake-package-directory: formal/smoke
+          build: 'true'
+          test: 'false'
+          lint: 'false'
+          use-mathlib-cache: 'false'
+      - name: Require real Lean before tests (no skipped proof controls)
+        run: |
+          command -v lake
+          cd formal/smoke
+          lake env lean --version
+      - name: Verify positive and negative controls through the harness
+        run: |
+          python -m pytest tests/test_lean_live.py tests/test_formal_research_lane.py \
+            tests/test_formal_targets.py tests/test_formal_frontier_integration.py \
+            tests/test_mathcode_formalizer.py -q --junitxml=lean-controls.xml
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lean-controls
+          path: lean-controls.xml

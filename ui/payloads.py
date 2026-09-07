@@ -667,6 +667,7 @@ def record_payload(index: ResearchIndex, record_id: str,
     payload = {
         "summary": record.summary(index),
         "root_key": record.root_key,
+        "source_url": f"sources/{record_id}.json",
         # tier-2 flag from ui/scan.py: true means `body` came from a real
         # YAML parse, not from the header scan that drives the lists.
         "verified": error is None and parsed is not None,
@@ -680,11 +681,20 @@ def record_payload(index: ResearchIndex, record_id: str,
     if markdown is not None:
         payload["markdown"] = markdown
     if include_raw:
-        # The live server inlines the source; the static build does not.
-        # 116 MB of source text is not worth shipping when the same bytes
-        # are one click away on GitHub at the exact commit that was built.
+        # Compatibility for live clients; snapshots load source_url on demand.
         payload["raw"] = index.raw_text(record_id)
     return payload
+
+
+def source_payload(index: ResearchIndex, record_id: str) -> dict[str, Any] | None:
+    """Source text travels separately, fetched only when its tab is opened."""
+    record = index.records.get(record_id)
+    if record is None:
+        return None
+    # Reading explicitly makes an unreadable source a build/request failure,
+    # rather than publishing an error message as if it were source content.
+    raw = (index.repo / record.path).read_text(encoding="utf-8")
+    return {"id": record_id, "path": record.path, "raw": raw}
 
 
 def search_shards(index: ResearchIndex, excerpt_chars: int = 1200) -> dict[str, dict]:
