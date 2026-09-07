@@ -76,7 +76,7 @@ class PluginBundleTests(unittest.TestCase):
             "./plugins/crypto-autoresearcher-harness",
         )
 
-    def test_opencode_adapter_delegates_to_canonical_skill(self) -> None:
+    def test_repository_adapter_delegates_to_canonical_skill(self) -> None:
         canonical = PLUGIN / "skills" / NAME / "SKILL.md"
         adapter = REPO / ".agents" / "skills" / NAME / "SKILL.md"
         self.assertTrue(canonical.is_file())
@@ -87,7 +87,7 @@ class PluginBundleTests(unittest.TestCase):
             "crypto-autoresearcher-harness/SKILL.md",
             body,
         )
-        self.assertIn("OpenCode discovers this adapter automatically", body)
+        self.assertIn("Codex and OpenCode", body)
 
     def test_static_preflight_passes_for_each_host(self) -> None:
         script = PLUGIN / "scripts" / "preflight.py"
