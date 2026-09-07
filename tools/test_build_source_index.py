@@ -145,5 +145,28 @@ class IndexTests(unittest.TestCase):
         self.assertEqual(bsi.render(self.index), bsi.render(bsi.build()))
 
 
+class LocalArtifactShapeTests(unittest.TestCase):
+    def test_path_only_string_local_artifacts_are_indexed(self) -> None:
+        """Some packages list local_artifacts as bare paths, not objects.
+
+        JMV-0411378-20260907 landed that shape on main; the collector must not
+        AttributeError on `.get` when CI merges that package into a PR tree.
+        """
+        rows = [
+            r
+            for r in bsi.collect_retrievals()
+            if r["provenance_path"] == "inputs/JMV-0411378-20260907/provenance.json"
+            and r["status"] == "local_artifact"
+        ]
+        self.assertGreaterEqual(len(rows), 4)
+        paths = {r["vendored_path"] for r in rows}
+        self.assertIn(
+            "inputs/JMV-0411378-20260907/sources/jmv-math-0411378v3.pdf", paths
+        )
+        for row in rows:
+            self.assertIsInstance(row["vendored_path"], str)
+            self.assertTrue(row["vendored_path"])
+
+
 if __name__ == "__main__":
     unittest.main()
