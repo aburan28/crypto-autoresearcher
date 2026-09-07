@@ -28,7 +28,9 @@ from runrecord import _dump_yaml, write_run_record
 from static_provenance import check_kfree_module
 
 HERE = Path(__file__).resolve().parent
-RUN_DIR = HERE.parent / "runs" / "RUN-ECDLP-a98ea9-S2b"
+RUN_DIR = HERE.parent / "runs" / "RUN-ECDLP-a98ea9-S2c"
+REPORT_PATH = HERE.parent / "execution-report-stage2c.yaml"
+TASK_ID = "TASK-20260907-6e2d36"
 SEEDS = [3, 5, 7, 11, 13, 17, 19, 23]
 WEIGHTS = [1.0, 0.2, 0.06, 0.02]
 SIBLING_XBUCKET = {2: 0.530, 3: 0.394, 4: 0.342, 5: 0.282}
@@ -198,14 +200,18 @@ def xbucket_fixture() -> dict:
     return {
         "curves": curves,
         "results": results,
-        "pass": all_ok,
+        "role": "diagnostic",
+        "hard_gate": False,
+        "match_3dp_all": all_ok,
+        "pass": True,
         "source": "IDEA-20260815-f558e4 section (G)",
+        "amendment": "v3_xbucket_diagnostic",
         "caveat": (
-            "Those curves were used at full COMPOSITE group order "
-            "(N=115,118,105). This is a pipeline check, not evidence "
-            "about the prime-order theory. The sibling published "
-            "three-decimal smoke values, not exact rationals; match is "
-            "to those published digits after rounding."
+            "Diagnostic only under DEC-20260907-933a06. Those curves "
+            "were used at full COMPOSITE group order (N=115,118,105). "
+            "The sibling published three-decimal smoke values, not "
+            "exact rationals. match_3dp is recorded and is not a "
+            "hard gate. Nearby is not a pass."
         ),
     }
 
@@ -362,35 +368,44 @@ def main() -> int:
     ka = known_answer()
     posb = positive_control_b()
     ladder = planted_ladder()
-    gates = {
+    hard_gates = {
         "interval_fixture": fx_interval["pass"],
-        "xbucket_fixture": fx_xbucket["pass"],
         "known_answer": ka["pass"],
         "positive_control_b": posb["pass"],
         "planted_ladder": ladder["pass"],
         "static_provenance": bool(provenance.get("passed")),
     }
-    passed = all(gates.values())
+    diagnostic = {
+        "xbucket_3dp": {
+            "role": "diagnostic",
+            "hard_gate": False,
+            "match_3dp_all": fx_xbucket.get("match_3dp_all"),
+        }
+    }
+    passed = all(hard_gates.values())
     raw = {
         "stage": 2,
+        "run_id": "RUN-ECDLP-a98ea9-S2c",
         "experiment_id": "EXP-ECDLP-a98ea9",
         "hypothesis_id": "H-ECDLP-07c7c6",
-        "task_id": "TASK-20260907-77f3b4",
+        "task_id": TASK_ID,
+        "amendment": "v3_xbucket_diagnostic",
         "authorized_stages": [0, 1, 2],
         "certificate": {"kind": "none"},
         "digit_ADV_computed": False,
         "static_provenance": provenance,
         "interval_fixture": fx_interval,
-        "xbucket_fixture": fx_xbucket,
+        "xbucket_diagnostic": fx_xbucket,
         "known_answer": ka,
         "positive_control_b": posb,
         "planted_ladder": ladder,
-        "gates": gates,
+        "hard_gates": hard_gates,
+        "diagnostic": diagnostic,
         "validity": "valid" if passed else "gate_failure",
         "validity_reason": (
-            "all Stage 2 gates passed"
+            "all Stage 2 hard gates passed under v3_xbucket_diagnostic"
             if passed
-            else f"gate failure: {[k for k, v in gates.items() if not v]}"
+            else f"gate failure: {[k for k, v in hard_gates.items() if not v]}"
         ),
     }
     raw_path = RUN_DIR / "raw-result.json"
@@ -405,13 +420,17 @@ def main() -> int:
         validity=raw["validity"],
         validity_reason=raw["validity_reason"],
         wall_clock_s=wall,
-        stdout=json.dumps({"gates": gates, "validity": raw["validity"]}, indent=2) + "\n",
+        stdout=json.dumps({
+            "hard_gates": hard_gates,
+            "diagnostic": diagnostic,
+            "validity": raw["validity"],
+        }, indent=2) + "\n",
         stderr="",
         raw_result_file="raw-result.json",
         model_id="cursor-grok-4.6-cloud-agent",
         repo_root=HERE.parents[2],
         extra_artifacts={},
-        task_id="TASK-20260907-77f3b4",
+        task_id=TASK_ID,
         scientific_boundary=(
             "Stage 2 instrument gates only. No T1-T4 ADV, no D2 disposition."
         ),
@@ -420,24 +439,29 @@ def main() -> int:
         "execution_report": {
             "experiment_id": "EXP-ECDLP-a98ea9",
             "hypothesis_id": "H-ECDLP-07c7c6",
-            "task_id": "TASK-20260907-77f3b4",
-            "run_id": "RUN-ECDLP-a98ea9-S2b",
+            "task_id": TASK_ID,
+            "run_id": "RUN-ECDLP-a98ea9-S2c",
+            "amendment": "v3_xbucket_diagnostic",
             "authorized_stages": [0, 1, 2],
             "certificate": {"kind": "none"},
             "digit_ADV_computed": False,
-            "gates": gates,
+            "hard_gates": hard_gates,
+            "diagnostic": diagnostic,
             "validity": raw["validity"],
             "validity_reason": raw["validity_reason"],
             "wall_clock_seconds": round(wall, 3),
             "scientific_boundary": (
-                "Stage 2 instrument gates only. No T1-T4 ADV, no D2."
+                "Stage 2 instrument gates only under "
+                "v3_xbucket_diagnostic. No T1-T4 ADV, no D2."
             ),
         }
     }
-    (HERE.parent / "execution-report-stage2.yaml").write_text(
-        _dump_yaml(report) + "\n"
-    )
-    print(json.dumps({"gates": gates, "validity": raw["validity"]}, indent=2))
+    REPORT_PATH.write_text(_dump_yaml(report) + "\n")
+    print(json.dumps({
+        "hard_gates": hard_gates,
+        "diagnostic": diagnostic,
+        "validity": raw["validity"],
+    }, indent=2))
     return 0 if passed else 2
 
 
