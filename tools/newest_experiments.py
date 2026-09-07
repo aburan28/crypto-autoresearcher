@@ -32,7 +32,20 @@ def _load(path: Path) -> dict[str, Any] | None:
 
 
 def _completed(exp_dir: Path) -> bool:
-    return any(exp_dir.rglob("execution-report.yaml"))
+    """An experiment has already been executed once its own `runs/` directory
+    holds anything, or an execution report exists under it by either naming
+    convention. `runs/RUN-*/` is the actual, universal signal this repo's own
+    executor writes; a bare `execution-report.yaml`/`execution_report.yaml`
+    directly under the experiment is a narrower, defensive fallback (the
+    program's own convention nests the real report under
+    coordination/**/tasks/*/execution_report.yaml, which is per-batch and not
+    reachable from the experiment directory alone -- runs/ is the reliable
+    signal from here)."""
+    runs_dir = exp_dir / "runs"
+    if runs_dir.is_dir() and any(runs_dir.iterdir()):
+        return True
+    return (any(exp_dir.rglob("execution-report.yaml"))
+            or any(exp_dir.rglob("execution_report.yaml")))
 
 
 def newest_runnable(repo: Path = REPO) -> list[dict[str, Any]]:
