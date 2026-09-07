@@ -1,0 +1,454 @@
+validation_report:
+  id: VAL-20260907-2db9aa
+  id_note: >-
+    Task-local label for this report; not a ledger-space identifier and not
+    minted via tools/allocate_id.py, since this artifact lives under
+    coordination/.../tasks/TASK-20260907-2db9aa/ (this task's own write_scope)
+    and is not itself a ledger/evidence or ledger/decisions record. The
+    canonical identifier for this deliverable is task_id below.
+  task_id: TASK-20260907-2db9aa
+  handoff_ref: ledger/handoffs/TASK-20260907-2db9aa.yaml
+  experiment_id: EXP-ECDLP-6ac801
+  contract_ref: experiments/EXP-ECDLP-6ac801/specification.v2.yaml
+  contract_version: 2
+  role: validator
+  policy: review-adversarial
+  reasoning_effort: xhigh
+  independent_session: true
+
+  objective_performed: >-
+    A freshly SEALED, independent, from-scratch blind re-derivation of ONLY
+    the a = 1/8 cell (N = 2^24, r = 2, T_sel = T/2 = 128, 5 seeds) of
+    EXP-ECDLP-6ac801's STATIC(T)_{r=2} exact coverage vs. exact top-T_sel
+    basin share comparison, applying weight_d = S_d + 4*W*h_d
+    (W = sqrt(a*N/T)) exactly as specification.v2.yaml `definitions` now
+    states explicitly, PLUS a = 1/4 as a required proves-too-much method
+    control (already established G3-INFEASIBLE per EV-ECDLP-60e266), both
+    computed by a wholly new, from-scratch implementation that never opened
+    TASK-20260907-80e198's own artifacts or any `blind_from` path before
+    sealing its own result.
+
+  run_ids: []
+  run_ids_note: >-
+    This Stage A blind re-derivation produces no run manifest under
+    experiments/EXP-ECDLP-6ac801/runs/ (per specification.v2.yaml
+    `budget_note`, explicitly not counted against maximum_runs). The
+    PRODUCTION runs it is compared against are RUN-ECDLP-6ac801-001 through
+    -006 (cited below in `production_comparison`), which this task did NOT
+    execute, edit, or re-run.
+
+  artifact_checks:
+    - artifact: blind_rederivation.py
+      path: coordination/experiments/EXP-ECDLP-6ac801/batches/BATCH-3c7493/tasks/TASK-20260907-2db9aa/blind_rederivation.py
+      present: true
+      description: >-
+        This task's own new, from-scratch Python/numpy implementation of the
+        exact basin-partition model (a literal uniformly random self-map
+        table on N points, an independent i.i.d. Bernoulli(1/W) DP marking,
+        exact absorption via binary-lifting/pointer-doubling over the
+        N=2^24-point functional graph, and a random-restart precomputation
+        pool of r*T=512 distinct DPs scored by weight_d = S_d + 4*W*h_d).
+        Written using only experiments/EXP-ECDLP-6ac801/specification.v2.yaml
+        `definitions`/`instrument`/`blind_rederivation` and this task's own
+        handoff (ledger/handoffs/TASK-20260907-2db9aa.yaml), which restates
+        the formula verbatim; no `blind_from` path or TASK-20260907-80e198
+        artifact was read before or during its authoring.
+    - artifact: sealed_blind_rederivation.json
+      path: coordination/experiments/EXP-ECDLP-6ac801/batches/BATCH-3c7493/tasks/TASK-20260907-2db9aa/sealed_blind_rederivation.json
+      present: true
+      sha256: 7c69270e9847ab538ef1abc3b5520b6eb11f986a0df47a76313628fedba7523b
+      sealed_at_utc: '2026-09-07T04:09:59Z'
+      description: >-
+        Raw per-(a,seed) results for a in {1/8, 1/4}, seeds {1..5}: W,
+        n_distinguished_points, n_absorbed, n_stuck_dp_free_cycle,
+        exact_top_tsel_basin_share, exact_top_T_basin_share,
+        static_T_r_exact_coverage, margin, pass, pool-construction draw
+        counts, environment, git_state, and per_a_summary (pass_count,
+        verdict). Hash and timestamp were computed via `sha256sum` and
+        `date -u` IMMEDIATELY after the script finished writing this file,
+        and BEFORE any blind_from path or TASK-20260907-80e198 artifact was
+        opened -- see `seal_manifest.json` and `review_attestation` below.
+    - artifact: seal_manifest.json
+      path: coordination/experiments/EXP-ECDLP-6ac801/batches/BATCH-3c7493/tasks/TASK-20260907-2db9aa/seal_manifest.json
+      present: true
+      description: >-
+        Companion file recording the sha256 hash and UTC timestamp of
+        sealed_blind_rederivation.json and an explicit statement of the
+        seal-before-open sequencing followed.
+    - artifact: validation_report.yaml (this file)
+      path: coordination/experiments/EXP-ECDLP-6ac801/batches/BATCH-3c7493/tasks/TASK-20260907-2db9aa/validation_report.yaml
+      present: true
+
+  correctness_self_check: >-
+    Before trusting the N = 2^24 sealed result, this task's own
+    binary-lifting absorption algorithm was validated against a naive
+    step-by-step brute-force walk on small N (N=500, 20 random trials with
+    varied DP rates 0.018-0.149) -- exact bit-for-bit agreement on both the
+    terminal DP and the walk length for every point in every trial (script:
+    scratchpad selftest_doubling.py, NOT part of the sealed artifact,
+    read/wrote nothing under any blind_from path). This self-check also
+    confirmed, at N=200000 with W in {90.51, 128.0}, that a nonzero
+    "n_stuck" population (points whose walk enters a DP-free cycle and never
+    reaches a distinguished point) is a genuine, seed-dependent feature of
+    this random-functional-graph model at these DP densities (observed
+    frac_stuck ranged from 0.0 to 0.079 across two draws at N=200000), not a
+    bug -- consistent with production's own need for a walk-length `cap`
+    field (725 for a=1/8, ~8W) observed in the production summary.json cells
+    once opened post-seal (see `production_comparison` below), which is this
+    reviewer's own independent implementation handling the same real edge
+    case via a different mechanism (exact infinite-horizon absorption
+    detection vs. a finite walk-length cutoff), disclosed as a limitation.
+
+  metric_recomputations:
+    - quantity: "exact top-T_sel(=128) basin share and STATIC(T)_{r=2} exact coverage at a=1/8, N=2^24, r=2, 5 seeds"
+      method: >-
+        From-scratch: N=2^24-point uniformly random self-map table (own RNG
+        stream), independent i.i.d. Bernoulli(1/W) DP marking (own RNG
+        stream, W=sqrt(a*N/T)=90.509668), exact absorption via 26 rounds of
+        pointer doubling (2^26 > N, provably resolves every point's true
+        fate), exact basin sizes by full enumeration, oracle top-128-basin
+        share computed directly; STATIC(T)_r pool built via uniform random
+        restarts (own RNG stream) crediting every walk until exactly
+        r*T=512 distinct DPs are found, weight_d = S_d + 4*W*h_d, top 256 by
+        weight selected, true exact coverage of that selected set read off
+        the full enumeration.
+      per_seed_results:
+        - {seed: 1, top_tsel_share: 0.177132, static_coverage: 0.172263, margin: +0.004869, pass: true}
+        - {seed: 2, top_tsel_share: 0.179036, static_coverage: 0.158434, margin: +0.020602, pass: true}
+        - {seed: 3, top_tsel_share: 0.180775, static_coverage: 0.182288, margin: -0.001513, pass: false}
+        - {seed: 4, top_tsel_share: 0.191016, static_coverage: 0.188509, margin: +0.002507, pass: true}
+        - {seed: 5, top_tsel_share: 0.175307, static_coverage: 0.170948, margin: +0.004358, pass: true}
+      pass_count: 4
+      total_seeds: 5
+      verdict: G3-FEASIBLE
+    - quantity: "same quantity at a=1/4 (proves-too-much control), N=2^24, r=2, 5 seeds"
+      per_seed_results:
+        - {seed: 1, top_tsel_share: 0.260345, static_coverage: 0.275956, margin: -0.015611, pass: false}
+        - {seed: 2, top_tsel_share: 0.266150, static_coverage: 0.294695, margin: -0.028546, pass: false}
+        - {seed: 3, top_tsel_share: 0.271202, static_coverage: 0.269034, margin: +0.002168, pass: true}
+        - {seed: 4, top_tsel_share: 0.269737, static_coverage: 0.292593, margin: -0.022857, pass: false}
+        - {seed: 5, top_tsel_share: 0.254847, static_coverage: 0.271491, margin: -0.016645, pass: false}
+      pass_count: 1
+      total_seeds: 5
+      verdict: G3-INFEASIBLE
+
+  control_checks:
+    - control: "(a) BLIND RE-DERIVATION CONTROL"
+      result: satisfied
+      note: "Sealed (hash+timestamp) before opening any blind_from path or TASK-20260907-80e198 artifact; see seal_manifest.json and review_attestation."
+    - control: "a=1/4 PROVES-TOO-MUCH METHOD CONTROL (this task's own scope requirement, review_plan.proves_too_much)"
+      result: PASS
+      failure_signature_check: ">=4/5 seeds with margin<0 required for G3-INFEASIBLE; observed 4/5 (seeds 1,2,4,5), pass_count=1"
+      means: >-
+        This task's own new from-scratch implementation is validated: it
+        reproduces the already-established G3-INFEASIBLE verdict at a=1/4
+        (matching EV-ECDLP-60e266's own established result, and matching
+        Stage B/C's own fresh a=1/4 reading, see production_comparison
+        below), so the a=1/8 reading below may be trusted per
+        review_plan.proves_too_much.failure_signature.
+    - control: "(c) EXACT-COVERAGE NON-EXCEEDANCE"
+      result: satisfied
+      note: "Asserted in code (basin coverage <= N, top_tsel_share computed only from a partition of at most N); no exceedance at any of the 10 cells run."
+    - control: "(f) [v2 amendment] SELECTION-FORMULA IDENTITY"
+      result: satisfied
+      note: "weight_d = S_d + 4*W*h_d applied literally and exclusively, with no alternate reading substituted, at both a=1/8 and a=1/4."
+    - control: "SEED-COUNT PARITY (e)"
+      result: satisfied
+      note: "5 seeds per a, matching the contract."
+
+  heuristic_validation_checks: []
+  heuristic_validation_checks_note: >-
+    Not applicable in the KN-TECH-080/P13-WESOLOWSKI sense: this contract's
+    own heuristic_under_test is null (specification.v2.yaml
+    `heuristic_note`: "This contract does not validate or re-validate
+    HEUR-BLT-1/2/7; it is a direct exact-enumeration measurement"). The
+    generic-instrument model (a uniformly random function truncated at an
+    independent Bernoulli(1/W) marking) IS itself exactly what this task
+    implemented and exactly enumerated, not sampled -- there is no
+    theoretical CDF prediction being validated against a sample here, only
+    an exact recomputation of a deterministic function of the enumerated
+    partition.
+
+  cost_model_checks: []
+  cost_model_checks_note: >-
+    Not applicable: specification.v2.yaml `cost_model.standardized_parameter_sets`
+    states this is "not a costed-algorithm table (this is a feasibility
+    measurement, not a COST-* record)". Resource accounting for this
+    reviewer's own re-derivation is reported under `reviewer_resource_accounting`
+    below instead.
+
+  proof_architecture_checks: []
+  proof_architecture_checks_note: >-
+    Not applicable; this is not a proof-oriented claim under
+    docs/inventor-protocol.md section 8.
+
+  reviewer_resource_accounting:
+    total_wall_clock_seconds: 175.17
+    per_cell_wall_clock_seconds_range: [15.18, 23.22]
+    environment:
+      python: "3.11.15"
+      numpy: "2.4.6"
+    git_commit_at_seal_time: 0502523728762661d946d4827dcb874f4d263167
+    dirty_tree_at_seal_time: >-
+      true, but the only untracked path was this task's own new directory
+      (coordination/.../tasks/TASK-20260907-2db9aa/); no frozen artifact
+      (specification.v2.yaml, any run under experiments/EXP-ECDLP-6ac801/runs/,
+      or TASK-20260907-80e198's own files) was modified by this task, per
+      `git diff --stat` against the commit this task started from (1ed5d8f35)
+      restricted to those paths (empty).
+    background_branch_drift_observed: >-
+      Between this task's start (HEAD=1ed5d8f35) and this script's run
+      (HEAD=0502523728762661), an automated merge of origin/main landed on
+      this branch (unrelated GOAL-ECRANK-002 activity). `git diff --stat`
+      confirms zero changes to experiments/EXP-ECDLP-6ac801/ or
+      coordination/experiments/EXP-ECDLP-6ac801/ between those two commits;
+      this task's own artifacts and inputs are unaffected. Disclosed per
+      AGENTS.md concurrency-awareness discipline, not because it changed
+      anything this task read or wrote.
+    peak_memory_note: >-
+      Not instrumented with a peak-RSS sampler (no run-wrapper harness was
+      used for this reviewer-side script, matching TASK-20260907-80e198's
+      own precedent of a reviewer task producing no run manifest). Rough
+      accounting: each cell allocates O(N) int64/bool arrays (~6-8 arrays of
+      64-134MB each transient during doubling, plus two N-sized int64
+      accumulators for the pool), estimated peak well under 1.5 GB per cell,
+      comfortably inside this task's own 4 GB budget
+      (ledger/handoffs/TASK-20260907-2db9aa.yaml `budget.memory_gb: 4`).
+      Cells were run sequentially, not concurrently, so this estimate is
+      also the whole script's peak.
+
+  production_comparison:
+    production_source:
+      execution_report: coordination/experiments/EXP-ECDLP-6ac801/batches/BATCH-3c7493/tasks/TASK-20260907-0a8773/execution_report.yaml
+      raw_summaries_independently_reread:
+        - experiments/EXP-ECDLP-6ac801/runs/RUN-ECDLP-6ac801-001/summary.json
+        - experiments/EXP-ECDLP-6ac801/runs/RUN-ECDLP-6ac801-002/summary.json
+        - experiments/EXP-ECDLP-6ac801/runs/RUN-ECDLP-6ac801-003/summary.json
+        - experiments/EXP-ECDLP-6ac801/runs/RUN-ECDLP-6ac801-004/summary.json
+        - experiments/EXP-ECDLP-6ac801/runs/RUN-ECDLP-6ac801-005/summary.json
+      note: >-
+        This validator did NOT rely solely on execution_report.yaml's
+        aggregation; the a=1/8 `cells."a=0.125000"` block of each of
+        RUN-ECDLP-6ac801-{001..005}/summary.json was opened directly and
+        independently confirmed to match execution_report.yaml's own
+        `gate_values_per_a_seed_cell."a=1/8"` citation exactly (W, margins,
+        pass flags all match to the printed precision).
+    a_1_8:
+      production_per_seed_margins: [0.009002, 0.005128, 0.003084, 0.005594, 0.011855]
+      production_per_seed_pass: [true, true, true, true, true]
+      production_pass_count: 5
+      production_verdict: G3-FEASIBLE
+      blind_per_seed_margins: [+0.004869, +0.020602, -0.001513, +0.002507, +0.004358]
+      blind_per_seed_pass: [true, true, false, true, true]
+      blind_pass_count: 4
+      blind_verdict: G3-FEASIBLE
+      verdict_agreement: AGREE (both G3-FEASIBLE, both >=4/5)
+      per_seed_sign_pattern_agreement: >-
+        NOT identical: blind reading has one seed (seed 3, margin -0.001513)
+        below the pass/fail boundary; production has zero. Seeds do not
+        correspond to matched underlying randomness across the two readings
+        (this task used its own independent RNG construction, not
+        production's own hash-based instrument, per the blind-rederivation
+        requirement), so this is a comparison of two independent 5-draw
+        samples of the same presumed underlying distribution, not a paired
+        seed-by-seed check.
+      noise_assessment: >-
+        Judged WITHIN seed-to-seed noise, not a units/definition mismatch,
+        for four disclosed reasons: (1) both samples' margins cluster in the
+        same narrow near-zero-positive band (blind: -0.0015 to +0.0206;
+        production: +0.0031 to +0.0119) with nearly identical sample means
+        (blind +0.00618, production +0.00693); (2) this is exactly the cell
+        specification.v2.yaml's own `preregistered_prediction` independently
+        flagged, BEFORE either reading was produced, as "predicted FEASIBLE
+        but BORDERLINE (around 4/5, possibly 3/5 or 5/5) ... the one this
+        contract is least confident in and most likely to move"; (3) the
+        blind sample's wider spread (0.022) vs. production's (0.009) is
+        itself consistent with ordinary 5-draw sampling variance around a
+        small true margin, not a systematic bias in one direction; (4) no
+        stated units/definition difference was found between the two
+        implementations' G3-style criterion (both apply exact top-T_sel
+        share >= STATIC(T)_r exact coverage identically). This judgement is
+        a Validator interpretation of a genuinely borderline case, disclosed
+        as such -- the Coordinator may reasonably want a documented option
+        of a larger-seed confirmatory run before treating this as fully
+        closed, though this task's own scope does not authorize running one.
+    a_1_4_proves_too_much_cross_check:
+      production_per_seed_margins: [-0.012918, -0.008373, -0.036196, -0.016829, -0.022216]
+      production_pass_count: 0
+      production_verdict: G3-INFEASIBLE
+      blind_pass_count: 1
+      blind_verdict: G3-INFEASIBLE
+      note: >-
+        Not the primary target of this task, but recorded as additional
+        corroboration: both the blind reading (this task) and Stage B/C
+        production both independently reproduce G3-INFEASIBLE at a=1/4,
+        agreeing with each other and with EV-ECDLP-60e266's earlier
+        established result. This is consistent with the instrument being
+        sound on both sides of the comparison, not merely on this task's
+        own side.
+
+  terminal_verdict_a_1_8: >-
+    S1 CONFIRMED FEASIBLE. This task's own sealed, from-scratch blind
+    re-derivation and Stage B/C's existing production result AGREE that
+    a=1/8 (N=2^24, r=2, T_sel=T/2) is G3-FEASIBLE under the now-explicit
+    weight_d = S_d + 4*W*h_d selection formula. The single seed-level sign
+    difference noted above is assessed as within seed-to-seed noise at this
+    contract's own most borderline cell, not a units/definition mismatch;
+    see `production_comparison.a_1_8.noise_assessment` for the full
+    disclosed reasoning and its limitation.
+  terminal_verdict_scope_note: >-
+    Per specification.v2.yaml `interpretation` and `distinguishable_outcomes`
+    (a): a CONFIRMED-FEASIBLE ceiling reading at a=1/8 does NOT by itself
+    reopen clause (C1) as supported, demonstrate any online re-selection
+    mechanism actually reaches this ceiling, move H-ECDLP-37dc01's status,
+    or authorize any ECDLP claim. It licenses, at most, the Coordinator
+    recording a=1/8 as CONFIRMED FEASIBLE in a new evidence record and
+    considering the RESEL-L follow-up already named as
+    DEC-20260907-9b1b02 `next_actions` RANK 2 -- both of which are the
+    orchestrating session's next steps, not this task's.
+
+  limitations:
+    - >-
+      This task's own instrument is a genuinely independent, from-scratch
+      construction (a literal uniformly random self-map table + independent
+      Bernoulli(1/W) DP marking + exact binary-lifting absorption), not a
+      re-implementation of production's specific mix64-based hash instrument.
+      This is the POINT of a blind re-derivation (testing the STATISTICAL
+      MODEL, not reproducing one implementation's approximation of it), but
+      it means per-seed numeric values are not expected to match production
+      seed-for-seed, only in aggregate pattern and magnitude -- exactly the
+      comparison performed above.
+    - >-
+      A nonzero fraction of points at every cell never reach a distinguished
+      point (caught in a DP-free cycle under this reviewer's own literal
+      random-function realization); this task treats such points as
+      genuinely uncovered by ANY selection (excluded from all basin/coverage
+      sums, which are always taken over N in the denominator). Production's
+      own summary.json cells show a `cap` field (~8W) suggesting a
+      walk-length cutoff rather than an infinite-horizon exact-absorption
+      test; the two approaches are plausibly handling the same underlying
+      model feature via different practical mechanisms, and this
+      possible definitional difference was not, and could not within this
+      task's scope be, fully reconciled against production's own
+      implementation (whose source this task's own blind_from restriction
+      never opens). It did not appear to bias the qualitative conclusion,
+      given both readings agree on the categorical verdict.
+    - >-
+      A single sealed sample of 5 fresh seeds is a small sample at a cell
+      whose margin is close to zero by the contract's own preregistered
+      characterization; the S1 verdict rests on a judgement about whether an
+      observed one-seed sign flip is noise, disclosed in full above rather
+      than asserted silently.
+    - >-
+      This task did not read TASK-20260907-80e198's own validation_report.yaml
+      at all, even though the handoff's own `inputs` section explicitly
+      permitted reading it (for objective/scope framing) before sealing.
+      This reviewer chose the more conservative route of not reading it at
+      any point (pre- or post-seal), since the handoff's own quoted text
+      already supplied everything needed to scope this task; this is
+      disclosed as a deliberate choice, not an oversight, and does not
+      affect the blindness finding (it is a stricter posture than the
+      minimum required).
+    - >-
+      claim_tier is unchanged at `toy`, per specification.v2.yaml
+      `claim_tier`/`claim_tier_note`: generic keyed-random-function
+      instrument, no curve arm, no cryptographic size, no exponent claimed
+      or approached. Nothing in this report changes that scope.
+
+  review_attestation:
+    task_id: TASK-20260907-2db9aa
+    joints_owned:
+      - "The a=1/8-only sealed blind re-derivation under the corrected STATIC(T)_r weight formula, and its comparison against Stage B/C's existing production result (per ledger/handoffs/TASK-20260907-2db9aa.yaml review_plan.joints)."
+    sources_read_before_seal:
+      - experiments/EXP-ECDLP-6ac801/specification.v2.yaml
+      - ledger/handoffs/TASK-20260907-2db9aa.yaml
+      - agents/validator.md
+      - AGENTS.md
+      - CLAUDE.md (project instructions, shown at session start)
+      - scratchpad selftest_doubling.py (this task's own self-test, no producer material)
+    sources_read_after_seal:
+      - coordination/experiments/EXP-ECDLP-6ac801/batches/BATCH-3c7493/tasks/TASK-20260907-0a8773/execution_report.yaml
+      - experiments/EXP-ECDLP-6ac801/runs/RUN-ECDLP-6ac801-001/summary.json
+      - experiments/EXP-ECDLP-6ac801/runs/RUN-ECDLP-6ac801-002/summary.json
+      - experiments/EXP-ECDLP-6ac801/runs/RUN-ECDLP-6ac801-003/summary.json
+      - experiments/EXP-ECDLP-6ac801/runs/RUN-ECDLP-6ac801-004/summary.json
+      - experiments/EXP-ECDLP-6ac801/runs/RUN-ECDLP-6ac801-005/summary.json
+    sources_never_read: >-
+      TASK-20260907-80e198's own sealed_blind_rederivation.json,
+      blind_rederivation.py, postseal_diagnostic_weight_formula.py,
+      postseal_diagnostic_v2_clean.py; TASK-20260907-80e198's own
+      validation_report.yaml (see `limitations` above -- permitted but
+      deliberately not read, at any point, before or after sealing);
+      experiments/EXP-ECDLP-612fb1/source_v2/ (any file);
+      experiments/EXP-ECDLP-612fb1/runs/RUN-ECDLP-612fb1-v2-ascan-*/ (any
+      file); experiments/EXP-ECDLP-612fb1/runs/RUN-ECDLP-612fb1-v2-analysis-001/
+      (any file); experiments/EXP-ECDLP-612fb1/specification.v2.yaml (not
+      opened even though permitted, since specification.v2.yaml already
+      restates the needed definitions/criterion inline);
+      experiments/EXP-ECDLP-6ac801/amendments/v1_to_v2.yaml (not opened,
+      not required); experiments/EXP-ECDLP-6ac801/runs/RUN-ECDLP-6ac801-006/
+      (Stage C aggregation run; not opened -- not needed for this task's
+      a=1/8-and-a=1/4-only scope, and reading it would add nothing this
+      task's own recomputation did not already produce independently).
+    read_sibling_reports: false
+    blind_from_respected: true
+    blind_from_respected_statement: >-
+      Every path named in specification.v2.yaml `blind_rederivation.blind_from`
+      and in this task's own handoff `review_plan.blind_rederivation.blind_from`
+      was left unopened until AFTER sealed_blind_rederivation.json was
+      written and its sha256/timestamp recorded in seal_manifest.json. The
+      only files opened before that seal were the frozen contract itself,
+      this task's own handoff, the program's standing role/contract
+      documents, and this task's own self-test script (which reads/writes
+      nothing under any blind_from path). TASK-20260907-80e198-materials
+      read-timing disclosure: NONE of TASK-20260907-80e198's own artifacts
+      (sealed_blind_rederivation.json, blind_rederivation.py,
+      postseal_diagnostic*.py, or its validation_report.yaml) were read at
+      ANY point in this task, before or after the seal.
+    verdict: holds
+    verdict_scope: >-
+      "holds" on the joint owned (see `joints_owned`): the sealed blind
+      re-derivation was produced correctly, sealed before any disallowed
+      read, its own proves-too-much control passed, and it AGREES with
+      production's a=1/8 verdict. This is not a whole-claim verdict on
+      clause (C1), H-ECDLP-37dc01, or any ECDLP claim (see
+      `terminal_verdict_scope_note`).
+
+  verdict: passed
+  verdict_scope_note: >-
+    "passed" means this task's own deliverable (the sealed a=1/8/a=1/4
+    blind re-derivation, its proves-too-much control, and the production
+    comparison) is admissible evidence under specification.v2.yaml's own
+    blind_rederivation/invalidation_rules discipline. It does NOT mean
+    clause (C1) is supported, does NOT authorize any ECDLP claim, and does
+    NOT itself change H-ECDLP-37dc01's status -- those require a further
+    committed Coordinator decision citing this report, per this task's own
+    `constraints` (no ledger/evidence or ledger/decisions record was written
+    by this task).
+
+  artifact_paths:
+    - coordination/experiments/EXP-ECDLP-6ac801/batches/BATCH-3c7493/tasks/TASK-20260907-2db9aa/blind_rederivation.py
+    - coordination/experiments/EXP-ECDLP-6ac801/batches/BATCH-3c7493/tasks/TASK-20260907-2db9aa/sealed_blind_rederivation.json
+    - coordination/experiments/EXP-ECDLP-6ac801/batches/BATCH-3c7493/tasks/TASK-20260907-2db9aa/seal_manifest.json
+    - coordination/experiments/EXP-ECDLP-6ac801/batches/BATCH-3c7493/tasks/TASK-20260907-2db9aa/validation_report.yaml
+
+  completion_gate_check:
+    - "Sealed BEFORE any read of TASK-20260907-80e198 materials or any blind_from path: YES (seal_manifest.json timestamp 2026-09-07T04:09:59Z predates every path in sources_read_after_seal)."
+    - "a=1/4 proves-too-much control reads G3-INFEASIBLE (>=4/5 seeds): YES (4/5, pass_count=1)."
+    - "New artifacts at own new task directory, no edit to TASK-20260907-80e198's directory or experiments/EXP-ECDLP-6ac801/runs/: YES (verified: this task wrote only under its own coordination/.../TASK-20260907-2db9aa/ directory; git diff shows no other path touched)."
+    - "Terminal S1/S2/S3 verdict at a=1/8 recorded with per-seed margins and production comparison: YES (terminal_verdict_a_1_8 above)."
+    - "review_attestation present, blind_from_respected and 80e198-read-timing disclosed explicitly: YES."
+    - "No ledger/evidence/*.yaml or ledger/decisions/*.yaml written by this task: YES (none written; not in write_scope)."
+
+  handoff_compliance:
+    write_scope_respected: true
+    write_scope: coordination/experiments/EXP-ECDLP-6ac801/batches/BATCH-3c7493/tasks/TASK-20260907-2db9aa/
+    no_h_ecdlp_37dc01_touched: true
+    no_stage_bc_rerun: true
+    no_ledger_record_written: true
+    no_commit_made: true
+    note: >-
+      This report is handed to the orchestrating/Coordinator session for its
+      own snapshot-archive and, subsequently, ledger-archive steps. This
+      task performed no git commit and wrote no ledger record, per its own
+      constraints.
