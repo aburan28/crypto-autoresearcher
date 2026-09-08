@@ -734,9 +734,25 @@ def check_run(path: str, ctx: Ctx, supersessions: dict[str, dict] | None = None)
                 "use the canonical provenance quarantine until execution is bound", force=True)
     if not code.get("command"):
         ctx.err(path, "run.code.command missing (not reproducible)")
-    # Companion artifacts must exist in the run directory.
+    # A nonterminal observation can explicitly declare that its final raw
+    # result does not exist yet. This is not a liveness check or a result:
+    # terminal/unknown statuses and certificate-bearing records still owe it.
+    pending_body = body.get("result")
+    pending_certificate = (pending_body.get("certificate")
+                           if isinstance(pending_body, dict) else None)
+    raw_result_pending = (
+        isinstance(body.get("status"), str)
+        and body.get("status") in {"running", "in_progress"}
+        and isinstance(pending_body, dict)
+        and pending_body.get("raw_result_pending") is True
+        and isinstance(pending_certificate, dict)
+        and pending_certificate.get("kind") == "none"
+    )
+    # All other companion artifacts remain required even while a run is open.
     for artifact in ("command.txt", "environment.json", "stdout.log",
                      "stderr.log", "raw-result.json"):
+        if artifact == "raw-result.json" and raw_result_pending:
+            continue
         if not os.path.exists(os.path.join(run_dir, artifact)):
             ctx.err(path, f"run directory missing artifact '{artifact}'")
     # Certificate discipline (docs/claims-and-verification.md).
@@ -1135,14 +1151,82 @@ def check_schema_redirects(ctx: Ctx,
 
 def _validate_superseded_id_extraction(extraction: object, run_id: str) -> None:
     """Validate an explicit identity binding, never a permissive YAML parser."""
+    headers = {
+        "unique_first_line_run_id_header": (1, f"run_id: {run_id}"),
+        "unique_nested_run_id_duplicate_process": (2, f"  id: {run_id}"),
+    }
+    kind = extraction.get("kind") if isinstance(extraction, dict) else None
+    expected = headers.get(kind) if isinstance(kind, str) else None
     if (not isinstance(extraction, dict)
             or set(extraction) != {"kind", "line_number", "exact_line"}
-            or extraction.get("kind") != "unique_first_line_run_id_header"
+            or expected is None
             or type(extraction.get("line_number")) is not int
-            or extraction.get("line_number") != 1
+            or extraction.get("line_number") != expected[0]
             or not RUN_ID.fullmatch(run_id)
-            or extraction.get("exact_line") != f"run_id: {run_id}"):
+            or extraction.get("exact_line") != expected[1]):
         raise ValueError("invalid superseded_id_extraction binding")
+
+
+def _nested_run_id_with_duplicate_process(text: str, run_id: str) -> str | None:
+    """Recover only an unambiguous ID, not the duplicate process observations.
+
+    Called only behind a registry opt-in and whole-file hash check. Ordinary
+    identity parsing continues to reject every duplicate mapping key.
+    """
+    lines = text.splitlines()
+    if lines[:2] != ["run:", f"  id: {run_id}"]:
+        return None
+    if any(line.strip() in {"---", "..."} for line in lines):
+        return None
+    try:
+        root = yaml.compose(text)
+        if not isinstance(root, yaml.MappingNode) or len(root.value) != 1:
+            return None
+        key, body = root.value[0]
+        if not isinstance(key, yaml.ScalarNode) or key.value != "run":
+            return None
+        if not isinstance(body, yaml.MappingNode):
+            return None
+        identities = [(key, value) for key, value in body.value
+                      if isinstance(key, yaml.ScalarNode)
+                      and key.value in {"id", "run_id", "run"}]
+        if (len(identities) != 1 or identities[0][0].value != "id"
+                or not isinstance(identities[0][1], yaml.ScalarNode)
+                or identities[0][1].tag != "tag:yaml.org,2002:str"
+                or identities[0][1].value != run_id):
+            return None
+        seen: set[int] = set()
+        duplicates = []
+
+        def inspect(node, path=()):
+            if id(node) in seen:
+                raise ValueError("alias")
+            seen.add(id(node))
+            if isinstance(node, yaml.MappingNode):
+                keys = set()
+                for key, value in node.value:
+                    if not isinstance(key, yaml.ScalarNode) or key.value == "<<":
+                        raise ValueError("ambiguous key")
+                    if key.value in keys:
+                        if path != ("run",) or key.value != "process":
+                            raise ValueError("unexpected duplicate")
+                        duplicates.append(path + (key.value,))
+                    keys.add(key.value)
+                    if path == ("run",) and key.value == "process":
+                        if not isinstance(value, yaml.MappingNode):
+                            raise ValueError("process observation is not a mapping")
+                    inspect(key, path)
+                    inspect(value, path + (key.value,))
+            elif isinstance(node, yaml.SequenceNode):
+                for item in node.value:
+                    inspect(item, path)
+
+        inspect(root)
+        if duplicates != [("run", "process")]:
+            return None
+        return run_id
+    except (yaml.YAMLError, ValueError, TypeError):
+        return None
 
 
 def _malformed_superseded_run_id(path: str, entry: dict | None) -> str | None:
@@ -1168,6 +1252,8 @@ def _malformed_superseded_run_id(path: str, entry: dict | None) -> str | None:
         lines = content.decode("utf-8").splitlines()
     except (OSError, UnicodeError, ValueError):
         return None
+    if extraction["kind"] == "unique_nested_run_id_duplicate_process":
+        return _nested_run_id_with_duplicate_process(content.decode("utf-8"), run_id)
     if not lines or lines[0] != extraction["exact_line"]:
         return None
     identity_headers = [line for line in lines
