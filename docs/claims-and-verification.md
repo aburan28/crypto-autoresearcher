@@ -87,6 +87,20 @@ Rules:
 - Certificates are stored in the run's `raw-result.json` and summarized in the
   manifest's `result.certificate`. They are immutable like the rest of the run.
 
+### Nonterminal run observations
+
+A `running` or `in_progress` manifest may explicitly set
+`result.raw_result_pending: true` with `result.certificate.kind: none` when no
+terminal raw result existed at that observation. Only then may `raw-result.json`
+be absent. Command, environment and log companions, and all required manifest
+metadata, remain mandatory. Terminal or unknown statuses and certificate-bearing
+records still require the raw result, even if the pending flag is present.
+
+This declaration does not establish current process liveness, successful
+completion or a scientific result. Bind any recorded start time to its source;
+leave unavailable end times and durations null. Preserve the original observation
+and use an additive record when later observations or corrections become available.
+
 ## Claim-tier reporting
 
 Every evidence record and synthesis statement carries a `claim_tier` describing
