@@ -1,0 +1,107 @@
+protocol_amendment:
+  id: PA-ECDLP-ac7e8b-v2-1-lifecycle-custody
+  id_allocation_provenance: >-
+    Amendment identifiers are deterministic version labels outside the allocator
+    namespace. The authoring handoff has a checked random six-hex identifier.
+  experiment_id: EXP-ECDLP-ac7e8b
+  hypothesis_id: H-ECDLP-004445
+  version_from: 2
+  version_to: '2.1'
+  authoring_task: TASK-20260908-20c762
+  amended_at: '2026-09-08'
+  triggering_review:
+    task_id: TASK-20260908-b528ba
+    report_sha256: e2f6e89081134501a00a2168d494dfd461ca7cd07fd798948a300edc9d6451db
+    verdict: breaks
+  predecessor_amendment:
+    path: experiments/EXP-ECDLP-ac7e8b/amendments/v1_to_v2_hardening_protocol.yaml
+    sha256: 955d260b9264f98b0439b9a28fa844644fa2f372c8ddb8d75b2803ea581db66a
+  disposition: >-
+    Additive custody repair only. It changes no scientific instance, result,
+    hypothesis or authorization. v1 and v2 remain immutable. Implementation and
+    scientific execution remain unauthorized pending a new focused review and a
+    Coordinator disposition.
+
+  root_segment_registry:
+    schema: sdeg_v2_1_root_segment_registry
+    location: runs/<run-id>/registry/root-segments.jsonl
+    identity: >-
+      Each record is JCS-hashed and names experiment_id, campaign_id, sealed
+      attempt_id, root_ordinal, registry_ordinal, registry_parent_sha256,
+      event_kind, segment_id, predecessor_segment_id, launch_sha256,
+      receipt_sha256, successor_capability_sha256, consumed_capability_sha256,
+      process_incarnation_id, event_time_ns and registry_entry_sha256.
+    append_only_rule: >-
+      Registry ordinal begins at zero and increments by one. Every entry binds
+      the immediately preceding entry hash; no record may be deleted, rewritten
+      or hidden by a summary. Root sealing precommits the registry location and
+      root public key. The final receipt names registry_head_sha256 and the
+      exact registry entry count.
+    checkpoint_successor_rule: >-
+      A checkpoint creates one domain-separated single-use successor capability
+      for that sealed attempt and segment. A resumed child must consume that
+      exact capability once; registry validation rejects zero or multiple
+      consumers, an unknown capability, a child whose predecessor differs from
+      the capability parent, or any second child after consumption.
+    final_reconciliation: >-
+      Before accepting a final, the validator enumerates all registry entries,
+      all launched segment directories and all receipt hashes under the sealed
+      root. It requires one linear segment path from root to the named final
+      head, no omitted launch, no non-head final, and exactly one final receipt.
+    rejection_mutations: [hidden_sibling_resume, duplicate_successor_capability, omitted_launch_entry, final_on_nonhead_segment, registry_hash_fork]
+
+  terminal_authority_binding:
+    final_receipt_required_fields: [terminal_authority_kind, authority_record_id, authority_record_sha256, causal_event_sha256, asserts_no_goal_transition]
+    automatic_finals: >-
+      IMPLEMENTATION_FAILURE, INFRASTRUCTURE_FAILURE and RESOURCE_EXHAUSTION
+      use terminal_authority_kind=machine_or_validator_event, bind a causal event
+      digest and set asserts_no_goal_transition=true. A catchable checkpoint is
+      nonterminal and cannot carry a final code.
+    discretionary_timeout: >-
+      TIMEOUT_CENSORED requires terminal_authority_kind=coordinator_disposition
+      and an existing Coordinator decision or approved amendment hash explicitly
+      authorizing that terminal. The imported cancelled_by_budget adapter label
+      is historical metadata only and always sets asserts_no_goal_transition=true.
+    validator_rule: >-
+      Reject a missing or mismatched authority hash, a non-Coordinator authority,
+      a final timeout without its cited authorization, a checkpoint as final, or
+      a receipt which treats adapter metadata as a goal transition.
+    rejection_mutations: [timeout_without_authority, wrong_authority_hash, machine_checkpoint_as_final, cancelled_adapter_as_goal_transition]
+
+  rank_state_custody:
+    seal: >-
+      Fixture admission seals rank_owner_id, process_incarnation_id, accepted-row
+      ordering as (root_ordinal, component_ordinal), and rank-state registry path.
+      Owner change is forbidden unless an explicit coordinator-authorized handover
+      receipt binds outgoing state, incoming process incarnation and the next row.
+    row_schema: [campaign_id, fixture_id, sealed_ordinal, rank_owner_id, process_incarnation_id, handover_receipt_sha256, previous_state_sha256, accepted_row_sha256, output_state_sha256, unique_resource_vector_id, row_registry_entry_sha256]
+    coverage_rule: >-
+      Each RELATION_VALID EC receipt is enumerated in the sealed order commitment.
+      The final state commits the complete accepted-row inventory and its hash.
+      The validator reconstructs that inventory from all valid EC receipts and
+      rejects omitted rows, duplicate state children, owner swaps without a
+      handover, nonmatching previous states, or duplicated rank resource vectors.
+    rejection_mutations: [owner_swap_without_handover, duplicate_state_child, omitted_accepted_row, duplicated_rank_resource_vector]
+
+  shared_cost_custody:
+    schema: sdeg_v2_1_shared_cost_owners
+    location: summary/<plan-id>/shared-cost-owners.jsonl
+    required_fields: [object_id, provenance_kind, source_process_id, source_interval_ids, raw_trace_sha256, owner_id, raw_cpu_vector_id, raw_io_vector_id, wall_interval_set_id, memory_domain_id, allocation_domain, allocation_numerator, allocation_denominator, unallocated_numerator, unallocated_denominator]
+    identity_and_reconciliation: >-
+      object_id is globally unique within the experiment. Every additive CPU/IO
+      coordinate has exactly one raw-trace provenance identity and one object;
+      a duplicate provenance is rejected even if labels differ. Allocation plus
+      explicit unallocated share sums exactly one for each object. Validators
+      reconcile every CPU/IO vector to the declared cgroup/process observation,
+      union wall intervals by provenance rather than summing overlaps, and report
+      memory as domain values plus aggregate peak.
+    rejection_mutations: [same_cpu_under_two_object_ids, missing_owner, duplicate_owner, allocation_sum_not_one, overlapping_wall_interval_summed]
+
+  retained_boundaries:
+    - No code, fixtures, calibration, profiles, rank computation, receipt validation or scientific run has executed.
+    - Statistics and certificate hardening definitions from v2 are unchanged.
+    - This amendment does not approve implementation, execution, evidence, a hypothesis transition, or a goal transition.
+  next_gate: >-
+    A fresh independent focused lifecycle/cost custody review of this v2.1 text,
+    followed only then by a Coordinator synthesis. Later implementation admission
+    must exercise every rejection mutation as a non-scientific control.
