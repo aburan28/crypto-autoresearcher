@@ -19,6 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from orchestration.research_budget import enforce_research_budget, agent_wall_limit
 
 SCHEMA = "crypto.autoresearch.dispatch_queue.v1"
+FORWARD_SCHEMA = "crypto.autoresearch.dispatch_queue_forward.v1"
 PLAN_SCHEMA = "crypto.autoresearch.dispatch_plan.v1"
 
 # Hard ceiling on queue.max_concurrent. REMOVED (None = uncapped) on the
@@ -1580,6 +1581,54 @@ class RepositoryVerifier(Protocol):
 
 
 
+def resolve_forward_queue(
+    queue: Any, queue_path: Path, repo_root: Path
+) -> tuple[Any, Path]:
+    """Follow a dispatch_queue_forward.v1 stub to its canonical queue.
+
+    Intake paths may keep a non-dispatchable forward file named
+    ``dispatch_queue.json`` that points at the live queue. CI renders every
+    changed ``dispatch_queue.json``, so the forward stub must resolve rather
+    than fail schema validation.
+    """
+
+    if not isinstance(queue, dict) or queue.get("schema") != FORWARD_SCHEMA:
+        return queue, queue_path
+    canonical = queue.get("canonical_queue_path")
+    if not isinstance(canonical, str) or not canonical.strip():
+        raise DispatchError(
+            f"{queue_path}: {FORWARD_SCHEMA} requires nonempty canonical_queue_path"
+        )
+    relative = PurePosixPath(canonical.strip())
+    if relative.is_absolute() or ".." in relative.parts:
+        raise DispatchError(
+            f"{queue_path}: canonical_queue_path must be a repository-relative path"
+        )
+    target = (repo_root / relative).resolve()
+    try:
+        target.relative_to(repo_root.resolve())
+    except ValueError as error:
+        raise DispatchError(
+            f"{queue_path}: canonical_queue_path escapes repository root"
+        ) from error
+    if not target.is_file():
+        raise DispatchError(
+            f"{queue_path}: canonical_queue_path does not exist: {relative.as_posix()}"
+        )
+    enforce_reconciliation_queue_authority(target, repo_root)
+    try:
+        resolved = json.loads(target.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise DispatchError(
+            f"{queue_path}: unable to load canonical queue {relative.as_posix()}: {error}"
+        ) from error
+    if not isinstance(resolved, dict) or resolved.get("schema") != SCHEMA:
+        raise DispatchError(
+            f"{queue_path}: canonical queue {relative.as_posix()} must use schema {SCHEMA}"
+        )
+    return resolved, target
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("queue", type=Path, help="dispatch queue JSON")
@@ -1611,6 +1660,7 @@ def main() -> int:
         repo_root = args.repo_root.resolve() if args.repo_root else discover_repository_root(args.queue.parent)
         enforce_reconciliation_queue_authority(args.queue, repo_root)
         queue = json.loads(args.queue.read_text(encoding="utf-8"))
+        queue, args.queue = resolve_forward_queue(queue, args.queue, repo_root)
         enforce_reconciliation_document_authority(queue)
         verifier = GitRepositoryVerifier(repo_root)
         now = parse_timestamp(args.now, "--now") if args.now is not None else None
