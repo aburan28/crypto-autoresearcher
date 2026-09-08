@@ -87,6 +87,32 @@ matching stage1_fb3_table.py's existing rows exactly) that are held_out=True
 and rung_log2N=20. Curve generation, discrete-log table construction and the
 per-cell null draws are the dominant costs and are recorded per cell
 (wall_seconds) in every row.
+
+ADDENDUM (follow-up dispatch, same TASK, 2026-09-08): the container this
+session runs in restarts periodically, killing this detached background job.
+Per-cell resumability (`build_e_arm_holdout_rows_resumable`'s `done_keys`
+skip, above) only checkpoints once a cell's FULL 200-draw null distribution
+has completed -- a cell whose null-building step takes long enough to
+straddle a restart was observed to restart its 200 draws from draw 0 every
+time, repeatedly, never finishing by chance alone (curve_index=3's
+high_bit_interval cell, stuck at exactly this point for three consecutive
+restart cycles with e-arm-holdout-cache.jsonl fixed at 6/12 rows). Fixed by
+adding a SECOND, finer-grained checkpoint (`_null_distribution` below) inside
+the 200-draw loop itself: every `NULL_CHECKPOINT_EVERY` draws, the partial
+per-statistic sample lists and the next draw index are written atomically to
+a small JSON side-file (`<cache_path>.null-checkpoint.json`); on restart,
+`_null_distribution` reads this file, checks it matches the (geometry,
+curve_index, N, B) cell currently in progress, and resumes drawing from
+wherever it left off instead of redoing completed draws. Each draw's RNG
+seed is a pure function of (N, B, geometry, curve_index, draw index) -- see
+`_seed_int` -- so a resumed draw i produces bit-identical output to an
+uninterrupted run's draw i, and `statistics.fmean`/`pstdev` are order-
+independent, so the final `null_mean`/`null_sd` over all 200 draws are
+IDENTICAL whether computed in one pass or resumed after a restart. This is
+purely a resumability fix: it changes nothing about which draws are
+performed, how many, or how the final statistics are computed from them. The
+partial checkpoint file is deleted once its cell's 200 draws complete (the
+cell is then recorded, as before, only in `e-arm-holdout-cache.jsonl`).
 """
 from __future__ import annotations
 
@@ -107,6 +133,12 @@ N_TARGET = 2 ** 20
 CURVE_INDICES = (1, 2, 3, 4)
 N_NULL_DRAWS = 200
 M_ARITY = 3
+# Write a resumable partial-null checkpoint after every this-many draws of the
+# 200-draw null-building loop for the CURRENT (geometry, curve_index) cell.
+# Purely a resumability measure (see module docstring addendum below): does
+# not change which draws are performed or how the final null_mean/null_sd are
+# computed from them.
+NULL_CHECKPOINT_EVERY = 25
 GEOMETRIES = {
     "high_bit_interval": fb3c.geom_high_bit_interval,
     "small_height": fb3c.geom_small_height,
@@ -162,15 +194,77 @@ def self_test_reproduce_committed_n14() -> Dict:
     return {"status": "PASS", "checks": {k: v[0] for k, v in checks.items()}}
 
 
-def _null_distribution(N: int, B: int, geometry: str, curve_index: int) -> Dict[str, Dict[str, float]]:
+def _null_checkpoint_path(cache_path: str) -> str:
+    return cache_path + ".null-checkpoint.json"
+
+
+def _atomic_write_json(path: str, obj: Dict) -> None:
+    import json
+    tmp = path + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump(obj, f)
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp, path)  # atomic on POSIX: readers never see a partial file
+
+
+def _load_null_checkpoint(checkpoint_path: str, N: int, B: int, geometry: str,
+                           curve_index: int) -> Optional[Dict]:
+    """Returns the checkpoint dict if it exists and matches this exact cell
+    (geometry, curve_index, N, B), else None (fresh start -- covers both "no
+    checkpoint yet" and "checkpoint belongs to a different/prior cell")."""
+    import json
+    if not os.path.exists(checkpoint_path):
+        return None
+    try:
+        with open(checkpoint_path) as f:
+            obj = json.load(f)
+    except (json.JSONDecodeError, OSError):
+        return None  # truncated/partial write from a mid-write crash: discard, restart cell
+    if (obj.get("N") != N or obj.get("B") != B or obj.get("geometry") != geometry
+            or obj.get("curve_index") != curve_index):
+        return None
+    return obj
+
+
+def _null_distribution(N: int, B: int, geometry: str, curve_index: int,
+                        n_draws: int = N_NULL_DRAWS,
+                        checkpoint_path: Optional[str] = None,
+                        progress_cb=None,
+                        _test_kill_after: Optional[int] = None,
+                        ) -> Dict[str, Dict[str, float]]:
+    """Builds the n_draws-draw null distribution for one (geometry,
+    curve_index) cell. If checkpoint_path is given, resumes from a matching
+    on-disk checkpoint (see _load_null_checkpoint) instead of starting draw 0,
+    and writes a fresh checkpoint every NULL_CHECKPOINT_EVERY draws so a
+    restart mid-cell loses at most that many draws' work, never the whole
+    cell. Purely a resumability mechanism: every draw's RNG seed depends only
+    on (N, B, geometry, curve_index, draw index) -- never on what came before
+    -- and the final null_mean/null_sd are order-independent sums/means over
+    all n_draws values, so a resumed run's output is IDENTICAL to an
+    uninterrupted run's, draw-count for draw-count.
+
+    _test_kill_after: TEST-ONLY HOOK. If set, raises RuntimeError right after
+    writing the checkpoint for draw index _test_kill_after - 1, simulating a
+    container kill mid-loop, for the resume regression test below. Never set
+    in production use (build_e_arm_holdout_rows_resumable never passes it)."""
     samples: Dict[str, List[float]] = {}
-    for i in range(N_NULL_DRAWS):
+    start_i = 0
+    if checkpoint_path is not None:
+        ck = _load_null_checkpoint(checkpoint_path, N, B, geometry, curve_index)
+        if ck is not None:
+            samples = {k: list(v) for k, v in ck["samples"].items()}
+            start_i = ck["next_draw"]
+            if progress_cb:
+                progress_cb(f"resuming null-build for geometry={geometry} curve_index={curve_index} "
+                            f"from draw {start_i}/{n_draws} (checkpoint found)")
+
+    import random
+    import statistics
+
+    for i in range(start_i, n_draws):
         seed = _seed_int(N, B, M_ARITY, geometry, curve_index, "null", i)
-        rng_state = seed
-        # deterministic sample of B distinct logs in [1, N-1] via Python's
-        # random.Random seeded by the frozen-pattern 32-bit seed above.
-        import random
-        rng = random.Random(rng_state)
+        rng = random.Random(seed)
         D = rng.sample(range(1, N), B)
         counts = cv.count_vector_convolution(D, N, M_ARITY)
         st = cv.stats_from_count_vector(counts, N)
@@ -180,12 +274,29 @@ def _null_distribution(N: int, B: int, geometry: str, curve_index: int) -> Dict[
         row_stats = {"Delta": delta, "E_3": e3, "coverage": st["coverage"], **r_k}
         for k, v in row_stats.items():
             samples.setdefault(k, []).append(v)
-    import statistics
+
+        done = i + 1
+        at_checkpoint_boundary = (done % NULL_CHECKPOINT_EVERY == 0) or (done == n_draws)
+        if checkpoint_path is not None and at_checkpoint_boundary:
+            _atomic_write_json(checkpoint_path, {
+                "N": N, "B": B, "geometry": geometry, "curve_index": curve_index,
+                "next_draw": done, "n_draws": n_draws, "samples": samples,
+            })
+            if progress_cb:
+                progress_cb(f"null-build checkpoint: geometry={geometry} "
+                            f"curve_index={curve_index} draw {done}/{n_draws}")
+        if _test_kill_after is not None and done == _test_kill_after:
+            raise RuntimeError(f"_test_kill_after={_test_kill_after} simulated kill "
+                                f"(test-only hook, never set in production)")
+
     out = {}
     for k, vals in samples.items():
         mean_v = statistics.fmean(vals)
         sd_v = statistics.pstdev(vals) if len(vals) > 1 else 0.0
         out[k] = {"null_mean": mean_v, "null_sd": sd_v}
+
+    if checkpoint_path is not None and os.path.exists(checkpoint_path):
+        os.remove(checkpoint_path)  # cell complete: partial checkpoint no longer needed
     return out
 
 
@@ -273,7 +384,9 @@ def build_e_arm_holdout_rows_resumable(cache_path: str, progress_cb=None) -> Lis
             if progress_cb:
                 progress_cb(f"geometry={geom_name} curve_index={ci}: object cell computed "
                             f"in {time.time()-t0:.1f}s, building 200-draw null...")
-            null_dist = _null_distribution(N, B, geom_name, ci)
+            null_dist = _null_distribution(N, B, geom_name, ci,
+                                            checkpoint_path=_null_checkpoint_path(cache_path),
+                                            progress_cb=progress_cb)
 
             stats = {"Delta": delta, "E_3": e3, "coverage": st["coverage"], **r_k}
             null_mean = {k: null_dist[k]["null_mean"] for k in stats if k in null_dist}
@@ -301,6 +414,64 @@ def build_e_arm_holdout_rows_resumable(cache_path: str, progress_cb=None) -> Lis
     return rows
 
 
+def self_test_null_resume() -> Dict:
+    """Regression test for the checkpoint/resume fix: simulates a container
+    kill partway through a cell's null-building loop and asserts the resumed
+    run's final null_mean/null_sd are IDENTICAL to an uninterrupted run's,
+    and that the checkpoint file is actually being used (not silently
+    ignored/restarted from draw 0). Uses a tiny synthetic (N, B) and a small
+    n_draws so this runs in well under a second -- not the real 200/2^20
+    cell, but the exact same code path."""
+    import tempfile
+
+    test_N, test_B, test_geom, test_ci = 97, 5, "_selftest_geom", 999
+    n_draws = 60
+    # kill strictly after the NULL_CHECKPOINT_EVERY=25 boundary is crossed
+    # (so a checkpoint genuinely exists) but before the next one, so resume
+    # must pick up mid-cell from draw 25, not draw 0 and not draw 30.
+    kill_after = NULL_CHECKPOINT_EVERY + 5
+    assert kill_after < n_draws, "test cell must not complete before the simulated kill"
+
+    with tempfile.TemporaryDirectory() as td:
+        cache_path = os.path.join(td, "self-test-cache.jsonl")
+        ckpt = _null_checkpoint_path(cache_path)
+
+        # (a) uninterrupted reference run, no checkpointing at all.
+        reference = _null_distribution(test_N, test_B, test_geom, test_ci, n_draws=n_draws)
+
+        # (b) simulate a kill: run WITH checkpointing but forced to raise
+        #     after `kill_after` draws, exactly as a container restart would
+        #     kill the process mid-loop.
+        try:
+            _null_distribution(test_N, test_B, test_geom, test_ci, n_draws=n_draws,
+                                checkpoint_path=ckpt, _test_kill_after=kill_after)
+            raise AssertionError("expected simulated kill (_test_kill_after) to raise")
+        except RuntimeError as exc:
+            assert "_test_kill_after" in str(exc), f"unexpected exception: {exc}"
+
+        assert os.path.exists(ckpt), "checkpoint file must survive the simulated kill"
+        import json
+        with open(ckpt) as f:
+            ck_obj = json.load(f)
+        assert ck_obj["next_draw"] == NULL_CHECKPOINT_EVERY, (
+            f"checkpoint should be at the last-crossed boundary "
+            f"({NULL_CHECKPOINT_EVERY}), got {ck_obj['next_draw']}")
+
+        # (c) resume: same cell, checkpoint present, no kill hook this time.
+        resumed = _null_distribution(test_N, test_B, test_geom, test_ci, n_draws=n_draws,
+                                      checkpoint_path=ckpt)
+
+        assert not os.path.exists(ckpt), "checkpoint must be removed once the cell completes"
+        for key in reference:
+            r_mean, r_sd = reference[key]["null_mean"], reference[key]["null_sd"]
+            m_mean, m_sd = resumed[key]["null_mean"], resumed[key]["null_sd"]
+            assert abs(r_mean - m_mean) < 1e-12, f"{key}: null_mean mismatch {r_mean} vs {m_mean}"
+            assert abs(r_sd - m_sd) < 1e-12, f"{key}: null_sd mismatch {r_sd} vs {m_sd}"
+
+    return {"status": "PASS", "n_draws": n_draws, "kill_after": kill_after,
+            "statistics_checked": sorted(reference.keys())}
+
+
 if __name__ == "__main__":
     import json as _json
 
@@ -308,6 +479,11 @@ if __name__ == "__main__":
     result = self_test_reproduce_committed_n14()
     print(_json.dumps(result, indent=2), file=sys.stderr)
     print("self-test: OK -- fb3_core.py reuse verified bit-for-bit against committed data", file=sys.stderr)
+
+    print("running self-test (null-distribution checkpoint/resume)...", file=sys.stderr)
+    resume_result = self_test_null_resume()
+    print(_json.dumps(resume_result, indent=2), file=sys.stderr)
+    print("self-test: OK -- resumed null-build matches uninterrupted run exactly", file=sys.stderr)
 
     if len(sys.argv) > 1 and sys.argv[1] == "--build":
         cache = sys.argv[2] if len(sys.argv) > 2 else "e-arm-holdout-cache.jsonl"
