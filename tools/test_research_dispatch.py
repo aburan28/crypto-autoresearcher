@@ -991,5 +991,45 @@ class InferencePolicyTests(unittest.TestCase):
             self.check("coordinator-orchestration", "executor")
 
 
+class ForwardQueueTests(unittest.TestCase):
+    def test_resolve_forward_follows_canonical_path(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            canonical_rel = "coordination/goals/GOAL-X/batches/BATCH-1/dispatch_queue.json"
+            canonical = root / canonical_rel
+            canonical.parent.mkdir(parents=True)
+            live = queue(task("A", 50), archive_task("ARCHIVE", [task("A", 50)]))
+            canonical.write_text(json.dumps(live), encoding="utf-8")
+            forward_rel = "coordination/pending-ideas/BATCH-1/dispatch_queue.json"
+            forward_path = root / forward_rel
+            forward_path.parent.mkdir(parents=True)
+            stub = {
+                "schema": dispatch.FORWARD_SCHEMA,
+                "batch_id": "BATCH-1",
+                "canonical_queue_path": canonical_rel,
+            }
+            forward_path.write_text(json.dumps(stub), encoding="utf-8")
+            resolved, path = dispatch.resolve_forward_queue(stub, forward_path, root)
+            self.assertEqual(path, canonical.resolve())
+            self.assertEqual(resolved["schema"], dispatch.SCHEMA)
+            self.assertEqual(resolved["objective"], live["objective"])
+
+    def test_non_forward_queue_unchanged(self) -> None:
+        live = queue(task("A", 50), archive_task("ARCHIVE", [task("A", 50)]))
+        path = Path("coordination/goals/GOAL-X/batches/BATCH-1/dispatch_queue.json")
+        resolved, out = dispatch.resolve_forward_queue(live, path, Path("."))
+        self.assertIs(resolved, live)
+        self.assertIs(out, path)
+
+    def test_forward_missing_canonical_rejected(self) -> None:
+        stub = {"schema": dispatch.FORWARD_SCHEMA, "canonical_queue_path": "missing.json"}
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            path = root / "coordination/pending-ideas/BATCH-1/dispatch_queue.json"
+            path.parent.mkdir(parents=True)
+            with self.assertRaisesRegex(dispatch.DispatchError, "does not exist"):
+                dispatch.resolve_forward_queue(stub, path, root)
+
+
 if __name__ == "__main__":
     unittest.main()
