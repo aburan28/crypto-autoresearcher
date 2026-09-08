@@ -992,6 +992,260 @@ class InferencePolicyTests(unittest.TestCase):
             self.check("coordinator-orchestration", "executor")
 
 
+class TerminalSnapshotTests(unittest.TestCase):
+    """Terminal preservation needs explicit, committed, exact Coordinator authority."""
+
+    def setUp(self) -> None:
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name).resolve()
+        self.source = task("SOURCE", 10, state="failed")
+        self.snapshot = archive_task("SNAPSHOT", [self.source], priority=90)
+        self.snapshot["handoff"]["budget"]["maximum_runs"] = 0
+        self.snapshot["dispatch_exception"] = {
+            "kind": "terminal_failure_snapshot_archive",
+            "decision_id": "DEC-20260908-abcdef",
+            "decision_path": "ledger/decisions/DEC-20260908-abcdef.yaml",
+            "approved_by": "coordinator",
+            "source_task_ids": ["SOURCE"],
+            "scientific_effect": "none",
+            "failed_tasks_reclassified_completed": False,
+        }
+        self.q = queue(self.source, self.snapshot)
+        self.git("init", "-q")
+        self.authorize()
+
+    def git(self, *arguments: str) -> str:
+        return subprocess.check_output(
+            ["git", "-C", str(self.root), *arguments], text=True)
+
+    def authorize(self, *, changed: Any = None, commit: bool = True) -> None:
+        by_id = {item["id"]: item for item in self.q["tasks"]}
+        entry = dispatch.terminal_snapshot_authorization(self.snapshot, by_id)
+        self.decision = {"coordinator_decision": {
+            "id": "DEC-20260908-abcdef", "decided_by": "coordinator",
+            "terminal_snapshot_authorizations": [copy.deepcopy(entry)],
+        }}
+        if changed is not None:
+            changed(self.decision)
+        path = self.root / "ledger/decisions/DEC-20260908-abcdef.yaml"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(self.decision) + "\n", encoding="utf-8")
+        if commit:
+            self.git("add", "ledger/decisions/DEC-20260908-abcdef.yaml")
+            self.git("-c", "user.name=fixture", "-c", "user.email=fixture@example.invalid",
+                     "commit", "--allow-empty", "-qm", "Coordinator approval fixture")
+
+    def select(self, **kwargs: Any) -> dict[str, Any]:
+        return dispatch.select(self.q, repository_verifier=dispatch.GitRepositoryVerifier(self.root),
+                               **kwargs)
+
+    def test_terminal_preservation_does_not_complete_producer_or_unblock_science(self) -> None:
+        science = task("SCIENCE", 100, depends_on=["SOURCE", "SNAPSHOT"])
+        self.q["tasks"].extend([science, archive_task("SCIENCE-ARCHIVE", [science])])
+        for state in ("failed", "invalid", "cancelled"):
+            with self.subTest(state=state):
+                self.source["state"] = state
+                self.authorize()
+                before = copy.deepcopy(self.q)
+                plan = self.select()
+                self.assertEqual([item["id"] for item in plan["dispatches"]], ["SNAPSHOT"])
+                self.assertEqual(plan["dispatches"][0]["dispatch_exception"],
+                                 self.snapshot["dispatch_exception"])
+                self.assertEqual(self.q, before)
+                self.assertIn(f"dependency_not_completed:SOURCE:{state}",
+                              deferred_by_id(plan)["SCIENCE"])
+                self.assertTrue(plan["gates"]["archive_tasks_run_in_isolation"])
+
+    def test_absent_or_unknown_marker_does_not_dispatch_failed_source_snapshot(self) -> None:
+        del self.snapshot["dispatch_exception"]
+        self.assertEqual(self.select()["dispatches"], [])
+        self.snapshot["dispatch_exception"] = {"kind": "forged_terminal_snapshot"}
+        self.assertEqual(self.select()["dispatches"], [])
+
+    def test_requires_authority_verifier_even_with_valid_marker(self) -> None:
+        with self.assertRaisesRegex(dispatch.DispatchError, "Coordinator authority verifier"):
+            dispatch.select(self.q)
+
+    def test_uncommitted_authority_cannot_authorize_changed_scope(self) -> None:
+        self.snapshot["write_scope"].append("coordination/new-scope/")
+        self.authorize(commit=False)
+        with self.assertRaisesRegex(dispatch.DispatchError, "exact committed scope authorization"):
+            self.select()
+
+    def test_forged_decisions_rejected(self) -> None:
+        changes = (
+            lambda d: d["coordinator_decision"].update(decided_by="executor"),
+            lambda d: d["coordinator_decision"].update(id="DEC-20260908-fedcba"),
+            lambda d: d["coordinator_decision"].update(terminal_snapshot_authorizations=[]),
+            lambda d: d["coordinator_decision"]["terminal_snapshot_authorizations"][0].update(
+                approved=False),
+            lambda d: d["coordinator_decision"]["terminal_snapshot_authorizations"].append(
+                copy.deepcopy(d["coordinator_decision"]["terminal_snapshot_authorizations"][0])),
+        )
+        for index, change in enumerate(changes):
+            with self.subTest(index=index):
+                self.authorize(changed=change)
+                with self.assertRaises(dispatch.DispatchError):
+                    self.select()
+
+    def test_missing_or_malformed_committed_decision_fails_cleanly(self) -> None:
+        self.snapshot["dispatch_exception"].update(
+            decision_id="DEC-20260908-fedcba",
+            decision_path="ledger/decisions/DEC-20260908-fedcba.yaml")
+        with self.assertRaisesRegex(dispatch.DispatchError, "cannot read committed Coordinator"):
+            self.select()
+        self.snapshot["dispatch_exception"].update(
+            decision_id="DEC-20260908-abcdef",
+            decision_path="ledger/decisions/DEC-20260908-abcdef.yaml")
+        path = self.root / "ledger/decisions/DEC-20260908-abcdef.yaml"
+        path.write_text("coordinator_decision: [\n", encoding="utf-8")
+        self.git("add", "ledger/decisions/DEC-20260908-abcdef.yaml")
+        self.git("-c", "user.name=fixture", "-c", "user.email=fixture@example.invalid",
+                 "commit", "-qm", "malformed authority fixture")
+        with self.assertRaisesRegex(dispatch.DispatchError, "cannot read committed Coordinator"):
+            self.select()
+
+    def test_marker_requires_exact_approval_and_zero_runs(self) -> None:
+        original = copy.deepcopy(self.snapshot)
+        mutations = (
+            lambda t: t["dispatch_exception"].update(approved_by="executor"),
+            lambda t: t["dispatch_exception"].update(scientific_effect="activate"),
+            lambda t: t["dispatch_exception"].update(failed_tasks_reclassified_completed=True),
+            lambda t: t["dispatch_exception"].update(decision_path="../outside.yaml"),
+            lambda t: t["handoff"]["budget"].update(maximum_runs=1),
+            lambda t: t["handoff"]["budget"].update(maximum_runs=False),
+            lambda t: t["handoff"]["budget"].update(experiment_maximum_runs=1),
+        )
+        for index, mutate in enumerate(mutations):
+            with self.subTest(index=index):
+                self.snapshot.clear()
+                self.snapshot.update(copy.deepcopy(original))
+                mutate(self.snapshot)
+                self.authorize()
+                with self.assertRaises(dispatch.DispatchError):
+                    self.select()
+
+    def test_non_snapshot_executor_and_scientific_producers_cannot_use_exception(self) -> None:
+        original = copy.deepcopy(self.snapshot)
+        mutations = (
+            lambda t: t.update(role="executor"),
+            lambda t: t.update(review_required=True),
+            lambda t: t["archive"].update(kind="ledger"),
+            lambda t: t["archive"].update(binding_mode="content_first"),
+        )
+        for index, mutate in enumerate(mutations):
+            with self.subTest(index=index):
+                self.snapshot.clear()
+                self.snapshot.update(copy.deepcopy(original))
+                mutate(self.snapshot)
+                with self.assertRaises(dispatch.DispatchError):
+                    self.select()
+        self.source["dispatch_exception"] = copy.deepcopy(original["dispatch_exception"])
+        self.snapshot.clear()
+        self.snapshot.update(original)
+        with self.assertRaisesRegex(dispatch.DispatchError, "coordinator-owned commit-bound snapshot"):
+            self.select()
+
+    def test_marker_cannot_name_nonterminal_or_completed_producer(self) -> None:
+        for state in ("queued", "running", "blocked", "completed"):
+            with self.subTest(state=state):
+                self.source["state"] = state
+                self.authorize()
+                with self.assertRaisesRegex(dispatch.DispatchError, "exactly every terminal"):
+                    self.select()
+
+    def test_failed_ids_must_be_exact_dependencies_and_archived_sources(self) -> None:
+        unrelated = task("UNRELATED", 1, state="failed")
+        self.q["tasks"].extend([unrelated, archive_task("OTHER-ARCHIVE", [unrelated])])
+        for named in (["UNRELATED"], ["SOURCE", "UNRELATED"], ["SOURCE", "SOURCE"], []):
+            with self.subTest(named=named):
+                self.snapshot["dispatch_exception"]["source_task_ids"] = named
+                with self.assertRaises(dispatch.DispatchError):
+                    self.select()
+        self.snapshot["depends_on"].append("UNRELATED")
+        self.snapshot["dispatch_exception"]["source_task_ids"] = ["SOURCE"]
+        with self.assertRaisesRegex(dispatch.DispatchError, "exactly every terminal"):
+            self.select()
+        self.snapshot["dispatch_exception"]["source_task_ids"] = ["SOURCE", "UNRELATED"]
+        with self.assertRaisesRegex(dispatch.DispatchError, "only archived source tasks"):
+            self.select()
+
+    def test_unrelated_queued_dependency_is_not_bypassed(self) -> None:
+        other = task("OTHER", 1, state="queued")
+        self.q["tasks"].extend([other, archive_task("OTHER-ARCHIVE", [other])])
+        self.snapshot["depends_on"].append("OTHER")
+        self.authorize()
+        plan = self.select()
+        self.assertEqual([item["id"] for item in plan["dispatches"]], ["OTHER"])
+        self.assertIn("dependency_not_completed:OTHER:queued", deferred_by_id(plan)["SNAPSHOT"])
+
+    def test_source_artifact_and_write_scope_changes_break_authority_binding(self) -> None:
+        self.source["write_scope"].append("coordination/other/")
+        with self.assertRaisesRegex(dispatch.DispatchError, "exact committed scope authorization"):
+            self.select()
+        self.source["write_scope"].pop()
+        self.source["artifact_paths"].append("coordination/tasks/SOURCE/extra.json")
+        self.snapshot["read_scope"].append("coordination/tasks/SOURCE/extra.json")
+        with self.assertRaisesRegex(dispatch.DispatchError, "exact committed scope authorization"):
+            self.select()
+
+    def test_live_snapshot_claim_is_preserved_and_not_offered_again(self) -> None:
+        claim = {"status": "live", **lease(owner="coordinator-1")}
+        plan = self.select(claims={"SNAPSHOT": claim})
+        self.assertEqual(plan["claims"]["SNAPSHOT"]["applied"], "running_with_lease")
+        self.assertEqual(plan["dispatches"][0]["state"], "running")
+        self.assertEqual(plan["dispatches"][0]["claim"]["owner"], "coordinator-1")
+
+    def test_live_snapshot_claim_cannot_bypass_committed_authority(self) -> None:
+        self.snapshot["write_scope"].append("coordination/unauthorized/")
+        claim = {"status": "live", **lease(owner="coordinator-1")}
+        with self.assertRaisesRegex(dispatch.DispatchError, "exact committed scope authorization"):
+            self.select(claims={"SNAPSHOT": claim})
+
+    def test_live_worker_claim_still_requires_snapshot_isolation(self) -> None:
+        other = task("OTHER", 1)
+        self.q["tasks"].extend([other, archive_task("OTHER-ARCHIVE", [other])])
+        claim = {"status": "live", **lease()}
+        plan = self.select(claims={"OTHER": claim})
+        self.assertEqual([item["id"] for item in plan["dispatches"]], ["OTHER"])
+        self.assertIn("archive_requires_isolation:running:OTHER", deferred_by_id(plan)["SNAPSHOT"])
+
+    def test_running_snapshot_cannot_overlap_live_worker(self) -> None:
+        other = task("OTHER", 1)
+        self.q["tasks"].extend([other, archive_task("OTHER-ARCHIVE", [other])])
+        claim = {"status": "live", **lease()}
+        with self.assertRaisesRegex(dispatch.DispatchError, "must run alone"):
+            self.select(claims={"SNAPSHOT": claim, "OTHER": claim})
+
+    def test_completed_snapshot_still_requires_immutable_git_receipt(self) -> None:
+        self.snapshot["state"] = "completed"
+        with self.assertRaisesRegex(dispatch.DispatchError, "requires archive.commit_sha"):
+            self.select()
+        contents = {
+            self.source["artifact_paths"][0]: b"partial producer artifact\n",
+            self.snapshot["artifact_paths"][0]: b"terminal preservation receipt\n",
+        }
+        parent = self.git("rev-parse", "HEAD").strip()
+        for path, content in contents.items():
+            target = self.root / path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(content)
+        self.git("add", *contents)
+        self.git("-c", "user.name=fixture", "-c", "user.email=fixture@example.invalid",
+                 "commit", "-qm", "SNAPSHOT immutable terminal preservation")
+        self.snapshot["archive"].update(
+            commit_sha=self.git("rev-parse", "HEAD").strip(), parent_sha=parent,
+            path_sha256={path: hashlib.sha256(value).hexdigest() for path, value in contents.items()})
+        self.assertEqual(self.select()["dispatches"], [])
+        science = task("SCIENCE", 100, depends_on=["SOURCE", "SNAPSHOT"])
+        self.q["tasks"].extend([science, archive_task("SCIENCE-ARCHIVE", [science])])
+        self.assertEqual(self.select()["dispatches"], [])
+        self.snapshot["archive"]["path_sha256"][self.source["artifact_paths"][0]] = "0" * 64
+        with self.assertRaisesRegex(dispatch.DispatchError, "content hash mismatch"):
+            self.select()
+
+
 class ForwardQueueTests(unittest.TestCase):
     """Forwarding CLI fixtures use only a temporary repository and local files."""
 
