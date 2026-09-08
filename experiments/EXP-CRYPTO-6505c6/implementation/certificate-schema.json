@@ -1,0 +1,136 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "experiments/EXP-CRYPTO-6505c6/implementation/certificate-schema.json",
+  "title": "EXP-CRYPTO-6505c6 certificate and 20-file audit bundle schema (structural preparation only)",
+  "description": "Schema for the statement/scope/quantifier/source/anchor/dependency/status structure a future certificate must have, and the structural constraints on the 20-file audit output bundle this specification declares. This schema validates STRUCTURE only. Passing this schema never discharges a mathematical premise; see checker-specification.md soundness_boundary.",
+  "definitions": {
+    "certificate": {
+      "type": "object",
+      "description": "One certificate unit. Content fields (statement text, actual sources, actual dependency proofs) are never fabricated by this schema; it constrains shape, not truth.",
+      "required": ["cert_id", "statement", "scope", "quantifier", "source", "anchor", "dependency", "status"],
+      "properties": {
+        "cert_id": {
+          "type": "string",
+          "description": "Unique explicit certificate-ID marker, referenced identically by dependency-dag.yaml and checker-results.yaml.",
+          "pattern": "^CERT-[A-Za-z0-9_-]+$"
+        },
+        "statement": {
+          "type": "string",
+          "description": "Exact mathematical statement the certificate claims to establish, at its declared scope. Must not be a paraphrase that silently widens scope."
+        },
+        "scope": {
+          "type": "object",
+          "description": "Exact case/base/family/parameter-locus binding for which the statement is claimed.",
+          "required": ["case_id", "family", "base", "parameter_locus"],
+          "properties": {
+            "case_id": {"type": "string", "pattern": "^case-(0[1-9]|1[0-6])$"},
+            "family": {"type": "string", "enum": ["K", "L", "C1", "C2"]},
+            "base": {"type": "string", "enum": ["main", "D0", "D1", "D01"]},
+            "parameter_locus": {"type": "string"}
+          }
+        },
+        "quantifier": {
+          "type": "object",
+          "description": "Exact quantifier order and range for the statement (e.g. 'for every n>=1 and all (Q,R)'). Never inferred from a finite sample.",
+          "required": ["order", "range"],
+          "properties": {
+            "order": {"type": "string"},
+            "range": {"type": "string"}
+          }
+        },
+        "source": {
+          "type": "array",
+          "description": "Primary sources actually read and matched, with locator (theorem/definition/section) and provenance. Empty array is valid and means no source has been read for this certificate yet.",
+          "items": {
+            "type": "object",
+            "required": ["locator", "provenance", "read_status"],
+            "properties": {
+              "locator": {"type": "string"},
+              "provenance": {"type": "string", "enum": ["internal", "retrieved"]},
+              "read_status": {"type": "string", "enum": ["read_and_matched", "cited_not_yet_matched", "not_yet_read"]},
+              "sha256": {"type": ["string", "null"]}
+            }
+          }
+        },
+        "anchor": {
+          "type": "string",
+          "description": "Anchor into certificate-bundle.md identifying where the full certificate text/proof artifact lives. Must not be dangling; checker-results.yaml verifies resolution."
+        },
+        "dependency": {
+          "type": "array",
+          "description": "cert_id list of certificates this one depends on. Forms edges of dependency-dag.yaml; must not introduce a cycle.",
+          "items": {"type": "string", "pattern": "^CERT-[A-Za-z0-9_-]+$"}
+        },
+        "status": {
+          "type": "string",
+          "enum": ["CERTIFIED", "REFUTED", "OPEN", "OUTSIDE_MAIN_SCOPE_CLASSIFIED", "NOT_APPLICABLE_WITH_CERTIFICATE", "NOT_ATTEMPTED_AFTER_STOP"],
+          "description": "Exactly the frozen specification's audit-time status enum. This preparation task assigns no value to any real certificate; the enum is declared here for future use."
+        }
+      }
+    },
+    "obligation_row": {
+      "type": "object",
+      "required": ["case_id", "obligation_id", "applicability_condition", "required_certificate_fields", "result_status"],
+      "properties": {
+        "case_id": {"type": "string", "pattern": "^case-(0[1-9]|1[0-6])$"},
+        "obligation_id": {"type": "string", "pattern": "^O(0[1-9]|10)$"},
+        "applicability_condition": {"type": "string"},
+        "required_certificate_fields": {
+          "type": "array",
+          "items": {"type": "string", "enum": ["statement", "scope", "quantifier", "source", "anchor", "dependency", "status"]}
+        },
+        "result_status": {"type": ["string", "null"], "enum": [null, "CERTIFIED", "REFUTED", "OPEN", "OUTSIDE_MAIN_SCOPE_CLASSIFIED", "NOT_APPLICABLE_WITH_CERTIFICATE", "NOT_ATTEMPTED_AFTER_STOP"]},
+        "certificate_anchor": {"type": ["string", "null"]},
+        "dependency_ids": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "chart_row": {
+      "type": "object",
+      "required": ["case_id", "left_tag", "right_tag", "domain_predicate", "status"],
+      "properties": {
+        "case_id": {"type": "string", "pattern": "^case-(0[1-9]|1[0-6])$"},
+        "left_tag": {"type": "string", "enum": ["P_identity", "S_identity", "secant", "tangent", "inverse"]},
+        "right_tag": {"type": "string", "enum": ["P_identity", "S_identity", "secant", "tangent", "inverse"]},
+        "domain_predicate": {"type": "string"},
+        "status": {"type": "string", "enum": ["COMPATIBLE", "EMPTY_WITH_CERTIFICATE", "NOT_ATTEMPTED_AFTER_STOP", "OPEN"]},
+        "certificate_anchor": {"type": ["string", "null"]}
+      }
+    }
+  },
+  "audit_bundle_contract": {
+    "description": "Structural constraints on the 20-file root output bundle a future genuinely-claimed audit will produce. This preparation task produces none of these 20 files; it produces the nine implementation/ preparation files listed in the handoff instead.",
+    "exact_root_file_count": 20,
+    "root_filenames": [
+      "audit-manifest.yaml",
+      "source-readings.yaml",
+      "source-hypothesis-matrix.yaml",
+      "case-index.yaml",
+      "obligation-results.yaml",
+      "chart-coverage.yaml",
+      "normalization-and-weights.yaml",
+      "complexity-ledger.yaml",
+      "shared-constituents.yaml",
+      "moment-certificates.yaml",
+      "stratification-application.yaml",
+      "control-results.yaml",
+      "counterexamples.yaml",
+      "open-obligations.yaml",
+      "work-and-resources.yaml",
+      "audit-report.md",
+      "certificate-bundle.md",
+      "dependency-dag.yaml",
+      "checker-results.yaml",
+      "artifact-sha256.json"
+    ],
+    "obligation_rows_file": "obligation-results.yaml",
+    "obligation_rows_exact_count": 160,
+    "obligation_row_schema_ref": "#/definitions/obligation_row",
+    "chart_rows_file": "chart-coverage.yaml",
+    "chart_rows_exact_count": 400,
+    "chart_row_schema_ref": "#/definitions/chart_row",
+    "no_per_cell_directories": true,
+    "hash_index_file": "artifact-sha256.json",
+    "hash_index_rule": "Hash every materialized root file except artifact-sha256.json itself, which the archive step binds instead.",
+    "duplicate_or_dangling_anchor_rule": "Reject any cert_id referenced in dependency-dag.yaml or checker-results.yaml that is not defined exactly once in certificate-bundle.md."
+  }
+}
