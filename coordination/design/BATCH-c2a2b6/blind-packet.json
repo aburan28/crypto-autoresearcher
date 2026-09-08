@@ -1,0 +1,163 @@
+{
+  "task_id": "TASK-20260908-ece27b",
+  "scope": "Blind independent derivation of finite typed counter quantities; no expected totals or producer implementation. No commands, tests, experiments or source exploration. Read only this packet and own handoff/role contract.",
+  "field": {
+    "p": 131,
+    "residues": "canonical integers0..130"
+  },
+  "kernel": {
+    "arithmetic": "Canonical residues0..p-1; all operations reduce modulo p. Timing/counting execute identical instructions apart from the enabled per-type counter sink. The replacement POW is a declared arithmetic algorithm change used in both modes, not stock SymPy timing.",
+    "events": {
+      "M": "MUL(a,b) performs one residue product/reduction and emits one M even ifa=b numerically or either operand is0/1.",
+      "S": "SQUARE(a) performs one residue square/reduction and emits one S. It does not call the public MUL emitter.",
+      "I": "INV(nonzero a) performs extended Euclid on(p,a), emitting one I; quotient/remainder/coefficient integer work is separately counted boundary work, not recursively charged FpM/S. INV(0) fails explicitly.",
+      "A": "ADD,SUB,NEG each emits exactly one A and performs its direct operation/reduction. Reverse subtraction calls direct SUB once, not NEG plus ADD. Small constants become field multiplications when multiplied; no hidden free repeated addition."
+    },
+    "division": "DIV(a,b)=MUL(a,INV(b)), emitting I+M exactly once, includinga=0; preserve explicit algorithmic skips such as monic divisor1 before the call.",
+    "pow": "For integer n=0 returnONE without events. Initialize r=ONE and b=a for n>0, or b=INV(a) and n=abs(n) for n<0, retaining that inverse as the base. While n>0, ifodd setr=MUL(r,b); n=floor(n/2); ifn>0 setb=SQUARE(b). Returnr."
+  },
+  "programs": [
+    {
+      "id": "schoolbook",
+      "definition": "For each ofu repetitions, multiply two degree7 polynomials as8by8 nested coefficient loops, accumulate into15 initialized-zero slots with one MUL and one ADD for every pair. Do not skip zero intermediate values."
+    },
+    {
+      "id": "square",
+      "definition": "64*u direct SQUARE calls on the sealed nonzero operand stream."
+    },
+    {
+      "id": "inverse",
+      "definition": "8*u direct INV calls on sealed nonzero operands."
+    },
+    {
+      "id": "add",
+      "definition": "64*u ADD calls on sealed operand pairs."
+    },
+    {
+      "id": "division_neg_power",
+      "definition": "Repeatu times DIV(a,b),NEG(a),SUB(a,b),POW(a,13),POW(a,-3), in that order on sealed nonzero a,b; consume all results."
+    }
+  ],
+  "multipliers": [
+    1,
+    2,
+    4,
+    8,
+    16
+  ],
+  "calibration_inputs": "For each sealed fixture and program draw canonical nonzero operands with its work_seed and named calibration domain; loops use ascending indices. Identical inputs across all modes/loads/repeats. All outputs are independently checked and consumed by a hash sink.",
+  "adapter_inputs": [
+    {
+      "id": "quo",
+      "operation": "domain.quo(6,3)"
+    },
+    {
+      "id": "exquo",
+      "operation": "domain.exquo(6,3)"
+    },
+    {
+      "id": "rsub",
+      "operation": "7-coeff(3)"
+    },
+    {
+      "id": "rdiv",
+      "operation": "6/coeff(3)"
+    },
+    {
+      "id": "pow0",
+      "operation": "coeff(3)**0"
+    },
+    {
+      "id": "pow1",
+      "operation": "coeff(3)**1"
+    },
+    {
+      "id": "pow2",
+      "operation": "coeff(3)**2"
+    },
+    {
+      "id": "pow_negative",
+      "operation": "coeff(3)**-3"
+    },
+    {
+      "id": "equal_mul",
+      "operation": "coeff(3)*coeff(3)"
+    },
+    {
+      "id": "mixed_mul",
+      "operation": "coeff(3)*2"
+    },
+    {
+      "id": "mixed_rmul",
+      "operation": "2*coeff(3)"
+    },
+    {
+      "id": "sub",
+      "operation": "coeff(3)-coeff(3)"
+    },
+    {
+      "id": "neg",
+      "operation": "-coeff(3)"
+    },
+    {
+      "id": "rem",
+      "operation": "rem(2X+3,[X+5])"
+    },
+    {
+      "id": "monic",
+      "operation": "monic(2X+3)"
+    },
+    {
+      "id": "monic_one",
+      "operation": "monic(X+5)"
+    },
+    {
+      "id": "monic_zero",
+      "operation": "monic(0)"
+    },
+    {
+      "id": "shift",
+      "operation": "mul_monom(2X+3,X^2)"
+    },
+    {
+      "id": "imul_num",
+      "operation": "imul_num(2X+3,2)"
+    }
+  ],
+  "adapter_scope": "p131; Fp[X]; construct input polynomials before counter reset, then only named operation; counts disabled in timing. Derive counting vector and output independently.",
+  "instructions": "Return structured YAML review_report with derivations for every program/adapter case, ambiguity findings, known-false counter-control reasoning and review_attestation. State all sources actually read, no sibling reports, blind_from_respected only if true. This is paper/source reasoning, not executed tests or independent empirical proof.",
+  "upstream_source_excerpts": [
+    {
+      "path": "sympy/polys/rings.py",
+      "version": "1.14.0",
+      "full_file_sha256": "295740dc2d381b61f760df35accfbc391b141ea9a4b48af3d12d2d7f02f03788",
+      "start_line": 1460,
+      "end_line": 1648,
+      "text": "            return p2.exquo(p1)\n\n    def _term_div(self):\n        zm = self.ring.zero_monom\n        domain = self.ring.domain\n        domain_quo = domain.quo\n        monomial_div = self.ring.monomial_div\n\n        if domain.is_Field:\n            def term_div(a_lm_a_lc, b_lm_b_lc):\n                a_lm, a_lc = a_lm_a_lc\n                b_lm, b_lc = b_lm_b_lc\n                if b_lm == zm: # apparently this is a very common case\n                    monom = a_lm\n                else:\n                    monom = monomial_div(a_lm, b_lm)\n                if monom is not None:\n                    return monom, domain_quo(a_lc, b_lc)\n                else:\n                    return None\n        else:\n            def term_div(a_lm_a_lc, b_lm_b_lc):\n                a_lm, a_lc = a_lm_a_lc\n                b_lm, b_lc = b_lm_b_lc\n                if b_lm == zm: # apparently this is a very common case\n                    monom = a_lm\n                else:\n                    monom = monomial_div(a_lm, b_lm)\n                if not (monom is None or a_lc % b_lc):\n                    return monom, domain_quo(a_lc, b_lc)\n                else:\n                    return None\n\n        return term_div\n\n    def div(self, fv):\n        \"\"\"Division algorithm, see [CLO] p64.\n\n        fv array of polynomials\n           return qv, r such that\n           self = sum(fv[i]*qv[i]) + r\n\n        All polynomials are required not to be Laurent polynomials.\n\n        Examples\n        ========\n\n        >>> from sympy.polys.rings import ring\n        >>> from sympy.polys.domains import ZZ\n\n        >>> _, x, y = ring('x, y', ZZ)\n        >>> f = x**3\n        >>> f0 = x - y**2\n        >>> f1 = x - y\n        >>> qv, r = f.div((f0, f1))\n        >>> qv[0]\n        x**2 + x*y**2 + y**4\n        >>> qv[1]\n        0\n        >>> r\n        y**6\n\n        \"\"\"\n        ring = self.ring\n        ret_single = False\n        if isinstance(fv, PolyElement):\n            ret_single = True\n            fv = [fv]\n        if not all(fv):\n            raise ZeroDivisionError(\"polynomial division\")\n        if not self:\n            if ret_single:\n                return ring.zero, ring.zero\n            else:\n                return [], ring.zero\n        for f in fv:\n            if f.ring != ring:\n                raise ValueError('self and f must have the same ring')\n        s = len(fv)\n        qv = [ring.zero for i in range(s)]\n        p = self.copy()\n        r = ring.zero\n        term_div = self._term_div()\n        expvs = [fx.leading_expv() for fx in fv]\n        while p:\n            i = 0\n            divoccurred = 0\n            while i < s and divoccurred == 0:\n                expv = p.leading_expv()\n                term = term_div((expv, p[expv]), (expvs[i], fv[i][expvs[i]]))\n                if term is not None:\n                    expv1, c = term\n                    qv[i] = qv[i]._iadd_monom((expv1, c))\n                    p = p._iadd_poly_monom(fv[i], (expv1, -c))\n                    divoccurred = 1\n                else:\n                    i += 1\n            if not divoccurred:\n                expv =  p.leading_expv()\n                r = r._iadd_monom((expv, p[expv]))\n                del p[expv]\n        if expv == ring.zero_monom:\n            r += p\n        if ret_single:\n            if not qv:\n                return ring.zero, r\n            else:\n                return qv[0], r\n        else:\n            return qv, r\n\n    def rem(self, G):\n        f = self\n        if isinstance(G, PolyElement):\n            G = [G]\n        if not all(G):\n            raise ZeroDivisionError(\"polynomial division\")\n        ring = f.ring\n        domain = ring.domain\n        zero = domain.zero\n        monomial_mul = ring.monomial_mul\n        r = ring.zero\n        term_div = f._term_div()\n        ltf = f.LT\n        f = f.copy()\n        get = f.get\n        while f:\n            for g in G:\n                tq = term_div(ltf, g.LT)\n                if tq is not None:\n                    m, c = tq\n                    for mg, cg in g.iterterms():\n                        m1 = monomial_mul(mg, m)\n                        c1 = get(m1, zero) - c*cg\n                        if not c1:\n                            del f[m1]\n                        else:\n                            f[m1] = c1\n                    ltm = f.leading_expv()\n                    if ltm is not None:\n                        ltf = ltm, f[ltm]\n\n                    break\n            else:\n                ltm, ltc = ltf\n                if ltm in r:\n                    r[ltm] += ltc\n                else:\n                    r[ltm] = ltc\n                del f[ltm]\n                ltm = f.leading_expv()\n                if ltm is not None:\n                    ltf = ltm, f[ltm]\n\n        return r\n\n    def quo(f, G):\n        return f.div(G)[0]\n\n    def exquo(f, G):\n        q, r = f.div(G)\n\n        if not r:\n            return q\n        else:\n            raise ExactQuotientFailed(f, G)\n\n    def _iadd_monom(self, mc):\n        \"\"\"add to self the monomial coeff*x0**i0*x1**i1*...\n        unless self is a generator -- then just return the sum of the two.\n\n        mc is a tuple, (monom, coeff), where monomial is (i0, i1, ...)\n\n        Examples\n        ========\n\n        >>> from sympy.polys.rings import ring\n        >>> from sympy.polys.domains import ZZ\n\n        >>> _, x, y = ring('x, y', ZZ)\n        >>> p = x**4 + 2*y\n        >>> m = (1, 2)\n        >>> p1 = p._iadd_monom((m, 5))\n        >>> p1\n        x**4 + 5*x*y**2 + 2*y\n        >>> p1 is p\n        True\n        >>> p = x\n        >>> p1 = p._iadd_monom((m, 5))"
+    },
+    {
+      "path": "sympy/polys/rings.py",
+      "version": "1.14.0",
+      "full_file_sha256": "295740dc2d381b61f760df35accfbc391b141ea9a4b48af3d12d2d7f02f03788",
+      "start_line": 2055,
+      "end_line": 2125,
+      "text": "    def monic(f):\n        \"\"\"Divides all coefficients by the leading coefficient. \"\"\"\n        if not f:\n            return f\n        else:\n            return f.quo_ground(f.LC)\n\n    def mul_ground(f, x):\n        if not x:\n            return f.ring.zero\n\n        terms = [ (monom, coeff*x) for monom, coeff in f.iterterms() ]\n        return f.new(terms)\n\n    def mul_monom(f, monom):\n        monomial_mul = f.ring.monomial_mul\n        terms = [ (monomial_mul(f_monom, monom), f_coeff) for f_monom, f_coeff in f.items() ]\n        return f.new(terms)\n\n    def mul_term(f, term):\n        monom, coeff = term\n\n        if not f or not coeff:\n            return f.ring.zero\n        elif monom == f.ring.zero_monom:\n            return f.mul_ground(coeff)\n\n        monomial_mul = f.ring.monomial_mul\n        terms = [ (monomial_mul(f_monom, monom), f_coeff*coeff) for f_monom, f_coeff in f.items() ]\n        return f.new(terms)\n\n    def quo_ground(f, x):\n        domain = f.ring.domain\n\n        if not x:\n            raise ZeroDivisionError('polynomial division')\n        if not f or x == domain.one:\n            return f\n\n        if domain.is_Field:\n            quo = domain.quo\n            terms = [ (monom, quo(coeff, x)) for monom, coeff in f.iterterms() ]\n        else:\n            terms = [ (monom, coeff // x) for monom, coeff in f.iterterms() if not (coeff % x) ]\n\n        return f.new(terms)\n\n    def quo_term(f, term):\n        monom, coeff = term\n\n        if not coeff:\n            raise ZeroDivisionError(\"polynomial division\")\n        elif not f:\n            return f.ring.zero\n        elif monom == f.ring.zero_monom:\n            return f.quo_ground(coeff)\n\n        term_div = f._term_div()\n\n        terms = [ term_div(t, term) for t in f.iterterms() ]\n        return f.new([ t for t in terms if t is not None ])\n\n    def trunc_ground(f, p):\n        if f.ring.domain.is_ZZ:\n            terms = []\n\n            for monom, coeff in f.iterterms():\n                coeff = coeff % p\n\n                if coeff > p // 2:\n                    coeff = coeff - p"
+    },
+    {
+      "path": "sympy/polys/rings.py",
+      "version": "1.14.0",
+      "full_file_sha256": "295740dc2d381b61f760df35accfbc391b141ea9a4b48af3d12d2d7f02f03788",
+      "start_line": 590,
+      "end_line": 625,
+      "text": "        super().__init__(init)\n        self.ring = ring\n        # This check would be too slow to run every time:\n        # self._check()\n\n    def _check(self):\n        assert isinstance(self, PolyElement)\n        assert isinstance(self.ring, PolyRing)\n        dom = self.ring.domain\n        assert isinstance(dom, Domain)\n        for monom, coeff in self.items():\n            assert dom.of_type(coeff)\n            assert len(monom) == self.ring.ngens\n            assert all(isinstance(exp, int) and exp >= 0 for exp in monom)\n\n    def new(self, init):\n        return self.__class__(self.ring, init)\n\n    def parent(self):\n        return self.ring.to_domain()\n\n    def __getnewargs__(self):\n        return (self.ring, list(self.iterterms()))\n\n    _hash = None\n\n    def __hash__(self):\n        # XXX: This computes a hash of a dictionary, but currently we don't\n        # protect dictionary from being changed so any use site modifications\n        # will make hashing go wrong. Use this feature with caution until we\n        # figure out how to make a safe API without compromising speed of this\n        # low-level class.\n        _hash = self._hash\n        if _hash is None:\n            self._hash = _hash = hash((self.ring, frozenset(self.items())))\n        return _hash"
+    },
+    {
+      "path": "sympy/polys/domains/field.py",
+      "version": "1.14.0",
+      "full_file_sha256": "7d1d25eb0648bf4d94309e6b8a810ff75d23194562571dfc11dc2d26e257e6f8",
+      "start_line": 1,
+      "end_line": 48,
+      "text": "\"\"\"Implementation of :class:`Field` class. \"\"\"\n\n\nfrom sympy.polys.domains.ring import Ring\nfrom sympy.polys.polyerrors import NotReversible, DomainError\nfrom sympy.utilities import public\n\n@public\nclass Field(Ring):\n    \"\"\"Represents a field domain. \"\"\"\n\n    is_Field = True\n    is_PID = True\n\n    def get_ring(self):\n        \"\"\"Returns a ring associated with ``self``. \"\"\"\n        raise DomainError('there is no ring associated with %s' % self)\n\n    def get_field(self):\n        \"\"\"Returns a field associated with ``self``. \"\"\"\n        return self\n\n    def exquo(self, a, b):\n        \"\"\"Exact quotient of ``a`` and ``b``, implies ``__truediv__``.  \"\"\"\n        return a / b\n\n    def quo(self, a, b):\n        \"\"\"Quotient of ``a`` and ``b``, implies ``__truediv__``. \"\"\"\n        return a / b\n\n    def rem(self, a, b):\n        \"\"\"Remainder of ``a`` and ``b``, implies nothing.  \"\"\"\n        return self.zero\n\n    def div(self, a, b):\n        \"\"\"Division of ``a`` and ``b``, implies ``__truediv__``. \"\"\"\n        return a / b, self.zero\n\n    def gcd(self, a, b):\n        \"\"\"\n        Returns GCD of ``a`` and ``b``.\n\n        This definition of GCD over fields allows to clear denominators\n        in `primitive()`.\n\n        Examples\n        ========\n"
+    }
+  ]
+}
