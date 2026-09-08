@@ -369,3 +369,112 @@ BOTH fixes) as detached background processes, same commands as
 dispatch. Both confirmed alive and checkpointing/logging within a few minutes
 of launch; the grammar driver reached complexity 4 with zero exceptions
 before this report was written.
+
+## Checkpoint-resume fix for stage1_grammar_driver.py (this dispatch, 2026-09-08)
+
+**Bug (confirmed by direct source reading, not assumed):** the note directly
+above was correct and remained true across every subsequent relaunch for
+~20 restart cycles: `stage1_grammar_driver.py`'s `main()` always initialized
+`checkpoint_levels = []` / `front_state = {}` fresh and never read
+`enumeration-checkpoint.json` / `pareto-fronts-raw.json` back in on startup,
+even though `write_all_checkpoints()` writes both progressively, one
+complexity level at a time, as each level's `evaluate_level_for_targets`
+pass completes. Because own-enumeration/E-arm-holdout row data IS cached and
+cheap to rebuild (confirmed above, ~1s), but constant-fitting + held-out
+scoring is NOT, every container restart cheaply re-derived the row data and
+then re-paid the FULL expensive fit/score climb from complexity 1, so the
+run had essentially never gotten past complexity 4-5 across ~20 restarts.
+
+**Fix applied to `source/stage1_grammar_driver.py`** (same class of fix as
+`stage1_e_arm_holdout.py`'s intra-cell checkpointing, commit `46fe1eca9`, but
+at the coarser per-complexity-level granularity that fits this loop): the
+level-registration logic (previously inlined once before the main loop for
+complexity 1 and again inside the loop for complexity >=2) was factored into
+a shared `build_level_exprs(c)` helper. `main()` now checks, on startup,
+whether `enumeration-checkpoint.json`/`pareto-fronts-raw.json` already exist
+in the SAME `--out-dir` for the SAME `pack`/`max_complexity`. If so, it
+re-derives (registration only, via `build_level_exprs`, NEVER re-fitting or
+re-scoring) every already-completed level to rebuild the enumeration state
+(`by_complexity`, `seen_string_hashes`, `seen_fp_hashes`), verifying at each
+level that the re-derived `new_registered` count matches the count the
+original run recorded -- if any level disagrees, the resume is aborted and
+the run falls back to a clean from-scratch enumeration rather than trusting
+a possibly-nondeterministic partial rebuild. On success, `front_state` is
+reloaded verbatim from `pareto-fronts-raw.json` and the fit/score loop
+resumes at the next incomplete complexity level -- no already-completed
+level is ever re-scored.
+
+**Granularity justification:** one full complexity level's
+`evaluate_level_for_targets` pass across every target is the natural atomic
+unit, because `write_all_checkpoints()` only ever commits after that pass
+completes for ALL targets at that level -- a level is either fully scored
+and committed, or not started at all, never partially committed. Finer
+(sub-level, per-target) checkpointing was considered but rejected: unlike
+`stage1_e_arm_holdout.py`'s per-cell draws (which are independent,
+long-running units worth checkpointing individually), a single level's
+per-target fit/score pass across the observed target count (14, all 14
+scored within seconds of each other at low complexity per the timestamps in
+this file's earlier sections) is itself fast relative to the whole level;
+the expensive part scales with the NUMBER of complexity-C expressions
+enumerated, not the number of targets, so per-level is the correct atomic
+unit here, not per-target.
+
+**Regression test (`source/test_stage1_grammar_resume.py`, real
+kill-and-resume, same rigor as `stage1_e_arm_holdout.py`'s
+`self_test_reproduce_committed_n14()`):** runs the actual driver subprocess
+twice against copies of the REAL cached `own-enumeration-cache.jsonl` /
+`e-arm-holdout-cache.jsonl` data from this run directory (read-only copy,
+never synthetic data) -- an uninterrupted control run to `max_complexity=4`,
+and a second run polled until `enumeration-checkpoint.json` shows complexity
+2 complete, `SIGKILL`ed (a real kill, not a clean shutdown -- exactly what a
+container restart delivers), then relaunched with the identical command over
+the same `--out-dir`. All four assertions passed (this dispatch, verified
+directly, not assumed):
+  1. the resumed run's second launch actually logs a `RESUME: enumeration
+     state rebuilt` line;
+  2. that second launch's log segment contains zero fit/score lines for the
+     already-completed complexity 1-2 (no re-scoring);
+  3. `enumeration-checkpoint.json`'s `(complexity, new_registered)` pairs are
+     identical between the control and resumed runs:
+     `[(1, 6), (2, 14), (3, 162), (4, 794)]` for both;
+  4. `pareto-fronts-raw.json`'s `front_state` (every target, every
+     complexity, including the fitted constants and held-out metrics) is
+     deep-equal between the control and resumed runs -- byte-identical
+     results, not merely "close."
+
+**Applying the fix to this run, honestly reported:** per this dispatch's
+explicit instruction, the then-currently-running `RUN-RELN-141a86-stage1-grammar`
+process (PID 3440, launched with the PRE-fix code, already at complexity
+level 4 when this dispatch started) was left completely undisturbed while
+the fix was developed and tested against a separate temp directory (never
+this run's own files). PID 3440 was NOT killed by this dispatch: it ran
+uninterrupted for the rest of its natural lifetime and exited on ITS OWN
+(no container restart intervened this time) with `stopped_reason:
+wall_clock_cap` after reaching complexity level 6 (`total_elapsed=39501.0s`,
+well past its `21600s` cap -- the cap check only fires after a level
+completes, so a very slow level 6 for some targets pushed total elapsed
+past 21600s before the check ran; not a bug in this dispatch's scope, a
+pre-existing property of the cap check firing only between levels, disclosed
+here rather than silently ignored). Once PID 3440 had exited (confirmed via
+`ps`/`kill -0`), the FIXED driver was relaunched with the exact same command
+recorded in `command.txt`. Its `driver-progress.log` confirms the resume
+path activated correctly in production: `RESUME: found checkpoint complete
+through complexity 6` -> `RESUME: enumeration state rebuilt through
+complexity 6 (new_registered counts matched at every level, confirming
+byte-identical re-derivation) ... resuming fit/score at complexity 7` --
+the rebuild of levels 1-6 took ~19s (registration only), versus the many
+hours the original process spent scoring those same levels, and complexity
+7 began scoring fresh with zero levels re-scored. This is the exact
+climb-loss bug fixed and confirmed fixed in production, not just in the
+isolated test.
+
+**Currently running:** PID (see `command.txt`'s recorded invocation and
+`ps aux | grep stage1_grammar_driver` for the live PID) is alive as of this
+report, resumed cleanly at complexity 7, `--max-complexity 12
+--wall-clock-cap-seconds 21600`. A future container restart will now lose at
+most the in-progress level's fit/score work, never the whole climb back from
+complexity 1 -- the bug this dispatch was asked to fix. Continued monitoring
+(relaunch-on-death, extend to deferred statistics/packs per the "What a
+follow-up task should do" section above) remains a later Coordinator
+check-in's task, unchanged from this run's established mechanical
+restart-recovery loop.
