@@ -1,0 +1,570 @@
+implementation_review:
+  id: VAL-20260908-0eabfe
+  task_id: TASK-20260908-0eabfe
+  reviewer_role: validator
+  objective: >-
+    Independent implementation review (not a scientific-run validation) of the
+    zero-run EXP-CRYPTO-5e8beb implementation produced under
+    TASK-20260907-6bd7c0 and snapshotted under TASK-20260907-c0a81d. Verifies
+    specification coverage, production/reference independence, exact rational
+    arithmetic, both-outcome-branch support, assumption-trap classification,
+    the guarded launch interface's refusal logic, and absence of invented
+    provenance or scientific execution. Certifies implementation correctness
+    and independence only; authorizes no scientific run, launch, or claim.
+
+  snapshot_verification:
+    commit_reviewed: cd60e82c8bc68ef5766a366e0316fbb5c18353b4
+    parent_commit_expected: dee9aad7d53452d4191dc8022e7714febb283e92
+    parent_commit_actual: dee9aad7d53452d4191dc8022e7714febb283e92
+    parent_matches: true
+    commit_is_ancestor_of_current_head: true
+    current_head_at_review_time: 94e4a6a0dbb80cb1b95f90977b346e5e6c04da7a
+    branch: claude/run-experiments-uq9jiv
+    working_tree_vs_snapshot_diff: >-
+      `git diff cd60e82c8bc68ef5766a366e0316fbb5c18353b4 --
+      experiments/EXP-CRYPTO-5e8beb/implementation/` produced no output: the
+      on-disk implementation directory is byte-identical to the frozen
+      snapshot commit, so reading the working tree for this review is
+      equivalent to reading the commit directly.
+    path_sha256_recheck: >-
+      All 10 path_sha256 entries in
+      coordination/design/BATCH-51d1bb/archives/TASK-20260907-c0a81d/snapshot.json
+      were independently recomputed with `hashlib.sha256` over the actual
+      file bytes and matched exactly (fixtures.py, kernels.py, transcripts.py,
+      reference.py, certificates.py, driver.py, runtime_preflight.py,
+      README.md, implementation-manifest.yaml, implementation-report.yaml).
+      No drift between the committed snapshot and the reviewed content.
+    approval_chain_spot_check: >-
+      ledger/decisions/DEC-20260907-ff7355.yaml exists, decision: approve,
+      target_ids include H-CRYPTO-acdb49/EXP-CRYPTO-5e8beb/TASK-20260907-6bd7c0,
+      execution_admission.scientific_execution_authorized: false. Consistent
+      with specification.yaml's own approved_by/approval_decision_id fields
+      and implementation-manifest.yaml's spec_binding block.
+    verdict: passed
+
+  static_analysis_performed:
+    - "python3 -m py_compile on each of the 7 .py files individually (see py_compile_results below)."
+    - "ast.parse + manual walk of every module's top-level statements (imports, docstrings, assignments) to confirm no fixture/kernel/transcript evaluation occurs on import."
+    - "ast-based import-graph extraction of fixtures.py/kernels.py/transcripts.py/certificates.py/driver.py/runtime_preflight.py/reference.py to check for any edge from reference.py to a production module."
+    - "grep for float( and decimal-point numeric literals across all .py files to check exact-rational-arithmetic compliance."
+    - "grep for 'bedrock'/'Bedrock'/'BEDROCK' across the implementation directory."
+    - "Manual line-by-line reading of every .py file, README.md, implementation-manifest.yaml and implementation-report.yaml against specification.yaml and the two task handoffs."
+    - "Pure arithmetic (272 = 134+134+4 partitions; 1632 = 272*6; sum_N over the fixed partition list = 3812; 3812*6 = 22872; 22872*4 = 91488; 91488+11 = 91499) checked against specification.fixed_counts by hand from the declared N/q/kernel/horizon parameters -- no fixture-generation, kernel, transcript, or reference function was called to obtain these totals."
+    - "Confirmed no experiments/EXP-CRYPTO-5e8beb/runs/ directory exists on disk (ls: No such file or directory) -- zero scientific-run artifacts of any kind."
+
+  no_execution_performed: >-
+    No function from fixtures.py, kernels.py, transcripts.py, reference.py,
+    or certificates.py was ever called, imported into a REPL, or otherwise
+    invoked on real or synthetic input during this review. All findings
+    below come from reading source text, running `python3 -m py_compile`
+    (which compiles but does not execute module bodies beyond the
+    module-level statements already inspected by ast), and independent
+    pen-and-paper arithmetic that does not depend on any generated
+    permutation, feature table, or transcript.
+
+  py_compile_results:
+    - {file: fixtures.py, result: pass}
+    - {file: kernels.py, result: pass}
+    - {file: transcripts.py, result: pass}
+    - {file: reference.py, result: pass}
+    - {file: certificates.py, result: pass}
+    - {file: driver.py, result: pass}
+    - {file: runtime_preflight.py, result: pass}
+
+  checks:
+    - id: C1-specification-coverage
+      area: fixture_definition / prime_partitions / composite_partitions / ordering
+      finding: >-
+        fixtures.py:37-50 declares PRIME_NS=(11,17), Q_VALUES=(2,3,4,5),
+        MATCHED_PER_COORDINATE=32, COMPOSITE_N=15,
+        COMPOSITE_FEATURES=('mod3','mod5','identity','constant').
+        fixtures.iter_partition_specs (lines 258-281) yields, per N in
+        (11,17): for each of 4 q values, one 'coordinate' spec then 32
+        'matched' specs (seeds 0..31) = 33*4 = 132, plus one 'identity' and
+        one 'constant' spec = 134 per N (matches specification.fixed_counts.
+        partitions_C11=134 and partitions_C17=134 exactly), then 4 composite
+        specs for N=15 (mod3, mod5, identity, constant, in that order,
+        matching partitions_C15=4). Total = 134+134+4 = 272
+        (fixed_counts.main_partitions=272). Ordering (N=11 before N=17; q
+        ascending; coordinate before its 32 seeds; identity then constant per
+        N; N=15 last with mod3,mod5,identity,constant) matches
+        specification.ordering.partitions verbatim.
+      verdict: confirmed
+
+    - id: C2-sha256-rejection-shuffle
+      area: prime_partitions.generation
+      finding: >-
+        fixtures.py:148-177 (`_digest_int`, `generate_permutation`) and
+        reference.py:40-60 (`_reference_digest`,
+        `reference_generate_permutation`) both implement: message =
+        "EXP-CRYPTO-5e8beb|N=<N>|q=<q>|seed=<seed>|counter=<counter>" (UTF-8),
+        SHA256 -> big-endian 256-bit integer z, limit = floor(2^256/(i+1))*(i+1)
+        computed as `(2**256 // modulus) * modulus`, reject-and-redraw with
+        counter incremented on every digest (including rejections), j = z mod
+        (i+1), Fisher-Yates swap for i = N-1 downTo 1. This is a literal,
+        line-for-line match of specification.fixture_definition.prime_
+        partitions.generation's exact prose algorithm in both the producer
+        (fixtures.py) and the independent reference (reference.py), written
+        as two textually separate implementations (reference.py does not call
+        fixtures.py -- see C6 below).
+      verdict: confirmed
+
+    - id: C3-matched-partition-cell-sizes
+      area: prime_partitions.matching / controls.matched_sizes
+      finding: >-
+        fixtures.build_matched_feature (lines 221-236) derives its cell sizes
+        from `coordinate_cell_sizes(N,q)` -- the identical formula used for
+        the plain coordinate feature -- and assigns permutation-drawn states
+        into contiguous per-label chunks of exactly those sizes, so ordered
+        cell-size preservation holds by construction rather than by
+        post-hoc assertion. `duplicate_groups` (line 355) reports, but never
+        removes or reweights, any coincidental duplicate feature hashes
+        across the 32 seeds, matching duplicate_rule's "retain all 32 labeled
+        seeds ... report canonical hashes without replacement."
+      verdict: confirmed
+
+    - id: C4-six-kernels
+      area: kernels.R1-R4 / P / U
+      finding: >-
+        fixtures.RAW_KERNEL_LAWS (lines 58-82) encodes R1
+        (mu={-1:1/2,1:1/2}), R2 (mu={-1:1/4,0:1/2,1:1/4}), R3
+        (mu={-1:1/4,1:3/4}), R4 (labels [0,1], nu={0:1/2,1:1/2},
+        mu[0]={-1:1/2,1:1/2}, mu[1]={-2:1/2,2:1/2}) verbatim against
+        specification.kernels.R1-R4. `p_translation_law` (line 88) and
+        `u_uniform_law` (line 98) implement P (all a=0..N-1 public, nu
+        uniform 1/N, mu deterministically a) and U (single public label,
+        mu fresh uniform 1/N over 0..N-1) exactly per spec. KERNEL_ORDER =
+        (R1,R2,R3,R4,P,U) matches ordering.kernels. `reduce_law` /
+        `reduced_law` (kernels.py:38-53) reduce every raw signed delta modulo
+        N, combine colliding residues' exact masses, and enumerate ascending
+        -- matching translation_order. reference.py:125-165 re-derives all
+        six laws independently (see C6).
+      verdict: confirmed
+
+    - id: C5-quantities-K-TV-delta
+      area: quantities.K / delta_l / delta / per_operation_max / TV / maximizer_ties
+      finding: >-
+        kernels.build_K (58-70) computes K_l(x,b) as the exact sum of mu_l
+        mass landing on feature b. kernels.total_variation (75-79) computes
+        half the exact sum of |mass difference| over the union of outcomes,
+        using only Fraction arithmetic. kernels.certify_kernel (144-193)
+        computes, for every same-fiber pair (all pairs globally re-sorted at
+        kernels.py:103 for a deterministic lexicographic tie order), the
+        per-label TV, then the pair's *joint* TV as
+        sum_l nu(l)*per_label_tv[l] (line 158) -- i.e. the nu-weighted sum is
+        taken pair-by-pair BEFORE maximizing over pairs (line 172:
+        `delta = max(c.joint_tv for c in pair_certs)`), which is exactly the
+        spec's "exactly joint label/feature one-step TV, not
+        sum_l nu(l)*delta_l" distinction (quantities.delta) and matches
+        README.md line 38's own restatement. `per_operation_max` (178-179) is
+        computed generically as max_l delta_l for every kernel, so it is not
+        special-cased for P even though the spec calls it out "especially for
+        P" as a control quantity. `maximizer_witness` (117-129) returns the
+        lexicographically least pair among exact maximizers, or None
+        (null witness) when the candidate set is empty, matching
+        quantities.maximizer_ties.
+      verdict: confirmed
+
+    - id: C6-producer-reference-independence
+      area: computation.producer / computation.independent_checker (critical check)
+      finding: >-
+        AST-based import extraction shows reference.py's only imports are
+        `__future__`, `hashlib`, `itertools`, `fractions.Fraction`, `typing`
+        (reference.py:28-33) -- zero import of fixtures, kernels, transcripts,
+        certificates, or driver. Every helper reference.py needs
+        (reference_generate_permutation, reference_raw_law, reference_reduce,
+        reference_K_row, reference_tv, reference_fibers,
+        reference_same_fiber_pairs) is retyped from the specification text
+        inside reference.py itself, not imported. Critically, reference.py's
+        transcript enumeration (reference_real_transcript_distribution,
+        244-268; reference_simulator_transcript_distribution, 271-295) uses
+        `itertools.product(choices, repeat=horizon)` to enumerate every
+        complete latent (label,delta) path directly and accumulate mass by
+        straight-line multiplication -- a structurally different algorithm
+        from the producer's transcripts.propagate_real /
+        propagate_simulator DP recursion (which folds a running distribution
+        dict step by step). This satisfies both the specification's
+        computation.independent_checker clause and the TASK-20260907-6bd7c0
+        constraint "reference cannot import producer kernel, DP or TV
+        helpers." The literal kernel-law numeric constants necessarily
+        coincide between fixtures.py and reference.py (both transcribe the
+        same frozen spec numbers), but this is expected duplication of
+        *data*, not of *code* or *algorithm* -- the two files share no
+        function, class, or import.
+      verdict: confirmed -- this is the single most important check in the
+        task and it holds.
+
+    - id: C7-exact-rational-arithmetic
+      area: TV / K / delta / bound arithmetic
+      finding: >-
+        `grep -n "float(" *.py` and a decimal-numeric-literal grep
+        (`[0-9]\.[0-9]`) across all 7 .py files returned zero matches. Every
+        probability, mass, and TV value in fixtures.py, kernels.py,
+        transcripts.py, reference.py, and certificates.py is constructed via
+        `fractions.Fraction`. certificates.serialize_fraction (28-34) stores
+        Fractions as {numerator, denominator} integer pairs, never as a
+        decimal or float.
+      verdict: confirmed
+
+    - id: C8-panel-advantage-both-branches
+      area: panel_advantage / decision_outcomes / certificates.py scoring logic
+      finding: >-
+        certificates.py defines CertificateStatus (86-91: OK,
+        BOUND_INAPPLICABLE, VACUOUS_BOUND, INVALID_MEASUREMENT, INCOMPLETE)
+        and CertificateResult, but contains **no** function that assembles the
+        32 restricted comparison panels, computes
+        "mean(null_delta)-coordinate_delta >= 1/8" or "at least 24 of 32
+        null_delta values strictly greater," enumerates the 16 paired
+        qualifiers across N=11/N=17, or decides between
+        conjecture_positive/conjecture_negative
+        (decision_outcomes.positive/negative). A repository-wide grep for
+        "panel", "qualifier", "1/8", "24/32" inside implementation/*.py found
+        no scoring code -- only comments and docstring prose referencing the
+        concept (fixtures.py:35, kernels.py:15, reference.py:25/109). This
+        gap is honestly and explicitly disclosed by the executor:
+        implementation-report.yaml:59
+        ("panel_advantage_scoring: partial") and :65-82 (design_deviations
+        DEV-1), and README.md:69-83 states plainly that "Scoring the 32
+        panels and 16 paired qualifiers ... is left to a later scientific
+        task's driver logic." What IS implemented (kernels.KernelCertificate's
+        delta/delta_l/per_operation_max, computed identically for every
+        partition/kernel regardless of which panel it will later belong to,
+        via the single generic certify_kernel function with no branch that
+        treats a qualifying vs. non-qualifying outcome differently) supplies
+        every raw quantity a later scoring routine needs, and does so without
+        any built-in bias toward either outcome -- because neither outcome's
+        logic exists yet in this codebase, there is no possibility of a
+        built-in bias toward one over the other at this stage. But this means
+        the check as originally framed ("confirm certificates.py / the
+        panel-scoring logic supports BOTH...outcomes") cannot be answered
+        "yes, both are supported": neither is. This is a genuine,
+        disclosed shortfall against TASK-20260907-6bd7c0's own
+        completion_gate item 3 ("Both finite advantage-positive and
+        advantage-negative branches are implemented with unmodified
+        thresholds and full score reporting") and against this task's own
+        module_summary line ("certificates.py" being the module named for
+        the panel-advantage cross-reference in README.md's protocol-to-code
+        map, row 51).
+      verdict: gap -- disclosed by the producer, not hidden, but the
+        completion_gate item is not met. Drives the REVISE verdict below.
+
+    - id: C9-assumption-trap-classification
+      area: assumption_trap / controls.full_joint_and_freshness
+      finding: >-
+        transcripts.trap_real_distribution (154-162) draws hidden A once per
+        outcome (a in range(11)) and reuses it for both steps
+        (x1=(x0+a)%11, x2=(x0+2*a)%11) with public label 0 at both steps,
+        matching the persistent-translation law exactly.
+        trap_comparison_distribution (165-177) independently draws a1,a2 for
+        a fresh two-step uniform process, matching
+        assumption_trap.comparison_simulator. TrapCertificate (189-197)
+        carries `classification: str  # always "bound_inapplicable"` and
+        `certify_trap` (199-206) sets it unconditionally to the literal
+        string "bound_inapplicable" -- never derived from, or capable of
+        being overridden by, any computed TV value. `full_transcript_tv` and
+        `final_marginal_tv` are two separate dataclass fields computed by two
+        separate functions (kernels.total_variation on the raw joint dict vs.
+        trap_final_marginal's marginal-then-TV), so a downstream consumer
+        cannot silently read one in place of the other. reference.py:349-368
+        (`reference_trap_certificate`) independently reproduces the same
+        structure (separate full_transcript_tv / final_marginal_tv keys,
+        classification literal "bound_inapplicable") without importing
+        transcripts.py.
+      verdict: confirmed
+      minor_note: >-
+        transcripts.py:150 declares `TRAP_HORIZON = 2` and reference.py:325
+        declares `REFERENCE_TRAP_HORIZON = 2`, but neither constant is
+        actually referenced inside trap_real_distribution /
+        trap_comparison_distribution / reference_trap_real_distribution /
+        reference_trap_comparison_distribution -- those functions hardcode
+        exactly two steps (x1, x2) directly rather than looping
+        `TRAP_HORIZON` times. The hardcoded value is correct for the
+        currently-frozen horizon=2 trap, so this is not a present
+        correctness bug, but it is dead/misleading code: if a future
+        amendment changed TRAP_HORIZON, the trap functions would silently
+        keep computing exactly two steps. Flagged as a documentation-drift
+        risk, not a specification-compliance failure.
+
+    - id: C10-guarded-launch-interface
+      area: driver.py check_launch_admission / runtime_preflight.py (critical check)
+      finding: >-
+        driver.check_launch_admission (89-122) DOES genuinely refuse:
+        calling driver.main without all four of --approved-spec-path,
+        --approved-spec-sha256, --implementation-manifest-path,
+        --independent-review-receipt-path, --launch-lock-path raises
+        (argparse `required=True`, 273-278), and if any of the four declared
+        paths does not exist, or the spec file's sha256 does not equal the
+        supplied --approved-spec-sha256, `check_launch_admission` raises
+        LaunchNotAuthorizedError (89-122) naming every missing/mismatched
+        piece, and `main()` catches it and returns exit code 2 (287-291)
+        without printing or fabricating any launch success. Even when
+        admission passes, `main()` (293-301) does not implement any
+        post-admission scientific execution path at all and returns exit code
+        3 stating this plainly -- so no run can be triggered through this
+        file regardless of admission outcome, which matches
+        TASK-20260907-6bd7c0's stopping rule and this implementation's own
+        completion_gate item. No module-level statement in driver.py executes
+        `main()` on import (confirmed by ast walk: the only top-level
+        conditional is the standard `if __name__ == "__main__":` guard at
+        line 305).
+
+        However, tracing the *content* of what each of the four checks
+        actually verifies (not merely whether they exist) shows the guard is
+        materially weaker than both its own docstring and this review's
+        checklist item describe:
+
+        (a) approved_spec_path/approved_spec_sha256 (95-104): only compares
+        the file's sha256 against a value supplied on the command line by
+        the caller. The function never parses specification.yaml's own
+        content to check `status: approved` / `approved_by` non-null (the
+        module docstring at lines 11-13 explicitly claims this: "spec.status
+        == 'approved', approved_by non-null, matching
+        experiments/EXP-CRYPTO-5e8beb/specification.yaml"), and it never
+        anchors the expected hash to anything canonical/committed -- a
+        caller supplying any file plus that file's own hash satisfies this
+        check trivially, for any path.
+
+        (b) implementation_manifest_path (106-108): only checks
+        `Path(...).is_file()`. It never reads implementation-manifest.yaml's
+        `implementation_files_sha256` entries and compares them against the
+        actual current fixtures.py/kernels.py/.../runtime_preflight.py bytes
+        on disk. The docstring (lines 13-14) claims "this implementation
+        directory's actual source hashes, matching a Coordinator-committed
+        implementation-manifest.yaml" -- that comparison is not implemented
+        anywhere in this function.
+
+        (c) independent_review_receipt_path (110-112): only checks file
+        existence. Nothing inspects the receipt's content for a PASSED
+        verdict, the correct task/commit binding, or that it is actually a
+        Validator/Red-Team report rather than an arbitrary file.
+
+        (d) launch_lock_path (114-116): only checks `Path(...).is_file()`.
+        This is the exact behavior the module's own docstring (line 16)
+        explicitly disclaims as insufficient: "a genuine launch lock/claim
+        (per docs/concurrent-goal-lanes.md / tools/goal_lanes.py), not
+        merely this file's presence" -- yet the code performs precisely
+        "merely this file's presence."
+
+        Net effect: the refusal logic is real and would correctly block an
+        empty/absent-binding invocation, but it does not perform the
+        content-level verification that the module's own docstring, the
+        specification's launch_gate field, and this review's checklist item
+        6 describe as required ("genuinely refuses ... without an approved
+        spec binding, source hashes, an independent-review receipt, and a
+        genuine launch lock"). As written, a caller could satisfy admission
+        with four arbitrary existing files (one of them hashed to match
+        itself) and no real spec approval, source-hash match, review
+        verdict, or launch-lock semantics would ever be checked by this
+        function.
+      verdict: gap -- the refusal path exists and is reachable, but its
+        content verification is weaker than documented. Drives the REVISE
+        verdict below, alongside C8. No scientific run is enabled by this
+        gap in the current codebase (main() has no post-admission execution
+        path at all), so this is not classified as a FAILED-level issue.
+
+    - id: C11-runtime-preflight-fail-closed
+      area: runtime_preflight.py
+      finding: >-
+        check_declared_constants (52-87) and check_protection_establishable
+        (90-109) both unconditionally set `ready_for_scientific_launch:
+        False` regardless of whether the declared-constant comparison
+        passes, and both state explicitly in `reason` that no live-host or
+        Docker probing occurred. There is no code path in this module that
+        can return `ready_for_scientific_launch: True`. This matches
+        specification.runtime.admission's "Preflight source only during
+        implementation" requirement and the fail-closed discipline the
+        module's own docstring claims.
+      verdict: confirmed
+
+    - id: C12-no-invented-provenance
+      area: implementation-manifest.yaml / implementation-report.yaml
+      finding: >-
+        implementation-manifest.yaml:68 records
+        `future_commit_hash: not_recorded_here_pending_coordinator_snapshot`
+        -- it does not claim any specific future commit hash as already
+        having happened. implementation-report.yaml:10-13 states
+        `scientific_runs: 0`, `fixtures_evaluated: 0`,
+        `group_operations_measured: 0`, `independent_reviews_obtained: 0`
+        literally and exactly as TASK-20260907-6bd7c0's
+        module_responsibilities required. No `experiments/EXP-CRYPTO-5e8beb/
+        runs/` directory exists on disk. implementation-manifest.yaml:12-21
+        additionally discloses (rather than hides) that the executing tree
+        was dirty with unrelated sibling-task artifacts, and states plainly
+        that none of those paths were read/written/relied upon.
+      verdict: confirmed
+
+    - id: C13-bedrock
+      area: Bedrock prohibition
+      finding: >-
+        driver.py:67 defines
+        `BEDROCK_STATUS = "NOT SELECTED, NOT CONFIGURED, NOT PROBED, NOT
+        CONTACTED, NOT USED"` and `bedrock_status()` (257-259) returns it
+        literally. implementation-manifest.yaml:66 and
+        implementation-report.yaml:95-100 both record the same status (as a
+        structured block in the report). No other reference to
+        Bedrock/bedrock/BEDROCK exists anywhere in the implementation
+        directory outside these declarations and README.md's matching
+        section (132-136).
+      verdict: confirmed
+
+  fixed_counts_arithmetic_recheck:
+    method: >-
+      Pure arithmetic from specification.yaml's own declared N/q/kernel/
+      horizon parameters; no fixture-generation, kernel, transcript or
+      reference function was invoked to obtain any of these numbers.
+    results:
+      - {quantity: main_partitions, spec_value: 272, recomputed: "134+134+4=272", match: true}
+      - {quantity: main_partition_kernel_cells, spec_value: 1632, recomputed: "272*6=1632", match: true}
+      - {quantity: initial_state_partition_pairs, spec_value: 3812, recomputed: "134*11+134*17+4*15=1474+2278+60=3812", match: true}
+      - {quantity: initial_state_kernel_combinations, spec_value: 22872, recomputed: "3812*6=22872", match: true}
+      - {quantity: main_full_transcript_checks, spec_value: 91488, recomputed: "22872*4=91488", match: true}
+      - {quantity: trap_full_transcript_checks, spec_value: 11, recomputed: "11 visible C_11 states", match: true}
+      - {quantity: total_full_transcript_checks, spec_value: 91499, recomputed: "91488+11=91499", match: true}
+    not_rechecked: >-
+      same_fiber_unordered_pairs_across_partitions (7271),
+      joint_pair_TV_checks (43626), restricted_comparison_panels (32),
+      null_score_entries (1024), and paired_qualifiers (16) were NOT
+      independently recomputed, because doing so exactly requires either
+      per-partition fiber/cell-size data (which for "matched" partitions
+      only exists after running the SHA256-rejection generator -- prohibited
+      scientific execution under this task's budget) or an independent
+      from-scratch combinatorial derivation outside this implementation
+      review's stated checklist. This is recorded as a limitation, not
+      papered over as checked.
+
+  independence_and_no_execution_summary:
+    production_reference_independence: confirmed (see C6)
+    exact_rational_arithmetic: confirmed (see C7)
+    no_computation_on_import: >-
+      confirmed via ast walk of top-level statements in all 7 .py files:
+      only docstrings, safe literal/Fraction/tuple/dict constructions, and
+      driver.py's `if __name__ == "__main__":` guard. No fixture, kernel, or
+      transcript function is called at module scope anywhere.
+    no_run_artifacts_exist: >-
+      confirmed -- experiments/EXP-CRYPTO-5e8beb/ contains only
+      specification.yaml and implementation/; no runs/ directory exists.
+
+  limitations:
+    - >-
+      This review is a static implementation/independence check, not a
+      scientific validation: no fixture, kernel, transcript, or panel-scoring
+      numeric output was computed or spot-checked by this review, per the
+      task's explicit prohibition on invoking these modules' functions on
+      real or synthetic input.
+    - >-
+      The five higher-order combinatorial fixed_counts listed under
+      fixed_counts_arithmetic_recheck.not_rechecked were not independently
+      verified for the reason stated there.
+    - >-
+      This review does not and cannot certify that a real future invocation
+      of driver.main by a later scientific task would be safe; it certifies
+      only what the current check_launch_admission code actually checks
+      (C10), which is materially weaker than its own docstring claims.
+    - >-
+      independent_session isolation from the TASK-20260907-6bd7c0 executor
+      session is attested at the role/harness-architecture level (separate
+      Validator subagent dispatch per orchestration/roles.yaml); this review
+      has no mechanism to cryptographically prove session-level isolation
+      beyond that architectural separation.
+
+  recommendations_for_revise:
+    - >-
+      Either implement the panel-scoring/paired-qualifier routine (32
+      panels, >=1/8 mean-gap AND >=24/32 strict-win per-panel qualifier,
+      16 paired qualifiers across N=11/N=17, conjecture_positive/
+      conjecture_negative decision per panel_advantage) inside this task's
+      declared write_scope, or explicitly amend TASK-20260907-6bd7c0's
+      completion_gate item 3 to defer it to a named successor task before
+      this implementation is treated as satisfying that gate (C8).
+    - >-
+      Strengthen driver.check_launch_admission to perform actual content
+      verification matching its own docstring: parse the approved spec's
+      YAML for status=='approved'/approved_by non-null rather than trusting
+      a caller-supplied hash alone; compare implementation-manifest.yaml's
+      declared per-file hashes against the current on-disk source files
+      rather than only checking the manifest file's existence; require the
+      review receipt to parse as a passed review-adversarial report bound to
+      the exact reviewed commit; and validate the launch lock's actual
+      content/claim semantics (e.g. via tools/goal_lanes.py) rather than
+      bare file existence (C10).
+    - >-
+      Either wire TRAP_HORIZON / REFERENCE_TRAP_HORIZON into the trap
+      distribution functions that currently hardcode two steps, or remove
+      the unused constants to avoid documentation drift (C9, minor).
+
+  verdict: REVISE
+  verdict_rationale: >-
+    No FAILED-level defect was found: production/reference independence is
+    genuine (C6), exact rational arithmetic is used throughout (C7), the six
+    kernels and 272 partitions are implemented exactly per specification
+    (C1-C5), the assumption trap is correctly classified and structurally
+    separated from the full-transcript comparison (C9), no scientific
+    execution or invented provenance occurred anywhere (C11-C13), and every
+    .py file compiles cleanly. However, two specific, material, and
+    independently confirmed gaps against this implementation's own
+    completion_gate keep this short of PASSED: (1) the panel-advantage
+    scoring logic that would decide between the positive and negative
+    finite-advantage outcomes does not exist anywhere in this codebase yet
+    (C8) -- honestly disclosed by the executor, but still unmet; and (2) the
+    guarded launch interface's admission check is demonstrably weaker in
+    content verification than both its own docstring and the specification's
+    launch_gate describe, performing existence-only checks for three of its
+    four required bindings and a caller-suppliable hash comparison for the
+    fourth (C10). Neither gap corrupts an existing artifact, fabricates a
+    result, or enables an unauthorized run today, so FAILED is not warranted;
+    both are concrete and actionable, so REVISE is the correct verdict rather
+    than PASSED.
+
+  bedrock_status: "NOT SELECTED, NOT CONFIGURED, NOT PROBED, NOT CONTACTED, NOT USED"
+
+  review_attestation:
+    task_id: TASK-20260908-0eabfe
+    joints_owned: []
+    review_plan: null
+    note: >-
+      This task's own handoff carries review_plan: null; it is an ordinary
+      single-reviewer independent implementation check, not a multi-reviewer
+      claim-changing round under the review architecture in AGENTS.md, so no
+      joints/blindness/review_plan fields apply. sources_read below is
+      recorded in the same spirit regardless.
+    sources_read:
+      - ledger/handoffs/TASK-20260908-0eabfe.yaml
+      - agents/validator.md
+      - AGENTS.md
+      - CLAUDE.md
+      - experiments/EXP-CRYPTO-5e8beb/specification.yaml
+      - ledger/handoffs/TASK-20260907-6bd7c0.yaml
+      - experiments/EXP-CRYPTO-5e8beb/implementation/fixtures.py
+      - experiments/EXP-CRYPTO-5e8beb/implementation/kernels.py
+      - experiments/EXP-CRYPTO-5e8beb/implementation/transcripts.py
+      - experiments/EXP-CRYPTO-5e8beb/implementation/reference.py
+      - experiments/EXP-CRYPTO-5e8beb/implementation/certificates.py
+      - experiments/EXP-CRYPTO-5e8beb/implementation/driver.py
+      - experiments/EXP-CRYPTO-5e8beb/implementation/runtime_preflight.py
+      - experiments/EXP-CRYPTO-5e8beb/implementation/README.md
+      - experiments/EXP-CRYPTO-5e8beb/implementation/implementation-manifest.yaml
+      - experiments/EXP-CRYPTO-5e8beb/implementation/implementation-report.yaml
+      - coordination/design/BATCH-51d1bb/archives/TASK-20260907-c0a81d/snapshot.json
+      - ledger/decisions/DEC-20260907-ff7355.yaml
+      - git show/diff/log/rev-parse on commit cd60e82c8bc68ef5766a366e0316fbb5c18353b4 and its parent
+    read_sibling_reports: false
+    blind_from_respected: null
+    verdict: REVISE
+
+  inference:
+    requested_policy: review-adversarial
+    requested_reasoning_effort: xhigh
+    fallback_used: false
+    degraded_used: false
+    independent_session_required: true
+    independent_session_attested: true
+    resolved_model_id: claude-sonnet-5
+    self_report_note: >-
+      Genuine self-report: this session identifies itself as Sonnet 5
+      (model id claude-sonnet-5) per its own runtime environment
+      information. No probe of any external model registry was performed or
+      needed to answer this field.
+
+  artifact_paths:
+    - coordination/design/BATCH-51d1bb/reviews/TASK-20260908-0eabfe/implementation-review.yaml
+    - coordination/design/BATCH-51d1bb/reviews/TASK-20260908-0eabfe/runtime-session-receipt.json

@@ -48,6 +48,7 @@ import re
 import stat
 import subprocess
 import sys
+from pathlib import Path, PurePosixPath
 
 import yaml
 
@@ -244,10 +245,37 @@ REVIEW_VERDICTS = {"holds", "breaks", "inconclusive"}
 
 
 def check_review_plan(path: str, body: dict, ctx: Ctx) -> None:
-    """Validate a `review_plan` block on a handoff."""
+    """Validate a `review_plan` block on a handoff.
+
+    The plan may be inline, or a repository-relative path to a YAML file that
+    either *is* the plan mapping or wraps it under a top-level ``review_plan``
+    key. Path form keeps one shared plan file for a multi-reviewer round
+    without duplicating the mapping into every handoff.
+    """
     plan = body.get("review_plan")
     if plan is None:
         return
+    if isinstance(plan, str):
+        ref = plan.strip()
+        if not ref or ref.startswith("/") or ".." in PurePosixPath(ref).parts:
+            ctx.err(path, "review_plan path must be a repository-relative file")
+            return
+        target = os.path.join(REPO, ref)
+        if not os.path.isfile(target):
+            ctx.err(path, f"review_plan path does not exist: {ref}")
+            return
+        try:
+            loaded = load_yaml(target, ctx)
+        except Exception as error:  # noqa: BLE001 - surface as ledger error
+            ctx.err(path, f"review_plan path {ref} failed to load: {error}")
+            return
+        if not isinstance(loaded, dict):
+            ctx.err(path, f"review_plan path {ref} must load a mapping")
+            return
+        if isinstance(loaded.get("review_plan"), dict):
+            plan = loaded["review_plan"]
+        else:
+            plan = loaded
     if not isinstance(plan, dict):
         ctx.err(path, "review_plan must be a mapping")
         return
@@ -563,6 +591,88 @@ def check_experiment(path: str, ctx: Ctx):
     ctx.register(str(rec_id), path, body, "experiment")
 
 
+def check_provenance_quarantine(path: str, body: dict, entry: dict | None,
+                                ctx: Ctx) -> bool:
+    """Account for an unrecoverable historical commit without inventing one.
+
+    This does not make the run reproducible: only a Coordinator-authorized,
+    hash-pinned replacement marked invalid can carry the gap. It remains
+    ineligible for directional evidence. Ordinary/new runs retain the
+    required commit check, as do incomplete or tampered quarantine records.
+    """
+    gap = body.get("provenance_gap")
+    if gap is None:
+        return False
+    errors = []
+    code, result = body.get("code") or {}, body.get("result") or {}
+    if not isinstance(gap, dict):
+        errors.append("provenance_gap must be a mapping")
+        gap = {}
+    if (not entry or entry.get("run_id") != body.get("id")
+            or entry.get("supersession_kind") != "provenance_quarantine"
+            or entry.get("decision_id") != gap.get("decision_id")):
+        errors.append("requires an explicitly registered provenance_quarantine for this run and decision")
+    else:
+        for label in ("superseded", "superseding"):
+            file_path = entry.get(label + "_path")
+            try:
+                actual = hashlib.sha256(Path(file_path).read_bytes()).hexdigest()
+            except (OSError, TypeError):
+                actual = None
+            if actual is None or actual != entry.get(label + "_sha256"):
+                errors.append(f"{label} hash binding must verify")
+        # A quarantine may disclose an omission, never erase provenance the
+        # original manifest actually retained. Malformed originals first need
+        # their separate syntax-preserving repair, not a guessed omission.
+        try:
+            original = yaml.safe_load(Path(entry["superseded_path"]).read_text())
+            original_body = original.get("run", original)
+            original_code = original_body.get("code") or original_body.get("git") or {}
+            if original_code.get("commit") or original_code.get("dirty") is not None:
+                errors.append("original manifest already records execution provenance")
+        except (OSError, yaml.YAMLError, AttributeError, TypeError):
+            errors.append("original provenance fields must be inspectable before quarantine")
+    if (body.get("status") != "completed_invalid"
+            or result.get("valid") is not False
+            or (result.get("certificate") or {}).get("kind") != "none"
+            or result.get("status") in {"valid", "completed_valid"}
+            or result.get("validity_status") == "valid"
+            or not str(result.get("invalid_reason") or "").strip()):
+        errors.append("requires completed_invalid, result.valid=false, a reason and certificate.kind=none")
+    if ("commit" not in code or "dirty" not in code
+            or code.get("commit") is not None or code.get("dirty") is not None
+            or gap.get("missing_fields") != ["code.commit", "code.dirty"]
+            or gap.get("evidence_eligible") is not False
+            or not str(gap.get("reason") or "").strip()):
+        errors.append("must disclose null commit/dirty, exact missing fields, reason and evidence_eligible=false")
+    decision_id = gap.get("decision_id")
+    decision = ctx.records.get(decision_id, {}) if isinstance(decision_id, str) else {}
+    if (ctx.record_types.get(decision_id if isinstance(decision_id, str) else "") != "coordinator_decision"
+            or decision.get("decided_by") != "coordinator"
+            or decision.get("scope") != "administrative_integrity_only"
+            or body.get("id") not in (decision.get("target_ids") or [])):
+        errors.append("requires a Coordinator administrative decision naming this run")
+    sources = gap.get("searched_source_sha256")
+    if not isinstance(sources, dict) or not sources:
+        errors.append("requires a nonempty hash-bound inventory of searched sources")
+    else:
+        for relative, expected in sources.items():
+            try:
+                source = Path(REPO) / relative
+                if (not isinstance(relative, str) or os.path.isabs(relative)
+                        or ".." in relative.split("/")
+                        or not source.resolve().is_relative_to(Path(REPO).resolve())
+                        or not isinstance(expected, str)
+                        or not SHA256_HEX.fullmatch(expected)
+                        or hashlib.sha256(source.read_bytes()).hexdigest() != expected):
+                    raise ValueError("unbound source")
+            except (OSError, ValueError, TypeError):
+                errors.append(f"searched source does not verify: {relative!r}")
+    for error in errors:
+        ctx.err(path, "provenance quarantine: " + error, force=True)
+    return not errors
+
+
 def check_run(path: str, ctx: Ctx, supersessions: dict[str, dict] | None = None):
     """Validate the run manifest discovered at `path`.
 
@@ -616,8 +726,12 @@ def check_run(path: str, ctx: Ctx, supersessions: dict[str, dict] | None = None)
             ctx.err(path, f"run missing required field '{field}'")
     # Reproducibility: commit + command must be present.
     code = body.get("code") or {}
-    if not code.get("commit"):
+    quarantined = check_provenance_quarantine(path, body, entry, ctx)
+    if not code.get("commit") and not quarantined:
         ctx.err(path, "run.code.commit missing (not reproducible)")
+    if code.get("commit_meaning") == "archival_source_only":
+        ctx.err(path, "run.code.commit is archival source only, not execution provenance; "
+                "use the canonical provenance quarantine until execution is bound", force=True)
     if not code.get("command"):
         ctx.err(path, "run.code.command missing (not reproducible)")
     # Companion artifacts must exist in the run directory.
@@ -723,6 +837,19 @@ def check_cross_refs(ctx: Ctx):
                 if run_id not in ctx.ids and run_id not in ctx.legacy_aliases:
                     ctx.err(ctx.ids[rec_id], f"evidence references unknown "
                                              f"run '{run_id}'")
+                run_record = ctx.records.get(run_id, {})
+                if run_record.get("provenance_gap") is not None:
+                    disclosures = body.get("unresolved_run_provenance") or {}
+                    if (body.get("direction") not in {"neutral", "inconclusive"}
+                            or body.get("strength") not in {"unverified", "inconclusive"}
+                            or body.get("proof_status") not in {"empirical_only", "not_applicable"}
+                            or body.get("proof_refs")
+                            or not isinstance(disclosures, dict)
+                            or not str(disclosures.get(run_id) or "").strip()):
+                        ctx.err(ctx.ids[rec_id],
+                                f"run '{run_id}' has unresolved execution provenance; "
+                                "only neutral/inconclusive evidence with an explicit "
+                                "unresolved_run_provenance disclosure may cite it")
             for exp_id in body.get("experiment_ids") or []:
                 if exp_id not in ctx.ids and exp_id not in ctx.legacy_aliases:
                     ctx.err(ctx.ids[rec_id], f"evidence references unknown "
@@ -836,10 +963,19 @@ def load_run_supersessions(path: str | None = None) -> dict[str, dict]:
                 raise ValueError(f"run supersession {label} must be 64 hex "
                                  f"characters: {raw[label]!r}")
             digests[label] = digest
+        # A malformed historical YAML file can still have an unambiguous
+        # root run_id header. The opt-in locator is checked only after the
+        # archived bytes pass their hash, never on the replacement record.
+        id_line = raw.get("superseded_id_line")
+        if id_line is not None and (type(id_line) is not int or id_line < 1):
+            raise ValueError("run supersession superseded_id_line must be a positive integer")
         key = os.path.abspath(os.path.join(REPO, superseded))
         if key in entries:
             raise ValueError(f"run supersession registry lists {superseded} "
                              f"more than once")
+        extraction = raw.get("superseded_id_extraction")
+        if "superseded_id_extraction" in raw:
+            _validate_superseded_id_extraction(extraction, str(raw["run_id"]).strip())
         entries[key] = {
             "run_id": str(raw["run_id"]).strip(),
             "superseded_path": key,
@@ -847,7 +983,12 @@ def load_run_supersessions(path: str | None = None) -> dict[str, dict]:
             "superseding_path": os.path.abspath(
                 os.path.join(REPO, superseding)),
             "superseding_sha256": digests["superseding_sha256"],
+            "superseded_id_line": id_line,
+            "supersession_kind": raw.get("supersession_kind"),
+            "decision_id": raw.get("decision_id"),
         }
+        if extraction is not None:
+            entries[key]["superseded_id_extraction"] = dict(extraction)
     return entries
 
 
@@ -992,12 +1133,145 @@ def check_schema_redirects(ctx: Ctx,
                     "record", force=True)
 
 
-def _run_id_of(path: str) -> str | None:
+def _validate_superseded_id_extraction(extraction: object, run_id: str) -> None:
+    """Validate an explicit identity binding, never a permissive YAML parser."""
+    if (not isinstance(extraction, dict)
+            or set(extraction) != {"kind", "line_number", "exact_line"}
+            or extraction.get("kind") != "unique_first_line_run_id_header"
+            or type(extraction.get("line_number")) is not int
+            or extraction.get("line_number") != 1
+            or not RUN_ID.fullmatch(run_id)
+            or extraction.get("exact_line") != f"run_id: {run_id}"):
+        raise ValueError("invalid superseded_id_extraction binding")
+
+
+def _malformed_superseded_run_id(path: str, entry: dict | None) -> str | None:
+    """Extract identity only from an opted-in, hash-pinned malformed original.
+
+    This helper cannot validate the original or replace any field check on the
+    complete superseding manifest. Recheck path and bytes here so even callers
+    outside check_run_supersessions cannot use a binding for another file.
+    """
+    if not entry or "superseded_id_extraction" not in entry:
+        return None
+    run_id = str(entry.get("run_id") or "")
+    extraction = entry["superseded_id_extraction"]
+    try:
+        _validate_superseded_id_extraction(extraction, run_id)
+        if (os.path.abspath(path) != entry.get("superseded_path")
+                or os.path.basename(os.path.dirname(path)) != run_id):
+            return None
+        with open(path, "rb") as handle:
+            content = handle.read()
+        if hashlib.sha256(content).hexdigest() != entry.get("superseded_sha256"):
+            return None
+        lines = content.decode("utf-8").splitlines()
+    except (OSError, UnicodeError, ValueError):
+        return None
+    if not lines or lines[0] != extraction["exact_line"]:
+        return None
+    identity_headers = [line for line in lines
+                        if re.match(r"^(?:run_id|id|run)\s*:", line)]
+    if identity_headers != [extraction["exact_line"]]:
+        return None
+    return run_id
+
+
+def _flat_run_id_with_malformed_dirty_summary(text: str) -> str | None:
+    """Read identity only from the narrowly known flat-manifest encoding defect.
+
+    The historical writer interpolated git porcelain output into an unquoted
+    dirty_summary. Quote only that field in memory, then parse the WHOLE
+    document and reject ambiguous identities. This does not make the original
+    a valid run: normal check_run still rejects it, and supersession still
+    requires both whole-file hashes and complete replacement validation.
+    """
+    lines = text.splitlines()
+    if not lines or not lines[0].startswith("run_id: "):
+        return None
+    rec_id = lines[0][len("run_id: "):]
+    if not RUN_ID.fullmatch(rec_id):
+        return None
+    starts = [i for i, line in enumerate(lines)
+              if line.startswith("  dirty_summary: ")]
+    if len(starts) != 1:
+        return None
+    start = starts[0]
+    end = start + 1
+    # Accept only literal unquoted porcelain rows, never arbitrary YAML or
+    # scalar contents as continuation. A colon in a filename is not a key.
+    statuses = re.compile(r"(?:\?\?|[MADRCU?!]|[ MADRCU?!]{2}) [^\r\n]+")
+    values = [lines[start][len("  dirty_summary: "):]]
+    while end < len(lines) and lines[end] != "environment:":
+        values.append(lines[end])
+        end += 1
+    if end == len(lines) or not all(statuses.fullmatch(v) for v in values):
+        return None
+    repaired = lines[:start] + ["  dirty_summary: " + json.dumps("\n".join(values))] + lines[end:]
+    try:
+        node = yaml.compose("\n".join(repaired))
+        seen: set[int] = set()
+        identities: list[tuple[str, str]] = []
+
+        def inspect(current, depth=0):
+            # Aliases, duplicate keys, nested identities and merge keys are
+            # deliberately outside this narrowly recoverable old format.
+            if id(current) in seen:
+                raise ValueError("alias")
+            seen.add(id(current))
+            if isinstance(current, yaml.MappingNode):
+                keys = set()
+                for key, value in current.value:
+                    if not isinstance(key, yaml.ScalarNode) or key.value in keys:
+                        raise ValueError("ambiguous mapping")
+                    keys.add(key.value)
+                    if key.value in ("id", "run_id", "run", "<<"):
+                        if depth != 0 or key.value != "run_id" or not isinstance(value, yaml.ScalarNode):
+                            raise ValueError("ambiguous identity")
+                        identities.append((key.value, value.value))
+                    inspect(value, depth + 1)
+            elif isinstance(current, yaml.SequenceNode):
+                for value in current.value:
+                    inspect(value, depth + 1)
+        inspect(node)
+        if identities != [("run_id", rec_id)]:
+            return None
+        doc = yaml.safe_load("\n".join(repaired))
+        if not isinstance(doc, dict) or not isinstance(doc.get("git"), dict):
+            return None
+        if doc["git"].get("dirty_summary") != "\n".join(values):
+            return None
+    except (yaml.YAMLError, ValueError, TypeError):
+        return None
+    return rec_id
+
+
+def _run_id_of(path: str, *, superseded_entry: dict | None = None) -> str | None:
     try:
         with open(path, encoding="utf-8") as handle:
-            doc = yaml.safe_load(handle)
-    except (OSError, yaml.YAMLError):
+            text = handle.read()
+    except OSError:
         return None
+    class IdentityLoader(yaml.SafeLoader):
+        pass
+
+    def unique_mapping(loader, node, deep=False):
+        keys = [key.value for key, _ in node.value
+                if isinstance(key, yaml.ScalarNode)]
+        if len(keys) != len(set(keys)):
+            raise yaml.YAMLError("duplicate mapping keys in run identity record")
+        return yaml.SafeLoader.construct_mapping(loader, node, deep=deep)
+
+    IdentityLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG,
+                                   unique_mapping)
+    try:
+        doc = yaml.load(text, Loader=IdentityLoader)
+    except yaml.YAMLError:
+        # Recovery is allowed only for a hash-verified registered original
+        # with an explicit locator, never as ordinary identity parsing.
+        # Porcelain whole-document recovery stays behind superseded_id_line
+        # / _malformed_run_header_id; extraction bindings use this opt-in.
+        return _malformed_superseded_run_id(path, superseded_entry)
     body = doc.get("run") if isinstance(doc, dict) else None
     if isinstance(body, dict):
         rec_id = body.get("id")
@@ -1009,6 +1283,42 @@ def _run_id_of(path: str) -> str | None:
     else:
         rec_id = None
     return str(rec_id) if rec_id else None
+
+
+def _malformed_run_header_id(path: str, line_number: int) -> str | None:
+    """Read one explicitly located root ID in hash-verified malformed YAML.
+
+    This is identity recovery, not parsing the damaged record as evidence.
+    Reject duplicate/ambiguous root identity fields and require the run
+    directory to agree. A normally parseable file never needs this route.
+    """
+    if type(line_number) is not int or line_number < 1:
+        return None
+    try:
+        text = Path(path).read_text(encoding="utf-8")
+        yaml.safe_load(text)
+        return None
+    except yaml.YAMLError:
+        pass
+    except (OSError, UnicodeError):
+        return None
+    headers = [(i, line) for i, line in enumerate(text.splitlines(), 1)
+               if re.match(r"^(?:run_id|id)\s*:", line)]
+    if len(headers) != 1 or headers[0][0] != line_number:
+        return None
+    # Accept only a literal root run_id, not aliases, tags, quotes, nested
+    # mappings or a second YAML document masquerading as the header.
+    if any(line.strip() in {"---", "..."} for line in text.splitlines()):
+        return None
+    header = re.fullmatch(r"run_id: (RUN-[A-Za-z0-9_-]+)", headers[0][1])
+    if header is None:
+        return None
+    value = header[1]
+    if not RUN_ID.fullmatch(value):
+        return None
+    if _flat_run_id_with_malformed_dirty_summary(text) != value:
+        return None
+    return value if os.path.basename(os.path.dirname(path)) == value else None
 
 
 def check_run_supersessions(ctx: Ctx, supersessions: dict[str, dict]) -> None:
@@ -1043,7 +1353,12 @@ def check_run_supersessions(ctx: Ctx, supersessions: dict[str, dict]) -> None:
                         f"supersede it instead of editing it",
                         force=True)
                 continue
-            found = _run_id_of(file_path)
+            found = _run_id_of(
+                file_path, superseded_entry=entry if role == "superseded" else None)
+            if (found is None and role == "superseded"
+                    and entry.get("superseded_id_line") is not None):
+                found = _malformed_run_header_id(
+                    file_path, entry["superseded_id_line"])
             if found != entry["run_id"]:
                 ctx.err(file_path,
                         f"registered {role} run manifest declares run id "
