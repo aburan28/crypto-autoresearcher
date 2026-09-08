@@ -1,0 +1,174 @@
+blind_rederivation:
+  task: TASK-20260908-0b434a
+  batch_id: BATCH-d5f70a
+  derivation:
+    contract_language: >-
+      specification.yaml metrics.primary[0]: "nonexceptional_full_box_fraction:
+      fraction of non-exceptional targets with all 2^(m-1) box vertices present
+      (target exactly 1)". specification.yaml success_criterion: "every target
+      outside the predicted exceptional set has all 2^(m-1) box vertices present
+      in supp(f_{m,t}) (full-box Newton polytope)". The predicted exceptional set
+      is Exc_m(E) = {x([r]P_0): 1 <= r <= m-1, [r]P_0 affine}. So "non-exceptional"
+      means OUTSIDE the PREDICTED exceptional set, and a target counts in the
+      numerator iff it is saturated (full box).
+    formula: >-
+      fraction = |{t in F_p \ predicted_exception_set : t is classified
+      saturated}| / |F_p \ predicted_exception_set|.
+      "t is classified saturated" is read from the archived per-cell
+      classification: the raw bytes archive the observed exception set
+      (observed_exception_set_hull, the primary hull method; observed_exception_set_corner
+      is the cross-check and equals the hull set in every cell). The
+      classification is binary (SATURATED vs EXCEPTION), so "t is classified
+      saturated" iff t is NOT in observed_exception_set_hull. The saturated set
+      is therefore the complement of observed_exception_set_hull in F_p.
+      Rewritten purely in archived fields:
+      fraction = (p - |predicted ∪ observed_hull|) / (p - |predicted|).
+    method: >-
+      For each of the 8 cells I read predicted_exception_set and
+      observed_exception_set_hull directly from the raw-result.json bytes.
+      identity_hull is the exact set equality of those two archived lists.
+      predicted_size = |predicted_exception_set|. The corrected fraction: the
+      numerator is the count of targets that are both outside the predicted set
+      and classified saturated, i.e. |F_p \ (predicted ∪ observed_hull)| =
+      p - |predicted ∪ observed_hull|; the denominator is |F_p \ predicted| =
+      p - |predicted|. In every cell observed_hull == predicted exactly, so
+      predicted ∪ observed_hull = predicted and numerator = denominator =
+      p - |predicted|, giving fraction = 1 (an exact Fraction with numerator ==
+      denominator). No field was absent; nothing was reconstructed.
+  table:
+    - run: RUN-SEMAEV-002-b
+      m: 3
+      p: 101
+      identity_hull: true
+      predicted_size: 2
+      numerator: 99
+      denominator: 99
+      fraction: "99/99"
+    - run: RUN-SEMAEV-002-b
+      m: 3
+      p: 103
+      identity_hull: true
+      predicted_size: 2
+      numerator: 101
+      denominator: 101
+      fraction: "101/101"
+    - run: RUN-SEMAEV-002-b
+      m: 3
+      p: 107
+      identity_hull: true
+      predicted_size: 2
+      numerator: 105
+      denominator: 105
+      fraction: "105/105"
+    - run: RUN-SEMAEV-002-b
+      m: 3
+      p: 211
+      identity_hull: true
+      predicted_size: 2
+      numerator: 209
+      denominator: 209
+      fraction: "209/209"
+    - run: RUN-SEMAEV-002-c
+      m: 4
+      p: 101
+      identity_hull: true
+      predicted_size: 3
+      numerator: 98
+      denominator: 98
+      fraction: "98/98"
+    - run: RUN-SEMAEV-002-c
+      m: 4
+      p: 103
+      identity_hull: true
+      predicted_size: 3
+      numerator: 100
+      denominator: 100
+      fraction: "100/100"
+    - run: RUN-SEMAEV-002-c
+      m: 4
+      p: 107
+      identity_hull: true
+      predicted_size: 3
+      numerator: 104
+      denominator: 104
+      fraction: "104/104"
+    - run: RUN-SEMAEV-002-c
+      m: 4
+      p: 211
+      identity_hull: true
+      predicted_size: 3
+      numerator: 208
+      denominator: 208
+      fraction: "208/208"
+  mutation_control:
+    construction: >-
+      Synthetic cell, p = 101, predicted_exception_set = [0, 76] (size 2),
+      observed_exception_set_hull = [0, 76, 50] (size 3). The predicted set and
+      the observed classification DISAGREE: 50 is in observed_hull but not in
+      predicted, so 50 is a target OUTSIDE the predicted set that is classified
+      NOT saturated (an unexplained exception). This is the injected
+      misclassification the control requires.
+    formula_output: "98/99"
+    decays: true
+    note: >-
+      denominator = |F_p \ predicted| = 101 - 2 = 99; numerator =
+      |F_p \ (predicted ∪ observed_hull)| = 101 - |{0,76,50}| = 101 - 3 = 98;
+      fraction = 98/99, which is strictly below 1. The formula therefore DECAYS
+      under the injected misclassification and is NOT tautological: it returns
+      1.0 on the real cells only because observed_hull == predicted there, not
+      by construction.
+  calibration_flags:
+    m3_p101: true
+    m3_p103: true
+    m3_p107: true
+    m3_p211: true
+    source: >-
+      m3_calibration_all_match field per m=3 cell in
+      RUN-SEMAEV-002-a/raw-result.json (all four true; per-corner c3_0,
+      c3_1_corner_D0, c3_1_corner_0D, c3_2 each match=true).
+  sources_read:
+    - coordination/goals/GOAL-CRYPTO-001/batches/BATCH-d5f70a/blind-input.yaml
+    - ledger/handoffs/TASK-20260908-0b434a.yaml
+    - experiments/EXP-SEMAEV-002/specification.yaml
+    - ledger/hypotheses/H-SEMAEV-002.yaml
+    - experiments/EXP-SEMAEV-002/runs/RUN-SEMAEV-002-a/raw-result.json
+    - experiments/EXP-SEMAEV-002/runs/RUN-SEMAEV-002-b/raw-result.json
+    - experiments/EXP-SEMAEV-002/runs/RUN-SEMAEV-002-c/raw-result.json
+    - experiments/EXP-SEMAEV-002/runs/RUN-SEMAEV-002-d/raw-result.json
+  blind_from_attestation: >-
+    I read NONE of the forbidden paths: ledger/corrections/CORR-20260907-e65243.yaml;
+    experiments/EXP-SEMAEV-002/implementation/ (any file);
+    experiments/EXP-SEMAEV-002/reviews/ (any file);
+    experiments/EXP-SEMAEV-002/analysis.md;
+    experiments/EXP-SEMAEV-002/execution-report.yaml; harness/semaev.py;
+    harness/toycurve.py. I did not read the review-plan's coordinator_prior
+    beyond what blind-input.yaml provides. I performed no comparison against any
+    other record and no scientific re-execution; I worked only from the archived
+    fields and the one synthetic mutation control.
+  verdict_identity: >-
+    identity_hull = true for all 8 cells: observed_exception_set_hull equals
+    predicted_exception_set as exact set equality in every cell (m=3: p=101
+    {0,76}, p=103 {0,26}, p=107 {0,27}, p=211 {0,53}; m=4: p=101 {0,72,76},
+    p=103 {0,26,72}, p=107 {0,27,72}, p=211 {0,53,72}).
+  verdict_fraction: >-
+    The corrected nonexceptional_full_box_fraction is exactly 1 (numerator ==
+    denominator) in all 8 cells, derived solely from the archived fields:
+    (p - |predicted|) / (p - |predicted|) because observed_hull == predicted in
+    every cell. Exact values: m=3 -> 99/99, 101/101, 105/105, 209/209; m=4 ->
+    98/98, 100/100, 104/104, 208/208.
+  verdict_mutation: >-
+    decays: the derived formula returns 98/99 (strictly < 1) on the synthetic
+    misclassified cell, so it is not tautological.
+  review_attestation:
+    role: blind-rederiver
+    read:
+      - coordination/goals/GOAL-CRYPTO-001/batches/BATCH-d5f70a/blind-input.yaml
+      - ledger/handoffs/TASK-20260908-0b434a.yaml
+      - experiments/EXP-SEMAEV-002/specification.yaml
+      - ledger/hypotheses/H-SEMAEV-002.yaml
+      - experiments/EXP-SEMAEV-002/runs/RUN-SEMAEV-002-a/raw-result.json
+      - experiments/EXP-SEMAEV-002/runs/RUN-SEMAEV-002-b/raw-result.json
+      - experiments/EXP-SEMAEV-002/runs/RUN-SEMAEV-002-c/raw-result.json
+      - experiments/EXP-SEMAEV-002/runs/RUN-SEMAEV-002-d/raw-result.json
+    sibling_reports_read: []
+    verdict: holds
