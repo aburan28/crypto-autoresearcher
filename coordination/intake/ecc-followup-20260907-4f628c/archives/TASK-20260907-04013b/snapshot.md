@@ -1,0 +1,9 @@
+# Source snapshot declaration
+
+TASK-20260907-04013b archives the nine exact producer paths declared in bootstrap.json plus this declaration. The source task is TASK-20260907-4f628c. The synchronized base is f42e1dc23b1f8f85d7b7d4a4a811490fbe767936 and bootstrap commit is 4c472e5266. No experiment implementation, scientific run, evidence promotion or claim-changing review is produced.
+
+The control plane reported full-ledger validation PASS (exit 0): 10179 records after design versus 10172 at baseline, with no new violations. The 1210 grandfathered suppressed items and all recorded legacy/supersession counts are unchanged. This is operational ledger integrity, not scientific validation.
+
+Scoped record schemas, crossreferences, exact write scopes, required canonical manifest companions and H/specification parameter/proof-map parity passed. The dispatch queue passed all 11 gates; the design snapshot was selected as an isolated archive. Static panel checks confirmed 8 MONO cells, 12 AUXIN modulus cells and 2040 nonzero scalar/list cases. The AUXIN coverage arrays are M=[4,25,100,4,4,20], residual=[25,4,1,25,25,5] at r101; M=[16,15,240,16,16,60], residual=[15,16,1,15,15,4] at r241. These are checks of frozen parameter arithmetic, not experiment executions. Planned run identifiers passed syntax and exact existing manifest/path collision checks. The MONO full-group scope and AUXIN fresh-process public-input boundary passed the control-plane semantic check. git diff --check passed.
+
+All scientific/source records are ready for immutable freeze. The operational queue is updated separately after the verified commit receipt and is not part of its own artifact hash map. Publication follows exact ten-path snapshot and post-commit receipt verification. No scientific result is inferred from these checks.
