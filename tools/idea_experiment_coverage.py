@@ -5,6 +5,8 @@ This is an administrative inventory, not semantic approval or scientific evidenc
 All idea statuses, canonical/legacy ledgers, legacy Markdown and archived proposal
 lists remain in the denominator. Legacy preflight contracts are separate candidates.
 Unknown layouts, parse failures and duplicate identities stay visible for review.
+Area classification requires explicit policy membership: ecc=false also includes
+unclassified records, whose areas are missing or absent from both policy lists.
 """
 from __future__ import annotations
 
@@ -235,12 +237,20 @@ def scan(repo: Path) -> dict:
                                    "semantic_coverage": "not_adjudicated_by_this_tool"})
             for iid in rec["mentions"]:
                 mentions[iid].append(rec["path"])
-    areas = ecc_priority.ecc_areas(ecc_priority.load_policy(repo / "orchestration/research-priority.yaml"))
+    policy = ecc_priority.load_policy(repo / "orchestration/research-priority.yaml")
+    areas = ecc_priority.ecc_areas(policy)
+    excluded_areas = set(policy.get("excluded_areas") or {})
     rows = []
     for iid, entries in sorted(records["idea"].items()):
         area_set = sorted({a for entry in entries
                            if (a := entry.get("area") or ecc_priority.area_of(
                                entry["body"].get("question_id") or entry["body"].get("goal_id", "")))})
+        unknown_areas = sorted(set(area_set) - areas - excluded_areas)
+        is_ecc = bool(set(area_set) & areas)
+        # Retain ECC priority when any source is explicitly included. Otherwise,
+        # every present area must be explicitly excluded to classify as non-ECC.
+        classification = ("ecc" if is_ecc else
+                          "non_ecc" if area_set and not unknown_areas else "unclassified")
         evidence = links.get(iid, [])
         status = ("explicit_experiment_link" if evidence else
                   "hypothesis_only" if hypotheses.get(iid) else
@@ -253,8 +263,10 @@ def scan(repo: Path) -> dict:
                      "title": entries[0]["body"].get("title", ""),
                      "source_statuses": sorted({str(e["body"].get("status", "unspecified")) for e in entries}),
                      "recommended_priority": entries[0]["body"].get("recommended_priority"),
-                     "areas": area_set, "ecc": bool(set(area_set) & areas),
-                     "classification_unresolved": not area_set,
+                     "areas": area_set, "ecc": is_ecc,
+                     "classification": classification,
+                     "classification_unresolved": classification == "unclassified",
+                     "policy_unknown_areas": unknown_areas,
                      "link_status": status, "experiments": evidence,
                      "legacy_contract_candidates": legacy_contracts.get(iid, []),
                      "hypotheses": hypotheses.get(iid, []),
@@ -279,6 +291,7 @@ def scan(repo: Path) -> dict:
                            "Hypotheses alone, citations and arbitrary mentions do not satisfy experiment coverage.",
                            "Duplicates, unknown links, malformed records and unrecognized lineage layouts require reconciliation.",
                            "Legacy preflight contracts are inventoried separately and do not establish canonical experiment readiness.",
+                           "ecc=false includes unclassified records; only classification=non_ecc means every extracted area is explicitly excluded by policy. Any explicitly included source preserves ECC priority; policy_unknown_areas retains unclassified secondary area tokens.",
                            "Discovery covers ledger YAML, identified Markdown under ideas/{,deferred/,rejected/}, and top-level ideas/proposals lists in coordination YAML; unminted prose candidates need separate intake.",
                            "This inventories the current tree; publication and concurrent-ref authority need separate checks."],
             "counts": {"ideas": len(rows), "ecc_ideas": sum(r["ecc"] for r in rows),
@@ -286,6 +299,7 @@ def scan(repo: Path) -> dict:
                        "idea_source_types": dict(Counter(e["source_type"] for entries in records["idea"].values() for e in entries)),
                        "ideas_with_legacy_contract_candidates": sum(bool(legacy_contracts.get(r["id"])) for r in rows),
                        "classification_unresolved": sum(r["classification_unresolved"] for r in rows),
+                       "classification": dict(sorted(Counter(r["classification"] for r in rows).items())),
                        "link_status": dict(sorted(counts.items())),
                        "ecc_without_explicit_experiment": sum(r["ecc"] and not r["experiments"] for r in rows),
                        "all_without_explicit_experiment": sum(not r["experiments"] for r in rows)},
