@@ -1,0 +1,266 @@
+review:
+  task_id: TASK-20260908-5f236e
+  role: red-team
+  reviewed_at: '2026-09-08'
+  review_type: source_only_semantic_custody_review
+  joint: semantic_counter_and_schedule_registry_closure_v2_5
+  verdict: breaks
+  verdict_scope: >-
+    The v2.5 counter-locator definitions source-reject the specified v2.4
+    counter and display aliases. The schedule definition still cannot reject
+    an invalid component ordinal or choose one unique complete component
+    inventory from the frozen appendix. This is a prospective source-contract
+    finding only; it is not an implementation, execution, measurement,
+    resource, cryptanalytic, or authorization result.
+
+  source_snapshot:
+    commit: 63bf2a83b17eab0de8551b9509d33e9127e8b8e1
+    sources_actually_read:
+      - path: ledger/handoffs/TASK-20260908-5f236e.yaml
+        sha256: abb51364538f5c1caa9bbbc8e555c41776adccca9d40ccbc9b294b1483ff9ab6
+      - path: coordination/design/BATCH-c2a2b6/hardening-v2/lifecycle-v2_5-review-plan.yaml
+        sha256: afac77d5a85d62fda709928914b2297ecbfbb8c0ddddbc1628be682b7bb12b29
+      - path: experiments/EXP-ECDLP-ac7e8b/amendments/v2_1_lifecycle_custody.yaml
+        sha256: e3c5cc9f212c70fc87156f243c13919e68dbd96955b47092cc59ae5eff391eb8
+      - path: experiments/EXP-ECDLP-ac7e8b/amendments/v2_2_custody_replay_closure.yaml
+        sha256: 256b92d1df1b74058f553f42024f34654c066da6ee8709024cae8fb80a0a1933
+      - path: experiments/EXP-ECDLP-ac7e8b/amendments/v2_3_custody_alias_closure.yaml
+        sha256: 8028fb8f49825f71414a7e2a58519264182f5582cb7856228777cc7e984ebcb5
+      - path: experiments/EXP-ECDLP-ac7e8b/amendments/v2_4_canonical_locator_closure.yaml
+        sha256: 0d10e48fb6719fe8c9ec823f4eae2366ef64686e7fd182ab90057b68b50d1aa6
+      - path: experiments/EXP-ECDLP-ac7e8b/amendments/v2_5_semantic_registry_closure.yaml
+        sha256: a0690b01f87731402ff6372cfb9feef3ee890e3fe645218e036aa918c479f495
+      - path: coordination/design/BATCH-28dddb/protocol-appendix.yaml
+        sha256: ac0b4b83fe32bd949d710a203bf1dd4248557f64dcdd381edcec65cd236e37b0
+      - path: ledger/corrections/CORR-20260908-fbd218.yaml
+        sha256: 3e948760641ff7b7a5576fb6ae5b9c7b2c68902fa74c3c5372af5414beffcd64
+      - path: ledger/decisions/DEC-20260908-33b1b4.yaml
+        sha256: a6c17b221d98bfad3e8b614c06331df02744075e16a63cb901a1dc2b220852d0
+
+  attestation:
+    independent_session: true
+    read_sibling_reports: false
+    sources_actually_read: true
+    assigned_joint_only: true
+    source_substitutions: []
+    implementation_or_fixture_created: false
+    execution_performed: false
+    scientific_claim_made: false
+    research_state_changed: false
+    inference:
+      policy: review-adversarial
+      reasoning_effort: xhigh
+      fallback_allowed: false
+      degraded_allowed: false
+      fallback_used: false
+      degraded_requirements: []
+      amazon_bedrock: not_used
+
+  constructions:
+    - id: v2_4_schema_version_alias_admitted
+      construction: >-
+        For one active launch cgroup digest D, form the two canonical CPU
+        locator objects {schema_version: alpha, kind: cpu_cgroup_v2,
+        platform: linux, cgroup_identity_digest: D, counter_file: cpu.stat,
+        field: usage_usec} and the identical object with schema_version: beta.
+        The strings alpha and beta are distinct.
+      v2_4_reasoning: >-
+        v2.4 requires schema_version to be present but specifies neither its
+        value nor its type in canonical_locator_schema. Both objects satisfy
+        every stated CPU semantic field while hashing to different entry bytes,
+        so v2.4 provides no source rule that rejects their registry admission
+        as two encodings of the same physical counter.
+      v2_5_rejection_route: >-
+        v2.5 entry_schema.cpu_cgroup_v2 fixes schema_version to
+        sdeg_counter_locator_registry_v1. The beta object is rejected before
+        hashing as wrong_counter_locator_schema_version; a different JSON type
+        is independently rejected by entry_schema.rule.
+      result: holds
+
+    - id: v2_4_extra_metadata_alias_admitted
+      construction: >-
+        Starting from a valid CPU object, add a JSON member note: temporary
+        without changing the physical cgroup, cpu.stat file, or usage_usec
+        field.
+      v2_4_reasoning: >-
+        v2.4 lists common required fields and semantic conditions but does not
+        declare an exact key set or an extra-member rejection. The additional
+        member changes the canonical entry hash while preserving the physical
+        counter described by the v2.4 semantic fields.
+      v2_5_rejection_route: >-
+        v2.5 declares a closed object with exactly the listed CPU keys and
+        rejects additional keys before hashing. This construction is rejected
+        as counter_locator_extra_field.
+      result: holds
+
+    - id: duplicate_physical_counter_semantic_key
+      construction: >-
+        Attempt to register two rows for the same valid CPU canonical entry,
+        then attempt to make the second entry byte string different by changing
+        a display value, adding a member, changing schema_version, or using a
+        noncanonical numeric spelling where an IO device field is involved.
+      v2_5_rejection_route: >-
+        The unchanged duplicate has equal physical_counter_key_sha256 and
+        counter_locator_sha256, each forbidden by sealed_registry.validation.
+        A display member or any other additional member is rejected before
+        hashing; a different schema version is rejected before hashing; and
+        RFC 8785 requires canonical bytes, so an alternate numeric spelling is
+        not a distinct canonical_entry. A changed meaningful IO device or
+        field instead changes the declared physical_counter_key and is not a
+        duplicate physical counter under the stated key.
+      result: holds
+
+    - id: v2_4_schedule_node_textual_alias_admitted
+      construction: >-
+        For campaign EXP-ECDLP-ac7e8b/S3-b08/00, root 0, calibrator component
+        0, and primary phase, use two different node strings such as
+        EXP-ECDLP-ac7e8b/S3-b08/00/0/calibrator/0/primary and
+        campaign=EXP-ECDLP-ac7e8b/S3-b08/00;root=0;component=calibrator:0;phase=primary.
+      v2_4_reasoning: >-
+        v2.4 calls for an immutable schedule-node identifier but gives no
+        grammar, finite inventory, or resolver. The frozen appendix defines
+        job counts and order but no schedule-node identifier grammar. It thus
+        supplies no source validation route that can distinguish, equate, or
+        reject these two text strings as aliases of one physical stage node.
+      v2_5_rejection_route: >-
+        v2.5 removes a textual node identifier from stage registry entries.
+        A stage entry has only the declared exact keys and resolves only through
+        one schedule_node_key_sha256 in the sealed inventory. A supplied node
+        string is an extra field; two stage rows that name the same inventory
+        key are rejected as duplicate_stage_registry_resolution.
+      result: holds
+
+    - id: duplicate_schedule_registry_resolution_without_sum
+      construction: >-
+        Form two otherwise valid stage registry rows that each reference the
+        same sealed schedule_node_key_sha256 but carry different display labels
+        or different target registry entry bytes, then publish only one of their
+        totals rather than adding them.
+      v2_5_rejection_route: >-
+        stage_entry_exact_keys excludes display fields, and target_registry
+        validation rejects two stage entries resolving to the same inventory
+        key before target_registry_sha256 is assigned. The rejection does not
+        depend on a later sum, so a non-summed publication fork is also closed.
+      result: holds
+
+    - id: direct_cpu_io_display_alias
+      construction: >-
+        Bind the same valid counter locator and physical-counter key while
+        rendering the counter namespace once as a filesystem-like path and
+        once as a human-readable CPU or IO display label.
+      v2_5_rejection_route: >-
+        v2.5 observation_binding makes counter_namespace, source ID, trace,
+        path, and URI non-authoritative representation metadata that may not
+        enter either identity key. A display field in a locator entry is also
+        an extra field. The two renderings therefore cannot create distinct
+        accounting identities.
+      result: holds
+
+    - id: direct_target_id_display_alias_without_sum
+      construction: >-
+        Bind a stage to one valid schedule_node_key_sha256 while rendering a
+        target_id as two different textual paths and avoid adding their totals.
+      v2_5_rejection_route: >-
+        stage entries do not admit target_id as a key, and observation_binding
+        says target_id is display-only and cannot substitute for the resolved
+        schedule key. A second entry resolving to the same key is rejected
+        before publication regardless of whether totals are added.
+      result: holds
+
+    - id: missing_schedule_inventory_key
+      construction: >-
+        Use an otherwise shape-compatible stage registry row whose
+        schedule_node_key_sha256 is a lowercase 64-hex digest absent from the
+        sealed schedule inventory.
+      v2_5_rejection_route: >-
+        target_registry.validation permits a stage row only when its key has
+        one and exactly one sealed inventory entry; the construction is
+        rejected as missing_schedule_node_inventory_entry.
+      result: holds
+
+    - id: noncanonical_campaign_form
+      construction: >-
+        Substitute EXP-ECDLP-ac7e8b/S3-b08/0 for the frozen campaign key
+        EXP-ECDLP-ac7e8b/S3-b08/00, keeping the same intended cell and j.
+      v2_5_rejection_route: >-
+        schedule_node_key requires an exact campaign key from the appendix,
+        whose construction fixes j as two decimal digits. The inventory can
+        materialize only the /00 form; the noncanonical form has no permitted
+        inventory key and cannot resolve as a stage target.
+      result: holds
+
+    - id: appendix_hash_mismatch
+      construction: >-
+        Present a schedule inventory that has a different appendix_sha256 from
+        the frozen protocol appendix while retaining otherwise internally
+        consistent inventory rows.
+      v2_5_rejection_route: >-
+        sealed_schedule_inventory requires appendix_sha256 and explicitly
+        rejects an appendix digest mismatch before the inventory becomes the
+        sole resolver.
+      result: holds
+
+    - id: invalid_component_ordinal_is_not_source_rejected
+      construction: >-
+        Construct two finite inventories for every campaign/root/phase with
+        all stated family counts, but assign calibrator ordinals 0 through 24
+        in the first and 1 through 25 in the second. Each inventory retains 25
+        calibrators, one planted_positive item, two main_decomposition items,
+        and two baseline items per job. Consequently, a row whose component is
+        {family: calibrator, ordinal: 25} is invalid in the first inventory but
+        valid in the second.
+      source_gap: >-
+        v2.5 says the ordinal must occur in a family-specific inventory
+        declared by components_per_job. The appendix's components_per_job text
+        gives only four family counts. Its job-order sentence names calibrator
+        program/multiplier order but neither maps that sequence to ordinals nor
+        fixes an ordinal base or explicit family-to-ordinal table. No listed
+        source defines the set of permitted ordinal values, so neither
+        inventory can be rejected from the frozen source packet for this
+        difference.
+      consequence: >-
+        The claim that the inventory contains every and only permitted tuple is
+        not source-checkable. A sealed inventory could make different component
+        identities and coverage universes canonical while respecting every
+        stated count. This leaves the requested invalid-component-ordinal
+        control and schedule-node identity closure open.
+      exact_missing_rule: >-
+        A source-bound closed component inventory must state, for each family,
+        its exact ordinal set and the binding from every ordinal to its named
+        calibrator program/multiplier, planted control, main arm, or baseline.
+        The schedule inventory validator must compare its rows against that
+        explicit map before hashing or target-registry admission.
+      result: breaks
+
+  v2_4_proves_too_much_control:
+    result: holds
+    reasoning: >-
+      The schema-version construction remains possible under v2.4 because its
+      schema_version is required but not fixed, while v2.5 rejects it before
+      registration. The schedule textual-alias construction is not
+      source-rejected under v2.4 because neither v2.4 nor the frozen appendix
+      supplies the necessary node grammar and resolver; v2.5's closed inventory
+      and stage-key rules reject the textual form and duplicate resolution.
+      Thus the v2.5 rules do not prove that v2.4 already closed those two
+      semantic aliases. This control does not cure the separate v2.5 component
+      inventory omission above.
+
+  limitations:
+    - >-
+      This review read source definitions only. It did not parse an actual
+      registry, construct a fixture, run code, validate an implementation, or
+      observe a resource or scientific outcome.
+    - >-
+      A correction that writes a closed component inventory still requires a
+      fresh independent source review. A future source-level holds verdict
+      would not authorize implementation or scientific execution.
+    - >-
+      No conclusion about the ECDLP mechanism, its cost, performance, or
+      cryptanalytic relevance follows from this custody-contract finding.
+
+  required_coordinator_action: >-
+    Preserve v2.5 and this breaks finding as immutable history. Keep
+    implementation and scientific execution unauthorized. If the lane is
+    continued, issue an additive v2.6 source repair that binds the exact
+    family-to-ordinal component map and its validator rule, then pre-register
+    a fresh independent review of that narrow repair.
