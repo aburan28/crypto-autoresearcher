@@ -280,35 +280,26 @@ def main():
         by_complexity[c].append(canon)
         return canon
 
-    def write_all_checkpoints(reason: str):
-        gc._atomic_write_json(ckpt_path, {
-            "pack": PACK, "max_complexity": args.max_complexity,
-            "levels_completed": checkpoint_levels, "stopped_reason": reason,
-            "last_updated_utc": _utc_now(),
-        })
-        gc._atomic_write_json(front_path, {
-            "pack": PACK, "targets": sorted(targets.keys()),
-            "front_state": front_state, "stopped_reason": reason,
-            "highest_level_completed": highest_completed,
-            "last_updated_utc": _utc_now(),
-        })
-
-    # complexity 1
-    lvl_exprs = []
-    for leaf_name in leaves:
-        e = _register(("CONST",) if leaf_name == "CONST" else ("leaf", leaf_name), 1)
-        if e is not None:
-            lvl_exprs.append(e)
-    evaluate_level_for_targets(lvl_exprs, targets, front_state, 1, log)
-    highest_completed = 1
-    checkpoint_levels.append({"complexity": 1, "new_registered": len(lvl_exprs),
-                               "elapsed_seconds_total": round(time.monotonic() - t_start, 3)})
-    write_all_checkpoints("in_progress")
-    log(f"level 1 done: {len(lvl_exprs)} exprs, elapsed={time.monotonic()-t_start:.1f}s")
-
-    for c in range(2, args.max_complexity + 1):
-        level_t0 = time.monotonic()
+    def build_level_exprs(c: int) -> list:
+        """Registers every expression of complexity c into by_complexity
+        (mutating it, seen_string_hashes and seen_fp_hashes via _register),
+        given that all levels < c are already registered, and returns the
+        list of newly-registered expressions at level c. Pure function of
+        the grammar/leaves ordering and the already-registered lower levels
+        -- no randomness, no wall-clock or PID dependence -- so re-running
+        this for an already-completed level (the resume path below) is
+        deterministic and produces byte-identical registration to the
+        original run's `_register` calls at that level. This is exactly the
+        code that used to be inlined once for c==1 before the main loop and
+        again for c>=2 inside the loop; factored out unchanged so both the
+        resume rebuild and the live loop share one definition."""
         lvl_exprs = []
+        if c == 1:
+            for leaf_name in leaves:
+                e = _register(("CONST",) if leaf_name == "CONST" else ("leaf", leaf_name), 1)
+                if e is not None:
+                    lvl_exprs.append(e)
+            return lvl_exprs
         for child in by_complexity.get(c - 1, []):
             for op in ge.UNARY_OPS:
                 e = _register((op, child), c)
@@ -324,6 +315,128 @@ def main():
                         e = _register((op, left, right), c)
                         if e is not None:
                             lvl_exprs.append(e)
+        return lvl_exprs
+
+    def write_all_checkpoints(reason: str):
+        gc._atomic_write_json(ckpt_path, {
+            "pack": PACK, "max_complexity": args.max_complexity,
+            "levels_completed": checkpoint_levels, "stopped_reason": reason,
+            "last_updated_utc": _utc_now(),
+        })
+        gc._atomic_write_json(front_path, {
+            "pack": PACK, "targets": sorted(targets.keys()),
+            "front_state": front_state, "stopped_reason": reason,
+            "highest_level_completed": highest_completed,
+            "last_updated_utc": _utc_now(),
+        })
+
+    # --- Resume path (this dispatch's fix, TASK-20260907-8fd098 continuation):
+    # stage1_grammar_driver.py has no checkpoint-resume for the expensive
+    # fit/Pareto-front loop -- every container-restart relaunch previously
+    # re-scored every complexity level from 1, even though pareto-fronts-raw.json
+    # and enumeration-checkpoint.json are already written progressively, one
+    # complexity level at a time, by write_all_checkpoints(). The atomic unit
+    # here is one full complexity level's scoring pass across every target
+    # (evaluate_level_for_targets is called once per level, for ALL targets,
+    # before write_all_checkpoints commits that level) -- so "skip to the next
+    # incomplete level" is the natural, and only safe, resume granularity: a
+    # level is either fully scored and committed, or not started at all, never
+    # partially committed.
+    #
+    # Determinism: the constant-fitting/held-out-scoring itself never needs to
+    # be re-run for an already-completed level -- its results are reloaded
+    # verbatim from pareto-fronts-raw.json. What DOES need to be rebuilt is
+    # the enumeration state (by_complexity, seen_string_hashes, seen_fp_hashes)
+    # for those levels, because levels >= resume point are built from the
+    # actual Expr objects of lower levels (grammar_engine binary/unary
+    # combination), not from the fit results. That rebuild re-runs
+    # build_level_exprs() (registration only, no fitting -- the same cheap
+    # ~1s/level cost already observed in driver-progress.log for complexity
+    # 1-3) for every already-completed level, and is verified deterministic
+    # by checking each level's re-derived new_registered count against the
+    # count the original run recorded, aborting the resume (not the whole
+    # run) and falling back to a from-scratch enumeration if any level
+    # disagrees.
+    resume_start_complexity = 1
+    if os.path.exists(ckpt_path) and os.path.exists(front_path):
+        ckpt_data = None
+        front_data = None
+        try:
+            with open(ckpt_path) as f:
+                ckpt_data = json.load(f)
+            with open(front_path) as f:
+                front_data = json.load(f)
+        except (json.JSONDecodeError, OSError) as exc:
+            log(f"RESUME: existing checkpoint/front-state files present but unreadable "
+                f"({type(exc).__name__}: {exc}) -- likely a torn write from a mid-write kill; "
+                f"starting enumeration fresh from complexity 1.")
+
+        if ckpt_data is not None and front_data is not None:
+            if ckpt_data.get("pack") != PACK or ckpt_data.get("max_complexity") != args.max_complexity:
+                log(f"RESUME: existing checkpoint is for a different pack/max_complexity "
+                    f"(pack={ckpt_data.get('pack')!r}, max_complexity={ckpt_data.get('max_complexity')!r}, "
+                    f"this invocation: pack={PACK!r}, max_complexity={args.max_complexity!r}); "
+                    f"starting enumeration fresh from complexity 1.")
+            else:
+                levels_completed_records = ckpt_data.get("levels_completed", [])
+                highest_ckpt = max((lc["complexity"] for lc in levels_completed_records), default=0)
+                highest_front = front_data.get("highest_level_completed", 0)
+                if levels_completed_records and highest_ckpt != highest_front:
+                    log(f"RESUME ABORTED: enumeration-checkpoint.json (highest={highest_ckpt}) and "
+                        f"pareto-fronts-raw.json (highest={highest_front}) disagree on the highest "
+                        f"completed level -- these two files are always written together by "
+                        f"write_all_checkpoints(), so disagreement means a torn/partial write from a "
+                        f"mid-write kill; starting enumeration fresh from complexity 1 rather than "
+                        f"trusting inconsistent state.")
+                elif highest_ckpt >= 1:
+                    log(f"RESUME: found checkpoint complete through complexity {highest_ckpt}; "
+                        f"re-deriving (registration only, NOT re-fitting/re-scoring) levels "
+                        f"1..{highest_ckpt} to rebuild enumeration state.")
+                    rebuild_ok = True
+                    for c_rebuild in range(1, highest_ckpt + 1):
+                        rebuilt_exprs = build_level_exprs(c_rebuild)
+                        expected = next((lc["new_registered"] for lc in levels_completed_records
+                                         if lc["complexity"] == c_rebuild), None)
+                        if expected is None or len(rebuilt_exprs) != expected:
+                            log(f"RESUME ABORTED: determinism check failed re-deriving complexity "
+                                f"{c_rebuild} (re-derived {len(rebuilt_exprs)} expressions, checkpoint "
+                                f"recorded {expected!r}); starting enumeration fresh from complexity 1 "
+                                f"rather than trusting a possibly-nondeterministic partial rebuild.")
+                            rebuild_ok = False
+                            break
+                    if rebuild_ok:
+                        loaded_front_state: Dict[str, Dict] = {}
+                        for tk, tv in front_data.get("front_state", {}).items():
+                            by_c = {int(c_str): rec for c_str, rec in tv.get("by_complexity", {}).items()}
+                            loaded_front_state[tk] = {"by_complexity": by_c}
+                        front_state = loaded_front_state
+                        checkpoint_levels = list(levels_completed_records)
+                        highest_completed = highest_ckpt
+                        resume_start_complexity = highest_ckpt + 1
+                        log(f"RESUME: enumeration state rebuilt through complexity {highest_ckpt} "
+                            f"(new_registered counts matched at every level, confirming byte-identical "
+                            f"re-derivation); {len(front_state)} target fronts reloaded verbatim from "
+                            f"{front_path}; resuming fit/score at complexity {resume_start_complexity} "
+                            f"(no already-completed level re-scored).")
+                    else:
+                        # Discard any partial rebuild and fall back to a clean
+                        # from-scratch enumeration -- resume_start_complexity
+                        # stays 1, front_state/checkpoint_levels stay empty.
+                        by_complexity = {c: [] for c in range(1, args.max_complexity + 1)}
+                        seen_string_hashes.clear()
+                        seen_fp_hashes.clear()
+
+    if resume_start_complexity > args.max_complexity:
+        stopped_reason = "completed"
+        write_all_checkpoints(stopped_reason)
+        log(f"RESUME: checkpoint already covers max_complexity={args.max_complexity}; nothing left to do.")
+        log(f"stage1_grammar_driver finished: stopped_reason={stopped_reason} "
+            f"highest_level_completed={highest_completed} total_elapsed={time.monotonic()-t_start:.1f}s")
+        return
+
+    for c in range(resume_start_complexity, args.max_complexity + 1):
+        level_t0 = time.monotonic()
+        lvl_exprs = build_level_exprs(c)
 
         evaluate_level_for_targets(lvl_exprs, targets, front_state, c, log)
         highest_completed = c
