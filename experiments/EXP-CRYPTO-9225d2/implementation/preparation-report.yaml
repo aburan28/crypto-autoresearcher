@@ -1,0 +1,231 @@
+preparation_report:
+  experiment_id: EXP-CRYPTO-9225d2
+  task_id: TASK-20260907-ecd3a2
+  scientific_execution_authorized: false
+  maximum_runs_this_task: 0
+
+  no_scientific_run_attestation: >-
+    No fixture, curve, scalar/primitive input, measurement table, rho walk,
+    proof certificate, or scientific test result was generated, executed, or
+    self-tested by this task. Every function in fixture_generator.py that
+    would realize a fixture or certificate (construct_pocklington_certificate,
+    construct_reduced_curve_fixture) is guarded to raise RuntimeError rather
+    than run. Every function in rho.py that would launch a process
+    (run_worker, run_coordinator) is likewise guarded. driver.main() is
+    guarded to raise RuntimeError. The only actual computation performed by
+    this executor session against the six .py files was
+    `python3 -m py_compile <file>` for each of driver.py, arithmetic.py,
+    independent_checker.py, count_predictor.py, fixture_generator.py, and
+    rho.py, which succeeded for all six, plus reading the specification,
+    handoff, hypothesis, design-note, and source-packet as listed in
+    implementation-manifest.yaml. No module was imported at runtime beyond
+    what py_compile itself performs (py_compile compiles to bytecode without
+    executing module-level code paths that call functions). No cgroup,
+    timer, resource-accounting, or network function was invoked against real
+    system state.
+
+  static_work_actually_performed:
+    - Read experiments/EXP-CRYPTO-9225d2/specification.yaml in full (432 lines).
+    - Read ledger/handoffs/TASK-20260907-ecd3a2.yaml in full.
+    - Read ledger/hypotheses/H-CRYPTO-830d47.yaml in full.
+    - Read coordination/design/BATCH-bb548b/design-note.md in full.
+    - Read coordination/design/BATCH-bb548b/source-packet.json in full.
+    - Wrote six Python source files and two JSON schema/template files.
+    - Ran `python3 -m py_compile` against each of the six .py files;
+      all six succeeded with no syntax errors.
+    - Ran `python3 -c "import json; json.load(open(...))"` against
+      schemas.json and admission-template.json; both parsed successfully.
+    - Computed sha256sum of all eight source/schema files plus the source
+      inputs read, recorded in implementation-manifest.yaml.
+    - Removed the __pycache__ directory created as a side effect of
+      py_compile, so no undeclared artifact remains under write_scope.
+
+  requirement_by_requirement_mapping:
+    - requirement: "driver.py: single coordinator/runner entry, exact jobs/cells, three-process barriers, timers, cgroup admission, resource accounting, exclusive-output and checkpoint interfaces; no fixture or benchmark execution at import."
+      built: >-
+        Implemented enumerate_arithmetic_jobs/enumerate_rho_jobs/
+        enumerate_all_logical_jobs/enumerate_model_rows returning the exact
+        40/9 counts (asserted in-module); Timer class for wall/CPU ns;
+        check_cgroup_admission/read_cgroup_resource_accounting that refuse
+        rather than fabricate; acquire_exclusive_output_directory that
+        checks-only in this task; CheckpointIndexEntry/watchdog_seconds;
+        main() guarded to raise.
+      gap: >-
+        No real cgroup, host, or filesystem interaction has been exercised;
+        these are unexercised interfaces pending a real admission task.
+    - requirement: "arithmetic.py: frozen field API, EFD co-Z rescaling/addition/doubling, normalization, scalar routine and planted variant; preserve separate non-field counters."
+      built: >-
+        FieldElement.mul/sqr/inv/add/sub/neg/scale_small with OperationCounters
+        tallying M/S/I separately from linear_ops/integer_work/
+        branch_copy_ops/hash_calls/sink_bytes; point_add (rescale + common-Z,
+        12M+4S generic, exceptional branches per spec); point_double
+        (dbl-2007-bl, a=0 -> 1M+7S, a=1 -> 1M+8S); normalize (3M+1S+1I);
+        scalar_multiply (256-bit MSB-first double-and-add); planted_mul with
+        the exact 2*M_reference identity and consumed SHA-256 integrity
+        sink; planted_expected_factor as an exact rational.
+      gap: >-
+        Not benchmarked or run against any real scalar/operand in this task;
+        no exact-count agreement with a predictor has been checked (there is
+        no independent predictor yet -- see independence gap below).
+    - requirement: "independent_checker.py: separate affine verification and certificate-check interface, source-dependency restrictions and explicit soundness limits; independently authored/reviewed status recorded rather than inferred."
+      built: >-
+        AffinePoint/affine_add/affine_double/affine_scalar_multiply using
+        slope formulas and pow()-based Fermat inversion (a different
+        algorithmic route than arithmetic.py's extended Euclid), with no
+        import of arithmetic.py; exceptional_control_cases() constructs the
+        seven named fixed checks; PocklingtonCertificate/
+        verify_pocklington_certificate and RhoTrailRecord/replay_rho_trail
+        as guarded structural interfaces; INDEPENDENT_CHECKER_PROVENANCE
+        dict and a prominent module docstring recording genuinely_independent
+        = false and exactly why.
+      gap: >-
+        THIS IS THE CENTRAL OUTSTANDING GAP. This checker is not
+        independent: same author/session as the producer. It cannot be used
+        to satisfy any independent-review admission gate as-is.
+    - requirement: "count_predictor.py: formula/branch-recurrence interface from the frozen specification, separate from producer traces, with commitment/blinding interface; no predicted numerical counts evaluated now."
+      built: >-
+        predict_counts_from_trace(BranchTrace) folding the exact declared
+        per-branch M/S/I costs (including the equal-U exceptional cases and
+        final normalization); predicted_raw_goe_rational reimplemented
+        without importing arithmetic.py; predict_model_256_transition_goe
+        for the L*22/3 modeled quantity; commit_prediction/
+        verify_unblinded_prediction (SHA-256 commitment over domain +
+        u64(M,S,I) + nonce); BlindReviewPacket container. No function was
+        called against a real trace or scalar in this task.
+      gap: >-
+        Same non-independence gap as independent_checker.py -- authored by
+        the producer's own session.
+    - requirement: "fixture_generator.py: deterministic seed serialization, prime/order-certificate construction, reduced-curve construction source; no realized fixture bytes or certificates."
+      built: >-
+        encode_domain_string/encode_u32/encode_u64/encode_field_value/
+        encode_point implementing spec.deterministic_bytes exactly; draw/
+        draw_nonzero implementing the rejection-sampling procedure exactly
+        (this is real, callable, deterministic logic, but is not invoked
+        against any real seed anywhere in this delivery);
+        construct_pocklington_certificate and construct_reduced_curve_fixture
+        guarded to raise RuntimeError rather than realize a fixture or
+        certificate; unguarded plain reference helpers
+        (_unrun_trial_division_reference, _unrun_tonelli_for_p_equiv_3_mod_4)
+        included as reviewable arithmetic but never called from the guarded
+        paths or from anywhere else in this module.
+      gap: >-
+        No certificate or curve has been realized; this remains entirely
+        prospective per the handoff's zero-fixture constraint.
+    - requirement: "rho.py: two actual worker-process roles, coefficient-tracked branches, common partition/DP law, canonical endpoint table, restart/IPC/checkpoint accounting."
+      built: >-
+        partition_branch/dp_bit_for_k/is_distinguished_point implementing the
+        exact mod-3 rejection law and DP law; WalkState/apply_branch
+        implementing the three coefficient-recurrence branches exactly;
+        TableSlot/EndpointTable implementing the 256-byte slot layout, open
+        addressing, capacity growth/cap behavior (raising rather than
+        silently evicting); resolve_endpoint_collision implementing the
+        exact (a-c)/(d-b) formula and the useless-collision case;
+        long_trail_threshold (20*2**d); RoundMessage/CoordinatorBarrier
+        implementing the three-process barrier and out-of-order/duplicate
+        refusal; run_worker/run_coordinator guarded to raise;
+        RhoCheckpoint dataclass matching spec.runtime.continuation's binding
+        list.
+      gap: >-
+        No walk has been executed; EndpointTable/CoordinatorBarrier have not
+        been exercised against real transitions.
+    - requirement: "schemas.json: structural schemas for inputs, hashes, counts, blind reports, fixtures/certificates, job records, summary/model rows, checkpoints, incomplete/failure outcomes; explicit disclosure that structural validity does not prove correctness/independence/validity."
+      built: >-
+        JSON Schema (draft 2020-12) definitions for all eleven named
+        categories, with an explicit top-level "disclosure" field stating
+        structural validity is necessary, not sufficient.
+      gap: none for this preparation task; schemas are unpopulated by
+        design until real records exist.
+    - requirement: "admission-template.json: every required actual-value field null/unverified with a blocking reason; distinguish two physical hosts from guest environments; no invented values."
+      built: >-
+        physical_hosts (host_A, host_B) kept structurally separate from
+        guest_environments (A_boot_1, B_boot_1, A_boot_2), each with an
+        explicit blocking_reason string and no non-null observed value
+        anywhere in the file.
+      gap: none for this preparation task; this is intentionally unfilled.
+    - requirement: "implementation-manifest.yaml: exact hashes of prepared files and read source inputs, authorship/access provenance for independent_checker.py, runtime requirements, unresolved review dependencies; no future-commit or measured-run claim."
+      built: see implementation-manifest.yaml.
+      gap: none for this preparation task.
+    - requirement: "preparation-report.yaml: requirement-by-requirement mapping, static work performed, source limitations, checker independence status, no-run attestation, exact next admission tasks."
+      built: this file.
+      gap: none.
+
+  source_and_authorship_limitations:
+    - The independent_checker.py and count_predictor.py delivered here are
+      NOT independently authored or reviewed; they share an author/session
+      with the producer (arithmetic.py). This is the single most important
+      limitation in this delivery and is repeated in three places
+      (independent_checker.py's own docstring/constant,
+      implementation-manifest.yaml, and here) so it cannot be missed by a
+      later reader who opens only one of the three files.
+    - No blind reviewer has been identified or engaged for the planted-
+      overhead blinding protocol; BlindReviewPacket is an empty container
+      only.
+    - No realized fixture, certificate, or admitted host/cgroup exists;
+      every guarded function in fixture_generator.py, rho.py, and
+      driver.main() will raise if called, by design, until a future task
+      removes the guard under its own authorization.
+    - This task performed no source verification of the EFD/SECG/JoC97
+      external references beyond what the parent Coordinator session
+      already read and transmitted (per source-packet.json and this
+      hypothesis's citations); this executor session read no external URL.
+
+  no_scientific_jobs_authorized_by_this_task: >-
+    This preparation handoff never authorizes any of the 40 scientific jobs
+    described in the frozen specification. A later, separately authorized
+    scientific-execution task needs its own independently reviewed
+    executable/checker, realized certificates, physical-host admission, an
+    exact locked plan, a genuine execution claim, and archive ownership
+    before any run, per specification.execution_gate and this task's own
+    handoff constraints.
+
+  exact_next_admission_tasks_for_a_future_session:
+    - Engage a genuinely separate author or reviewer (different session/
+      identity from this task's) to re-derive or review
+      independent_checker.py's affine formulas and scalar loop, and
+      count_predictor.py's cost recurrence, without consulting
+      arithmetic.py's internals.
+    - Identify and engage a blind reviewer for the planted-overhead
+      protocol who has not been exposed to the planted multiplier or label
+      map; archive the redacted BlindReviewPacket contents and freeze the
+      reviewer's report before unblinding.
+    - Remove the RuntimeError guards in fixture_generator.py
+      (construct_pocklington_certificate, construct_reduced_curve_fixture)
+      under a separately authorized scientific-execution task, and realize
+      the three reduced-curve fixtures (k=40,48,56) with their prime/order
+      certificates.
+    - Provision and identify two genuinely distinct physical hosts (A and
+      B) and the second isolated guest boot of A; populate
+      admission-template.json's physical_hosts and guest_environments
+      sections with real, observed values and evidence, never invented ones.
+    - Request and verify real cgroup v2 delegation (memory.max=8GiB,
+      memory.swap.max=0, pids.max<=3, cpu.max per spec) on each host/guest,
+      and exercise driver.check_cgroup_admission against the real path.
+    - Compile/freeze an actual measurement-ready executable and record its
+      sha256, ISA, interpreter/compiler version, and build flags in
+      admission-template.json.
+    - Draft and have the Coordinator approve a locked 40-job scientific
+      execution plan and its own TASK-* handoff, per
+      specification.execution_gate, before removing driver.main()'s guard.
+
+  executor_assessment:
+    protocol_complete: false
+    protocol_complete_note: >-
+      "false" here means the full experimental protocol (all 40 scientific
+      jobs) is not complete -- correctly so, since this task authorized zero
+      of them. All ten preparation deliverables required by
+      TASK-20260907-ecd3a2 itself are complete.
+    data_quality: not_applicable
+    data_quality_note: No data was collected; nothing to rate for quality.
+    requires_rerun: false
+    requires_rerun_note: >-
+      Not a rerun candidate; this is a first, complete preparation delivery
+      for TASK-20260907-ecd3a2's own scope. Follow-on work is new,
+      separately authorized tasks (see exact_next_admission_tasks_for_a_
+      future_session), not a rerun of this one.
+
+  model_self_report:
+    requested_policy: executor-implementation
+    independent_session_required: false
+    actual_model_identifier_self_reported: claude-sonnet-5
+    fallback_used: false
+    bedrock_status: NOT_SELECTED, NOT_CONFIGURED, NOT_PROBED, NOT_CONTACTED, NOT_USED
