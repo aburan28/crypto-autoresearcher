@@ -341,6 +341,46 @@ def check_review_plan(path: str, body: dict, ctx: Ctx) -> None:
                           "and report, or the independence is not checkable")
 
 
+# The power-check provenance pair (amendment v4 V4-CHG-7 / amendment v5
+# V5-CHG-3, RC-4 of TASK-20260908-d54138) follows the same optional-when-
+# present rule as review_plan and citation provenance above: a handoff that
+# does not run a power check carries neither field, so the pair lands without
+# a baseline entry on the immutable handoffs that predate it.  What is
+# enforced is that a handoff CLAIMING a power-check artifact by setting either
+# field completes the pair, with both values well-formed.  The mechanical
+# verification of the two values (ancestor-commit ancestry + artifact sha256)
+# lives in tools/power_check_verification.py, which needs git and the artifact
+# and so cannot run here.
+POWER_CHECK_SHA_RE = re.compile(r"^[0-9a-f]{40}$")
+POWER_CHECK_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+
+
+def check_power_check_fields(path: str, body: dict, ctx: Ctx) -> None:
+    """Validate the power-check provenance pair on a handoff.
+
+    Both fields are optional (a handoff that does not run a power check
+    carries neither).  A handoff that claims a power-check artifact by setting
+    either field must complete the pair: both present, non-empty, and
+    well-formed (40-hex git commit sha for the ancestor, 64-hex sha256 for
+    the artifact).
+    """
+    ancestor = body.get("power_check_ancestor_commit_sha")
+    artifact = body.get("power_check_artifact_sha256")
+    if ancestor is None and artifact is None:
+        return  # no power check claimed: nothing to enforce
+    if ancestor is None or not str(ancestor).strip():
+        ctx.err(path, "power_check_ancestor_commit_sha is required when a "
+                      "power-check artifact is claimed")
+    elif not POWER_CHECK_SHA_RE.match(str(ancestor).strip()):
+        ctx.err(path, "power_check_ancestor_commit_sha must be a 40-hex git "
+                      "commit sha")
+    if artifact is None or not str(artifact).strip():
+        ctx.err(path, "power_check_artifact_sha256 is required when a "
+                      "power-check artifact is claimed")
+    elif not POWER_CHECK_SHA256_RE.match(str(artifact).strip()):
+        ctx.err(path, "power_check_artifact_sha256 must be a 64-hex sha256")
+
+
 def check_citations(path: str, body: dict, rec_type: str, ctx: Ctx) -> None:
     """Validate `citations` and hypothesis `structural_ingredients` entries."""
     groups = [("citations", body.get("citations"))]
@@ -535,6 +575,7 @@ def check_ledger_record(path: str, rec_type: str, ctx: Ctx):
         check_obstruction(path, body, ctx)
     if rec_type == "handoff":
         check_review_plan(path, body, ctx)
+        check_power_check_fields(path, body, ctx)
     if rec_type == "coordinator_decision" and "knowledge_promotion" in body:
         promotion = body["knowledge_promotion"]
         if not isinstance(promotion, dict):

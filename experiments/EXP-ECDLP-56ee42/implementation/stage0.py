@@ -19,6 +19,7 @@ Run:  python3 stage0.py
 from __future__ import annotations
 
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -27,6 +28,14 @@ import numpy as np
 
 sys.path.insert(0, ".")
 import estimator as E
+
+# Run-id parameterization (amendment v3, V3-CHG-2 required_rerun_before_
+# stage_3: the corrected re-run must produce a NEW run-id set, e.g.
+# RUN-ECDLP-56ee42-S0v3).  The committed default preserves the original
+# archived path; the re-run sets EXP_RUN_ID to the new id.  Disclosed in
+# the execution report as an enabling change, not part of the three named
+# code fixes.
+_RUN_ID = os.environ.get("EXP_RUN_ID", "RUN-ECDLP-56ee42-S0")
 
 LADDER = [
     {"T": 17, "p": 131101, "b": 27, "N": 131113},
@@ -51,7 +60,7 @@ def spectral_norms(p: int) -> dict:
     out = {}
     for name, arr in [
         ("t", E.thue_morse_sign_array(xs).astype(np.float64)),
-        ("r", E.rudin_shapiro_sign_array(xs).astype(np.float64)),
+        ("r", E.rudin_shapiro_sign_true_array(xs).astype(np.float64)),
         ("comparator", (2 * E.top_bit_fiber_array(xs, p).astype(np.float64) - 1)),
     ]:
         V = np.fft.fft(arr)
@@ -131,12 +140,12 @@ def main() -> None:
         "wall_clock_seconds": round(time.time() - t_start, 2),
     }
     # write raw result
-    out_path = Path("runs/RUN-ECDLP-56ee42-S0/raw-result.json")
+    out_path = Path(f"runs/{_RUN_ID}/raw-result.json")
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(out, indent=2) + "\n")
 
     # write the vacuity derivation document
-    vacuity_path = Path("runs/RUN-ECDLP-56ee42-S0/vacuity-derivation.md")
+    vacuity_path = Path(f"runs/{_RUN_ID}/vacuity-derivation.md")
     vacuity_path.write_text(_vacuity_document(out))
     print(f"Stage 0 complete in {out['wall_clock_seconds']}s", file=sys.stderr)
     print(json.dumps({"exponents": exponents, "gate_P3": gate}, indent=2))

@@ -19,6 +19,7 @@ Run:  python3 stage2.py
 from __future__ import annotations
 
 import json
+import os
 import re
 import sys
 import time
@@ -28,6 +29,14 @@ import numpy as np
 
 sys.path.insert(0, ".")
 import estimator as E
+
+# Run-id parameterization (amendment v3, V3-CHG-2 required_rerun_before_
+# stage_3: the corrected re-run must produce a NEW run-id set, e.g.
+# RUN-ECDLP-56ee42-S2v3).  The committed default preserves the original
+# archived path; the re-run sets EXP_RUN_ID to the new id.  Disclosed in
+# the execution report as an enabling change, not part of the three named
+# code fixes.
+_RUN_ID = os.environ.get("EXP_RUN_ID", "RUN-ECDLP-56ee42-S2")
 
 LADDER = [
     {"T": 17, "p": 131101, "b": 27, "N": 131113},
@@ -50,21 +59,23 @@ def static_provenance_check() -> dict:
     """Static provenance check: no T1-T4 or COMPARATOR statistic code path
     reads k.  POS-A, POS-B and NULL-1 read k / harness data BY DESIGN and are
     exempt.  The check is a source scan over estimator.py."""
-    src = Path("estimator.py").read_text()
+    # Resolve estimator.py relative to this script's own directory (the
+    # corrected re-run is driven from the experiment root, not implementation/).
+    src = (Path(__file__).resolve().parent / "estimator.py").read_text()
     # The T1-T4 and COMPARATOR statistic functions are pure functions of the
     # integer lift (x or y).  Verify they don't reference k (the discrete-log
     # coordinate).
     # The relevant functions:
     #   T1/T2: thue_morse_sign, thue_morse_sign_array
-    #   T3:    rudin_shapiro_sign, rudin_shapiro_sign_array
+    #   T3:    rudin_shapiro_sign_true, rudin_shapiro_sign_true_array
     #   T4:    popcount_mod4, popcount_mod4_array
     #   COMPARATOR: top_bit_fiber, top_bit_fiber_array
     # Extract each function body and check for 'k' references.
     functions = {
         "T1/T2 (thue_morse_sign)": "def thue_morse_sign(",
         "T1/T2 (thue_morse_sign_array)": "def thue_morse_sign_array(",
-        "T3 (rudin_shapiro_sign)": "def rudin_shapiro_sign(",
-        "T3 (rudin_shapiro_sign_array)": "def rudin_shapiro_sign_array(",
+        "T3 (rudin_shapiro_sign_true)": "def rudin_shapiro_sign_true(",
+        "T3 (rudin_shapiro_sign_true_array)": "def rudin_shapiro_sign_true_array(",
         "T4 (popcount_mod4)": "def popcount_mod4(",
         "T4 (popcount_mod4_array)": "def popcount_mod4_array(",
         "COMPARATOR (top_bit_fiber)": "def top_bit_fiber(",
@@ -130,7 +141,7 @@ def main() -> None:
     # --- Static provenance check (BEFORE any Stage 2 numbers) ---
     prov = static_provenance_check()
     out["steps"]["static_provenance_check"] = prov
-    prov_path = Path("runs/RUN-ECDLP-56ee42-S2/static-provenance-check.json")
+    prov_path = Path(f"runs/{_RUN_ID}/static-provenance-check.json")
     prov_path.parent.mkdir(parents=True, exist_ok=True)
     prov_path.write_text(json.dumps(prov, indent=2) + "\n")
     print(f"static provenance check: {'PASS' if prov['all_pass'] else 'FAIL'}",
@@ -208,8 +219,10 @@ def main() -> None:
         A_pre_full = E.A_of_v(v_t4, n)
         # 8 NULL-2 shuffles
         A_posts = []
+        null2_seeds_applied = []
         for shuffle_idx in range(NULL2_SHUFFLES):
             seed = BASE_SEED + 1000 + 10 * ARM_INDEX["T4"] + shuffle_idx
+            null2_seeds_applied.append(seed)
             v_shuffled = E.null2_shuffle(v_t4, n, seed)
             A_post = E.A_noDC_of_v(v_shuffled, n)
             A_posts.append(A_post)
@@ -221,6 +234,9 @@ def main() -> None:
             "A_noDC_post_shuffle_max": A_post_max,
             "A_noDC_post_shuffle_all": A_posts,
             "excess_removed": A_pre - A_post_max,
+            # V3-RA-4: the ACTUAL applied 64-bit NULL-2 integer seeds, per
+            # (arm=T4, rung, shuffle_index), as literal recorded values.
+            "null2_seeds_applied": null2_seeds_applied,
         })
         print(f"T={rung['T']} n={n}: A_noDC(T4) pre={A_pre:.6f} "
               f"post_max={A_post_max:.6f} "
@@ -246,6 +262,24 @@ def main() -> None:
     out["steps"]["smoke_check_G"] = smoke
 
     out["wall_clock_seconds"] = round(time.time() - t_start, 2)
+    # V3-RA-4: literal record of the actual applied seed values (not only the
+    # formula).  NULL-2 (T4 arm) is the only shuffle used in Stage 0-2; NULL-1
+    # is a Stage-3 mechanism and is not invoked here.
+    out["seeds"] = {
+        "base_seed": BASE_SEED,
+        "base_seed_hex": hex(BASE_SEED),
+        "arm_index": ARM_INDEX,
+        "null2_shuffles": NULL2_SHUFFLES,
+        "null2_mechanism": ("numpy default_rng (PCG64), seeded with the 64-bit "
+                            "integer 0x56EE42 + 1000 + 10*arm_index + "
+                            "shuffle_index masked to 64 bits (amendment v3 "
+                            "mechanism_name_correction)"),
+        "null2_t4_seeds": [BASE_SEED + 1000 + 10 * ARM_INDEX["T4"] + i
+                           for i in range(NULL2_SHUFFLES)],
+        "null2_t4_seeds_applied_per_rung": {
+            str(r["T"]): r["null2_seeds_applied"] for r in control_c_results},
+        "null1_replicates": "not invoked in Stage 0-2 (Stage-3 mechanism)",
+    }
     out["gates"] = {
         "POS-A": pos_a_pass,
         "POS-B": pos_b_pass,
@@ -257,7 +291,7 @@ def main() -> None:
         "all gates passed" if all(out["gates"].values())
         else f"gate failure: { {k: v for k, v in out['gates'].items() if not v} }")
 
-    out_path = Path("runs/RUN-ECDLP-56ee42-S2/raw-result.json")
+    out_path = Path(f"runs/{_RUN_ID}/raw-result.json")
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(out, indent=2, default=str) + "\n")
     print(f"Stage 2 complete in {out['wall_clock_seconds']}s", file=sys.stderr)

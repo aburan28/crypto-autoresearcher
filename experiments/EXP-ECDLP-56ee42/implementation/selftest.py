@@ -28,23 +28,46 @@ def test_digit_statistics():
     for x in range(0, 1000, 7):
         assert arr[x] == E.thue_morse_sign(x), x
 
-    # Rudin-Shapiro: the standard recursion r(0)=r(1)=1, r(2n)=r(n),
-    # r(2n+1)=-r(n) (n>=1).  (The contract's 'count of block 11' is a
-    # heuristic characterization that does not exactly match; see the
-    # interpretation note in estimator.rudin_shapiro_sign.)
+    # Rudin-Shapiro TRUE ground truth is the literal block-count '11'
+    # definition (OEIS A020985, specification.yaml's own arms.T3 text),
+    # implemented by _rudin_shapiro_u (scalar) and rudin_shapiro_sign_true
+    # / _array (per amendment v3, V3-CHG-2 / V3-RA-3).  PRIMARY
+    # correctness check: rudin_shapiro_sign_true(_array) against
+    # _rudin_shapiro_u, 0 mismatches required.  This supersedes the old
+    # test's use of the now-retired broken recursion as ground truth
+    # (amendment v4, V4-CHG-5).
+    for x in range(256):
+        assert E.rudin_shapiro_sign_true(x) == (
+            1 if E._rudin_shapiro_u(x) % 2 == 0 else -1), x
+    xs = np.arange(5000, dtype=np.uint32)
+    arr = E.rudin_shapiro_sign_true_array(xs)
+    for x in range(0, 5000, 13):
+        assert arr[x] == E.rudin_shapiro_sign_true(x), x
+
+    # RETIRED (v3-renamed) recursion: kept ONLY as a self-consistency /
+    # audit-trail regression check on the historical, now-unused
+    # _rudin_shapiro_signflip_variant(_array) pair.  This block does NOT
+    # test against ground truth and its passing must never be read as
+    # validating T3; it exists so the audit trail can detect if the
+    # retired function's own behaviour is ever accidentally changed.
     r = [1, 1]
     for m in range(2, 256):
         r.append(r[m >> 1] if m % 2 == 0 else -r[m >> 1])
     for x in range(256):
-        assert E.rudin_shapiro_sign(x) == r[x], x
-    # the literal block-count '11' is kept for audit and differs (documented)
-    n_diff = sum(1 for x in range(256)
-                 if (1 if E._rudin_shapiro_u(x) % 2 == 0 else -1) != r[x])
-    assert n_diff == 135, n_diff  # frozen audit fact
-    xs = np.arange(5000, dtype=np.uint32)
-    arr = E.rudin_shapiro_sign_array(xs)
+        assert E._rudin_shapiro_signflip_variant(x) == r[x], x
+    arr_variant = E._rudin_shapiro_signflip_variant_array(xs)
     for x in range(0, 5000, 13):
-        assert arr[x] == E.rudin_shapiro_sign(x), x
+        assert arr_variant[x] == E._rudin_shapiro_signflip_variant(x), x
+    # Historical audit fact, PRESERVED under the renamed identifier: the
+    # retired variant differs from the TRUE block-count definition at
+    # exactly 135 of the first 256 values.  This is the SAME fact the
+    # pre-v4 test recorded (only the identifier and its "ground truth"
+    # status have changed; the underlying divergence count is unchanged
+    # because neither function's code changes under this amendment).
+    n_diff = sum(1 for x in range(256)
+                 if E._rudin_shapiro_signflip_variant(x)
+                 != E.rudin_shapiro_sign_true(x))
+    assert n_diff == 135, n_diff  # frozen audit fact, retired-variant-vs-truth
 
     # popcount mod 4
     for x in range(2000):

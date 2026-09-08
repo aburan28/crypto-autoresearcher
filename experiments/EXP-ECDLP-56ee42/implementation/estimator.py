@@ -71,7 +71,7 @@ def _rudin_shapiro_u(x: int) -> int:
     return sum(1 for i in range(len(bits) - 1) if bits[i] == '1' and bits[i + 1] == '1')
 
 
-def rudin_shapiro_sign(x: int) -> int:
+def _rudin_shapiro_signflip_variant(x: int) -> int:
     """The Rudin-Shapiro sign, defined by the recursion r(0)=r(1)=1,
     r(2n)=r(n), r(2n+1)=-r(n) for n>=1 (the standard Rudin-Shapiro sequence,
     OEIS A016158, which carries the root-N property the hypothesis relies on).
@@ -96,7 +96,7 @@ def rudin_shapiro_sign(x: int) -> int:
     return sign
 
 
-def rudin_shapiro_sign_array(xs: np.ndarray) -> np.ndarray:
+def _rudin_shapiro_signflip_variant_array(xs: np.ndarray) -> np.ndarray:
     """Vectorised Rudin-Shapiro sign via the recursion r(0)=r(1)=1,
     r(2n)=r(n), r(2n+1)=-r(n), which equals (-1)^{u(x)} with u the count of
     (overlapping) '11' blocks in the binary expansion.  Fills level by level
@@ -112,6 +112,27 @@ def rudin_shapiro_sign_array(xs: np.ndarray) -> np.ndarray:
         r[lo:hi] = np.where((m & 1) == 0, parent, -parent)
         k += 1
     return r[xs.astype(np.int64)]
+
+
+def rudin_shapiro_sign_true(x: int) -> int:
+    """The literal block-count Rudin-Shapiro sign: (-1)^{u(x)}, u the count of
+    (overlapping) '11' blocks in the binary expansion of x (OEIS A020985,
+    specification.yaml arms.T3).  Identity used (amendment v3, V3-CHG-2):
+    u(x) = popcount(x & (x >> 1))."""
+    return 1 if (x & (x >> 1)).bit_count() % 2 == 0 else -1
+
+
+def rudin_shapiro_sign_true_array(xs: np.ndarray) -> np.ndarray:
+    """Vectorised literal block-count Rudin-Shapiro sign: (-1)^{u(x)} with
+    u(x) = popcount(x & (x >> 1)) (amendment v3, V3-CHG-2).  Same SWAR
+    popcount reduction as popcount_mod4_array, taken mod 2 instead of mod 4."""
+    x = xs.astype(np.uint64)
+    y = x & (x >> 1)
+    c = y - ((y >> 1) & 0x5555555555555555)
+    c = (c & 0x3333333333333333) + ((c >> 2) & 0x3333333333333333)
+    c = (c + (c >> 4)) & 0x0F0F0F0F0F0F0F0F
+    pc = ((c * 0x0101010101010101) >> 56).astype(np.uint8)
+    return (1 - 2 * (pc % 2)).astype(np.int8)
 
 
 def popcount_mod4(x: int) -> int:

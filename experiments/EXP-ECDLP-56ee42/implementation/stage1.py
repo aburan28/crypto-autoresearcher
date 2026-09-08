@@ -11,6 +11,7 @@ Run:  python3 stage1.py
 from __future__ import annotations
 
 import json
+import os
 import sys
 import time
 from fractions import Fraction
@@ -20,6 +21,14 @@ import numpy as np
 
 sys.path.insert(0, ".")
 import estimator as E
+
+# Run-id parameterization (amendment v3, V3-CHG-2 required_rerun_before_
+# stage_3: the corrected re-run must produce a NEW run-id set, e.g.
+# RUN-ECDLP-56ee42-S1v3).  The committed default preserves the original
+# archived path; the re-run sets EXP_RUN_ID to the new id.  Disclosed in
+# the execution report as an enabling change, not part of the three named
+# code fixes.
+_RUN_ID = os.environ.get("EXP_RUN_ID", "RUN-ECDLP-56ee42-S1")
 
 LADDER = [
     {"T": 17, "p": 131101, "b": 27, "N": 131113},
@@ -67,7 +76,7 @@ def main() -> None:
         out["validity_reason"] = (
             f"fixture missed: q_maj = {qm} != {FIXTURE_QMAJ} or "
             f"q_strict = {qs} != {FIXTURE_QSTRICT}")
-        out_path = Path("runs/RUN-ECDLP-56ee42-S1/raw-result.json")
+        out_path = Path(f"runs/{_RUN_ID}/raw-result.json")
         out_path.parent.mkdir(parents=True, exist_ok=True)
         out_path.write_text(json.dumps(out, indent=2, default=str) + "\n")
         print("STAGE 1 STOPPED (F2): fixture missed", file=sys.stderr)
@@ -110,7 +119,7 @@ def main() -> None:
     out["validity_reason"] = "fixture reproduced exactly; enumeration complete"
     out["wall_clock_seconds"] = round(time.time() - t_start, 2)
 
-    out_path = Path("runs/RUN-ECDLP-56ee42-S1/raw-result.json")
+    out_path = Path(f"runs/{_RUN_ID}/raw-result.json")
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(out, indent=2, default=str) + "\n")
     print(f"Stage 1 complete in {out['wall_clock_seconds']}s", file=sys.stderr)

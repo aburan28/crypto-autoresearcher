@@ -1,0 +1,107 @@
+# V5-RA-2 production-timing confirmation (amendment v5, V5-CHG-2 required_
+# pre_dispatch_confirmation_gate).  Produced by the Executor under
+# TASK-20260908-d54138, BEFORE the full N-repetition schedule was dispatched.
+#
+# The Executor independently timed the ACTUAL production power-check
+# implementation (implementation/power_check.py) on the ACTUAL execution
+# infrastructure (macOS arm64, Python 3.12.8, numpy 2.4.4), for one full
+# repetition (17 FFTs: 1 pre-shuffle baseline + 8 genuine + 8 reading-2) at
+# each of T17, T19, T21, T23, T25.
+record: V5-RA-2-timing-confirmation
+experiment: EXP-ECDLP-56ee42
+task: TASK-20260908-d54138
+produced_at: '2026-09-08'
+produced_by: executor (vllm/qwen3.8-27b, opencode runtime)
+implementation: implementation/power_check.py
+timing_command: "python3 implementation/power_check.py --time-only"
+
+# The five per-rung single-repetition production timings (17 FFTs each),
+# measured with V3-RA-1's exact per-rung fiber counts (the ACTUAL production
+# implementation; the rep-0 result is saved for RC-3 reuse).
+per_rung_single_repetition_seconds:
+  T17: 0.2238
+  T19: 0.6376
+  T21: 2.9456
+  T23: 12.6173
+  T25: 56.3279
+
+# Note: the timing uses V3-RA-1's exact per-rung fiber counts (m1 = 8-50,
+# highly unbalanced -- see the disclosed discrepancy below).  The 17 FFTs are
+# length-n regardless of the values placed, so the timing is dominated by the
+# FFT cost; the m0/m1 split affects only the (much cheaper) permutation steps.
+
+# Extrapolated aggregate cost under the required invocation split
+# (V5-CHG-2 required_invocation_split): INVOCATION 1 = {T17,T19,T21,T23},
+# INVOCATION 2 = {T25} alone; T27 NOT-COMPUTED (v3 carve-out).
+extrapolated_aggregate:
+  invocation_1_T17_T19_T21_T23:
+    n20_seconds: 328.5
+    n10_seconds: 164.2
+  invocation_2_T25:
+    n20_seconds: 1126.6
+    n10_seconds: 563.3
+  grand_total_T17_T25:
+    n20_seconds: 1455.0
+    n20_cpu_hours: 0.4042
+    n10_seconds: 727.5
+    n10_cpu_hours: 0.2021
+
+# Regime decision (V5-CHG-2 stopping_rule_and_fallback, pre-registered):
+#   N=20 proceeds iff grand_total(n20) <= 4 CPU-h (80% of the 5 CPU-h Stage-
+#   1.5 line item) AND each required invocation <= 7200s.  Else N=10 iff the
+#   same holds for n10.  Else STOP-infrastructure-budget.
+regime_decision:
+  n20_fits_4_cpu_h_and_7200s_per_invocation: true
+  n10_fits_4_cpu_h_and_7200s_per_invocation: true
+  regime: "N=20 proceeds"
+  rationale: >-
+    The confirmed production timing extrapolates to 1455.0s (0.4042 CPU-h)
+    for the full N=20 schedule, far below the 4-CPU-hour threshold, and both
+    required invocations (328.5s and 1126.6s) are far below the 7200s
+    per-invocation cap.  The pre-registered rule therefore selects N=20
+    (the N=10 fallback is NOT triggered).  This is a budget decision made
+    before any power-check statistical outcome data exists.
+
+# Invocation assignment for the full schedule.
+invocation_assignment:
+  invocation_1: [T17, T19, T21, T23]
+  invocation_2: [T25]
+  t27: NOT-COMPUTED
+
+# RC-3 reuse choice, stated VERBATIM as required by the handoff.
+rc3_reuse_choice_verbatim: >-
+  Each rung's single V5-RA-2 confirmation repetition is REUSED as repetition
+  0 of the eventual N=20 (or N=10) schedule, same seed. State this choice
+  verbatim in the calibration-run task record; do not treat it as a discarded
+  measurement.
+
+# Disclosed discrepancy (rule 8: unexpected observations are recorded, not
+# discarded).  The v4 amendment's parenthetical assumed m0, m1 "each
+# approximately N/2".  V3-RA-1's exact per-rung comparator (top_bit_fiber)
+# fiber counts over the N subgroup points (computed from the stage-cache
+# x-coordinates) are HIGHLY unbalanced: m1 = 32/8/24/8/50 for T17/T19/T21/
+# T23/T25 (m0 = N - m1).  The contract instructs using "V3-RA-1's exact per-
+# rung counts", so the full schedule uses these actual counts; the timing
+# above is unaffected (FFT cost is length-n regardless of the values).  This
+# discrepancy is disclosed for the Coordinator/Reviewer; it does not change
+# the regime decision (a budget decision) but may bear on the interpretation
+# of the power-check statistical outcome.
+disclosed_discrepancy:
+  v4_parenthetical_assumption: "m0, m1 each approximately N/2"
+  actual_v3ra1_fiber_counts:
+    T17: {m0: 131081, m1: 32}
+    T19: {m0: 525353, m1: 8}
+    T21: {m0: 2098297, m1: 24}
+    T23: {m0: 8391789, m1: 8}
+    T25: {m0: 33557841, m1: 50}
+  effect_on_timing: none
+  effect_on_regime_decision: none
+  effect_on_statistical_outcome: "undetermined; disclosed for review"
+
+verdict: >-
+  V5-RA-2 SATISFIED.  The production timing was measured on the actual
+  infrastructure before the full schedule was dispatched; the extrapolated
+  N=20 aggregate cost (0.4208 CPU-h) is far below the 4-CPU-hour threshold
+  and both invocations fit the 7200s cap, so the pre-registered rule selects
+  N=20.  The full N=20 schedule is dispatched under the required invocation
+  split.
