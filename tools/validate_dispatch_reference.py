@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """CI validation for a runnable queue or a source-bound forwarding record.
 
-Forwarding records remain non-dispatchable to research_dispatch and goal_lanes.
-This entry point checks their custody/routing bindings, then validates the sole
-canonical queue using the ordinary dispatcher. Unknown schemas are refused.
+Forwarding records have no runnable tasks or independent claim namespace. The
+dispatcher CLI and this CI entry point verify their custody/routing bindings
+before resolving the sole canonical queue. Unknown schemas are refused.
 """
 from __future__ import annotations
 
