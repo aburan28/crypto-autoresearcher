@@ -1,0 +1,204 @@
+run:
+  id: RUN-RELN-141a86-stage0c-minimality
+  experiment_id: EXP-RELN-141a86
+  status: invalid_measurement
+  status_note: >-
+    Not itself a scientific negative or positive result about H-RELN-427bfd.
+    This run implements TASK-20260907-6333af / DEC-20260907-2a3727: a
+    TARGETED-MINIMALITY structural-recovery attempt (methodologically
+    distinct from blind search) at the Stage-0c hard recovery gate, for the
+    three controls that ended resource_exhaustion twice under blind search
+    (RUN-RELN-141a86-stage0bcde, RUN-RELN-141a86-stage0c-repair). Per-level
+    checkpointing was implemented and demonstrated to survive a real SIGKILL.
+    INV-1 (canonical complexity 9), INV-7 p_fail (complexity 9), and INV-8
+    (complexity 10) all CLEARED via targeted minimality: exhaustive
+    enumeration strictly below the target complexity found no numeric match,
+    and direct construction of the known closed form confirmed it exists at
+    exactly the canonical complexity with zero residual on real data. INV-7
+    p_exist (complexity 11) was ALSO attempted (substantial time remained)
+    but again ended resource_exhaustion: levels 1-8 completed exhaustively
+    with no match, but the required levels 9-10 were not reached within the
+    6000s external hard wall-clock cap. Status is invalid_measurement at the
+    RUN level because one of the five pre-registered recovery controls
+    (INV-7 p_exist) remains not-affirmatively-recovered by either method;
+    per the contract's own stopping_rules this is reported to the
+    Coordinator as an open question, not resolved by the executor. Per
+    specification.yaml invalidation_rules ("Timeout, out-of-memory ... is
+    failed_infrastructure for that stage or arm, never a negative or
+    positive result"), the p_exist portion is resource_exhaustion, never a
+    scientific result. Stage 1/Stage 2 were NOT attempted in this run
+    (explicit per the handoff's own instruction not to unilaterally decide).
+  phase: stage0c_targeted_minimality_attempt
+  code:
+    commit: f78c3744d9b0b8f1060a40b29865f52f4b495c97
+    branch: claude/gnn-clustering-symbolic-regression-hzkbu0
+    dirty: true
+    dirty_detail: see environment.json git_dirty_detail (additive new source files only; grammar_engine.py and grammar_engine_lean.py themselves unmodified)
+    command: see command.txt in this run directory
+  environment:
+    ref: environment.json (this run directory)
+    pysr_available: false
+    julia_available: false
+    host_memory_total_gb_measured: 15
+    host_cpu_count: 4
+    resolved_inference:
+      requested_policy: executor-implementation
+      fallback_used: false
+  inputs:
+    stage0a_archive:
+      path: experiments/EXP-RELN-141a86/runs/RUN-RELN-141a86-stage0a/
+      candidate_list_hash_expected: f1aec620f8cb19318e6d6459174bd79b80daf6dd46fdacf6afdf2468c7cac7f2
+      candidate_list_hash_recomputed: f1aec620f8cb19318e6d6459174bd79b80daf6dd46fdacf6afdf2468c7cac7f2
+      hash_match: true
+      reverified_at_start_of_this_run: true
+    stage0bcde_prior_run:
+      path: experiments/EXP-RELN-141a86/runs/RUN-RELN-141a86-stage0bcde/
+      role: >-
+        Read-only reference (immutable, NOT touched by this run). Provides
+        control-tables/ for the numeric-verification (part b) of every
+        target, and the INV-A4/INV-A6 PASS carried forward unchanged.
+    stage0c_repair_prior_run:
+      path: experiments/EXP-RELN-141a86/runs/RUN-RELN-141a86-stage0c-repair/
+      role: >-
+        Read-only reference (immutable, NOT touched by this run). Provides
+        the exact target expressions (target_expr), canonical complexities,
+        and the diagnostic conclusion (wall-clock/CPU, not memory, is the
+        binding constraint at the target level itself) that motivated the
+        minimality-search design.
+    decision:
+      path: ledger/decisions/DEC-20260907-2a3727.yaml
+    handoff:
+      path: ledger/handoffs/TASK-20260907-6333af.yaml
+    grammar_engine_source:
+      paths:
+        - experiments/EXP-RELN-141a86/source/grammar_engine.py (unchanged)
+        - experiments/EXP-RELN-141a86/source/grammar_engine_lean.py (unchanged)
+      role: imported, not modified; both prior bugfixes (pow/binomial fingerprint magnitude cap; per-CONST-leaf distinct fingerprint stream) reused as-is
+  new_source_this_run:
+    - experiments/EXP-RELN-141a86/source/grammar_engine_checkpoint.py
+    - experiments/EXP-RELN-141a86/source/target_enumerate_worker_checkpoint.py
+    - experiments/EXP-RELN-141a86/source/run_stage0c_minimality_monitor.py
+    - experiments/EXP-RELN-141a86/source/direct_construction_check.py
+  method:
+    name: targeted_minimality
+    description: >-
+      Per target: (a) exhaustive, hash-deduplicated, checkpointed enumeration
+      of the target's leaf pack strictly BELOW its own canonical complexity
+      (canonical_complexity - 1), confirming no expression at any completed
+      level numerically matches the target (via numeric-fingerprint
+      equivalence on the frozen engine's own fixed sample grid); (b) direct
+      construction of the known closed form in grammar_engine's own
+      representation, node-counted by the unchanged grammar_engine.node_count,
+      verified against the real control table for zero residual. (a)+(b)
+      together prove the known form is the UNIQUE minimal-complexity match --
+      methodologically distinct from, and never conflated with, blind-search
+      discovery (which is what INV-A4/INV-A6 achieved).
+    checkpointing:
+      implementation: experiments/EXP-RELN-141a86/source/grammar_engine_checkpoint.py
+      mechanism: write-to-temp-file, fsync, os.replace (atomic rename), directory fsync, after every completed complexity level
+      self_test: PASS (identical by_complexity_counts to grammar_engine_lean.enumerate_lean on degree_table maxc=6)
+      real_sigkill_survival_test: >-
+        PASS. Live worker process killed with `kill -9` after ~6s (mid-level-6
+        construction); freshly-read checkpoint file on disk contained 5
+        complete level records (levels 1-5) with correct cumulative counts
+        and timestamps; --out result file absent (as expected for a hard
+        kill); no leftover .tmp-<pid> file.
+    caps:
+      external_hard_wall_clock_seconds: 6000.0
+      external_hard_memory_gb: 13.0
+      internal_soft_wall_clock_seconds: 5700.0
+      internal_soft_memory_gb: 11.0
+      cap_justification: >-
+        6000s matches the prior repair run's own cap (comparability across
+        attempts); memory caps carried forward unchanged since memory was
+        never the binding constraint in either prior attempt or in this
+        smaller (target-1-level) search (peak measured RSS in this run:
+        2.02-6.64 GB, well under 11/13 GB).
+  targets:
+    INV-1_mean:
+      pack: fb3_unsigned_m3_and_enum_unsigned_m3
+      canonical_complexity: 9
+      minimality_max_complexity: 8
+      part_a_status: completed
+      part_a_matched: false
+      part_a_wall_clock_seconds: 1898.403
+      part_a_peak_rss_gb: 2.0237
+      part_b_node_count: 9
+      part_b_zero_residual: true
+      verdict: recovered_by_targeted_minimality
+    INV-7_p_fail:
+      pack: enum_xclass_signed_m2
+      canonical_complexity: 9
+      minimality_max_complexity: 8
+      part_a_status: completed
+      part_a_matched: false
+      part_a_wall_clock_seconds: 1782.354
+      part_a_peak_rss_gb: 1.8571
+      part_b_node_count: 9
+      part_b_zero_residual: true
+      verdict: recovered_by_targeted_minimality
+    INV-8_d_reg:
+      pack: degree_table
+      canonical_complexity: 10
+      minimality_max_complexity: 9
+      part_a_status: completed
+      part_a_matched: false
+      part_a_wall_clock_seconds: 1796.355
+      part_a_peak_rss_gb: 4.4439
+      part_b_node_count: 10
+      part_b_zero_residual: true
+      verdict: recovered_by_targeted_minimality
+    INV-7_p_exist:
+      pack: enum_xclass_signed_m2
+      canonical_complexity: 11
+      minimality_max_complexity: 10
+      part_a_status: resource_exhaustion
+      part_a_highest_level_completed: 8
+      part_a_matched_up_to_level_completed: false
+      part_a_wall_clock_seconds: 6004.191
+      part_a_peak_rss_gb: 6.6407
+      part_b_node_count: 11
+      part_b_residual: 1.1102230246251565e-16
+      part_b_zero_residual_at_float_precision: true
+      verdict: still_open_resource_exhaustion
+  recovery_controls_5_of_5:
+    ref: recovery-controls.json (this run directory)
+    INV_1: recovered_by_targeted_minimality
+    INV_7_p_fail: recovered_by_targeted_minimality
+    INV_7_p_exist: still_open
+    INV_8: recovered_by_targeted_minimality
+    INV_A4: pass_blind_search_carried_forward_unchanged
+    INV_A6: pass_blind_search_carried_forward_unchanged
+    overall_5_of_5_strict_gate: NOT_PASSED (4 of 5; INV-7 p_exist open)
+  timing:
+    checkpointing_selftest_and_killtest_seconds: approx 10
+    inv1_minimality_search_seconds: 1898.403
+    inv7_p_fail_minimality_search_seconds: 1782.354
+    inv8_minimality_search_seconds: 1796.355
+    inv7_p_exist_minimality_search_seconds: 6004.191
+    direct_construction_all_four_seconds: less_than_1
+    total_worker_wall_clock_seconds_sum: 11481.303
+    total_session_wall_clock_seconds_measured: approx 11787 (2026-09-07T15:23:34Z to 2026-09-07T18:40:01Z, includes polling overhead and the disclosed stray-process incident)
+  result:
+    certificate:
+      kind: none
+    summary: see raw-result.json and recovery-controls.json in this run directory
+  anomalies:
+    - >-
+      A mistaken CLI invocation (`--attempt-p-exist-only`, a nonexistent
+      flag) briefly re-ran INV-1_mean's enumeration concurrently with
+      already-completed results, overwriting checkpoint-INV-1_mean.json
+      twice with an incomplete in-progress state (levels 1-5, then 1-7)
+      before each stray process was killed; regenerated verbatim both times
+      from the untouched worker-result-INV-1_mean.json (the original run's
+      own immutable final output). Cross-checked identical at level 8
+      (3,686,074 forms) between the two files after regeneration. No other
+      target's files were affected. Full timeline: implementation.md.
+  reviewer_note: >-
+    Per TASK-20260907-6333af's own explicit instruction, the executor does
+    NOT unilaterally decide whether a 4-of-5 recovery-control pass (INV-7
+    p_exist still open) is sufficient to authorize Stage 1. This is reported
+    to the Coordinator as an open decision. Review reservation per the
+    handoff and the contract's later_review_requirements applies: any
+    recovered control backing a claim, or any decision to proceed to Stage
+    1, requires independent validator and red-team review first.
