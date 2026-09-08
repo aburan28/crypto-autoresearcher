@@ -1,0 +1,108 @@
+protocol_amendment:
+  experiment_id: EXP-RELN-715aa1
+  amendment_ordinal: 1
+  version_from: 1
+  version_to: 2
+  filename_convention_note: >-
+    THE FILENAME IS v1.yaml BECAUSE THIS IS THE FIRST AMENDMENT TO THIS
+    CONTRACT, NOT BECAUSE IT PRODUCES CONTRACT VERSION 1. The contract is
+    frozen at version 1; this amendment produces version 2.
+  filed_at: '2026-09-08'
+  filed_by: coordinator (orchestrating session, RQ-RELN-61638a)
+  recorded_by_decision: DEC-20260908-2c0366
+  status: filed_before_any_run_executed
+  claim_tier: toy
+  reason: >-
+    The dispatched executor (handoff TASK-20260908-788e3b) read the frozen
+    contract's `inputs.exhaustive_c_D_tables` paths
+    (experiments/EXP-FB3-001/runs/RUN-FB3-001-{N14,N16,N18}/raw-result.json)
+    in full and reported specification_error: the contract's
+    `controls[0].poisson_vs_exhaustive_cross_check.construction` requires
+    computing the oracle ratio "directly from each cell's own raw c_D vector
+    (no Poisson assumption)" -- but every cell record in those three files
+    carries only five aggregate statistics (mean, coverage, variance,
+    concentration, max_count), never a per-target array of decomposition
+    counts. This was independently re-verified by the Coordinator: every key
+    at every nesting level of RUN-FB3-001-N14/raw-result.json was enumerated
+    directly; no field resembling a histogram or per-target vector exists in
+    `cells`, `exploratory`, or `shared_null_records`. The oracle-ratio
+    formula (IDEA-20260906-b26c06 claim (2):
+    E[cost_random] = P(c=0)*B + sum_{k>=1} P(c=k)*(B+1)/(c'(k)+1)) is a
+    nonlinear functional of the full pmf of c_D and is not recoverable from
+    the four available moments (mean = E[c], coverage = P(c>=1),
+    variance = Var(c), concentration = E[c(c-1)] -- confirmed algebraically
+    consistent with variance via Var = E[c(c-1)] + mean - mean^2, checked
+    numerically against cell 0 of RUN-FB3-001-N14) without either
+    approximating the missing shape of the distribution (which the
+    contract's own stopping_rules forbid as "formula substitution") or
+    regenerating the raw per-target vectors (a new computation, not
+    "already-committed data", and out of Stage 0's zero-compute framing).
+    The executor correctly refused rather than improvise a substitute
+    statistic and report it under the frozen name; per agents/executor.md
+    responsibility 2 this is exactly the specification_error path, not an
+    infrastructure failure.
+  applies_to: >-
+    `controls[0].poisson_vs_exhaustive_cross_check.construction` (and the
+    correspondingly narrowed `tail_checks` item and the
+    `poisson_vs_exhaustive_cross_check` clauses inside
+    `success_criterion`/`falsification_criterion`/`stopping_rules`) are
+    replaced, for THIS experiment only, by a moment-based cross-check that
+    is exactly computable from the fields actually present in the committed
+    EXP-FB3-001 cell records:
+      - Compare each cell's measured `mean` (= E[c_D]) against the
+        Poisson-predicted mean = mu, where mu is computed from that cell's
+        own recorded N and B exactly as the original construction already
+        required (mu = C(B+2,3)/N) -- unchanged from v0.
+      - Compare each cell's measured `coverage` (= P(c_D >= 1)) against the
+        Poisson-predicted 1 - exp(-mu).
+      - Compare each cell's measured `variance` against the Poisson
+        prediction Var = mu (Poisson's defining equidispersion property);
+        report the index of dispersion (measured variance / mu) as the
+        primary disagreement statistic, since index-of-dispersion != 1 is
+        the standard, well-established diagnostic for departure from a
+        Poisson model and needs no distributional shape assumption beyond
+        the two moments already committed.
+      - The `tail_checks` item is narrowed from "the full observed tail
+        distribution" to exactly what `max_count` supports: the single
+        largest-observed value per cell against the Poisson tail
+        prediction P[c >= max_count], reported per cell (this was already
+        effectively what a single-cell tail check could show; the amendment
+        makes explicit that no intermediate k values between 1 and
+        max_count-1 are checked, since only the maximum is a committed
+        field).
+    This is DELIBERATELY NOT the same statistical claim as the original
+    "no Poisson assumption" full-distribution cross-check: it tests whether
+    the committed cells' first two moments and coverage are consistent with
+    the Poisson(mu) model that the existence-channel oracle-ratio closed
+    form assumes, rather than directly cross-checking the oracle-ratio
+    functional itself against an assumption-free empirical value. The
+    oracle-ratio table computed from the pure Poisson closed form (the
+    contract's `inputs.poisson_law` block, unaffected by this amendment) is
+    unchanged and still reported in full.
+  what_does_not_change: >-
+    The pure closed-form Poisson-law oracle-ratio table (mu in
+    {1, 1/2, 1/4}, both first_element_conventions), the planted-control
+    predicted gain factor, and the da1428 k-ladder table are all
+    self-contained arithmetic with no dependency on EXP-FB3-001's raw data
+    and are computed exactly as the frozen v0 contract specified. Stage 0's
+    zero-compute scope, write_scope, and the prohibition on any
+    instrumented-solver/policy-training work (Stages 1-4) are unchanged.
+  degraded_scope_disclosure: >-
+    A moment-based (mean/coverage/variance/max-tail) agreement check is
+    STRICTLY WEAKER evidence than the originally specified full-distribution
+    "no Poisson assumption" cross-check: two distributions can share their
+    first two moments and still differ in shape (e.g., in the probability
+    mass exactly at each k, which is what the oracle-ratio's own sum over k
+    actually needs). PASSING the amended moment check therefore does not by
+    itself confirm the oracle-ratio closed form would agree with the true
+    empirical ratio; it confirms only that the Poisson model is not
+    contradicted by the two committed moments and the observed tail. Any
+    later claim drawing on this cross-check must carry this qualifier
+    verbatim. A full-distribution cross-check remains possible only via a
+    NEW read-only re-derivation of per-target c_D vectors from
+    EXP-FB3-001's own committed curve/base inputs (option 3 the executor's
+    refusal named) -- that is a new computation, not covered by this
+    amendment, and would need its own future Coordinator scope/budget
+    decision if judged worth the (still small, EXP-FB3-001-scale) cost.
+  approved_by: coordinator
+  status: approved

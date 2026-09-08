@@ -1,0 +1,65 @@
+# Hash re-verification (first step, before reading any measured table)
+cd experiments/EXP-RELN-141a86/runs/RUN-RELN-141a86-stage0a
+python3 -c "import hashlib; print(hashlib.sha256(b''.join(open(f,'rb').read() for f in ['candidate-list.yaml','grammar.yaml','environment.lock.json'])).hexdigest())"
+# -> f1aec620f8cb19318e6d6459174bd79b80daf6dd46fdacf6afdf2468c7cac7f2 (matches candidate-list-hash.txt and the handoff)
+
+cd /home/user/crypto-autoresearcher/experiments/EXP-RELN-141a86/source
+
+# Stage 0b: control tables (real computation, no synthetic data)
+python3 count_vectors.py                                   # self-test: direct enumeration == FFT convolution
+python3 controls_m2_exhaustive_and_convolution.py           # self-test: INV-8 convolution, INV-7 x-class draws
+python3 adapters_fb3_dreg_enum.py                           # self-test: loads FB3 files, builds INV-1/A6/P2 tables
+
+# (interactive session) build and write each control table to
+# runs/RUN-RELN-141a86-stage0bcde/control-tables/*.json:
+python3 -c "
+import json, controls_m2_exhaustive_and_convolution as c, adapters_fb3_dreg_enum as a
+out = 'runs/RUN-RELN-141a86-stage0bcde/control-tables'
+json.dump(a.build_inv1_table_from_fb3(), open(f'{out}/inv1-conservation-mean-table.json','w'), indent=2)
+json.dump(c.build_inv7_table([8,10,12,14,16], draws_per_cell=200), open(f'{out}/inv7-xclass-m2-table.json','w'), indent=2)
+json.dump(c.build_inv8_table(), open(f'{out}/inv8-semiregular-degree-table.json','w'), indent=2)
+json.dump(c.build_inv_a4_table([29,41,67,101]), open(f'{out}/inva4-bose-chowla-table.json','w'), indent=2)
+json.dump(a.build_inv_a6_identity_table(), open(f'{out}/inva6-identity-table.json','w'), indent=2)
+json.dump(a.small_multiples_positive_control(), open(f'{out}/small-multiples-positive-control.json','w'), indent=2)
+"
+
+# Z/N interval positive control (own exact enumeration)
+python3 -c "
+import json, count_vectors as cv
+rows = []
+for bits, N, B in [(14, 16339, 47), (16, 65599, 74), (18, 262147, 117)]:
+    D = list(range(1, B+1))
+    counts3 = cv.count_vector_direct(D, N, 3)
+    stats3 = cv.stats_from_count_vector(counts3, N)
+    delta3 = cv.dispersion_delta(stats3['mean'], stats3['concentration'])
+    E3 = N*(stats3['concentration']+stats3['mean'])
+    rows.append({'bits':bits,'N':N,'B':B,'delta_measured':delta3,'E3_measured':E3})
+json.dump(rows, open('runs/RUN-RELN-141a86-stage0bcde/control-tables/zn-interval-positive-control.json','w'), indent=2)
+"
+
+# Stage 0c: exhaustive-grammar recovery search on the 5 controls (real subprocess
+# jobs, backgrounded, monitored via ps/free, timeout 3600s each per stage budget;
+# two 6-leaf-pack jobs and one 4-leaf-pack job terminated early on measured
+# resource_exhaustion -- see recovery-controls.json and implementation.md section 10):
+nohup timeout 3600 python3 <<'EOF' & # (repeated per pack/complexity)
+import grammar_engine as ge
+by_c = ge.enumerate_expressions(PACK, TARGET_COMPLEXITY)
+EOF
+
+# Numeric verification (real, exact, all 5 controls) via recovery_check.py
+python3 -c "
+import recovery_check as rc, controls_m2_exhaustive_and_convolution as c, adapters_fb3_dreg_enum as a
+# see recovery-controls.json for the full set of calls and results
+"
+
+# Stage 0d: P2 zero-compute check (committed FB3 nulls only, no new data read)
+python3 -c "
+import json, adapters_fb3_dreg_enum as a
+json.dump(a.build_p2_check(), open('runs/RUN-RELN-141a86-stage0bcde/p2-delta-null-check.json','w'), indent=2)
+"
+
+# DREG transcription (P6, prediction only, never scored in this experiment)
+python3 -c "
+import json, adapters_fb3_dreg_enum as a
+json.dump(a.DREG_TRANSCRIPTION, open('runs/RUN-RELN-141a86-stage0bcde/dreg-n21-transcription.json','w'), indent=2)
+"
