@@ -1,0 +1,448 @@
+# BLIND RE-DERIVATION — TASK-20260908-6f37e1 (joint J5_blind_rederivation)
+# Review round: REVIEW-PLAN-BATCH-24d356
+# Role: validator (independent session, review-adversarial)
+#
+# This file is written in two phases per the binding procedure:
+#   PHASE 1 (frozen): derivation_q1 + derivation_q2, derived from the mechanism
+#     statement and frozen parameters in blind-input.yaml ALONE, using exact
+#     arithmetic (fractions.Fraction / integers; no floating point in the
+#     derivation). No producer artifact was read before this phase was frozen.
+#   PHASE 2 (post-freeze): comparison_q1, comparison_q2, review_attestation,
+#     appended only after the freeze commit and after reading the two
+#     comparison_envelope paths named in blind-input.yaml.
+#
+# All values below are EXACT (rational). Decimal values are labeled "approx"
+# and are for human readability only; they are not part of the derivation.
+
+task_id: TASK-20260908-6f37e1
+review_plan: REVIEW-PLAN-BATCH-24d356
+joint: J5_blind_rederivation
+derived_from:
+  - ledger/handoffs/TASK-20260908-6f37e1.yaml
+  - coordination/goals/GOAL-ECRANK-002/batches/BATCH-24d356/blind-input.yaml
+arithmetic: exact (fractions.Fraction, integers); no floating point in derivation
+
+# =====================================================================
+# Q1 — n=6 ellipticity quadratic
+# =====================================================================
+derivation_q1:
+  frozen_parameters:
+    n: 6
+    b: [0, 1, 7, -14, 16, -2]
+    d: [-2310, 30030, 30030, -286, -286, -2310]
+    g_convention: "g(x) = x + c, c in Q (monic, single free coefficient)"
+
+  # p(x) = prod_i (x - b_i), monic degree 6.
+  # Coefficients listed low-to-high (index = power of x).
+  p_coeffs_low_to_high: [0, -3136, 1988, 1376, -221, -8, 1]
+  p_polynomial: "x^6 - 8 x^5 - 221 x^4 + 1376 x^3 + 1988 x^2 - 3136 x"
+  p_check:
+    sum_of_roots: 8            # 0+1+7-14+16-2 = 8  -> x^5 coeff = -8  (matches)
+    pairwise_sum: -221         # -> x^4 coeff = -221 (matches)
+
+  # delta(x) = Lagrange interpolant, deg <= 5, delta(b_i) = d_i.
+  # Coefficients low-to-high (index = power of x). EXACT rationals.
+  delta_coeffs_low_to_high:
+    - -2310
+    - 6337764763/255150
+    - 8274935119/893025
+    - -4090494199/2381400
+    - -49475096/893025
+    - 53817049/7144200
+  delta_interpolation_verified: true   # delta(b_i) == d_i for all i (exact)
+
+  # s(x) = delta(x) * (x + c)^2 mod p(x), as a bivariate polynomial in (x, c).
+  # Entry "x^i c^j : value" means the exact coefficient of x^i c^j in the
+  # remainder (deg in x <= 5). This is the full intermediate object.
+  s_bivariate:
+    "x^0 c^2": -2310
+    "x^1 c^0": 277884992/18225
+    "x^1 c^1": 776873284/18225
+    "x^1 c^2": 6337764763/255150
+    "x^2 c^0": 212277406/18225
+    "x^2 c^1": 2516754284/127575
+    "x^2 c^2": 8274935119/893025
+    "x^3 c^0": 19279678/6075
+    "x^3 c^1": -93485458/42525
+    "x^3 c^2": -4090494199/2381400
+    "x^4 c^0": -449504/18225
+    "x^4 c^1": -13496956/127575
+    "x^4 c^2": -49475096/893025
+    "x^5 c^0": -255178/18225
+    "x^5 c^1": 1240558/127575
+    "x^5 c^2": 53817049/7144200
+
+  # The ELLIPTICITY condition at n=6 is the vanishing of the x^5 coefficient
+  # of the remainder. That coefficient, as a polynomial in c, is:
+  x5_coefficient_quadratic:
+    # f(c) = A c^2 + B c + C
+    A_c2: 53817049/7144200
+    B_c: 1240558/127575
+    C: -255178/18225
+    is_quadratic_in_c: true        # A != 0, so genuinely quadratic (not degenerate)
+    closed_form_cross_check: >
+      f(c) = d5 c^2 + (2 d4 + 16 d5) c + (d3 + 8 d4 + 285 d5), where d3,d4,d5
+      are the x^3,x^4,x^5 coefficients of delta. Substituting the exact delta
+      coefficients reproduces A,B,C above exactly (independently verified).
+
+  # Solve A c^2 + B c + C = 0 over Q.
+  solve:
+    discriminant_D: 4150838329/8037225
+    D_is_perfect_square_in_Q: true
+    sqrt_D: 64427/2835
+    # c = (-B +/- sqrt(D)) / (2A)
+    roots:
+      - c: 324772/376343
+        numerator: 324772
+        denominator: 376343
+        abs_c: 324772/376343
+        abs_c_approx: 0.862963
+        height_max_abs_num_den: 376343
+        height_max_abs_num_den_le_1e4: false
+        abs_c_le_1e4: true
+        f_of_c: 0                  # verified exactly
+      - c: -28/13
+        numerator: -28
+        denominator: 13
+        abs_c: 28/13
+        abs_c_approx: 2.153846
+        height_max_abs_num_den: 28
+        height_max_abs_num_den_le_1e4: true
+        abs_c_le_1e4: true
+        f_of_c: 0                  # verified exactly
+    all_rational_roots_count: 2    # the quadratic has exactly these two roots
+
+  # Per-root nondegeneracy checks (exact).
+  per_root_checks:
+    - c: 324772/376343
+      g_bi_values: [324772/376343, 701115/376343, 2959173/376343, -4944030/376343, 6346260/376343, -427914/376343]
+      g_bi_all_nonzero: true
+      s_coeffs_low_to_high:
+        - -22150138916640/12875823059
+        - 2724443546386520/38627469177
+        - 458026238867130/12875823059
+        - -34670613080/12875823059
+        - -6073062386000/38627469177
+      deg_s: 4
+      disc_s: 593479019722898118191023137695685965331349334629471515265616388203179882853382912000000/4556695412411889979103038217172508475694573098800177653995641
+      disc_s_nonzero: true
+      deg_s_in_3_4: true
+      nonsingular: true
+      nondegenerate: true
+      identity_s_bi_eq_d_i_g_bi_sq: true
+    - c: -28/13
+      g_bi_values: [-28/13, -15/13, 63/13, -210/13, 180/13, -54/13]
+      g_bi_all_nonzero: true
+      s_coeffs_low_to_high:
+        - -1811040/169
+        - 19604200/507
+        - 2052270/169
+        - -10120/169
+        - -27280/507
+      deg_s: 4
+      disc_s: 13338113665625129698328863805184000000/23298085122481
+      disc_s_nonzero: true
+      deg_s_in_3_4: true
+      nonsingular: true
+      nondegenerate: true
+      identity_s_bi_eq_d_i_g_bi_sq: true
+
+  # The identity s(b_i) = d_i * g(b_i)^2, verified SYMBOLICALLY in c
+  # (i.e. as a polynomial identity in c, for each i), not just at the roots.
+  symbolic_identity_s_bi_eq_d_i_g_bi_sq: true
+
+  # Ambiguity / convention notes (recorded, not filled from producer artifacts):
+  convention_notes:
+    - >
+      The g_convention text calls g the frozen contract's "single univariate
+      quadratic" but then states the explicit form g(x) = x + c, which is
+      LINEAR (degree 1). The explicit form g(x) = x + c was used, as it is the
+      unambiguous instruction. The word "quadratic" in "ellipticity quadratic"
+      refers to the x^5-coefficient condition being quadratic in the single
+      free coefficient c, which the derivation confirms (A != 0).
+    - >
+      Under the stated convention g(x) = x + c the ellipticity condition is
+      genuinely quadratic in c (not degenerate), so no convention switch was
+      needed or made.
+
+# =====================================================================
+# Q2 — expected-meets arithmetic
+# =====================================================================
+derivation_q2:
+  frozen_parameters:
+    N_a: 8000
+    S_abs: 1600
+    model: "meet count ~ Binomial(N_a, 1/S_abs) under declared uniformity"
+
+  expected_meets:
+    formula: "E[meets] = N_a / S_abs"
+    value: 5
+    exact: true
+
+  variance:
+    formula: "Var[meets] = N_a * p * (1-p), p = 1/S_abs"
+    value: 1599/320
+    exact: true
+
+  standard_deviation:
+    formula: "sd = sqrt(Var) = sqrt(1599/320)"
+    value: "sqrt(7995)/40"
+    approx: 2.235369097039681
+    exact: true
+
+  P_meets_le_3:
+    method: >
+      Exact rational binomial sum, factored for exactness:
+      P(meets <= 3) = sum_{k=0}^3 C(8000,k) (1/1600)^k (1599/1600)^(8000-k)
+      = (1599/1600)^8000 * sum_{k=0}^3 C(8000,k) / 1599^k.
+      The bracket is an exact rational; the whole product is an exact rational
+      (computed with integer arithmetic, no floating point).
+    bracket_sum_k0_to_3: 161005672799/4088324799
+    exact_factored: "(1599/1600)^8000 * 161005672799/4088324799"
+    exact_rational_size: "numerator and denominator each 25633 decimal digits"
+    approx: 0.2649381560144011840678148441045033175855
+    per_term_approx:
+      P_meets_eq_0: 0.006727422795762106
+      P_meets_eq_1: 0.03365815032276225
+      P_meets_eq_2: 0.08418747480668395
+      P_meets_eq_3: 0.14036510808919286
+
+  observed_3_outlier_derivation_only:
+    # Derivation-only statement; NO observed value is assumed here.
+    # The comparison step supplies the actual observation.
+    z_score_of_3: "-0.8947068305849882 (approx; (3 - 5)/sd)"
+    P_meets_le_3_approx: 0.2649381560144012
+    conclusion: >
+      Under this null, an observed count of 3 is NOT an outlier: it lies within
+      one standard deviation of the mean (z ~ -0.89), and the one-sided
+      probability of seeing 3 or fewer is ~0.265, far above any conventional
+      outlier threshold. (Stated as a property of the null distribution only.)
+
+# =====================================================================
+# Freeze marker
+# =====================================================================
+# freeze_marker: sha of the commit that froze derivation_q1 + derivation_q2
+# (set in the freeze step; the derivation content above does not change after
+# this point).
+freeze_marker: 19709ca8b407167b5d7b577909eb9e61d333666e
+
+# =====================================================================
+# PHASE 2 — post-freeze comparison (producer artifacts read ONLY after the
+# freeze commit 19709ca8b4). No producer artifact was read before the freeze.
+# =====================================================================
+
+# ---------------------------------------------------------------------
+# Q1 comparison — producer R3 construct-n6 raw result, b_index 579
+# ---------------------------------------------------------------------
+comparison_q1:
+  producer_path: experiments/EXP-ECRANK-73275e/runs/RUN-ECRANK-73275e-R3-construct-n6/raw-result.json
+  read_after_freeze: true
+  entry: "found[] entry with b_index == 579 (first entry in found[])"
+
+  item_a_feasible:
+    question: "Does the producer record this b-tuple as feasible (an entry exists)?"
+    producer:
+      entry_exists: true
+      b: [0, 1, 7, -14, 16, -2]
+      d_pattern: [-2310, 30030, 30030, -286, -286, -2310]
+      certificate_verdict: PASS
+    mine:
+      frozen_b: [0, 1, 7, -14, 16, -2]
+      frozen_d: [-2310, 30030, 30030, -286, -286, -2310]
+    result: AGREEMENT
+    note: >
+      The entry exists and the producer's b and d_pattern match the frozen
+      parameters exactly (b as strings "0","1","7","-14","16","-2"; d_pattern
+      identical). The producer records this b-tuple as feasible.
+
+  item_b_free_coefficient:
+    question: >
+      Does the entry's recorded instance free-coefficient data match one of my
+      derived roots under one of my reported height conventions?
+    producer:
+      # The producer records the free coefficient implicitly as the r list
+      # r_i = g(b_i) = b_i + c. Since b_0 = 0, r_0 = g(b_0) = c.
+      r_list: [-28/13, -15/13, 63/13, -210/13, 180/13, -54/13]
+      recovered_c: -28/13        # = r_0, since b_0 = 0
+    mine:
+      derived_roots: [324772/376343, -28/13]
+      g_bi_for_c_neg28_13: [-28/13, -15/13, 63/13, -210/13, 180/13, -54/13]
+    result: AGREEMENT
+    note: >
+      The producer's recovered free coefficient c = -28/13 is EXACTLY one of my
+      two derived rational roots. The producer's full r list equals my computed
+      g(b_i) = b_i + c values for c = -28/13, term for term. The matched root
+      c = -28/13 is within the 10^4 box under BOTH of my height conventions
+      (max(|num|,|den|) = 28 <= 10^4; |c| = 28/13 <= 10^4).
+
+  item_c_r_height:
+    question: >
+      Does the recorded r_height (210) correspond to my root's max(|num|,|den|)
+      or |c| under a stated convention?
+    producer:
+      r_height: 210
+    mine:
+      root_c: -28/13
+      root_max_abs_num_den: 28
+      root_abs_c: 28/13
+    result: DISAGREEMENT_UNDER_STATED_CONVENTIONS
+    note: >
+      Under the literal stated conventions (height of the free coefficient c),
+      210 does NOT equal my root's max(|num|,|den|) (= 28) nor |c| (= 28/13).
+      HOWEVER, 210 = max_i |numerator of r_i| = max |numerator of g(b_i)|
+      (the r list shares denominator 13; numerators 28,15,63,210,180,54 ->
+      max 210). So the producer's r_height measures the height of the g(b)
+      VECTOR, not the height of the free coefficient c. This convention is
+      consistent across all found[] entries (verified on several: e.g.
+      b_index 603 r_height 952 = max numerator of its r list; b_index 870
+      r_height 4235 and 182 likewise). It is a labeling/convention difference,
+      not a mathematical error, and does not affect the instance's validity.
+      FLAGGED as a convention note for the Coordinator.
+
+  additional_field_checks:
+    # Every other recorded instance field, compared exactly against my
+    # blind derivation for c = -28/13.
+    delta:
+      producer: [-2310, 6337764763/255150, 8274935119/893025, -4090494199/2381400, -49475096/893025, 53817049/7144200]
+      mine:     [-2310, 6337764763/255150, 8274935119/893025, -4090494199/2381400, -49475096/893025, 53817049/7144200]
+      result: AGREEMENT (exact)
+    deg_s:
+      producer: 4
+      mine: 4
+      result: AGREEMENT (exact)
+    disc_s:
+      producer: 13338113665625129698328863805184000000/23298085122481
+      mine: 13338113665625129698328863805184000000/23298085122481
+      result: AGREEMENT (exact)
+    s:
+      producer: [-1811040/169, 19604200/507, 2052270/169, -10120/169, -27280/507]
+      mine:     [-1811040/169, 19604200/507, 2052270/169, -10120/169, -27280/507]
+      result: AGREEMENT (exact)
+    height_s:
+      producer: 19604200
+      mine: "max |numerator| of s coefficients = max(1811040, 19604200, 2052270, 10120, 27280) = 19604200"
+      result: AGREEMENT (exact; same max-|numerator| convention as r_height)
+
+  verdict_q1: holds
+  verdict_q1_rationale: >
+    The producer's recorded n=6 feasibility at b_index 579 SURVIVES blind
+    re-derivation. The free coefficient c = -28/13 is exactly one of my two
+    derived rational roots of the ellipticity quadratic; all nondegeneracy
+    conditions hold (g(b_i) != 0 for all i, deg s = 4, disc(s) != 0); the
+    identity s(b_i) = d_i g(b_i)^2 holds; and every recorded instance field
+    (delta, s, deg_s, disc_s, r = g(b), height_s) matches my derivation
+    exactly. The only discrepancy is the r_height LABEL: 210 is the max
+    |numerator| of the g(b) vector, not the height of c (28) or |c| (28/13).
+    This is a convention/labeling note, not a break in the mathematics.
+
+# ---------------------------------------------------------------------
+# Q2 comparison — producer R2 draw-support raw result, r2_plants
+# ---------------------------------------------------------------------
+comparison_q2:
+  producer_path: experiments/EXP-ECRANK-73275e/runs/RUN-ECRANK-73275e-R2-draw-support/raw-result.json
+  read_after_freeze: true
+  section: r2_plants
+
+  expected_meets:
+    question: "Compare the recorded expected_meets against my derived E."
+    producer:
+      at_0: 5.0
+      at_1: 5.0
+      at_2: 5.0
+      N_a: 8000
+      S_abs: 1600
+    mine:
+      E: 5
+      formula: "E = N_a / S_abs = 8000 / 1600 = 5"
+    result: AGREEMENT (exact; 5.0 == 5 for all three at)
+
+  observed_counts:
+    question: >
+      Compare each observed meets count against my derived null distribution
+      (consistency, not equality). Null: Binomial(8000, 1/1600), mean 5,
+      sd = sqrt(7995)/40 ~ 2.2354.
+    null_reference:
+      mean: 5
+      sd: "sqrt(7995)/40 (~2.2354)"
+      P_meets_le_3: "0.2649381560144012 (approx)"
+      P_meets_le_4: "~0.440 (approx; P(<=3) + P(==4), P(==4) ~ 0.175)"
+    per_at:
+      - at: 0
+        producer_meets_observed: 3
+        plant: [7, 8]
+        z_score: -0.8947
+        consistent_with_null: true
+        outlier: false
+        note: "3 is within 1 sd of the mean; P(meets<=3) ~ 0.265. Not an outlier."
+      - at: 1
+        producer_meets_observed: 3
+        plant: [11, 12]
+        z_score: -0.8947
+        consistent_with_null: true
+        outlier: false
+        note: "Same as at=0. Not an outlier."
+      - at: 2
+        producer_meets_observed: 4
+        plant: [13, 14]
+        z_score: -0.4474
+        consistent_with_null: true
+        outlier: false
+        note: "4 is within 0.5 sd of the mean; P(meets<=4) ~ 0.44. Not an outlier."
+    result: AGREEMENT (all three observed counts consistent with the null; none is an outlier)
+
+  log_consistency_check:
+    # Integrity cross-check (not required by the joint, but observed while
+    # reading the file): the meets_observed counts equal the number of
+    # "meet": true entries in each plant's per_draw_log_prefix_and_hits.
+    at_0: "3 meet:true entries (k=74, 6187, 6755) -> meets_observed 3 (consistent)"
+    at_1: "3 meet:true entries (k=2049, 4869, 6726) -> meets_observed 3 (consistent)"
+    at_2: "4 meet:true entries (k=2288, 3970, 6554, 6850) -> meets_observed 4 (consistent)"
+    plant_match: "each meet occurs at pt == plant (consistent with the model)"
+
+  verdict_q2: holds
+  verdict_q2_rationale: >
+    The audit's expected-meets arithmetic SURVIVES blind re-derivation. The
+    recorded expected_meets = 5.0 equals my derived E = N_a/|S| = 8000/1600 =
+    5 exactly, for all three plants. The observed meets counts (3, 3, 4) are
+    all consistent with my derived null distribution Binomial(8000, 1/1600)
+    (mean 5, sd ~ 2.235): none is an outlier (3 is at z ~ -0.89 with
+    P(<=3) ~ 0.265; 4 is at z ~ -0.45). This matches my derivation-only
+    conclusion that an observed 3 would NOT be an outlier.
+
+# =====================================================================
+# Review attestation
+# =====================================================================
+review_attestation:
+  task_id: TASK-20260908-6f37e1
+  joints_owned: [J5_blind_rederivation]
+  sources_read:
+    # Exact list, in the order read. The first two were read BEFORE the
+    # freeze; the last two (producer artifacts) were read ONLY AFTER the
+    # freeze commit 19709ca8b4.
+    - ledger/handoffs/TASK-20260908-6f37e1.yaml
+    - coordination/goals/GOAL-ECRANK-002/batches/BATCH-24d356/blind-input.yaml
+    - experiments/EXP-ECRANK-73275e/runs/RUN-ECRANK-73275e-R3-construct-n6/raw-result.json   # post-freeze
+    - experiments/EXP-ECRANK-73275e/runs/RUN-ECRANK-73275e-R2-draw-support/raw-result.json   # post-freeze
+  blind_from_respected: true
+  read_sibling_reports: false
+  verdict_q1: holds
+  verdict_q2: holds
+  verdict: holds
+  verdict_note: >
+    Aggregate field added in a pre-archive addendum for
+    tools/check_review_independence.py schema conformance; verdict_q1 and
+    verdict_q2 remain the authoritative per-quantity verdicts.
+  requested_policy: review-adversarial
+  resolved_model: vllm/qwen3.8-27b
+  independent_session: true
+  notes: >
+    Blindness contract honored: only the two permitted files were read before
+    the derivation was written and frozen (commit 19709ca8b4); the two
+    producer raw-result paths were read only after the freeze. No other
+    repository path was read, searched, or listed before the freeze; no git
+    history command was run before the freeze. All derivation arithmetic was
+    exact (fractions.Fraction / integers); no floating point was used in the
+    derivation (decimals appear only as labeled "approx" readability aids).
+    The single flagged item is the r_height LABEL convention (210 = max
+    |numerator| of the g(b) vector, not the height of c); it does not affect
+    the mathematical validity of the b_index 579 instance.
