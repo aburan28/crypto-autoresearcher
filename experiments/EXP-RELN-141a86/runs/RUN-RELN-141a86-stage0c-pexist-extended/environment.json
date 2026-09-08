@@ -1,0 +1,34 @@
+{
+  "host_os": "Linux 6.18.44-fc-v24 x86_64",
+  "python_version": "3.11.15",
+  "python_executable": "/usr/local/bin/python3",
+  "git_commit_at_launch": "ad6fce10209e42524698928f3ea15b3730e8cfa2",
+  "git_branch": "claude/gnn-clustering-symbolic-regression-hzkbu0",
+  "git_dirty_at_launch": true,
+  "git_dirty_detail_at_launch": [
+    "M experiments/EXP-RELN-141a86/source/target_enumerate_worker_checkpoint.py (additive: new --resume-from-checkpoint CLI flag, see below; enumeration algorithm and checkpoint format from grammar_engine_checkpoint.py NOT touched)",
+    "?? experiments/EXP-RELN-141a86/runs/RUN-RELN-141a86-stage0c-pexist-extended/ (this run's own artifacts)",
+    "?? experiments/EXP-RELN-141a86/source/run_stage0c_pexist_extended_monitor.py (new, additive)"
+  ],
+  "grammar_engine_unchanged": "grammar_engine.py, grammar_engine_lean.py and grammar_engine_checkpoint.py were NOT modified by this dispatch. Only target_enumerate_worker_checkpoint.py was extended (additively) with a --resume-from-checkpoint flag that performs a post-hoc cross-check against a prior partial checkpoint; it does not change the enumeration algorithm, the checkpoint file format, or the dedup/canonicalization logic in any of the three unmodified files.",
+  "source_file_sha256": {
+    "grammar_engine.py": "60eed169d4fb72260833e8d3f0825f88ee1b9894a3069a2e1467944f3b60c7e7",
+    "grammar_engine_lean.py": "19b4b0b732fe3fde4ea83c6f17cb3d3b32efbce2f37a750e53ad49b9d31c966f",
+    "grammar_engine_checkpoint.py": "06ba545fc6183bef3181b5f64446f48aca4226f114e3127143a28e346bbe0b17",
+    "recovery_check.py": "e4a9bc8684a706d944a929a16fae3295f27b9c087867b001bcb738b5ab8cb92d",
+    "target_enumerate_worker_checkpoint.py": "3ca0b9717aa3e3cb969bef63fff72783edb2f9750bb4cc5150d03174bb67c35f",
+    "run_stage0c_pexist_extended_monitor.py": "860fe4de710657eee6c4922edac90cf759087b93edc3976e38af89befe47685e"
+  },
+  "pysr_available": false,
+  "julia_available": false,
+  "pysr_disposition": "Not needed (pure structural-recovery targeted-minimality search on the primary exhaustive_grammar engine only); unchanged from all prior Stage 0 runs.",
+  "host_memory_measured_at_launch": {
+    "free_h_output": "Mem: 15Gi total, 811Mi used, 13Gi free, 12Mi shared, 1.7Gi buff/cache, 14Gi available",
+    "total_ram_gib": 15,
+    "available_ram_gib_approx": 14,
+    "cpu_count": 4
+  },
+  "budget_vs_host_capacity_disclosure": "specification.yaml budget.sizing_note assumes a host with >=8 cores and >=32 GB RAM; this host has 4 cores and ~15 GiB RAM. The handoff's advisory memory_gb: 16 exceeds this host's physical RAM entirely, so the external monitor's hard memory-kill threshold was set to 12.5 GB (not 16 GB) and the worker's internal soft cap to 10.0 GB, to leave headroom below actual physical capacity and ensure a clean, checkpoint-preserving kill rather than risking the OS OOM-killer acting first. Based on the prior run's own measured level-7-to-8 growth factor (~7.5x in both cumulative_registered forms and RSS), level 9 of this pack may plausibly approach or exceed 12.5 GB before it finishes building, in which case this run terminates at resource_exhaustion with level 8 the last exhaustively completed level (level 9 itself is never partially checkpointed; checkpointing is per fully-completed level only, unchanged from the validated design in RUN-RELN-141a86-stage0c-minimality). This is a disclosed infrastructure constraint, not a protocol change.",
+  "background_process_management": "run_stage0c_pexist_extended_monitor.py launched via `setsid nohup ... < /dev/null & disown` from the executor's shell, confirmed via `ps -o pid,ppid,pgid,sid` to be its own session leader (SID == PGID == its own PID), i.e. genuinely detached from the launching shell/session. It launches target_enumerate_worker_checkpoint.py as a child subprocess.Popen, polls /proc/<pid>/status VmRSS every 5.0s, writes memory-timeseries-INV-7_p_exist.json incrementally (every 30s while running, and on exit), and enforces external hard caps: wall-clock 72000.0s (20h), memory 12.5 GB. The worker itself writes checkpoint-INV-7_p_exist.json atomically (temp-file + fsync + os.replace + directory fsync) after every fully-completed complexity level, exactly as validated (survives a real SIGKILL) in RUN-RELN-141a86-stage0c-minimality.",
+  "resume_vs_restart_disclosure": "Genuine resume (skip re-building levels 1-8 from a restored in-memory state) was investigated and found infeasible with reasonable effort: checkpoint-INV-7_p_exist.json from the prior run stores only per-level summary counts (new_registered, cumulative_registered, timings, rss_bytes), never the by_complexity dict of canonical expression trees or the seen_string_hashes/seen_fp_hashes dedup sets those counts were derived from; those cannot be reconstructed from the counts alone. A genuine resume would require serializing millions of canonical expression trees and two large hash sets per checkpoint write -- judged not worth adding given levels 1-8 cost only ~1800s (per the prior run's own checkpoint) versus the many-hour cost of level 9 this run is actually extending into. This run therefore RESTARTS enumeration at level 1 (identical algorithm, identical checkpoint format) and, via a newly added --resume-from-checkpoint flag on target_enumerate_worker_checkpoint.py, cross-checks its own levels 1-8 cumulative_registered counts against the prior run's checkpoint once/if this invocation reaches a clean exit (the cross-check result is embedded in worker-result-INV-7_p_exist.json's resume_cross_check field, written only on normal exit; it is NOT written if this run is itself killed by a cap, matching the per-level-only checkpoint granularity). Live observation during the 2-5 minute post-launch check confirmed levels 1-6 of this restart reproduced IDENTICAL cumulative_registered counts (6, 20, 179, 949, 8087, 54078) to the prior run's checkpoint at the same levels, which is a strong determinism sanity check even before the formal cross-check field is written."
+}
