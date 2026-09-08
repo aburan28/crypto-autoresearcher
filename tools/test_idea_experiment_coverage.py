@@ -67,6 +67,83 @@ class CoverageTests(unittest.TestCase):
         self.assertEqual(report['counts']['ecc_ideas'], 2)
         self.assertEqual(report['counts']['all_without_explicit_experiment'], 3)
 
+    def test_classification_partition_requires_explicit_policy_membership(self):
+        self.write('orchestration/research-priority.yaml', {
+            'ecc_areas': ['ECDLP'], 'excluded_areas': {'AES': 'Explicit non-ECC scope'}})
+        unknown = 'IDEA-20260907-111111'
+        missing = 'IDEA-20260907-222222'
+        excluded = 'IDEA-20260907-333333'
+        for iid, fields in (
+            (unknown, {'question_id': 'RQ-UNLISTED-001', 'status': 'proposed'}),
+            (missing, {'status': 'rejected'}),
+            (excluded, {'goal_id': 'GOAL-AES-001'}),
+        ):
+            self.write('ledger/proposals/' + iid + '.yaml', {'idea': {'id': iid, **fields}})
+        self.write('experiments/EXP-ECDLP-111111/specification.yaml', {'experiment': {
+            'id': 'EXP-ECDLP-111111', 'source_idea_id': unknown,
+            'status': 'draft', 'approved_by': None}})
+        report = scan(self.root)
+        rows = {r['id']: r for r in report['ideas']}
+        for iid, classification, ecc, unresolved, unknown_areas in (
+            (self.iid, 'ecc', True, False, []),
+            (unknown, 'unclassified', False, True, ['UNLISTED']),
+            (missing, 'unclassified', False, True, []),
+            (excluded, 'non_ecc', False, False, []),
+        ):
+            with self.subTest(iid=iid):
+                row = rows[iid]
+                self.assertEqual(row['classification'], classification)
+                self.assertEqual(row['ecc'], ecc)
+                self.assertEqual(row['classification_unresolved'], unresolved)
+                self.assertEqual(row['policy_unknown_areas'], unknown_areas)
+        self.assertEqual(report['counts']['classification'], {
+            'ecc': 1, 'non_ecc': 1, 'unclassified': 2})
+        self.assertEqual(report['counts']['classification_unresolved'], 2)
+        self.assertEqual(report['counts']['ideas'], 4)
+        self.assertEqual(rows[missing]['source_statuses'], ['rejected'])
+        self.assertEqual(rows[excluded]['source_statuses'], ['unspecified'])
+        self.assertEqual(rows[unknown]['source_statuses'], ['proposed'])
+        self.assertEqual(rows[unknown]['link_status'], 'explicit_experiment_link')
+        self.assertEqual(rows[unknown]['experiments'][0]['source_status'], 'draft')
+        self.assertIsNone(rows[unknown]['experiments'][0]['source_approved_by'])
+        self.assertEqual(rows[unknown]['experiments'][0]['semantic_coverage'],
+                         'not_adjudicated_by_this_tool')
+        self.assertFalse(report['completion_proven'])
+
+    def test_unknown_area_is_not_resolved_by_an_explicitly_excluded_source(self):
+        self.write('orchestration/research-priority.yaml', {
+            'ecc_areas': ['ECDLP'], 'excluded_areas': {'AES': 'Explicit non-ECC scope'}})
+        self.write('ledger/proposals/' + self.iid + '.yaml', {'idea': {
+            **self.idea, 'question_id': 'RQ-AES-001'}})
+        self.write('coordination/batch/new_ideas.yaml', {'proposals': [{
+            **self.idea, 'question_id': 'RQ-UNLISTED-001'}]})
+        report = scan(self.root)
+        row = report['ideas'][0]
+        self.assertEqual(row['areas'], ['AES', 'UNLISTED'])
+        self.assertEqual(row['classification'], 'unclassified')
+        self.assertFalse(row['ecc'])
+        self.assertTrue(row['classification_unresolved'])
+        self.assertEqual(row['policy_unknown_areas'], ['UNLISTED'])
+        self.assertEqual(len(report['duplicate_records']), 1)
+        self.assertEqual(row['link_status'], 'no_experiment_link')
+
+    def test_explicit_ecc_source_keeps_priority_and_unknown_area_visible(self):
+        self.write('orchestration/research-priority.yaml', {
+            'ecc_areas': ['ECDLP'], 'excluded_areas': {'AES': 'Explicit non-ECC scope'}})
+        self.write('coordination/batch/new_ideas.yaml', {'proposals': [{
+            **self.idea, 'question_id': 'RQ-UNLISTED-001'}]})
+        self.write('ledger/proposals/IDEA-20260907-111111.yaml', {'idea': {
+            'id': 'IDEA-20260907-111111', 'question_id': 'RQ-AES-001',
+            'recommended_priority': 'high'}})
+        report = scan(self.root)
+        row = report['ideas'][0]
+        self.assertEqual(row['id'], self.iid)
+        self.assertEqual(row['classification'], 'ecc')
+        self.assertTrue(row['ecc'])
+        self.assertFalse(row['classification_unresolved'])
+        self.assertEqual(row['policy_unknown_areas'], ['UNLISTED'])
+        self.assertEqual(report['counts']['ecc_ideas'], 1)
+
     def test_duplicate_and_malformed_sources_are_not_silently_lost(self):
         self.write('ledger/ideas/' + self.iid + '.yaml', {'idea': self.idea})
         self.write('ledger/ideas/broken.yaml', ['not', 'a', 'record'])
@@ -149,6 +226,8 @@ class CoverageTests(unittest.TestCase):
         row = next(r for r in scan(self.root)['ideas'] if r['id'] == 'ECDLP-IDEA-436')
         self.assertFalse(row['ecc'])
         self.assertTrue(row['classification_unresolved'])
+        self.assertEqual(row['classification'], 'unclassified')
+        self.assertEqual(row['policy_unknown_areas'], [])
 
     def test_archive_malformed_item_is_reported(self):
         self.write('coordination/test.yaml', {'ideas': ['reference only']})
