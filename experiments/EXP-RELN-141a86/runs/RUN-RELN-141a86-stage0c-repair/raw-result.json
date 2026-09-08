@@ -1,0 +1,42 @@
+{
+  "task": "TASK-20260907-f41930 (stage0c_repair_attempt)",
+  "hash_reverification": {
+    "expected": "f1aec620f8cb19318e6d6459174bd79b80daf6dd46fdacf6afdf2468c7cac7f2",
+    "recomputed": "f1aec620f8cb19318e6d6459174bd79b80daf6dd46fdacf6afdf2468c7cac7f2",
+    "match": true,
+    "method": "python3 -c \"import hashlib; print(hashlib.sha256(b''.join(open(f,'rb').read() for f in ['candidate-list.yaml','grammar.yaml','environment.lock.json'])).hexdigest())\" run inside experiments/EXP-RELN-141a86/runs/RUN-RELN-141a86-stage0a/"
+  },
+  "lean_engine_validation": {
+    "method": "grammar_engine_lean.enumerate_lean's by_complexity_counts compared exactly against grammar_engine.enumeration_counts (the frozen, already-used engine) for every complexity level small enough for the frozen engine to finish in reasonable time.",
+    "cases": [
+      {"pack": "degree_table", "max_complexity": 5, "match": true},
+      {"pack": "degree_table", "max_complexity": 6, "match": true},
+      {"pack": "degree_table", "max_complexity": 7, "match": true, "count_at_7": 136202},
+      {"pack": "fb3_unsigned_m3_and_enum_unsigned_m3", "max_complexity": 5, "match": true},
+      {"pack": "fb3_unsigned_m3_and_enum_unsigned_m3", "max_complexity": 6, "match": true},
+      {"pack": "fb3_unsigned_m3_and_enum_unsigned_m3", "max_complexity": 7, "match": true, "count_at_7": 427569},
+      {"pack": "enum_xclass_signed_m2", "max_complexity": 5, "match": true}
+    ],
+    "bug_found_and_fixed_during_validation": {
+      "description": "First validation attempt (before the fix) showed 4 of 7 cases MISMATCH, with the lean engine consistently OVER-counting (registering entries the original engine correctly deduplicated as algebraic duplicates).",
+      "root_cause": "IEEE754 -0.0 == 0.0 by Python float value equality (which grammar_engine.enumerate_expressions relies on via direct tuple `in` membership), but repr(-0.0) == '-0.0' != repr(0.0) == '0.0'. The lean engine's hash-of-repr dedup key therefore treated a -0.0-containing fingerprint and an otherwise-identical 0.0-containing fingerprint as DIFFERENT values, under-deduplicating. Concrete example found: floor(mu) and pow(log(log(m)),N) both fingerprint to an all-zero (with alternating sign) tuple on the sample grid and must dedup as one value; before the fix they did not.",
+      "fix": "grammar_engine_lean._normalize_fp_value maps -0.0 to 0.0 (and passes None through) before repr()-based hashing; both floats already came from grammar_engine.numeric_fingerprint's own round(float(v), 9), so no precision is lost by this normalization.",
+      "verification_after_fix": "All 7 cases MATCH exactly, including the largest (427,569 forms at complexity 7 of the fb3_unsigned_m3_and_enum_unsigned_m3 pack)."
+    }
+  },
+  "structural_recovery_attempts": "see target-enumeration-raw-results.json (verbatim monitor output) and memory-timeseries-<target>.json (continuous /proc VmRSS samples, 2s cadence, one file per target) in this same run directory; summarized in recovery-controls.json.",
+  "outcome_summary": {
+    "INV-1_mean": {"pack": "fb3_unsigned_m3_and_enum_unsigned_m3", "target_complexity": 9, "status": "resource_exhaustion", "wall_clock_seconds": 6004.026, "peak_rss_gb": 7.9417},
+    "INV-7_p_fail": {"pack": "enum_xclass_signed_m2", "target_complexity": 9, "status": "resource_exhaustion", "wall_clock_seconds": 6004.114, "peak_rss_gb": 7.7007},
+    "INV-8_d_reg": {"pack": "degree_table", "target_complexity": 10, "status": "resource_exhaustion", "wall_clock_seconds": 6004.268, "peak_rss_gb": 12.9751},
+    "INV-7_p_exist": {"pack": "enum_xclass_signed_m2", "target_complexity": 11, "status": "resource_exhaustion", "wall_clock_seconds": 6004.142, "peak_rss_gb": 7.6136}
+  },
+  "gate_cleared": false,
+  "stage1_attempted": false,
+  "stage1_not_attempted_reason": "Per specification.yaml stopping_rules and the handoff's explicit instruction ('IF FEWER THAN ALL THREE RECOVER: stop at Stage 0c ... Do NOT proceed to Stage 1'): zero of the three previously-failing controls (INV-1, INV-7, INV-8) were affirmatively recovered by this repair attempt; all four structural searches (INV-1, INV-7 p_fail, INV-7 p_exist, INV-8) again ended in resource_exhaustion.",
+  "total_wall_clock_this_run_seconds_measured": {
+    "validation_and_smoketest": "approximately 40 (python3 subprocess calls in command.txt steps 3-4)",
+    "four_sequential_structural_search_attempts": 24016.55,
+    "note": "24016.55 = sum of the four workers' individually measured wall_clock_seconds_measured (6004.026 + 6004.114 + 6004.268 + 6004.142); this is REAL measured subprocess wall clock via time.monotonic() bracketing in run_stage0c_repair_monitor.py, not an estimate."
+  }
+}
