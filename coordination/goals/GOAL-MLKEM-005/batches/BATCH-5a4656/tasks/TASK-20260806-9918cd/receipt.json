@@ -1,0 +1,101 @@
+{
+  "schema": "crypto.autoresearch.task_receipt.v1",
+  "task_id": "TASK-20260806-9918cd",
+  "goal_id": "GOAL-MLKEM-005",
+  "batch_id": "BATCH-5a4656",
+  "role": "executor",
+  "title": "B2-D: an open-access aggregator step for literature acquisition, plus the corrected BATCH-a51f91 acquisition table",
+  "state": "completed",
+  "failure_class": null,
+  "failure_class_vocabulary": "agents/executor.md: specification_error | implementation_error | infrastructure_error | resource_exhaustion | invalid_measurement | negative_observation. None applies: this is a process-documentation and independent-reproduction task, not an experiment with a frozen prediction to fail against.",
+  "execution_window": {
+    "started_at": "2026-09-08T01:31:00Z",
+    "ended_at": "2026-09-08T01:33:30Z",
+    "wall_clock_seconds_measured": 150,
+    "wall_clock_seconds_budget": 600,
+    "within_budget": true,
+    "memory_gb_budget": 1,
+    "memory_note": "No compute experiment was run. Peak use was two small PDF fetches (1.8 MB, 1.0 MB) and pymupdf page-tree parsing of both; well under 1 GB. Not separately instrumented.",
+    "maximum_runs_budget": 1,
+    "runs_executed": 1
+  },
+  "revision": {
+    "commit": "1ba5716175489fb358d7bd915703ecdff7e53c3b",
+    "branch": "claude/batch-dlp-precomputation-nov7vh",
+    "dirty_tree_at_start": true,
+    "dirty_tree_detail": "git status --porcelain at start showed two untracked paths unrelated to this task: 'coordination/goals/GOAL-AES-003/batches/BATCH-9845b0/tasks/TASK-20260804-8965ec/anchor' and 'coordination/goals/GOAL-MLKEM-005/batches/BATCH-5a4656/tasks/' (this task's own not-yet-created write scope, plus sibling producer tasks in the same batch). No tracked file was modified by this task. No git commit was run, per the handoff constraint.",
+    "head_at_task_start": "1ba5716175489fb358d7bd915703ecdff7e53c3b",
+    "head_at_task_end": "1ba5716175489fb358d7bd915703ecdff7e53c3b",
+    "head_advanced_during_execution": false
+  },
+  "environment": {
+    "python": "3.11.15",
+    "curl": "curl 8.5.0 / libcurl 8.5.0 / OpenSSL 3.0.13",
+    "https_proxy": "http://127.0.0.1:44631 (agent proxy, TLS re-terminated; CA bundle /root/.ccr/ca-bundle.crt per /root/.ccr/README.md)",
+    "pdf_parsing": "pymupdf 1.28.2 (installed in the environment), used to independently verify page count against the misleading `file` command heuristic; raw '/Type /Page' object counting used as a second cross-check",
+    "randomness": "None. No seeded computation was performed; nothing in this task is stochastic."
+  },
+  "inference": {
+    "requested_policy": "executor-implementation",
+    "requested_policy_source": "dispatch_queue.json task TASK-20260806-9918cd handoff.inference",
+    "resolved_model_id": "claude-sonnet-5",
+    "runtime": "Claude Code subagent (model: inherit)",
+    "fallback_used": false,
+    "fallback_reason": null,
+    "degraded_allowed": false,
+    "degraded_requirements": [],
+    "model_verified": false,
+    "model_verified_note": "python3 -m orchestration.adapter doctor --probe was NOT run in this task; the resolved identifier is the runtime's own self-report, unverified against the adapter per AGENTS.md.",
+    "independent_session": false,
+    "reasoning_effort": null,
+    "fallback_allowed": true
+  },
+  "commands_run": [
+    {
+      "purpose": "OpenAlex lookup on the target DOI",
+      "command": "curl -sS -w '\\nHTTP_STATUS:%{http_code}\\n' https://api.openalex.org/works/doi:10.1145/3460120.3484819 -o openalex_response.json",
+      "result_summary": "HTTP 200; open_access.is_oa=true, oa_status=gold; best_oa_location.pdf_url=https://dl.acm.org/doi/pdf/10.1145/3460120.3484819; locations[] contains a TU/e Research Portal entry with pdf_url=https://pure.tue.nl/ws/files/362308384/3460120.3484819.pdf"
+    },
+    {
+      "purpose": "Confirm the ACM DL route remains blocked, as BATCH-a51f91 recorded",
+      "command": "curl -sS -o /dev/null -w 'HTTP_STATUS:%{http_code} CONTENT_TYPE:%{content_type}\\n' -A 'Mozilla/5.0' https://dl.acm.org/doi/pdf/10.1145/3460120.3484819",
+      "result_summary": "HTTP 403, text/html -- consistent with BATCH-a51f91 reads.md Sec. 3.2"
+    },
+    {
+      "purpose": "Fetch the TU/e green-OA copy (this task's independent reproduction of RT-20260806-d008e0's retrieval)",
+      "command": "curl -sS -D tue_headers.txt -o tue_paper.pdf -w 'HTTP_STATUS:%{http_code} SIZE:%{size_download} CONTENT_TYPE:%{content_type}\\n' https://pure.tue.nl/ws/files/362308384/3460120.3484819.pdf",
+      "result_summary": "HTTP 200, application/pdf, 1,832,738 bytes, sha256 fbbcc63f837d702996b327a3dad30408009b1033775bc06635178468579b8ed8, 17 pages (pymupdf-verified). Differs from RT-20260806-d008e0's reported 1,832,736 bytes and sha256 2198eaf192cd58aa48fc272ebe18c66145476bfbe6a951fadb15dc6eb59bcb4c; page count (17) matches."
+    },
+    {
+      "purpose": "Verify page count discrepancy between 'file' heuristic and actual page-tree parse",
+      "command": "file tue_paper.pdf; python3 -c \"import fitz; print(fitz.open('tue_paper.pdf').page_count)\"; python3 -c \"import re; print(len(re.findall(rb'/Type\\\\s*/Page[^s]', open('tue_paper.pdf','rb').read())))\"",
+      "result_summary": "file reported '10 page(s)' (wrong); pymupdf page_count=17; raw /Type /Page object count=17. Recorded as a documented pitfall in acquisition_procedure.md."
+    },
+    {
+      "purpose": "Second aggregator (Unpaywall), per the procedure being documented, run for completeness of the procedure write-up",
+      "command": "curl -sS -w '\\nHTTP_STATUS:%{http_code}\\n' 'https://api.unpaywall.org/v2/10.1145/3460120.3484819?email=a.buran28@gmail.com' -o unpaywall_response.json",
+      "result_summary": "HTTP 200; is_oa=true; best_oa_location.url_for_pdf=https://dl.acm.org/doi/pdf/10.1145/3460120.3484819 (the blocked ACM route); oa_locations[] also lists a 'repository' host_type entry matching the TU/e pdf_url"
+    },
+    {
+      "purpose": "Unexpected scope-verification check: direct ePrint PDF route, to confirm the scope-caveat distinction between the CCS'21 published version and the ePrint preprint",
+      "command": "curl -sS -D eprint_headers.txt -o eprint_paper.pdf -w 'HTTP_STATUS:%{http_code} SIZE:%{size_download} CONTENT_TYPE:%{content_type}\\n' https://eprint.iacr.org/2021/1351.pdf",
+      "result_summary": "HTTP 200 (BATCH-a51f91 reads.md Sec. 3.2 recorded 403 for this same URL), application/pdf, 954,342 bytes, 16 pages (pymupdf), sha256 b2ac83649f5c45c88d4331b2a6b25180a9325ca200f87bbe23126aff6cdd0a59. Reported as an unexpected observation and a follow-up candidate; not further pursued (out of this task's scope per its own constraints)."
+    }
+  ],
+  "email_used_for_unpaywall_contact": "a.buran28@gmail.com",
+  "email_use_note": "Used only as the required contact-identification parameter of the Unpaywall API call per that API's terms, not sent to any unrelated service.",
+  "retrieved_files_location": "scratchpad (not committed; not part of this task's write_scope, retained locally for the duration of this session only): openalex_response.json, unpaywall_response.json, tue_paper.pdf, tue_headers.txt, eprint_paper.pdf, eprint_headers.txt",
+  "deliverables_written": [
+    "acquisition_procedure.md",
+    "corrected_acquisition_table.md",
+    "receipt.json"
+  ],
+  "constraints_observed": [
+    "No git commit run by this task.",
+    "BATCH-a51f91 TASK-20260805-cdee80/reads.md was read but not edited.",
+    "Retrieval was independently reproduced (own commands, own hashes) and compared against, not copied from, RT-20260806-d008e0's reported values; a genuine byte-count/hash discrepancy was found and reported honestly rather than papered over.",
+    "The CCS'21-published-version vs. ePrint-2021/1351 scope caveat is restated in corrected_acquisition_table.md.",
+    "No new census rows or literature-content reads performed beyond what was needed to verify document identity (title page) and the acquisition-procedure fix itself; the direct-ePrint-route observation is reported as a follow-up, not acted on further.",
+    "AGENTS.md rule 12 remains UNMET and UNWAIVED; no EV-MLKEM-* or KN-* record status changed by this task."
+  ]
+}
