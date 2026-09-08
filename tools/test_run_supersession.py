@@ -119,6 +119,132 @@ class SupersessionFixture(unittest.TestCase):
         return {os.path.abspath(entry["superseded_path"]): entry}
 
 
+class PendingRawResultTests(SupersessionFixture):
+    """An explicit ongoing observation must not fabricate a terminal result."""
+
+    def pending_errors(self, status="running", pending=True, kind="none", **over):
+        (self.run_dir / "raw-result.json").unlink(missing_ok=True)
+        result = {"certificate": {"kind": kind}}
+        if pending is not None:
+            result["raw_result_pending"] = pending
+        path = self.write_manifest(
+            "manifest.yaml", manifest_body(status=status, result=result, **over))
+        ctx = vl.Ctx(set())
+        vl.check_run(str(path), ctx, {})
+        return ctx.errors
+
+    def test_explicit_nonterminal_observations_need_no_final_result(self):
+        for status in ("running", "in_progress"):
+            with self.subTest(status=status):
+                self.assertEqual(self.pending_errors(status=status), [])
+
+    def test_pending_requires_literal_true(self):
+        for pending in (None, False, 1, "true"):
+            with self.subTest(pending=pending):
+                errors = self.pending_errors(pending=pending)
+                self.assertTrue(any("missing artifact 'raw-result.json'" in e
+                                    for e in errors))
+
+    def test_terminal_planned_and_unknown_statuses_still_owe_result(self):
+        for status in ("completed", "completed_valid", "valid", "failed",
+                       "cancelled", "invalid", "planned", "running_later",
+                       ["running"], {"state": "running"}):
+            with self.subTest(status=status):
+                errors = self.pending_errors(status=status)
+                self.assertTrue(any("missing artifact 'raw-result.json'" in e
+                                    for e in errors))
+
+    def test_certificate_claims_still_owe_result(self):
+        for kind in ("discrete_log", "decomposition", None):
+            with self.subTest(kind=kind):
+                errors = self.pending_errors(kind=kind)
+                self.assertTrue(any("missing artifact 'raw-result.json'" in e
+                                    for e in errors))
+
+    def test_other_companions_remain_required(self):
+        for name in ("command.txt", "environment.json", "stdout.log", "stderr.log"):
+            with self.subTest(name=name):
+                path = self.run_dir / name
+                path.unlink()
+                errors = self.pending_errors()
+                self.assertTrue(any(f"missing artifact '{name}'" in e for e in errors))
+                path.write_text("{}\n", encoding="utf-8")
+
+    def test_pending_does_not_excuse_missing_metadata_or_provenance(self):
+        errors = self.pending_errors(
+            environment=None, timing=None, code={"command": "python3 driver.py"})
+        for expected in ("missing required field 'environment'",
+                         "missing required field 'timing'", "run.code.commit missing"):
+            self.assertTrue(any(expected in e for e in errors), errors)
+
+
+class DuplicateProcessIdentityTests(SupersessionFixture):
+    SOURCE = "run:\n  id: RUN-SUP-001\n  process:\n    pid: 1\n  process:\n    pid: 2\n"
+
+    def bound_original(self, text):
+        self.superseded.write_text(text, encoding="utf-8")
+        entry = self.registry()[str(self.superseded)]
+        entry["superseded_id_extraction"] = {
+            "kind": "unique_nested_run_id_duplicate_process",
+            "line_number": 2,
+            "exact_line": "  id: RUN-SUP-001",
+        }
+        return entry
+
+    def test_only_hash_opted_original_can_recover_identity(self):
+        entry = self.bound_original(self.SOURCE)
+        self.assertIsNone(vl._run_id_of(str(self.superseded)))
+        self.assertEqual(vl._run_id_of(str(self.superseded), superseded_entry=entry),
+                         "RUN-SUP-001")
+
+    def test_mutated_or_foreign_original_cannot_use_binding(self):
+        entry = self.bound_original(self.SOURCE)
+        self.superseded.write_text(self.SOURCE + "  note: changed\n", encoding="utf-8")
+        self.assertIsNone(vl._run_id_of(str(self.superseded), superseded_entry=entry))
+        other = self.run_dir / "other.yaml"
+        other.write_text(self.SOURCE, encoding="utf-8")
+        self.assertIsNone(vl._run_id_of(str(other), superseded_entry=entry))
+
+    def test_malformed_extraction_kind_is_refused_without_type_error(self):
+        entry = self.bound_original(self.SOURCE)
+        for kind in ([], {}, True):
+            with self.subTest(kind=kind):
+                entry["superseded_id_extraction"]["kind"] = kind
+                with self.assertRaises(ValueError):
+                    vl._validate_superseded_id_extraction(
+                        entry["superseded_id_extraction"], "RUN-SUP-001")
+                self.assertIsNone(vl._run_id_of(str(self.superseded),
+                                              superseded_entry=entry))
+
+    def test_ambiguous_identity_and_other_duplicate_keys_are_rejected(self):
+        variants = [
+            self.SOURCE + "  id: RUN-OTHER-001\n",
+            self.SOURCE + "  run_id: RUN-OTHER-001\n",
+            self.SOURCE + "run:\n  id: RUN-OTHER-001\n",
+            self.SOURCE + "  note: first\n  note: second\n",
+            self.SOURCE + "  process:\n    pid: 3\n",
+            self.SOURCE + "  code:\n    commit: a\n    commit: b\n",
+        ]
+        for text in variants:
+            with self.subTest(text=text):
+                entry = self.bound_original(text)
+                self.assertIsNone(vl._run_id_of(str(self.superseded),
+                                              superseded_entry=entry))
+
+    def test_aliases_merges_documents_and_nonmapping_process_are_rejected(self):
+        variants = [
+            self.SOURCE + "  first: &x [1]\n  alias: *x\n",
+            self.SOURCE + "  defaults: &x {a: 1}\n  merged: {<<: *x}\n",
+            self.SOURCE + "---\nrun_id: RUN-OTHER-001\n",
+            "run:\n  id: RUN-SUP-001\n  process: one\n  process: two\n",
+        ]
+        for text in variants:
+            with self.subTest(text=text):
+                entry = self.bound_original(text)
+                self.assertIsNone(vl._run_id_of(str(self.superseded),
+                                              superseded_entry=entry))
+
+
 class NoRegistryEntryTests(SupersessionFixture):
     def test_unregistered_run_is_validated_exactly_as_before(self) -> None:
         """The default path must not change: same errors, same rendering."""
