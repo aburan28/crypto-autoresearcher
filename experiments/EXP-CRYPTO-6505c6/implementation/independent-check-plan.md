@@ -1,82 +1,92 @@
-# Independent check plan (EXP-CRYPTO-6505c6, preparation only)
+# Independent check plan (preparation interface, EXP-CRYPTO-6505c6)
 
-This document proposes review **responsibilities** for a future,
-Coordinator-preregistered independent review round. It names no reviewers
-and reports no review results, because no review has happened yet. It is a
-plan, not a receipt.
+Status: proposed responsibilities only. No reviewer is assigned, no review has
+occurred, and no result is fabricated. This is not a `review_plan` record
+under `templates/research-records.md` — the Coordinator preregisters the
+actual round, with an owned joint per load-bearing step, a `coordinator_prior`,
+`blindness`, and `proves_too_much`, when a genuine proof-producing audit is
+ready for claim-changing review. This document only proposes the shape that
+future plan should take, drawn from the specification's fixed structure.
 
-## Scope split: mechanical vs. semantic
+## Why a plan is proposed here, not opened
 
-Per `checker-specification.md`, mechanical schema/hash/coverage checks
-(section 2 there) can be run by anyone or by a script and establish
-structural consistency only. The responsibilities below are all **semantic**
-review surfaces: they require genuine mathematical expertise applied to
-actual source material and actual proof text, and none of them exist as
-completed work at this time.
+`DEC-20260907-d42056.next_actions` requires: complete preparation and its
+snapshot, then rank and assign the actual proof-producing audit, then, before
+claim-changing review, preregister independent joint ownership, source scope,
+blindness, and prior. This preparation task precedes all of that. What follows
+is a candidate allocation of responsibilities the Coordinator can start from —
+not a commitment, not a claim of independence achieved.
 
-## Proposed review surfaces
+## Candidate review responsibilities
 
-1. **Addition-chart geometry** (25-cell panel per case, 400 cells total)
-   - Responsibility: verify the five ordered addition cases (`P_identity`,
-     `S_identity`, `secant`, `tangent`, `inverse`) are actually disjoint and
-     exhaustive over the declared domain, that empty-cell claims carry an
-     actual proof/certificate (not an omission), and that the global
-     zero/lisse boundary convention is applied without overlap.
-   - Depends on: `symbolic-fixtures.yaml` chart-tag definitions in this
-     bundle; future `chart-coverage.yaml`.
+1. **Addition charts (O02, the 400-cell `chart-coverage.yaml`).**
+   Candidate joint: verify disjointness/exhaustiveness of the five ordered
+   chart tags (`P_identity, S_identity, secant, tangent, inverse`) over all 25
+   ordered pairs per case, and that every claimed-empty cell carries an actual
+   incompatibility certificate rather than an omitted boundary.
+   Attack surface: two-torsion and identity boundary overlaps, where a
+   misclassified case (e.g. affine two-torsion routed to `tangent` instead of
+   `inverse`) would silently corrupt coverage.
 
-2. **Sheaf / trace interface** (families K and L; correlation pushforward)
-   - Responsibility: verify the Kummer sheaf `L_chi` and Legendre-derived
-     `R^1` definitions, purity, trace normalization, and pullback behavior
-     against actually-read primary sources; verify the correlation-to-
-     pushforward trace formula, dagger/dual identification, and
-     zero-extension convention (`j_!`) are used exactly as the frozen
-     specification requires, with no silent substitution.
-   - Depends on: future `source-hypothesis-matrix.yaml`,
-     `normalization-and-weights.yaml`.
+2. **Sheaf/trace interface (O01, O03).**
+   Candidate joint: verify the Kummer and Legendre family definitions,
+   normalization, and zero-boundary conventions against the family's actual
+   source (purity, trace normalization, pullback behavior for K; rank,
+   lissity, geometric constituents, conductor for L), and verify the
+   correlation-to-pushforward trace/dagger/dual/integral-weight conventions
+   match the source theorem's conventions exactly, not by analogy.
+   Attack surface: an unstated sign, shift, or normalization mismatch between
+   the source's convention and this specification's declared convention.
 
-3. **Complexity / moment / stratification claims**
-   - Responsibility: verify the embedded-complex complexity bound `C` is
-     actually the source-defined quantity (not conflated with curve
-     conductor, rank, or a different derived-complex complexity); verify any
-     claimed all-extension fourth-moment bound `B(C)*q_n^5` is effective and
-     uniform in `n`, not an observed finite maximum or an ineffective
-     existence statement; verify every hypothesis of the cited stratification
-     theorem (source Theorem 2.4, per the specification) is actually checked
-     for this embedded `X` and complex, including the exceptional locus
-     dimension/degree bound `D(C)` and off-locus constant `K(C)`.
-   - Depends on: future `complexity-ledger.yaml`, `moment-certificates.yaml`,
-     `stratification-application.yaml`.
+3. **Complexity / moment / stratification (O04, O06, O07, O08).**
+   Candidate joint: verify the effective complexity bound `C`, the
+   all-extension fourth-moment statement and effective `B(C)`, the
+   hypothesis-by-hypothesis match against the source's Theorem 2.4, and the
+   exceptional-locus dimension/degree and effective `K(C)`.
+   Attack surface: importing a finite observed maximum, an n-dependent
+   constant, or an ineffective existence statement as if it discharged the
+   effective-bound target (explicitly disallowed by
+   `specification.main_transfer_target.effective_B`).
 
-4. **Controls** (matched nulls, constant-rank negative controls, excluded
-   base strata)
-   - Responsibility: verify each matched-null case's translated-pullback
-     comparison (rank, translated ramification support, local
-     inertia/tame/Swan data, conductor totals) against its corresponding
-     generic-main object, with an explicit certificate for any claimed
-     match, and confirm a missing required match is recorded `OPEN` rather
-     than silently resolved; verify the two constant-rank controls (`C1`,
-     `C2`) actually expose full-parameter-support correlation and are
-     actually rejected by the cancellation argument (not merely asserted
-     rejected); verify each of the three excluded base strata
-     (`D0`, `D1`, `D01`) is classified with an exact disjoint-base
-     determination and an explicit chart/shared-geometry outcome or open
-     obligation.
-   - Depends on: future `control-results.yaml`, `shared-constituents.yaml`.
+4. **Controls (O09, plus `case-15`/`case-16` and matched nulls `case-07`/
+   `case-08`).**
+   Candidate joint: verify the matched-null rank/ramification/Swan comparison
+   is per translated pullback (never forced to a diagonal tensor, never
+   assumed small), and verify the constant-sheaf controls are correctly
+   rejected by the same cancellation argument used for the main families.
+   Attack surface: an argument that happens to also accept the constant-sheaf
+   control is invalid by `specification.falsification_criterion`, regardless
+   of what it claims for the main target.
 
-## What this plan does not do
+5. **Degeneration-base diagnostics (`case-09`..`case-14`).**
+   Candidate joint: verify each of the three excluded strata (`D0`, `D1`,
+   `D01`) is correctly, disjointly classified and that a degeneration-only
+   failure is not reported as a main-target refutation
+   (`specification.obligation_matrix.diagnostic_rule`).
 
-- It does not name individuals, teams, or model identities as reviewers.
-- It does not report any pass/fail/verdict for any surface above.
-- It does not authorize a claim-tier or hypothesis-status change; that
-  remains a separate Coordinator decision after the review actually runs.
-- It does not replace the Coordinator's duty to preregister the actual
-  review round (participants, independence from the audit's producer,
-  scope, and timing) before that round begins.
+6. **Certificate/dependency soundness (O05, O10).**
+   Candidate joint: independently re-check the dependency DAG for cycles or
+   unjustified reuse, and confirm every certificate anchor resolves uniquely.
+   This is closer to a structural check (see `checker-specification.md`
+   Section 2) but the reuse-substitution judgment itself is semantic and
+   belongs to an independent reviewer, not the mechanical checker.
 
-## Status
+## Blindness and prior (not yet fixed)
 
-All four surfaces above are **unassigned and unreviewed**. This plan exists
-so that a future Coordinator-preregistered review round has a concrete,
-scope-complete starting checklist; it carries no evidentiary weight by
-itself.
+A real plan will need: a stated `coordinator_prior` (what result is expected
+before any reviewer reports), `blindness.mutual: true` unless there is a
+recorded reason to lift it, and a `proves_too_much` control naming objects for
+which the target conclusion is known false (the constant-sheaf controls are a
+natural candidate, already present as `case-15`/`case-16`, but the review
+plan's `proves_too_much.objects` is a separate declaration the Coordinator
+must make when opening the round). None of this is fixed by this preparation
+document.
+
+## What this document is not
+
+- Not a claim that any of the above joints has been reviewed.
+- Not a list of assigned reviewers or reviewer verdicts.
+- Not a substitute for the mechanical checker in `checker-specification.md`.
+- Not authorization to begin claim-changing review; that requires a Coordinator
+  `review_plan` per `templates/research-records.md` and a genuinely claimed,
+  proof-producing audit to review.

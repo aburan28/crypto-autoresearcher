@@ -1,67 +1,86 @@
-# Audit interface (EXP-CRYPTO-6505c6, preparation only)
+# Audit interface (preparation artifact, EXP-CRYPTO-6505c6)
 
-This document specifies how a **future**, genuinely-claimed symbolic audit
-task — with actual source-reading and runtime capabilities, a genuine
-claim, frozen scope, and a preregistered independent review plan — would
-fill the 20-file output bundle declared in `certificate-schema.json`, and
-how it would preserve partial, open, and negative results honestly. It is
-an interface specification. It is not a numerical execution wrapper of any
-kind, and no run of it has occurred (`maximum_runs: 0` for this task,
-`maximum_runs: 1` for the future audit task per the frozen specification's
-`budget` block).
+Status: interface description only. This document describes how a future,
+genuinely claimed, proof-producing symbolic audit fills the fixed 20-file
+bundle and how it must preserve partial, open, and negative results. It does
+not run, simulate, or wrap any audit. No future audit task ID is allocated
+here (`specification.artifacts.audit_receipt`: "No future audit ID is
+allocated by this protocol").
 
-## 1. Bundle-filling responsibilities
+## 1. Where the audit writes
 
-| Root file | Filled from | Honesty requirement |
+`specification.artifacts.directory`:
+
+```
+experiments/EXP-CRYPTO-6505c6/audits/<genuinely_allocated_future_audit_TASK_ID>/
+```
+
+The `<genuinely_allocated_future_audit_TASK_ID>` placeholder is filled only
+when the Coordinator dispatches an actual audit task and mints its ID with
+`tools/allocate_id.py`. This preparation package does not invent, guess, or
+reserve that ID.
+
+## 2. The 20 fixed files and what each preserves
+
+| # | Filename | What it must preserve |
 |---|---|---|
-| `audit-manifest.yaml` | Future task's own commit/environment/inputs | Records the actual audit-task ID, revision, and inputs; never a placeholder ID minted here. |
-| `source-readings.yaml` | Actual primary-source reading sessions | Every entry needs `read_status: read_and_matched` with the exact passage; extends `source-obligations.yaml` in this bundle, does not replace its open items until they are actually closed. |
-| `source-hypothesis-matrix.yaml` | Hypothesis-by-hypothesis match against source theorems | Each row cites the exact source hypothesis and states whether the audit's object satisfies it, with justification, not assertion. |
-| `case-index.yaml` | `symbolic-fixtures.yaml` (this bundle), unchanged | The 16 cases, families, bases, and roles are copied verbatim; the future audit does not narrow, merge, or drop a case. |
-| `obligation-results.yaml` | `obligation-matrix.yaml` (this bundle), each row's `result_status` actually filled | Every one of the 160 keys keeps its key; `result_status` moves from `null` to an actual value from the frozen enum, with a certificate anchor for anything other than `NOT_ATTEMPTED_AFTER_STOP`. |
-| `chart-coverage.yaml` | `symbolic-fixtures.yaml` chart-tag definitions (this bundle) | All 400 `(case_id, left_tag, right_tag)` keys present; compatibility or emptiness each carries a certificate, never a silent omission. |
-| `normalization-and-weights.yaml` | Actual source-matched normalization derivations | Records the specific sqrt(p)/Frobenius/weight conventions actually used and their source justification. |
-| `complexity-ledger.yaml` | Actual complexity/conductor computations, kept separate | Curve conductor, rank, embedding degree, and derived-complex complexity `C` are recorded as distinct fields per the specification; none substitutes for another. |
-| `shared-constituents.yaml` | Actual geometric analysis of shared loci | Diagonal and off-diagonal translation-stabilizer loci are recorded with their actual dimension/degree if known, or `OPEN` if unknown; never assumed small. |
-| `moment-certificates.yaml` | Actual proof or actual counterexample for the fourth moment | `B(C)` is either an explicit effective formula with dependencies, or the obligation stays `OPEN`; a finite observed maximum is never recorded as if it discharged the all-extension claim. |
-| `stratification-application.yaml` | Actual hypothesis-by-hypothesis check of source Theorem 2.4 | Each hypothesis of the cited theorem gets its own checked/unchecked status for this specific embedded object. |
-| `control-results.yaml` | Actual matched-null and constant-control analysis | A required match without a certificate is recorded `OPEN`, not silently treated as passing; constant controls (`C1`, `C2`) must be shown actually rejected by the cancellation argument. |
-| `counterexamples.yaml` | Any actual checked counterexample found | Recorded with exact scope (family/base/case); an in-main-scope counterexample is negative evidence for that scope only, per the frozen `falsification_criterion`. |
-| `open-obligations.yaml` | Roll-up of every row still `OPEN` or `NOT_ATTEMPTED_AFTER_STOP` | This file is the honest ledger of what remains unresolved; it is never emptied by reclassifying an unresolved row as resolved without a certificate. |
-| `work-and-resources.yaml` | Actual measured time/memory/bytes for the audit pass | Measured values only; unmeasured fields stay `null` with a reason, per the frozen specification's `pending_values` rule. |
-| `audit-report.md` | Narrative summary of the above | Separates observation from interpretation; states the frozen `success_criterion` / `falsification_criterion` / `outcomes` verbatim and reports which applies, without declaring the hypothesis supported or refuted. |
-| `certificate-bundle.md` | Full certificate text per `cert_id`, per `certificate-schema.json` | Every `cert_id` referenced anywhere in the bundle is defined here exactly once. |
-| `dependency-dag.yaml` | Actual dependency edges among certificates | Acyclic; every edge references a `cert_id` defined in `certificate-bundle.md`. |
-| `checker-results.yaml` | Actual run of the future checker (per `checker-specification.md`, section 2) | Records only structural/mechanical findings; does not report a semantic verdict, which belongs to the separate independent review round. |
-| `artifact-sha256.json` | sha256 of every other root file | Excludes itself; used by the Coordinator's archive step to bind the bundle to a commit. |
+| 1 | `audit-manifest.yaml` | Exact scope, revision, task ID, dirty-tree state, and budget actually used. |
+| 2 | `source-readings.yaml` | Every source passage the audit itself opened, with provenance and verified_by — extending, never replacing, `source-obligations.yaml`'s already-read record. |
+| 3 | `source-hypothesis-matrix.yaml` | The hypothesis-by-hypothesis match against the source theorem (obligation O07); an unmatched hypothesis is recorded OPEN, not silently dropped. |
+| 4 | `case-index.yaml` | The 16 cases exactly as fixed in `symbolic-fixtures.yaml`; no case added, removed, or redefined. |
+| 5 | `obligation-results.yaml` | All 160 keyed rows from `obligation-matrix.yaml`, each resolved to one of the six fixed statuses or left OPEN with a reason — never silently omitted. |
+| 6 | `chart-coverage.yaml` | All 400 keyed rows from `symbolic-fixtures.yaml`'s chart-pair keys, each resolved to a compatibility/emptiness status with a certificate anchor. |
+| 7 | `normalization-and-weights.yaml` | The fixed normalization/zero-boundary/weight conventions actually used, matching `specification.frozen_symbolic_domain` and `families.*.normalization`. |
+| 8 | `complexity-ledger.yaml` | Rank, Artin/Swan conductors, embedded-derived complexity, and operation costs, kept as **separate** ledger fields (`specification.main_transfer_target.conductor_separation`) — never collapsed into one another. |
+| 9 | `shared-constituents.yaml` | Geometric shared constituents/coinvariants of the two translated pullbacks, diagonal and off-diagonal, with their actual dimension — never assumed small or omitted. |
+| 10 | `moment-certificates.yaml` | The all-extension fourth-moment statement and effective B(C) if certified, or an explicit OPEN obligation naming exactly what is missing. |
+| 11 | `stratification-application.yaml` | The hypothesis-by-hypothesis application of the source's stratification theorem to this X and complex. |
+| 12 | `control-results.yaml` | Matched-null (`case-07`/`case-08`) and constant-sheaf (`case-15`/`case-16`) control outcomes; a control that fails to be rejected invalidates the argument, and that failure is recorded, not hidden. |
+| 13 | `counterexamples.yaml` | Any checked exact counterexample, with its certified violated statement and exact scope — never generalized beyond that scope. |
+| 14 | `open-obligations.yaml` | Every obligation/chart cell left OPEN or NOT_ATTEMPTED_AFTER_STOP, with the exact missing source/proof/effectiveness prerequisite. This file is the audit's honesty ledger and must never be empty unless every one of the 160+400 cells is genuinely resolved. |
+| 15 | `work-and-resources.yaml` | Actual measured construction work, peak bytes, and certificate size — `null` with a reason if not measured, never a fabricated or estimated value presented as measured. |
+| 16 | `audit-report.md` | Prose summary separating observation, comparison, inference, and limitation, per `docs/task-lifecycle.md` Section 8. |
+| 17 | `certificate-bundle.md` | Unique explicit `cert-ID` markers for every certificate, conforming to `certificate-schema.json`. |
+| 18 | `dependency-dag.yaml` | Acyclic dependency graph over `cert-ID`s; a reused global lemma requires an explicit parameter/scope substitution recorded per row it discharges. |
+| 19 | `checker-results.yaml` | The structural checker's findings (Section 2 of `checker-specification.md`) — never a semantic verdict. |
+| 20 | `artifact-sha256.json` | Hash of every other materialized artifact in the bundle. The Coordinator archive binds this file itself. |
 
-## 2. Preserving partial, open, and negative results
+## 3. Preserving partial, open, and negative results
 
-- **Partial**: if one main family (`K` or `L`) reaches `CERTIFIED_MAIN_SCOPE`
-  while the other does not, `audit-report.md` reports this as `partial` per
-  the frozen `outcomes.partial` rule — never rounded up to
-  `overall_positive`.
-- **Open**: any obligation lacking a certificate is `OPEN` in
-  `obligation-results.yaml` and appears in `open-obligations.yaml`; it is
-  never converted to `CERTIFIED` or `NOT_APPLICABLE_WITH_CERTIFICATE`
-  without an actual certificate.
-- **Negative**: an exact, independently checkable counterexample to the
-  quantified main target is recorded in `counterexamples.yaml` with its
-  exact scope and is reported as scope-limited negative evidence for that
-  family/base/claim only, per the frozen `falsification_criterion` — it
-  does not, by itself, close the hypothesis or the goal.
-- **Stopping mid-panel**: if the audit stops at the first independently
-  checkable exact contradiction (per the frozen `stopping_rule`), every
-  cell not yet reached is marked `NOT_ATTEMPTED_AFTER_STOP` with its
-  position in `case_order`/`phase_order` preserved, not silently dropped.
+- **Partial**: one family certified, the other open, is reported as partial
+  in `audit-report.md` and in the per-family status fields; it is never
+  converted into an overall-success claim
+  (`specification.outcomes.partial`).
+- **Open**: a missing source, proof, or effectiveness prerequisite is recorded
+  in `open-obligations.yaml` with the exact missing item — never silently
+  assumed true, never resampled away.
+- **Negative**: an exact in-main-scope counterexample is recorded in
+  `counterexamples.yaml` with its exact scope; it closes only that named
+  family/base/claim, not the wider target (`specification.outcomes.negative`).
+- **Invalid argument**: if the argument accepts a constant-sheaf control, that
+  is recorded as an invalid argument, not as a negative result about the main
+  target (`specification.falsification_criterion`).
+- Degeneration-only failure and absence of proof are explicitly excluded from
+  refuting the main target by themselves; the audit records them as scoped
+  diagnostics only.
 
-## 3. What this interface is not
+## 4. No numerical execution wrapper
 
-- It is not a numerical experiment wrapper: no primes, extensions, or
-  points are sampled or enumerated by this interface.
-- It is not itself a checker run, a proof, or a review; `checker-results.yaml`
-  and any semantic verdict remain the future audit task's and the future
-  independent review round's outputs respectively.
-- It allocates no future audit task ID; the Coordinator allocates that ID
-  separately when it dispatches the future audit under its own frozen
-  scope and preregistered review plan.
+This preparation package defines **no** runner, supervisor, subprocess
+receipt, or resource-measurement wrapper for a numerical computation, because
+`specification.replication.mode` is "Fixed symbolic universal-quantifier
+audit" with `numerical_primes_or_extensions: []` and
+`maximum_numerical_runs: 0`. A future audit that needs to check a symbolic
+identity by hand or by a computer-algebra derivation records that as
+proof/derivation work in `certificate-bundle.md`, not as a numerical
+experiment run, and any such derivation remains subject to the same
+independent semantic review as every other certificate — it does not become
+self-certifying because a tool executed it.
+
+## 5. What launches the audit (not this document)
+
+Per `specification.launch_gate`: exact approval archive/publication, this
+zero-run preparation and its snapshot, a separate ranked proof-audit task with
+actual source-reading/runtime capabilities and a genuine claim, frozen scope,
+and a preregistered independent review. This document is part of the
+preparation; it does not itself launch, claim, or authorize the audit.

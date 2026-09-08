@@ -1,93 +1,108 @@
-# Checker specification (EXP-CRYPTO-6505c6, preparation only)
+# Checker specification (preparation interface, EXP-CRYPTO-6505c6)
 
-This document specifies what a **future** checker for the symbolic
-trace-transfer audit takes as input and what it produces. It does not run
-any check. No numerical runner, subprocess, or execution wrapper exists in
-this preparation task (`maximum_runs: 0`); this is an interface
-specification for a checker that has not been built or invoked.
+Status: unfilled interface. This document specifies what an independent checker
+program or reviewer must do against a future proof-producing symbolic audit's
+20-file output bundle. It does not run any check, does not evaluate any
+fixture, and asserts no mathematical result. `scientific_execution_authorized:
+false` for this preparation task; `maximum_runs: 0`.
+
+Source of truth: `experiments/EXP-CRYPTO-6505c6/specification.yaml`
+(`independent_checker_plan`), approved by `DEC-20260907-d42056`.
 
 ## 1. Inputs
 
-The checker consumes, once the future audit has produced them:
+The checker consumes, unmodified:
 
-- Immutable claim statements (per-case, per-obligation, per-chart-cell).
-- Symbolic case predicates (`symbolic-fixtures.yaml` in this bundle, and the
-  future audit's `case-index.yaml`).
-- Source passages actually read and matched (future `source-readings.yaml`,
-  `source-hypothesis-matrix.yaml`).
-- Certificate text / formal artifacts (future `certificate-bundle.md`, keyed
-  by `cert_id` per `certificate-schema.json` in this bundle).
-- The dependency DAG among certificates (future `dependency-dag.yaml`).
-- The complexity ledger (future `complexity-ledger.yaml`).
-- All quantifier/normalization declarations (`symbolic-fixtures.yaml`,
-  future `normalization-and-weights.yaml`).
+- Immutable claim statements (the hypothesis `H-CRYPTO-fde1f1` and the frozen
+  `main_transfer_target` in the specification).
+- Symbolic case predicates from `symbolic-fixtures.yaml` (this preparation
+  package) and, once produced, `case-index.yaml` from the future audit bundle.
+- Source passages actually read by the audit, recorded in
+  `source-readings.yaml` and `source-hypothesis-matrix.yaml`.
+- Certificate text/formal artifacts in `certificate-bundle.md`, conforming to
+  `certificate-schema.json` (this preparation package).
+- The dependency DAG in `dependency-dag.yaml`.
+- The complexity ledger in `complexity-ledger.yaml`.
+- All quantifier/normalization declarations from `normalization-and-weights.yaml`
+  and the frozen specification's `frozen_symbolic_domain`.
 
-## 2. Structural outputs (mechanical; anyone, or a script, can run these)
+## 2. Structural outputs (mechanical checks)
 
-These checks operate on shape, keys, hashes, and graph structure only. They
-require no mathematical expertise and prove nothing mathematically.
+These are schema/path/hash/coverage/dependency checks that any independent
+program can run without mathematical judgment:
 
-- **Schema validity**: every certificate, obligation row, and chart row
-  validates against `certificate-schema.json`.
-- **Coverage completeness**: exactly 160 `(case_id, obligation_id)` keys are
-  present in `obligation-results.yaml`, and exactly 400
-  `(case_id, left_tag, right_tag)` keys are present in `chart-coverage.yaml`,
-  with no duplicates and no omissions, matching the frozen specification's
-  fixed case/obligation/chart panel exactly (16 cases, 10 obligations, 25
-  chart-pair keys per case).
-- **Anchor resolution**: every `certificate_anchor` / `dependency` /
-  `cert_id` reference resolves to exactly one definition in
-  `certificate-bundle.md`; no dangling or duplicate anchors.
-- **Hash consistency**: every file listed in the 20-file root bundle (except
-  `artifact-sha256.json` itself) has a recorded sha256 in
-  `artifact-sha256.json` that matches its actual bytes.
-- **Dependency graph well-formedness**: `dependency-dag.yaml` is acyclic and
-  every edge endpoint is a defined `cert_id`.
-- **Status-value validity**: every `status` / `result_status` field takes a
-  value from the frozen enum
-  `[CERTIFIED, REFUTED, OPEN, OUTSIDE_MAIN_SCOPE_CLASSIFIED,
-  NOT_APPLICABLE_WITH_CERTIFICATE, NOT_ATTEMPTED_AFTER_STOP]`.
-- **Missing-cell / unbound-source reporting**: for any row lacking a
-  required certificate field, or citing a source without a `read_status` of
-  `read_and_matched`, the checker reports the exact missing-cell or
-  unbound-source finding rather than silently passing it.
+- Schema validity of every artifact against `certificate-schema.json` and the
+  YAML shapes declared in `obligation-matrix.yaml` / `symbolic-fixtures.yaml`.
+- Exact file count and filenames: all 20 root files listed in
+  `certificate-schema.json`'s `bundle_constraints.root_filenames`, no more, no
+  fewer, no per-cell directory trees.
+- Full coverage: `obligation-results.yaml` contains all 160 keyed
+  `(case_id, obligation_id)` rows; `chart-coverage.yaml` contains all 400 keyed
+  `(case_id, left_tag, right_tag)` rows. A missing key is a structural finding,
+  reported by exact key.
+- Hash consistency: `artifact-sha256.json` hashes match every other
+  materialized artifact in the bundle (it does not hash itself).
+- Certificate-anchor integrity: every `cert_id` referenced in
+  `dependency-dag.yaml` or `checker-results.yaml` resolves to exactly one
+  anchor in `certificate-bundle.md`; no duplicate or dangling anchor.
+- Dependency-graph well-formedness: the DAG in `dependency-dag.yaml` is
+  acyclic, and every edge references a `cert_id` that exists.
+- Status-domain conformance: every `status` field value is one of the six
+  enumerated statuses in `specification.obligation_matrix.statuses`, or an
+  explicit unfilled/null with a stated reason.
+- Reuse-binding check: a certificate marked as reused across cells carries an
+  explicit matching statement/scope/dependency substitution record, per
+  `specification.obligation_matrix.reuse`; a bare copied verdict without that
+  binding is a structural failure.
 
-A full PASS on every item above establishes only that the audit's paperwork
-is internally consistent and complete. It establishes nothing about whether
-any statement in that paperwork is true.
+A structural-output report is a **finding list**: exact missing cells, exact
+unbound sources, exact schema violations. It carries no verdict on any
+mathematical claim.
 
-## 3. Independent semantic outputs (require genuine mathematical review; not performed here or by any script)
+## 3. Independent semantic outputs (not performed by this preparation task)
 
-- An independently reasoned, per-claim verdict on whether the cited source
-  passage actually supports the stated certificate, produced by a reviewer
-  who has actually read the source.
-- Verification that a cited proof's premises are actually satisfied in the
-  declared scope (family, base, parameter locus), not merely that a citation
-  exists.
-- Identification of counterexamples, if any, to a quantified statement.
-- A judgment on whether an `OPEN` or `NOT_ATTEMPTED_AFTER_STOP` classification
-  is itself correctly scoped (i.e., that nothing was silently narrowed to
-  avoid a hard sub-case).
+These require an independently reasoned per-claim verdict from a qualified
+reviewer with actual source-reading and mathematical judgment — never this
+preparation Executor, and never inferred from structural PASS:
 
-This category requires an actual qualified independent review task under a
-Coordinator-preregistered review plan (see `independent-check-plan.md`). It
-is explicitly **not** performed by this preparation Executor task, by the
-future audit-producing task acting alone, or by any structural/mechanical
-script.
+- For each certificate: does the cited source (`source.ref`,
+  `source.provenance`, `source.claim`) actually state what the certificate
+  claims it does, at the claimed generality (quantifier order, hypotheses)?
+- For each obligation: is the recorded `statement` mathematically correct
+  given its `scope`, and does the recorded `dependency` list actually suffice
+  to derive it?
+- For the matched-null controls: does the recorded rank/ramification/Swan
+  comparison actually establish the required equality, per
+  `specification.controls.matched_nulls`, or is it OPEN?
+- For the constant-sheaf controls (`case-15`, `case-16`): does the argument
+  that certifies the main-family cancellation also, incorrectly, accept the
+  constant sheaves? (An argument that does is invalid, per
+  `specification.falsification_criterion`.)
+- Counterexample verification: is a claimed counterexample in
+  `counterexamples.yaml` an actual, checkable violation of the exact stated
+  quantified target, and does it stay within its named family/base/scope?
 
-## 4. Soundness boundary (binding)
+This output requires an independent qualified review task (a `validator` or
+`red-team` handoff with its own `review_plan`, per `docs/task-lifecycle.md`
+and `templates/research-records.md`), never the preparation Executor and
+never the audit's own producer.
 
-- A schema-valid or hash-consistent bundle is **not** a proved theorem.
+## 4. Exact soundness limits
+
+- Schema-valid or hash-consistent is **not** theorem-proved. Coverage
+  completeness (all 160/400 keys present) is a completeness property, not a
+  correctness property.
 - A source citation without an actual reading/matching record (i.e.
-  `read_status != read_and_matched`) cannot discharge a mathematical
-  premise.
-- Open moment / uniformity / effectiveness premises (the all-extension
-  fourth-moment bound `B(C)`, exceptional-locus degree bound `D(C)`,
-  off-locus constant `K(C)`) remain `OPEN` until an actual, independently
-  checked proof or an actual, independently checked counterexample exists —
-  never inferred from mechanical PASS alone.
-- `NOT_APPLICABLE_WITH_CERTIFICATE` requires an actual certificate of
-  inapplicability/emptiness; it is never used as a substitute for an
-  unattempted or inconvenient obligation.
-- This preparation task performs zero instances of section 2 or section 3 above.
-  It only specifies what they will be.
+  `provenance: recalled`, or `verified_by: null` where required) **cannot**
+  discharge a mathematical premise — see `templates/research-records.md`,
+  "Citation provenance".
+- Open moment/uniformity/effectiveness premises (`specification.main_transfer_
+  target.effective_B`, `.stratification`, `.no_free_constants`) remain OPEN
+  until an independent semantic reviewer actually checks the proof, no matter
+  how complete the structural coverage is.
+- A checker PASS on structural checks alone must never be reported, summarized,
+  or relied upon as "the audit is correct." The two output classes (Section 2
+  vs Section 3) must be reported in visibly separate fields, never merged into
+  one aggregate verdict.
+- This document specifies the checker; it does not instantiate or run one.
+  No checker output exists yet, and none is fabricated here.
