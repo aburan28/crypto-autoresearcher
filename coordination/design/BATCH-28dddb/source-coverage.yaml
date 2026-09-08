@@ -1,0 +1,65 @@
+source_coverage:
+  task_id: TASK-20260908-852695
+  experiment_id: EXP-ECDLP-ac7e8b
+  status: prospective_design_coverage
+  source_packet: coordination/design/BATCH-28dddb/source-packet.json
+  source_supplement: coordination/design/BATCH-28dddb/source-supplement.json
+  source_trace_extension: coordination/design/BATCH-28dddb/source-trace-extension.json
+  access: All reads and source hashes below were supplied by parent_control_plane/01a07d9c-ceb4-7892-ae01-260e4b5f0374. This Coordinator performed no commands, code execution, calibration or proof verification.
+  selected_algorithm:
+    python: CPython 3.13.1
+    sympy: 1.14.0
+    environment_before_import: {SYMPY_GROUND_TYPES: python, PYTHONHASHSEED: '0', SYMPY_USE_CACHE: 'no'}
+    groebner_method: buchberger
+    monomial_order: grevlex
+    backend: A private finite-field domain using the specified coefficient kernel and the pinned SymPy polynomial-ring/Buchberger path; timing and counting use the identical replacement arithmetic, differing only in event-sink recording.
+    distinction: This is an explicitly modified arithmetic implementation, not a claim of unmodified stock-SymPy performance or already complete instrumentation.
+    executable_hashes: Actual future implementation/dependency hashes are admission outputs of these fixed choices. No backend/method choice is deferred to a favorable run.
+  callgraph:
+    - source: sympy/external/gmpy.py, parent-read lines149-191
+      observed: Explicit SYMPY_GROUND_TYPES=python before import avoids auto/flint/gmpy selection in the inspected source.
+      design_binding: Refuse admission if flint/gmpy becomes the coefficient backend or environment was set after import; record actual domain class and dependency/source hashes.
+    - source: sympy/polys/domains/finitefield.py, parent-read factory and FiniteField blocks
+      observed: Factory can choose flint nmod/fmpz_mod or Python ModularIntegerFactory depending on availability/configuration.
+      design_binding: Construct the private declared domain explicitly; inspect/assert that every coefficient in the selected PolyRing belongs to it. No inference of active hooks from Python module inspection alone.
+    - source: sympy/polys/polytools.py, parent-read lines7557-7615
+      observed: GroebnerBasis construction converts expressions to polynomials, constructs a PolyRing and passes polys/ring/method into _groebner.
+      design_binding: Build canonical sparse polynomials directly in the declared ring, avoiding an opaque expression/resultant conversion path; call the pinned groebnertools.groebner with explicit buchberger and grevlex. Record this adapter choice.
+    - source: sympy/polys/groebnertools.py, parent-read lines1-280
+      observed: method=None consults mutable polyconfig; explicit buchberger selects _buchberger. Reductions use rem/monic; pair selection uses minimum LCM and set/index choices; spoly shifts monomials then subtracts monic polynomials.
+      design_binding: Explicit method only; freeze Python/hash seed and canonical polynomial input ordering. Require repeated timing/counting trace/result determinism before interpreting counts; no proved deterministic stock behavior asserted now.
+    - source: sympy/polys/rings.py, parent-read lines1460-1648 and domains/field.py lines1-48
+      observed: Field term division and monic normalization call domain.quo; rem subtracts c*cg from existing coefficients; monic can skip zero polynomial or divisor one.
+      design_binding: domain.quo/exquo route through the same DIV kernel, preserving these algorithmic skips. DIV emits I+M once, never depending on whether an underlying dunder calls __mul__.
+    - source: sympy/polys/rings.py, parent-read lines965-1155 and2055-2125
+      observed: Add/sub/mul and coefficient multiplication operate through coefficient methods; mul_monom shifts exponents without field arithmetic.
+      design_binding: Route coefficient add/sub/neg/mul through typed kernel operations; monomial exponent arithmetic is separately measured integer/boundary work, not fictitious field events.
+    - source: sympy/polys/rings.py, parent-read lines1200-1348
+      observed: Single-term powers call coefficient power; square uses cross products and diagonal coefficient powers; other power paths can call coefficient powers.
+      design_binding: Use the same declared binary coefficient POW in both modes; do not rely on multiplication hooks to see built-in modular pow. Pure MUL never becomes S because operands happen to be equal.
+    - source: sympy/polys/domains/modularinteger.py, parent-read full relevant class
+      observed: Direct integer add/sub/neg/mul, division bypassing __mul__, reverse division delegating through inversion/mul, built-in modular pow and integer-domain inversion have different paths.
+      design_binding: Private coefficient dunders each delegate exactly once to declared kernel semantics; no inherited bypass. Coercion/reduction/equality/hash are counted as boundary work, not automatic Fp events.
+  other_sources:
+    - path: sympy/polys/rings.py, parent-read from_dict/new/scalar multiplication/_iadd_poly_monom/imul_num segments
+      observed: from_dict converts coefficients but PolyElement.new does not; _check is disabled by default. Reverse/scalar operations coerce through domain_new, accumulation performs v*c, and imul_num can multiply by a Python integer. Coefficient hashing participates in cached polynomial hashes.
+      design_binding: Private dtype is immutable, supports explicit mixed-integer coercion and routes all resulting arithmetic once; constructor/coercion audit and actual dtype assertions cover new/from_dict paths. Preserve pinned hashing/pair selection; admission checks determinism rather than assuming this source trace proves it.
+    - path: harness/semaev.py
+      observed: S3 expression and simultaneous S4 resultant construction exist; the S3 measurement times Gröbner construction only; later tuple enumeration/lifts/verification are separate. The existing verifier shares producer curve code; inspected file has no S4 measurement entry.
+      design_binding: Freeze full S3/S4 construction and search in the appendix, independently verify results and charge every workflow stage. No existing timer/verifier is assumed complete or independent.
+    - path: harness/toycurve.py
+      observed: Parent read generator/seed segments; existing nextprime path lacks explicit resulting bit-length assertion and source defaults do not assure subgroup-compatible factor bases.
+      design_binding: Use the additive deterministic generator and subgroup sampler in the appendix, with exact bit/order/admissibility checks and retained rejected candidates.
+    - path: coordination/goals/GOAL-SDEG-001/batches/BATCH-001/tasks/TASK-20260725-641/scaling_protocol.yaml
+      observed: Full ten-cell S3/S4 ladder and governing resource/certificate/baseline/control interfaces, design-only authority.
+      design_binding: Preserve all ten cells, factor-base caps, rho/BSGS, grevlex, independent verification and conservation requirements. No 32-bit tier extension is made.
+    - path: coordination/goals/GOAL-ECDLP-001/batches/BATCH-002/tasks/TASK-20260722-012/certificate_contract.yaml
+      observed: Parent read all586lines; version1.0.0-review defines rank-failure conservation, subgroup field, sealed schedules, JCS/domain-separated hashes, terminals, resources and nine mutation controls.
+      design_binding: Import the exact source-hash-bound contract in full, including its literal schemas/domain tags. Appendix specifies SDEG adaptation and prospective watchdog mapping; no historical contract rewrite.
+  design_coverage_argument:
+    - All newly constructed polynomial coefficients and every ring coefficient operation use the private domain; explicit private coefficient methods cover add/sub/neg/mul/quo/pow/invert, including observed bypass paths.
+    - S3, S4 determinant, factor-base polynomials, tuple checks and producer group arithmetic use the same Fp kernel. Independent verifier arithmetic uses an independently authored implementation of the same event definitions and a separate vector.
+    - Relation-row elimination is over F_ell, not Fp, with a separately typed independently derived vector. Integer/hash/parser/constructor work remains outside field-event counts but inside full resources and boundary accounting.
+    - This is a source-backed design argument and a reviewable coverage target. Actual adapter compatibility, absence of hidden conversions, trace equality, calibration correctness and performance remain future implementation admission tests after independent protocol review.
+  required_runtime_refusals: Wrong dependency/domain/method, missing event route, native library fallback, uninstrumented conversion, mismatched timing/counting semantics or failed independent known-count/trace control refuses scientific admission; no silent fallback.
+  novelty_and_scope: Instrumentation overhead and scalability are unmeasured. Source inspection supplies no cryptanalytic gain, independent evidence PASS or global absence of prior work. The earlier empty knowledge-store query remains a retrieval limitation.
