@@ -109,6 +109,56 @@ class CoverageTests(unittest.TestCase):
         self.assertEqual(len(report['errors']), 1)
         self.assertFalse(report['completion_proven'])
 
+    def test_legacy_markdown_and_unapproved_contract_do_not_fake_completion(self):
+        folder = self.root / 'ideas/rejected'
+        folder.mkdir(parents=True)
+        (self.root / 'ideas/README.md').write_text(
+            'research hypotheses for generic\nprime-field ECDLP')
+        iid = 'ECDLP-IDEA-436'
+        (folder / (iid + '_valuation.md')).write_text(
+            '# ' + iid + ' — Valuation\n- State: `rejected`\n')
+        self.write('ideas/rejected/contracts/test.yaml', {'experiment': {
+            'id': 'EXP-ECDLP-IDEA-436-PREFLIGHT', 'hypothesis_id': iid,
+            'status': 'review_required', 'approved_by': None}})
+        report = scan(self.root)
+        row = next(r for r in report['ideas'] if r['id'] == iid)
+        self.assertTrue(row['ecc'])
+        self.assertEqual(row['source_statuses'], ['rejected'])
+        self.assertEqual(row['experiments'], [])
+        self.assertEqual(len(row['legacy_contract_candidates']), 1)
+        self.assertEqual(report['counts']['all_without_explicit_experiment'], 2)
+
+    def test_archive_lists_add_sources_without_counting_duplicate_ids_twice(self):
+        new = 'IDEA-20260805-0cd03f'
+        self.write('coordination/batch/new_ideas.yaml', {'proposals': [
+            self.idea, {'id': new, 'goal_id': 'GOAL-ECDLP-001', 'status': 'proposed'}]})
+        self.write('experiments/EXP-ECDLP-111111/specification.yaml', {'experiment': {
+            'id': 'EXP-ECDLP-111111', 'source_idea_id': new}})
+        report = scan(self.root)
+        self.assertEqual(report['counts']['ideas'], 2)
+        self.assertEqual(report['counts']['ecc_ideas'], 2)
+        self.assertEqual(len(report['duplicate_records']), 1)
+        self.assertEqual(report['unknown_source_ids'], [])
+        row = next(r for r in report['ideas'] if r['id'] == new)
+        self.assertEqual(row['source_locations'][0]['location'], 'proposals[1]')
+
+    def test_legacy_id_prefix_alone_does_not_classify_ecc(self):
+        folder = self.root / 'ideas'
+        folder.mkdir()
+        (folder / 'ECDLP-IDEA-436_test.md').write_text('# ECDLP-IDEA-436 Test\n')
+        row = next(r for r in scan(self.root)['ideas'] if r['id'] == 'ECDLP-IDEA-436')
+        self.assertFalse(row['ecc'])
+        self.assertTrue(row['classification_unresolved'])
+
+    def test_archive_malformed_item_is_reported(self):
+        self.write('coordination/test.yaml', {'ideas': ['reference only']})
+        self.assertIn('no recognized idea id', scan(self.root)['errors'][0]['error'])
+
+    def test_review_quotations_do_not_create_new_ideas(self):
+        self.write('coordination/batch/reviews/report.yaml', {'ideas': [
+            {'id': 'IDEA-20260907-999999', 'title': 'Quotation under review'}]})
+        self.assertEqual(scan(self.root)['counts']['ideas'], 1)
+
 
 if __name__ == '__main__':
     unittest.main()

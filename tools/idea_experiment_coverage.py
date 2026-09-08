@@ -2,13 +2,15 @@
 """Audit explicit idea -> experiment lineage without treating citations as designs.
 
 This is an administrative inventory, not semantic approval or scientific evidence.
-All idea statuses and both canonical/legacy ledger layouts remain in the denominator.
+All idea statuses, canonical/legacy ledgers, legacy Markdown and archived proposal
+lists remain in the denominator. Legacy preflight contracts are separate candidates.
 Unknown layouts, parse failures and duplicate identities stay visible for review.
 """
 from __future__ import annotations
 
 import argparse
 from collections import Counter, defaultdict
+import csv
 import hashlib
 import json
 from pathlib import Path
@@ -31,6 +33,91 @@ SOURCE_FIELDS = frozenset({
     "source_proposal_path", "derived_from_idea", "converts_idea", "parent_idea_id",
 })
 LOADER = getattr(yaml, "CSafeLoader", yaml.SafeLoader)
+LEGACY_ID_FILE = re.compile(r"([A-Z]+-IDEA-\d+)_.*\.md")
+
+
+def additional_sources(repo: Path, records: dict, errors: list) -> dict:
+    """Inventory archived proposals and legacy contracts without approving them."""
+    legacy_contracts = defaultdict(list)
+    registry = {}
+    index_path = repo / "ideas/idea_registry.tsv"
+    if index_path.exists():
+        with index_path.open() as stream:
+            registry = {r["idea_id"]: r for r in csv.DictReader(stream, delimiter="\t")}
+    readme = repo / "ideas/README.md"
+    # Classification comes from the declared corpus scope, never the ID prefix.
+    corpus_area = "ECDLP" if readme.exists() and (
+        "research hypotheses for generic\nprime-field ECDLP" in readme.read_text()) else None
+    for folder in ("ideas", "ideas/deferred", "ideas/rejected"):
+        for path in sorted((repo / folder).glob("*.md")):
+            match = LEGACY_ID_FILE.fullmatch(path.name)
+            if not match:
+                continue
+            iid = match.group(1)
+            raw = path.read_bytes()
+            text = raw.decode()
+            rel = path.relative_to(repo).as_posix()
+            heading = re.search(r"^#\s+([^\n]+)", text, re.M)
+            if not heading or not re.match(re.escape(iid) + r"(?:\s|$)", heading.group(1)):
+                errors.append({"path": rel, "error": "legacy filename/header identity mismatch"})
+            state = re.search(r"^- (?:State|Status):\s*`([^`]+)`", text, re.M)
+            body = {"id": iid, "title": heading.group(1) if heading else path.stem,
+                    "status": state.group(1) if state else registry.get(iid, {}).get("status", "unspecified")}
+            records["idea"][iid].append({"path": rel, "sha256": hashlib.sha256(raw).hexdigest(),
+                "body": body, "sources": {}, "mentions": [], "effective_path": rel,
+                "source_type": "legacy_markdown", "area": corpus_area,
+                "classification_source": "ideas/README.md" if corpus_area else None,
+                "location": "document", "directory_disposition": folder})
+    for path in sorted(set((repo / "coordination").rglob("*.yaml")) |
+                       set((repo / "coordination").rglob("*.yml"))):
+        if "reviews" in path.relative_to(repo).parts:
+            continue  # Review quotations are not originating proposal lists.
+        raw = path.read_bytes()
+        if not re.search(rb'(?:^|\{)\s*["\']?(?:proposals|ideas)["\']?\s*:', raw, re.M):
+            continue
+        rel = path.relative_to(repo).as_posix()
+        try:
+            doc = yaml.load(raw, Loader=LOADER)
+            if not isinstance(doc, dict):
+                raise ValueError("archived proposal document is not a mapping")
+            for field in ("proposals", "ideas"):
+                if field not in doc:
+                    continue
+                if not isinstance(doc[field], list):
+                    raise ValueError(f"archived {field} is not a list")
+                for index, body in enumerate(doc[field]):
+                    if not isinstance(body, dict) or not IDEA_ID.fullmatch(str(body.get("id", ""))):
+                        errors.append({"path": rel, "error": f"{field}[{index}] has no recognized idea id"})
+                        continue
+                    records["idea"][body["id"]].append({"path": rel,
+                        "sha256": hashlib.sha256(raw).hexdigest(), "body": body,
+                        "sources": explicit_sources(body), "mentions": [], "effective_path": rel,
+                        "source_type": "archived_proposal_list", "location": f"{field}[{index}]"})
+        except (OSError, ValueError, yaml.YAMLError, UnicodeError) as exc:
+            errors.append({"path": rel, "error": str(exc).splitlines()[0]})
+    for folder in ("ideas/contracts", "ideas/deferred/contracts", "ideas/rejected/contracts"):
+        for path in sorted(set((repo / folder).glob("*.yaml")) | set((repo / folder).glob("*.yml"))):
+            rel = path.relative_to(repo).as_posix()
+            try:
+                raw = path.read_bytes()
+                doc = yaml.load(raw, Loader=LOADER)
+                body = doc.get("experiment") if isinstance(doc, dict) else None
+                if not isinstance(body, dict) or not isinstance(body.get("id"), str):
+                    raise ValueError("legacy contract has no experiment mapping/id")
+                sources = explicit_sources(body)
+                hid = body.get("hypothesis_id")
+                if isinstance(hid, str) and IDEA_ID.fullmatch(hid):
+                    sources.setdefault(hid, []).append("hypothesis_id (legacy idea reference)")
+                if not sources:
+                    errors.append({"path": rel, "error": "legacy contract has no explicit idea lineage"})
+                for iid, fields in sources.items():
+                    legacy_contracts[iid].append({"id": body["id"], "path": rel,
+                        "sha256": hashlib.sha256(raw).hexdigest(), "fields": fields,
+                        "source_status": body.get("status"), "source_approved_by": body.get("approved_by"),
+                        "semantic_coverage": "legacy_candidate_requires_readiness_and_scope_review"})
+            except (OSError, ValueError, yaml.YAMLError, UnicodeError) as exc:
+                errors.append({"path": rel, "error": str(exc).splitlines()[0]})
+    return legacy_contracts
 
 
 def explicit_sources(body: dict) -> dict[str, list[str]]:
@@ -44,6 +131,8 @@ def explicit_sources(body: dict) -> dict[str, list[str]]:
             candidate = item.strip()
             if candidate.startswith(("ledger/proposals/", "ledger/ideas/", "ledger/")):
                 candidate = Path(candidate).stem
+            elif candidate.startswith("ideas/") and LEGACY_ID_FILE.fullmatch(Path(candidate).name):
+                candidate = LEGACY_ID_FILE.fullmatch(Path(candidate).name).group(1)
             if IDEA_ID.fullmatch(candidate):
                 found[candidate].append(field)
     return dict(found)
@@ -113,7 +202,9 @@ def scan(repo: Path) -> dict:
             "path": rel, "sha256": hashlib.sha256(raw).hexdigest(), "body": body,
             "effective_path": effective.relative_to(repo).as_posix(),
             "sources": explicit_sources(body), "mentions": sorted(set(IDEA_ID.findall(raw.decode()))),
+            "source_type": "canonical_or_legacy_ledger", "location": "document",
         })
+    legacy_contracts = additional_sources(repo, records, errors)
     links = defaultdict(list)
     hypotheses = defaultdict(list)
     mentions = defaultdict(list)
@@ -148,12 +239,16 @@ def scan(repo: Path) -> dict:
     rows = []
     for iid, entries in sorted(records["idea"].items()):
         area_set = sorted({a for entry in entries
-                           if (a := ecc_priority.area_of(entry["body"].get("question_id", "")))})
+                           if (a := entry.get("area") or ecc_priority.area_of(
+                               entry["body"].get("question_id") or entry["body"].get("goal_id", "")))})
         evidence = links.get(iid, [])
         status = ("explicit_experiment_link" if evidence else
                   "hypothesis_only" if hypotheses.get(iid) else
                   "mention_only" if mentions.get(iid) else "no_experiment_link")
         rows.append({"id": iid, "paths": [e["path"] for e in entries],
+                     "source_locations": [{k: e.get(k) for k in
+                        ("path", "location", "source_type", "classification_source", "directory_disposition")}
+                        for e in entries],
                      "source_sha256": [e["sha256"] for e in entries],
                      "title": entries[0]["body"].get("title", ""),
                      "source_statuses": sorted({str(e["body"].get("status", "unspecified")) for e in entries}),
@@ -161,6 +256,7 @@ def scan(repo: Path) -> dict:
                      "areas": area_set, "ecc": bool(set(area_set) & areas),
                      "classification_unresolved": not area_set,
                      "link_status": status, "experiments": evidence,
+                     "legacy_contract_candidates": legacy_contracts.get(iid, []),
                      "hypotheses": hypotheses.get(iid, []),
                      "mention_paths": sorted(set(mentions.get(iid, [])))})
     rows.sort(key=lambda row: (not row["ecc"], row["link_status"] == "explicit_experiment_link",
@@ -175,16 +271,21 @@ def scan(repo: Path) -> dict:
     except (OSError, subprocess.CalledProcessError):
         commit = None
     counts = Counter(r["link_status"] for r in rows)
-    return {"schema": "crypto.autoresearch.idea_experiment_coverage.v1", "source_commit": commit,
+    return {"schema": "crypto.autoresearch.idea_experiment_coverage.v2", "source_commit": commit,
             "scope": "All discovered idea records, every status, canonical and legacy layouts; ECC first.",
             "completion_proven": False,
             "limitations": ["Explicit lineage is necessary bookkeeping, not proof that an experiment tests every source claim.",
                            "Source status/approval markers are not effective approval; additive contracts and archive authority need review.",
                            "Hypotheses alone, citations and arbitrary mentions do not satisfy experiment coverage.",
                            "Duplicates, unknown links, malformed records and unrecognized lineage layouts require reconciliation.",
+                           "Legacy preflight contracts are inventoried separately and do not establish canonical experiment readiness.",
+                           "Discovery covers ledger YAML, identified Markdown under ideas/{,deferred/,rejected/}, and top-level ideas/proposals lists in coordination YAML; unminted prose candidates need separate intake.",
                            "This inventories the current tree; publication and concurrent-ref authority need separate checks."],
             "counts": {"ideas": len(rows), "ecc_ideas": sum(r["ecc"] for r in rows),
                        "hypotheses": len(records["hypothesis"]), "experiments": len(records["experiment"]),
+                       "idea_source_types": dict(Counter(e["source_type"] for entries in records["idea"].values() for e in entries)),
+                       "ideas_with_legacy_contract_candidates": sum(bool(legacy_contracts.get(r["id"])) for r in rows),
+                       "classification_unresolved": sum(r["classification_unresolved"] for r in rows),
                        "link_status": dict(sorted(counts.items())),
                        "ecc_without_explicit_experiment": sum(r["ecc"] and not r["experiments"] for r in rows),
                        "all_without_explicit_experiment": sum(not r["experiments"] for r in rows)},
