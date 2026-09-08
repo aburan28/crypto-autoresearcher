@@ -13,6 +13,7 @@ import unittest
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Sequence
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import research_dispatch as dispatch
@@ -992,27 +993,90 @@ class InferencePolicyTests(unittest.TestCase):
 
 
 class ForwardQueueTests(unittest.TestCase):
+    """Forwarding CLI fixtures use only a temporary repository and local files."""
+
+    def setUp(self) -> None:
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name).resolve()
+        self.forward_path = self.root / "coordination/pending-ideas/BATCH-abcdef/dispatch_queue.json"
+        self.canonical_rel = "coordination/goals/GOAL-ECDLP-001/batches/BATCH-abcdef/dispatch_queue.json"
+        self.canonical_path = self.root / self.canonical_rel
+        self.worker = task("TASK-20260907-abcdef", 50)
+        self.original = queue(
+            self.worker, archive_task("TASK-20260907-fedcba", [self.worker]),
+            goal_id="GOAL-ECDLP-001")
+        self.original["batch_id"] = "BATCH-abcdef"
+        self.write(self.forward_path, self.original)
+        self.git("init", "-q")
+        self.git("add", ".")
+        self.git("-c", "user.name=fixture", "-c", "user.email=fixture@example.invalid",
+                 "commit", "-qm", "historical queue fixture")
+        source_commit = self.git("rev-parse", "HEAD").strip()
+        source_hash = hashlib.sha256(self.forward_path.read_bytes()).hexdigest()
+        self.stub = {
+            "schema": dispatch.FORWARD_SCHEMA,
+            "goal_id": "GOAL-ECDLP-001", "batch_id": "BATCH-abcdef",
+            "canonical_queue_path": self.canonical_rel,
+            "routing_decision": "DEC-20260907-abcdef",
+            "source_commit": source_commit, "source_queue_sha256": source_hash,
+            "historical_task_cards": copy.deepcopy(self.original["tasks"]),
+            "historical_queue_metadata": {
+                key: value for key, value in self.original.items() if key != "tasks"},
+        }
+        self.live = copy.deepcopy(self.original)
+        self.live["routing_amendment"] = {
+            "decision_id": self.stub["routing_decision"],
+            "source_queue_path": self.forward_path.relative_to(self.root).as_posix(),
+            "source_queue_commit": source_commit, "source_queue_sha256": source_hash,
+            "sole_runnable_route": self.canonical_rel,
+        }
+        self.decision_path = self.root / "ledger/decisions/DEC-20260907-abcdef.yaml"
+        self.decision = {"coordinator_decision": {
+            "id": self.stub["routing_decision"], "decided_by": "coordinator",
+            "source_commit": source_commit, "source_queue_sha256": source_hash,
+            "basis_refs": [self.forward_path.relative_to(self.root).as_posix(), self.canonical_rel],
+        }}
+        self.output = self.root / "plan.json"
+        self.report = self.root / "plan.md"
+        self.flush()
+
+    def git(self, *arguments: str) -> str:
+        return subprocess.check_output(
+            ["git", "-C", str(self.root), *arguments], text=True)
+
+    def write(self, path: Path, value: Any) -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(value) + "\n", encoding="utf-8")
+
+    def flush(self) -> None:
+        self.write(self.forward_path, self.stub)
+        self.write(self.canonical_path, self.live)
+        self.write(self.decision_path, self.decision)
+
+    def cli(self, *, claims: str = "off") -> subprocess.CompletedProcess[str]:
+        return subprocess.run([
+            sys.executable, str(Path(dispatch.__file__).resolve()), str(self.forward_path),
+            "--repo-root", str(self.root), "--output", str(self.output),
+            "--report", str(self.report), "--claims", claims,
+            "--now", "2026-09-07T00:30:00+00:00",
+        ], capture_output=True, text=True)
+
+    def assert_cli_refused(self, message: str) -> None:
+        result = self.cli()
+        self.assertEqual(result.returncode, 2, result.stderr)
+        self.assertIn("dispatch error:", result.stderr)
+        self.assertIn(message, result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
+        self.assertFalse(self.output.exists())
+        self.assertFalse(self.report.exists())
+
     def test_resolve_forward_follows_canonical_path(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            canonical_rel = "coordination/goals/GOAL-X/batches/BATCH-1/dispatch_queue.json"
-            canonical = root / canonical_rel
-            canonical.parent.mkdir(parents=True)
-            live = queue(task("A", 50), archive_task("ARCHIVE", [task("A", 50)]))
-            canonical.write_text(json.dumps(live), encoding="utf-8")
-            forward_rel = "coordination/pending-ideas/BATCH-1/dispatch_queue.json"
-            forward_path = root / forward_rel
-            forward_path.parent.mkdir(parents=True)
-            stub = {
-                "schema": dispatch.FORWARD_SCHEMA,
-                "batch_id": "BATCH-1",
-                "canonical_queue_path": canonical_rel,
-            }
-            forward_path.write_text(json.dumps(stub), encoding="utf-8")
-            resolved, path = dispatch.resolve_forward_queue(stub, forward_path, root)
-            self.assertEqual(path, canonical.resolve())
-            self.assertEqual(resolved["schema"], dispatch.SCHEMA)
-            self.assertEqual(resolved["objective"], live["objective"])
+        before = self.forward_path.read_bytes()
+        resolved, path = dispatch.resolve_forward_queue(self.stub, self.forward_path, self.root)
+        self.assertEqual(path, self.canonical_path)
+        self.assertEqual(resolved, self.live)
+        self.assertEqual(self.forward_path.read_bytes(), before)
 
     def test_non_forward_queue_unchanged(self) -> None:
         live = queue(task("A", 50), archive_task("ARCHIVE", [task("A", 50)]))
@@ -1022,13 +1086,78 @@ class ForwardQueueTests(unittest.TestCase):
         self.assertIs(out, path)
 
     def test_forward_missing_canonical_rejected(self) -> None:
-        stub = {"schema": dispatch.FORWARD_SCHEMA, "canonical_queue_path": "missing.json"}
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            path = root / "coordination/pending-ideas/BATCH-1/dispatch_queue.json"
-            path.parent.mkdir(parents=True)
-            with self.assertRaisesRegex(dispatch.DispatchError, "does not exist"):
-                dispatch.resolve_forward_queue(stub, path, root)
+        del self.stub["canonical_queue_path"]
+        self.flush()
+        self.assert_cli_refused("noncanonical forwarding target")
+
+    def test_forward_without_source_bindings_rejected(self) -> None:
+        del self.stub["source_commit"]
+        self.flush()
+        self.assert_cli_refused("source commit must be a full Git SHA")
+
+    def test_forward_hash_mismatch_rejected(self) -> None:
+        self.stub["source_queue_sha256"] = "0" * 64
+        self.flush()
+        self.assert_cli_refused("source queue hash mismatch")
+
+    def test_forward_authority_mismatch_rejected(self) -> None:
+        self.decision["coordinator_decision"]["decided_by"] = "executor"
+        self.flush()
+        self.assert_cli_refused("routing decision identity/authority mismatch")
+
+    def test_forward_unresolvable_source_and_malformed_decision_fail_cleanly(self) -> None:
+        source_commit = self.stub["source_commit"]
+        self.stub["source_commit"] = "0" * 40
+        self.flush()
+        self.assert_cli_refused("invalid forwarding reference")
+        self.stub["source_commit"] = source_commit
+        self.flush()
+        self.decision_path.write_text("coordinator_decision: [", encoding="utf-8")
+        self.assert_cli_refused("invalid forwarding reference")
+
+    def test_forward_still_requires_normal_target_validation(self) -> None:
+        self.live["max_concurrent"] = 0
+        self.flush()
+        self.assert_cli_refused("queue.max_concurrent must be a positive integer")
+
+    def test_forward_cli_renders_complete_bound_queue(self) -> None:
+        result = self.cli()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        plan = json.loads(self.output.read_text())
+        self.assertEqual([item["id"] for item in plan["dispatches"]], [self.worker["id"]])
+        self.assertEqual(plan["goal_id"], "GOAL-ECDLP-001")
+        self.assertTrue(self.report.is_file())
+
+    def test_forward_cli_reads_canonical_claims_and_old_path_is_not_claimable(self) -> None:
+        import goal_lanes
+
+        claim = {
+            "schema": goal_lanes.CLAIM_SCHEMA, "task_id": self.worker["id"],
+            "epoch": 1, "owner": "canonical-owner",
+            "acquired_at": "2026-09-07T00:00:00+00:00",
+            "expires_at": "2026-09-07T01:00:00+00:00",
+        }
+        claim_name = self.worker["id"] + ".1.claim.json"
+        self.write(self.canonical_path.parent / "claims" / claim_name, claim)
+        self.write(self.forward_path.parent / "claims" / claim_name,
+                   {**claim, "owner": "old-path-owner"})
+        source_before = self.forward_path.read_bytes()
+        canonical_before = self.canonical_path.read_bytes()
+        result = self.cli(claims="local")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        plan = json.loads(self.output.read_text())
+        self.assertEqual(plan["claims"][self.worker["id"]]["owner"], "canonical-owner")
+        self.assertEqual(plan["claims"][self.worker["id"]]["applied"], "running_with_lease")
+        self.assertEqual(self.forward_path.read_bytes(), source_before)
+        self.assertEqual(self.canonical_path.read_bytes(), canonical_before)
+        with (mock.patch.object(goal_lanes, "load_claims") as reader,
+              mock.patch.object(goal_lanes, "write_once") as writer):
+            with self.assertRaisesRegex(goal_lanes.LaneError, "is not in"):
+                goal_lanes.claim_task(
+                    self.root, self.forward_path, self.worker["id"],
+                    owner="fixture-owner", ttl_minutes=1, include_refs=False)
+            reader.assert_not_called()
+            writer.assert_not_called()
 
 
 if __name__ == "__main__":
