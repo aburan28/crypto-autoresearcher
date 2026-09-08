@@ -48,7 +48,7 @@ import re
 import stat
 import subprocess
 import sys
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 import yaml
 
@@ -245,10 +245,37 @@ REVIEW_VERDICTS = {"holds", "breaks", "inconclusive"}
 
 
 def check_review_plan(path: str, body: dict, ctx: Ctx) -> None:
-    """Validate a `review_plan` block on a handoff."""
+    """Validate a `review_plan` block on a handoff.
+
+    The plan may be inline, or a repository-relative path to a YAML file that
+    either *is* the plan mapping or wraps it under a top-level ``review_plan``
+    key. Path form keeps one shared plan file for a multi-reviewer round
+    without duplicating the mapping into every handoff.
+    """
     plan = body.get("review_plan")
     if plan is None:
         return
+    if isinstance(plan, str):
+        ref = plan.strip()
+        if not ref or ref.startswith("/") or ".." in PurePosixPath(ref).parts:
+            ctx.err(path, "review_plan path must be a repository-relative file")
+            return
+        target = os.path.join(REPO, ref)
+        if not os.path.isfile(target):
+            ctx.err(path, f"review_plan path does not exist: {ref}")
+            return
+        try:
+            loaded = load_yaml(target, ctx)
+        except Exception as error:  # noqa: BLE001 - surface as ledger error
+            ctx.err(path, f"review_plan path {ref} failed to load: {error}")
+            return
+        if not isinstance(loaded, dict):
+            ctx.err(path, f"review_plan path {ref} must load a mapping")
+            return
+        if isinstance(loaded.get("review_plan"), dict):
+            plan = loaded["review_plan"]
+        else:
+            plan = loaded
     if not isinstance(plan, dict):
         ctx.err(path, "review_plan must be a mapping")
         return
