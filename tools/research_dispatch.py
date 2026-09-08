@@ -58,6 +58,7 @@ STATES = {"queued", "running", "blocked"} | TERMINAL_STATES
 ARCHIVE_KINDS = {"snapshot", "ledger"}
 ARCHIVE_BINDING_MODES = {"commit", "content_first"}
 FAILURE_PROVENANCE_ARCHIVE_KIND = "terminal_failure_provenance_archive"
+TERMINAL_SNAPSHOT_ARCHIVE_KIND = "terminal_failure_snapshot_archive"
 SHA_PATTERN = re.compile(r"^[0-9a-fA-F]{7,64}$")
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 
@@ -317,6 +318,84 @@ def _failure_provenance_dependencies(
             f"for {missing_successors}"
         )
     return failed
+
+
+def _terminal_snapshot_dependencies(
+    task: dict[str, Any], by_id: dict[str, dict[str, Any]]
+) -> set[str]:
+    """Validate the opt-in preservation boundary; authority is checked separately."""
+
+    exception = task.get("dispatch_exception")
+    if not isinstance(exception, dict) or exception.get("kind") != TERMINAL_SNAPSHOT_ARCHIVE_KIND:
+        return set()
+    location = f"terminal snapshot {task['id']}"
+    if (task.get("role") != "coordinator" or not isinstance(task.get("archive"), dict)
+            or task["archive"].get("kind") != "snapshot"
+            or task["archive"].get("binding_mode", "commit") != "commit"
+            or task.get("review_required") is not False):
+        raise DispatchError(f"{location} requires a coordinator-owned commit-bound snapshot")
+    handoff = task.get("handoff")
+    budget = handoff.get("budget") if isinstance(handoff, dict) else None
+    if (not isinstance(budget, dict)
+            or type(budget.get("maximum_runs")) is not int or budget["maximum_runs"] != 0
+            or ("experiment_maximum_runs" in budget
+                and (type(budget["experiment_maximum_runs"]) is not int
+                     or budget["experiment_maximum_runs"] != 0))
+            or exception.get("approved_by") != "coordinator"
+            or exception.get("scientific_effect") != "none"
+            or exception.get("failed_tasks_reclassified_completed") is not False):
+        raise DispatchError(f"{location} requires approved preservation with zero scientific runs")
+    decision_id = exception.get("decision_id")
+    if (not isinstance(decision_id, str)
+            or not re.fullmatch(r"DEC-\d{8}-[0-9a-f]{6}", decision_id)
+            or exception.get("decision_path") != f"ledger/decisions/{decision_id}.yaml"):
+        raise DispatchError(f"{location} requires an exact Coordinator decision reference")
+    require_text_list(exception, "source_task_ids", f"{location}.dispatch_exception")
+    named = exception["source_task_ids"]
+    failed = {
+        dependency for dependency in task.get("depends_on", [])
+        if by_id.get(dependency, {}).get("state") in TERMINAL_STATES - {"completed"}
+    }
+    if (len(named) != len(set(named)) or set(named) != failed
+            or not failed.issubset(task["archive"].get("source_task_ids", []))):
+        raise DispatchError(
+            f"{location} must name exactly every terminal noncompleted dependency, "
+            "and only archived source tasks"
+        )
+    return failed
+
+
+def terminal_snapshot_authorization(
+    task: dict[str, Any], by_id: dict[str, dict[str, Any]]
+) -> dict[str, Any]:
+    """Return the exact scope binding a committed Coordinator decision approves.
+
+    State and receipt fields of the snapshot are deliberately excluded so its
+    claim and eventual immutable archive receipt do not invalidate the approval.
+    Producer states and declared artifacts remain bound, including partial output.
+    """
+
+    def scopes(record: dict[str, Any], field: str) -> list[str]:
+        return [validate_scope(path, field) for path in record[field]]
+
+    return {
+        "approved": True,
+        "task_id": task["id"],
+        "archive_kind": task["archive"]["kind"],
+        "archive_binding_mode": task["archive"].get("binding_mode", "commit"),
+        "depends_on": task["depends_on"],
+        "read_scope": scopes(task, "read_scope"),
+        "write_scope": scopes(task, "write_scope"),
+        "artifact_paths": task["artifact_paths"],
+        "record_ids": task["archive"]["record_ids"],
+        "source_tasks": [
+            {"task_id": source_id, "state": by_id[source_id]["state"],
+             "artifact_paths": by_id[source_id]["artifact_paths"],
+             "write_scope": scopes(by_id[source_id], "write_scope")}
+            for source_id in task["archive"]["source_task_ids"]
+        ],
+        "dispatch_exception": task["dispatch_exception"],
+    }
 
 
 def assert_acyclic(graph: dict[str, list[str]]) -> None:
@@ -718,6 +797,15 @@ def validate_queue(
         _validate_ledger_archive(archive_task)
     _validate_review_chains(tasks, assignments)
 
+    for task in tasks:
+        if _terminal_snapshot_dependencies(task, by_id):
+            verify = getattr(repository_verifier, "verify_terminal_snapshot_authorization", None)
+            if not callable(verify):
+                raise DispatchError(
+                    f"terminal snapshot {task['id']} requires a Coordinator authority verifier"
+                )
+            verify(task, terminal_snapshot_authorization(task, by_id))
+
     for archive_task in archives:
         if archive_task["state"] != "completed":
             continue
@@ -758,7 +846,8 @@ def validate_queue(
 
 def blockers(task: dict[str, Any], by_id: dict[str, dict[str, Any]]) -> list[str]:
     output: list[str] = []
-    preserved_failures = _failure_provenance_dependencies(task, by_id)
+    preserved_failures = (_failure_provenance_dependencies(task, by_id)
+                          | _terminal_snapshot_dependencies(task, by_id))
     for dependency in task["depends_on"]:
         state = by_id[dependency]["state"]
         if state != "completed" and dependency not in preserved_failures:
@@ -877,9 +966,11 @@ def apply_claims(
         if status == "expired":
             entry["applied"] = "queued_after_expiry"
         elif status == "live":
+            preserved = _terminal_snapshot_dependencies(task, by_id)
             unmet = [
                 dependency for dependency in task.get("depends_on", [])
                 if dependency in by_id and by_id[dependency].get("state") != "completed"
+                and dependency not in preserved
             ]
             if unmet:
                 entry["applied"] = "ignored:dependencies_incomplete_from_this_view:" + ",".join(unmet)
@@ -1028,6 +1119,8 @@ def select(
             "artifact_paths": task["artifact_paths"],
             "handoff": task["handoff"],
             **({"recovery": task["recovery"]} if "recovery" in task else {}),
+            **({"dispatch_exception": task["dispatch_exception"]}
+               if "dispatch_exception" in task else {}),
             **({"archive": task["archive"]} if is_archive(task) else {}),
             "claim": (
                 {key: claim_report[task["id"]][key] for key in ("status", "owner", "epoch", "expires_at")}
@@ -1253,6 +1346,36 @@ class GitRepositoryVerifier:
             raise DispatchError(
                 f"archive task {task_id} {field} does not resolve to a commit: {reference}"
             ) from error
+
+    def verify_terminal_snapshot_authorization(
+        self, task: dict[str, Any], authorization: dict[str, Any]
+    ) -> None:
+        """Read approval from committed HEAD; a queue marker cannot self-authorize."""
+
+        from yaml import safe_load, YAMLError
+
+        exception = task["dispatch_exception"]
+        try:
+            record = safe_load(self._run(["show", f"HEAD:{exception['decision_path']}"]))
+        except (DispatchError, YAMLError, UnicodeError) as error:
+            raise DispatchError(
+                f"terminal snapshot {task['id']} cannot read committed Coordinator authority"
+            ) from error
+        decision = record.get("coordinator_decision") if isinstance(record, dict) else None
+        if (not isinstance(decision, dict) or decision.get("id") != exception["decision_id"]
+                or decision.get("decided_by") != "coordinator"):
+            raise DispatchError(f"terminal snapshot {task['id']} has invalid Coordinator authority")
+        entries = decision.get("terminal_snapshot_authorizations")
+        matching = [entry for entry in entries if isinstance(entry, dict)
+                    and entry.get("task_id") == task["id"]] if isinstance(entries, list) else []
+        try:
+            exact = len(matching) == 1 and canonical(matching[0]) == canonical(authorization)
+        except (TypeError, ValueError):
+            exact = False
+        if not exact:
+            raise DispatchError(
+                f"terminal snapshot {task['id']} lacks exact committed scope authorization"
+            )
 
     def _changed_paths(self, commit_sha: str, task_id: str) -> list[str]:
         raw = self._run(
@@ -1584,47 +1707,31 @@ class RepositoryVerifier(Protocol):
 def resolve_forward_queue(
     queue: Any, queue_path: Path, repo_root: Path
 ) -> tuple[Any, Path]:
-    """Follow a dispatch_queue_forward.v1 stub to its canonical queue.
+    """Validate a forwarding record's bindings, then load its canonical queue.
 
-    Intake paths may keep a non-dispatchable forward file named
-    ``dispatch_queue.json`` that points at the live queue. CI renders every
-    changed ``dispatch_queue.json``, so the forward stub must resolve rather
-    than fail schema validation.
+    Direct CLI forwarding and CI use the same source-hash, historical-card,
+    metadata, and Coordinator routing checks. Returning the canonical path
+    also keeps the normal claim overlay in the canonical queue's namespace.
     """
 
     if not isinstance(queue, dict) or queue.get("schema") != FORWARD_SCHEMA:
         return queue, queue_path
-    canonical = queue.get("canonical_queue_path")
-    if not isinstance(canonical, str) or not canonical.strip():
-        raise DispatchError(
-            f"{queue_path}: {FORWARD_SCHEMA} requires nonempty canonical_queue_path"
-        )
-    relative = PurePosixPath(canonical.strip())
-    if relative.is_absolute() or ".." in relative.parts:
-        raise DispatchError(
-            f"{queue_path}: canonical_queue_path must be a repository-relative path"
-        )
-    target = (repo_root / relative).resolve()
+    # Import only for forwarding; the ordinary in-memory planner remains
+    # independent of the source-reference validator and its YAML dependency.
+    from validate_dispatch_reference import canonical_queue
+    from yaml import YAMLError
+
     try:
-        target.relative_to(repo_root.resolve())
-    except ValueError as error:
-        raise DispatchError(
-            f"{queue_path}: canonical_queue_path escapes repository root"
-        ) from error
-    if not target.is_file():
-        raise DispatchError(
-            f"{queue_path}: canonical_queue_path does not exist: {relative.as_posix()}"
-        )
-    enforce_reconciliation_queue_authority(target, repo_root)
-    try:
+        target = canonical_queue(queue_path, repo_root)
+        enforce_reconciliation_queue_authority(target, repo_root)
         resolved = json.loads(target.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as error:
+    except (OSError, ValueError, subprocess.CalledProcessError, YAMLError) as error:
         raise DispatchError(
-            f"{queue_path}: unable to load canonical queue {relative.as_posix()}: {error}"
+            f"{queue_path}: invalid forwarding reference: {error}"
         ) from error
     if not isinstance(resolved, dict) or resolved.get("schema") != SCHEMA:
         raise DispatchError(
-            f"{queue_path}: canonical queue {relative.as_posix()} must use schema {SCHEMA}"
+            f"{queue_path}: canonical queue {target} must use schema {SCHEMA}"
         )
     return resolved, target
 
