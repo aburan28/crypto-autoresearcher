@@ -478,3 +478,105 @@ complexity 1 -- the bug this dispatch was asked to fix. Continued monitoring
 follow-up task should do" section above) remains a later Coordinator
 check-in's task, unchanged from this run's established mechanical
 restart-recovery loop.
+
+## TERMINAL OUTCOME (this dispatch, 2026-09-08, follow-up executor turn)
+
+This section records this run's actual, final, decidable state. Nothing
+above this heading is edited; this appends the closing chapter the prior
+sections anticipated.
+
+**PID 3440 (the process the previous section called "currently running")
+finished on its own.** It ran uninterrupted from its launch at
+2026-09-08T07:18:08.656670Z (driver-progress.log line 1810 -- the last of
+roughly 21 relaunches in this run directory's history, and the first to run
+with BOTH the `held_out_error` and `_weighted_sse` overflow fixes applied
+simultaneously) through 2026-09-08T18:16:29.616426Z, when it stopped itself
+with `stopped_reason: wall_clock_cap` after exhaustively completing
+complexity levels 1 through 6 for all 14 targets
+(`total_elapsed=39501.0s`, well past the 21600s advisory ceiling -- the cap
+check fires only between levels, so the slow level 6 pushed total elapsed
+past the cap before the check could fire; disclosed, not a bug introduced
+this dispatch). Per-level elapsed time from `enumeration-checkpoint.json`
+(cumulative `elapsed_seconds_total`, deltas computed): level 1 = 0.607s,
+level 2 = 0.476s, level 3 = 25.767s, level 4 = 216.565s, level 5 = 3864.995s,
+level 6 = 35392.471s. Level 6 alone consumed 89.6% of the run's total
+measured elapsed time -- the combinatorial per-level growth (roughly 18x
+from level 4 to level 5, roughly 9x from level 5 to level 6) that motivated
+the standing decision described next. No container restart or crash ended
+PID 3440 this time; it exited cleanly on its own logic.
+
+**The checkpoint-resume fix worked correctly in production.** Immediately
+after PID 3440 exited (confirmed via `ps`/`kill -0`), a separately-dispatched
+agent relaunched the fixed driver as PID 16763 with the identical command
+in `command.txt`. Its log confirms the resume path activated exactly as
+designed: `RESUME: found checkpoint complete through complexity 6` ->
+`RESUME: enumeration state rebuilt through complexity 6 (new_registered
+counts matched at every level, confirming byte-identical re-derivation) ...
+resuming fit/score at complexity 7` (2026-09-08T18:17:13.633175Z) -- the
+levels-1-6 rebuild (registration only, zero re-fitting/re-scoring) took
+~19 seconds, versus the many hours PID 3440 spent actually scoring those
+same levels. This is the exact climb-loss bug this dispatch was asked to
+fix, confirmed fixed in a real production run, not merely in the isolated
+`test_stage1_grammar_resume.py` regression test. Commits `eb3ed46bc` (fix +
+test) and `923a0840a` (production application) are the record of this work.
+
+**THE COORDINATOR then deliberately stopped PID 16763.** A later session
+(this same day, 2026-09-08) sent `SIGTERM` to PID 16763 and confirmed it
+dead, specifically to enforce a STANDING PRIOR DECISION recorded in commit
+`83b4739ee`: cap this experiment's exhaustive search at `C_complete=6`,
+given the demonstrated combinatorial per-level cost growth documented in
+that commit's own message (level 6 alone consumed roughly 9.8 of the run's
+roughly 11 total hours; the growth pattern level 4 -> 5 -> 6 predicts level
+7 would be substantially more expensive still). This is explicitly NOT a
+correction of, or a loss of confidence in, the checkpoint-resume fix -- the
+fix worked exactly as intended and is retained unchanged in
+`source/stage1_grammar_driver.py` and `source/test_stage1_grammar_resume.py`
+for any future dispatch that reopens this search. It was a deliberate
+scope/cost judgment, legitimate under the contract's own `stopping_rules`
+clause: "If enumeration at some complexity C <= 12 does not complete within
+the Stage-1 grammar budget, the engine reports the largest completed
+complexity C_complete ... not reaching C_max is a scoping fact, not a
+failure and not a result." PID 16763 never completed or checkpointed any
+part of complexity 7: `pareto-fronts-raw.json`'s `last_updated_utc`
+(2026-09-08T18:16:29.539344Z) and `enumeration-checkpoint.json`'s
+`last_updated_utc` (2026-09-08T18:16:29.537685Z) are both unchanged from the
+state PID 3440 wrote before it exited. Zero additional wall-clock compute
+contributed to this run's terminal data; no exact `SIGTERM` timestamp is
+separately logged by the driver (a `SIGTERM` produces no log line).
+
+**Terminal artifacts produced by this follow-up dispatch:** `raw-result.json`
+(pure measurements: per-target Pareto fronts and collision-set sizes through
+complexity 6, candidate-list scoring against INV-A1/INV-1/INV-2prime with
+zero matches found -- and the explicit note that INV-A1 and INV-1, at
+canonical node count 9, are structurally unreachable at `C_complete=6` so
+their candidate-list verdict is undecidable from this run rather than "no
+match"; INV-2prime, at node count 5, was genuinely reachable and searched
+with no match found; engine-agreement stated as primary-engine-only since
+the PySR arm remains `failed_infrastructure`; held-out isolation statement)
+and `manifest.yaml` (replacing the prior `status: running` manifest,
+recording `status: completed_valid`, the full timeline above, real measured
+per-level timing, and an honest `required_artifacts_status` accounting of
+which of `specification.yaml`'s full required-artifact list this
+Delta/E_3-only, one-pack, `C_complete=6` run did and did not produce).
+`manifest_pending_v2.yaml` (an intermediate draft written before this
+terminal outcome was known, and before the checkpoint-resume fix's
+production verification and the Coordinator's deliberate stop had happened)
+has been deleted from this run directory now that its still-valid content
+(environment/PySR-recheck detail, scope-deviation disclosures, candidate-list
+hash reverification) has been fully incorporated into `manifest.yaml`; its
+prior content remains readable in git history.
+
+**What this terminal state is NOT:** it is not a NULL or ALIVE
+classification of H-RELN-427bfd, and no such classification is asserted
+anywhere in `raw-result.json` or `manifest.yaml`. It is not a claim that the
+recovery-control gate, the held-out transfer anchor, or any named control in
+`specification.yaml`'s `controls` block has been separately PASS/FAIL
+re-evaluated by this run (see `raw-result.json`'s `controls_status` block).
+It is not an extension of scope beyond the one pack / two statistics this
+dispatch chain actually fitted (`R_1..R_8`, `coverage`,
+`third_factorial_moment`, and the other five leaf packs remain fully
+un-started, `C_complete=0`, honestly reported, not silently extended or
+assumed complete). Per `TASK-20260907-8fd098`'s `review_reservation`, every
+one of these open items — the NULL/ALIVE judgment on the E x-interval Delta
+front chief among them — awaits independent validator and red-team review
+before it can back any claim or change any status.
