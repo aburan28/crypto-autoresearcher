@@ -1,0 +1,24 @@
+# Experiment reserve checkpoint after PR974
+
+The persistent objective remains active: run the Coordinator and maintain a useful experiment reserve. Eight exact reserve experiments are tracked; zero is measurement-admitted. This checkpoint is operational and records no scientific result, hypothesis promotion or campaign completion.
+
+| Experiment | Durable state | Next bounded action |
+|---|---|---|
+| EXP-ECDLP-651b94 | Third implementation repair snapshot1cf7cc7004; producer final44/44fixed checks after116attempts. The first fresh reviewer terminated on usage limit with no outputs and remains failed. | Fresh independent successor TASK-20260908-b7af43 is running under DEC-20260908-df6a17; archive under TASK-20260908-d32a17 before adjudication. |
+| EXP-ECDLP-1b1b99 | Complete CM successor snapshota081734c13 with40/40fixed checks; normalized selector,typed physical costs,per-view allocation and joint LOO definitions. Exact existing library/public trust binding retained. | Independent complete-definition review TASK-20260908-1ef7aa running; archive under TASK-20260908-9747c8,then approve only complete definitions and dispatch source correction. |
+| EXP-ECDLP-184fc4 | Third complete contract snapshotd550f353ee; exact actual-value tags and distinct certificate sampling,existing bootstrap retained. | Independent four-contract review TASK-20260908-e4c260 running; archive under TASK-20260908-2187e1. |
+| EXP-ECDLP-1e6502 | Same snapshot; exact ordinary/anomalous/precision-null tags,stable YAML key,certificate schedule and sibling hash binding. | Same independent four-contract review. |
+| EXP-ECDLP-2c3d20 | Same snapshot; original all-seven-rung slope review route restored separately from top-rung scalar tests. | Same independent four-contract review. |
+| EXP-ECDLP-709063 | Same snapshot; all crossover claims and artifacts use the tested-grid vocabulary. | Same independent four-contract review. |
+| EXP-ECDLP-910fcd | Fresh valid independent successor review snapshote005787aa2 requires correction. Original64/60failed review preserved separately at2e2b83ea7d under DEC-20260908-1d95d4; source task remains failed. | Root Coordinator resolves exact T/shift mapping,applicable RNG domains,and setup/repetition definitions,then issues a complete source repair for the valid successor findings. |
+| EXP-ECDLP-0c717c | Finite protocol definitions approved under DEC-20260908-5d9df4; no implementation or measurement admission. | Bind exact implementation/dependency and Linux cgroup-v2 guard prerequisites;issue a complete zero-run implementation handoff. |
+
+The four mathematical contracts passed40fixed abstract checks once on final code,with23sourcebindings and exact preservation comparisons. The CM contract passed40fixed checks once with27sourcebindings;the command-restricted native contributor used relayed text and Root handled file I/O,integration and checks under DEC-20260908-0f2905. Its initial erroneous budget/global-gate suggestions were withdrawn before integration and are not operative.
+
+Three fresh independent sessions were confirmed running at this checkpoint: spectral_runtime_successor_review,cm_complete_definition_review,andmath_third_complete_review. Their published claims and complete plans name exact source hashes,owned joints,160totalfixed-case allowances including failures/reruns,and zero scientific executions. Do not read partial outputs or treat a live claim as a completed review. The previous usage-limit attempt remains failed; a later read-only usage query showed1percent used but was not a serving probe and no reset credit was consumed.
+
+Current main was merged at28a1608c59. All46spectral and28CM reviewer input hashes remained unchanged. The merged ledger plus terminal-preservation authority validated11,141records with no new violations,120schema views,61run supersessions and1,210grandfathered legacy errors. Every newly completed snapshot has exact Git parent,path-set and SHA-256 queue bindings;all11dispatch gates passed. Producer fixed checks and ledger/queue gates are not scientific or independent validation.
+
+Publication: PR974 merged at an earlier checkpoint. PR994 is the follow-up for later CM/mathematical drafts,independent review handoffs and terminal failure preservation. Do not infer CI success or merge from this checkpoint;read current PR state and head. Preserve every historical artifact and all uncompleted reviewers' exclusive scopes.
+
+Resume by collecting only completed independent reports,verifying exact hashes and case accounting,snapshotting before adjudication,and reranking the eight existing ECC leads. If a review finds a remaining definition/source defect,complete an additive correction without suppressing the original observable or changing scientific counts. Routine spending estimates do not stop this work. No readiness count,empty queue,timeout,usage failure,CI status or archived draft completes the goal.
