@@ -423,17 +423,22 @@ def test_argv_empty_refuses(tmp_path):
 # ---------------------------------------------------------------------------
 
 
-def test_validate_lock_otherwise_valid_lock_refuses_on_root(tmp_path):
-    """The one remaining defect in an otherwise fully valid, fully
-    consistent lock, in THIS sandbox, is `_locked_resource_policy`'s
-    non-root requirement. This is a disclosed, honestly-recorded
-    `infrastructure_error`, not a scientific finding and not a code defect
-    -- see the module and file docstrings."""
-    assert os.geteuid() == 0, "this test documents root-sandbox behavior specifically"
+def test_validate_lock_observes_host_resource_policy(tmp_path):
+    """An otherwise valid lock is refused only on a root-hosted runner.
+
+    The resource-policy gate is intentionally host-dependent: root can bypass
+    the process-count limit, whereas an unprivileged CI worker can enforce it.
+    Exercise the real validation path in either environment instead of making
+    the suite depend on the developer sandbox's effective UID.
+    """
     doc = _base_document("terminal-valid-case")
     path, digest = _write_lock(tmp_path, doc)
-    with pytest.raises(fyl.FiniteYamlLockError, match="resource-policy preflight refused by this host"):
-        fyl.validate_lock(path, digest, _run_id(doc), _launch_authority(doc))
+    if os.geteuid() == 0:
+        with pytest.raises(fyl.FiniteYamlLockError, match="resource-policy preflight refused by this host"):
+            fyl.validate_lock(path, digest, _run_id(doc), _launch_authority(doc))
+    else:
+        verified = fyl.validate_lock(path, digest, _run_id(doc), _launch_authority(doc))
+        assert verified.run_id == _run_id(doc)
 
 
 # ---------------------------------------------------------------------------
@@ -588,19 +593,13 @@ def test_execute_locked_success_end_to_end(tmp_path):
     assert run["scientific_content"] is False
     assert run["post_run_checks"]["process_group_quiescent"] is True
     assert run["post_run_checks"]["source_closure_unchanged"] is True
-    # tree_unchanged_except_run_dir is expected to read False in THIS shared,
-    # mid-task worktree: this task's own new, not-yet-committed source files
-    # (harness/finite_yaml_locked_v1.py, schemas/..., experiments/.../
-    # source-v2/, tests/...) are untracked and outside the run directory, so
-    # the reused `_tree_clean_except` correctly reports drift. This is the
-    # check working as designed (fail-closed), not a false negative, and is
-    # exactly why the resulting status below is failed_infrastructure rather
-    # than completed_valid -- demonstrating "mutation ... after launch
-    # prevents completed_valid and preserves the diagnostic artifacts."
-    assert run["post_run_checks"]["tree_unchanged_except_run_dir"] is False
-    assert run["status"] == "failed_infrastructure"
-    assert run["valid"] is False
-    assert "postflight drift" in run["invalid_reason"]
+    # The test creates no source change outside its allocated run directory.
+    # A clean checkout must therefore retain a valid benign synthetic run;
+    # drift itself is covered by the separate mutation tests below.
+    assert run["post_run_checks"]["tree_unchanged_except_run_dir"] is True
+    assert run["status"] == "completed_valid"
+    assert run["valid"] is True
+    assert run["invalid_reason"] is None
     run_dir = Path(verified.run_dir)
     for name in ("command.txt", "environment.json", "stdout.log", "stderr.log", "raw-result.json", "manifest.yaml"):
         assert (run_dir / name).is_file(), name
