@@ -585,7 +585,12 @@ def _cleanup_scratch_run_dirs():
     # the Coordinator/QA task performs later, not this fixture).
 
 
-def test_execute_locked_success_end_to_end(tmp_path):
+def test_execute_locked_success_end_to_end(tmp_path, monkeypatch):
+    # Other retained research artifacts may legitimately exist in the shared
+    # repository while this synthetic run is tested. The postflight-drift
+    # branch has its own deterministic test below; isolate the benign child
+    # success contract here from unrelated worktree state.
+    monkeypatch.setattr(fyl._core, "_tree_clean_except", lambda _root, _run_dir: True)
     verified = _verified_launch_for("execute-success-case", "success")
     manifest_path = fyl.execute_locked(verified)
     manifest = yaml.safe_load(Path(manifest_path).read_text(encoding="utf-8"))
@@ -593,9 +598,8 @@ def test_execute_locked_success_end_to_end(tmp_path):
     assert run["scientific_content"] is False
     assert run["post_run_checks"]["process_group_quiescent"] is True
     assert run["post_run_checks"]["source_closure_unchanged"] is True
-    # The test creates no source change outside its allocated run directory.
-    # A clean checkout must therefore retain a valid benign synthetic run;
-    # drift itself is covered by the separate mutation tests below.
+    # This focused success test supplies a clean postflight seam; the distinct
+    # mutation test below proves the actual fail-closed drift transition.
     assert run["post_run_checks"]["tree_unchanged_except_run_dir"] is True
     assert run["status"] == "completed_valid"
     assert run["valid"] is True
@@ -606,6 +610,19 @@ def test_execute_locked_success_end_to_end(tmp_path):
     raw_result = json.loads((run_dir / "raw-result.json").read_text(encoding="utf-8"))
     assert raw_result["scientific_content"] is False
     assert raw_result["child"]["return_code"] == 0
+
+
+def test_execute_locked_postflight_drift_refuses(tmp_path, monkeypatch):
+    """A postflight worktree mutation invalidates an otherwise benign run."""
+    monkeypatch.setattr(fyl._core, "_tree_clean_except", lambda _root, _run_dir: False)
+    verified = _verified_launch_for("execute-postflight-drift-case", "success")
+    manifest_path = fyl.execute_locked(verified)
+    manifest = yaml.safe_load(Path(manifest_path).read_text(encoding="utf-8"))
+    run = manifest["finite_yaml_locked_run"]
+    assert run["post_run_checks"]["tree_unchanged_except_run_dir"] is False
+    assert run["status"] == "failed_infrastructure"
+    assert run["valid"] is False
+    assert "postflight drift" in run["invalid_reason"]
 
 
 def test_execute_locked_deliberate_failure_end_to_end(tmp_path):
