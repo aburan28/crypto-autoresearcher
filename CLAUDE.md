@@ -34,9 +34,9 @@ Code specifically.
 
 ## Harness layout
 
-- **Subagents** (`.claude/agents/`): five roles — `coordinator`,
-  `idea-generator`, `executor`, `validator`, `red-team` — plus three
-  **policy-tier variants** of them: `executor-mechanical`,
+- **Subagents** (`.claude/agents/`): six roles — `coordinator`,
+  `idea-generator`, `executor`, `validator`, `red-team`, `consolidator` —
+  plus three **policy-tier variants** of them: `executor-mechanical`,
   `validator-breakthrough`, `red-team-breakthrough`. These are the operational
   versions of the role contracts in `agents/*.md`. Research work is done BY
   these subagents; the top-level session orchestrates and talks to the user.
@@ -59,6 +59,9 @@ Code specifically.
   - `/curate-knowledge` — maintain the knowledge corpus
   - `/agent-bus` — send and read messages between sessions running in separate
     chats, worktrees, containers, or runtimes
+  - `/consolidate-lanes` — periodic cross-lane pass: read bus traffic ACROSS
+    lanes that cannot see each other and carry pointers between them; read-only
+    as to research state, writes no ledger record
 - **State**:
   - `ledger/` — canonical YAML records (questions, proposals, hypotheses,
     evidence, decisions, handoffs)
@@ -310,7 +313,7 @@ frontmatter.
 A policy's **reasoning effort** is the one part that does bind per subagent.
 Claude Code frontmatter accepts `effort: low|medium|high|xhigh|max`, so each
 agent in `.claude/agents/` carries the effort its own policy requests and one
-session can dispatch all five roles at their own depths:
+session can dispatch every role at its own depth:
 
 | subagent | policy | `effort` |
 | --- | --- | --- |
@@ -319,6 +322,7 @@ session can dispatch all five roles at their own depths:
 | `executor` | `executor-implementation` | `medium` |
 | `validator` | `review-adversarial` | `xhigh` |
 | `red-team` | `review-adversarial` | `xhigh` |
+| `consolidator` | `consolidation-routing` | `high` |
 | `executor-mechanical` | `executor-mechanical` | `low` |
 | `validator-breakthrough` | `review-breakthrough` | `max` |
 | `red-team-breakthrough` | `review-breakthrough` | `max` |
