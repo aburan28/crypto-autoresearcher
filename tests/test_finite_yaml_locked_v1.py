@@ -423,17 +423,22 @@ def test_argv_empty_refuses(tmp_path):
 # ---------------------------------------------------------------------------
 
 
-def test_validate_lock_otherwise_valid_lock_refuses_on_root(tmp_path):
-    """The one remaining defect in an otherwise fully valid, fully
-    consistent lock, in THIS sandbox, is `_locked_resource_policy`'s
-    non-root requirement. This is a disclosed, honestly-recorded
-    `infrastructure_error`, not a scientific finding and not a code defect
-    -- see the module and file docstrings."""
-    assert os.geteuid() == 0, "this test documents root-sandbox behavior specifically"
+def test_validate_lock_observes_host_resource_policy(tmp_path):
+    """An otherwise valid lock is refused only on a root-hosted runner.
+
+    The resource-policy gate is intentionally host-dependent: root can bypass
+    the process-count limit, whereas an unprivileged CI worker can enforce it.
+    Exercise the real validation path in either environment instead of making
+    the suite depend on the developer sandbox's effective UID.
+    """
     doc = _base_document("terminal-valid-case")
     path, digest = _write_lock(tmp_path, doc)
-    with pytest.raises(fyl.FiniteYamlLockError, match="resource-policy preflight refused by this host"):
-        fyl.validate_lock(path, digest, _run_id(doc), _launch_authority(doc))
+    if os.geteuid() == 0:
+        with pytest.raises(fyl.FiniteYamlLockError, match="resource-policy preflight refused by this host"):
+            fyl.validate_lock(path, digest, _run_id(doc), _launch_authority(doc))
+    else:
+        verified = fyl.validate_lock(path, digest, _run_id(doc), _launch_authority(doc))
+        assert verified.run_id == _run_id(doc)
 
 
 # ---------------------------------------------------------------------------
@@ -580,7 +585,12 @@ def _cleanup_scratch_run_dirs():
     # the Coordinator/QA task performs later, not this fixture).
 
 
-def test_execute_locked_success_end_to_end(tmp_path):
+def test_execute_locked_success_end_to_end(tmp_path, monkeypatch):
+    # Other retained research artifacts may legitimately exist in the shared
+    # repository while this synthetic run is tested. The postflight-drift
+    # branch has its own deterministic test below; isolate the benign child
+    # success contract here from unrelated worktree state.
+    monkeypatch.setattr(fyl._core, "_tree_clean_except", lambda _root, _run_dir: True)
     verified = _verified_launch_for("execute-success-case", "success")
     manifest_path = fyl.execute_locked(verified)
     manifest = yaml.safe_load(Path(manifest_path).read_text(encoding="utf-8"))
@@ -588,25 +598,31 @@ def test_execute_locked_success_end_to_end(tmp_path):
     assert run["scientific_content"] is False
     assert run["post_run_checks"]["process_group_quiescent"] is True
     assert run["post_run_checks"]["source_closure_unchanged"] is True
-    # tree_unchanged_except_run_dir is expected to read False in THIS shared,
-    # mid-task worktree: this task's own new, not-yet-committed source files
-    # (harness/finite_yaml_locked_v1.py, schemas/..., experiments/.../
-    # source-v2/, tests/...) are untracked and outside the run directory, so
-    # the reused `_tree_clean_except` correctly reports drift. This is the
-    # check working as designed (fail-closed), not a false negative, and is
-    # exactly why the resulting status below is failed_infrastructure rather
-    # than completed_valid -- demonstrating "mutation ... after launch
-    # prevents completed_valid and preserves the diagnostic artifacts."
-    assert run["post_run_checks"]["tree_unchanged_except_run_dir"] is False
-    assert run["status"] == "failed_infrastructure"
-    assert run["valid"] is False
-    assert "postflight drift" in run["invalid_reason"]
+    # This focused success test supplies a clean postflight seam; the distinct
+    # mutation test below proves the actual fail-closed drift transition.
+    assert run["post_run_checks"]["tree_unchanged_except_run_dir"] is True
+    assert run["status"] == "completed_valid"
+    assert run["valid"] is True
+    assert run["invalid_reason"] is None
     run_dir = Path(verified.run_dir)
     for name in ("command.txt", "environment.json", "stdout.log", "stderr.log", "raw-result.json", "manifest.yaml"):
         assert (run_dir / name).is_file(), name
     raw_result = json.loads((run_dir / "raw-result.json").read_text(encoding="utf-8"))
     assert raw_result["scientific_content"] is False
     assert raw_result["child"]["return_code"] == 0
+
+
+def test_execute_locked_postflight_drift_refuses(tmp_path, monkeypatch):
+    """A postflight worktree mutation invalidates an otherwise benign run."""
+    monkeypatch.setattr(fyl._core, "_tree_clean_except", lambda _root, _run_dir: False)
+    verified = _verified_launch_for("execute-postflight-drift-case", "success")
+    manifest_path = fyl.execute_locked(verified)
+    manifest = yaml.safe_load(Path(manifest_path).read_text(encoding="utf-8"))
+    run = manifest["finite_yaml_locked_run"]
+    assert run["post_run_checks"]["tree_unchanged_except_run_dir"] is False
+    assert run["status"] == "failed_infrastructure"
+    assert run["valid"] is False
+    assert "postflight drift" in run["invalid_reason"]
 
 
 def test_execute_locked_deliberate_failure_end_to_end(tmp_path):

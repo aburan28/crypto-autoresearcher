@@ -580,6 +580,13 @@ def check_experiment(path: str, ctx: Ctx):
         stem = os.path.basename(os.path.dirname(path))
         ctx.legacy_aliases.add(stem)
     for field in REQUIRED["experiment"]:
+        # Compact Stage-0 contracts (REFSPLIT through EUCREM) record the
+        # required metrics list as primary_metrics. That list already
+        # names the measured gates; accepting it as the schema `metrics`
+        # field avoids rewriting frozen specification.yaml bytes whose
+        # snapshot archives already bind the file hash.
+        if field == "metrics" and field_is_satisfied(body, "primary_metrics"):
+            continue
         if not field_is_satisfied(body, field):
             ctx.err(path, f"missing required field '{field}'")
     # An approved contract must have no null approval fields.
