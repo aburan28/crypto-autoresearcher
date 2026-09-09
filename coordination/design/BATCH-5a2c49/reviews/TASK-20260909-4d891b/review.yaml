@@ -1,144 +1,104 @@
-review_report:
+validation_report:
+  id: VAL-20260909-4d891b
   task_id: TASK-20260909-4d891b
-  role: validator
+  review_plan_id: tier_ladder_synthetic_contract_review
   joint: tier_ladder_synthetic_graph_and_no_state_change
-  scope: >
-    BATCH-local typed graph, range, null, unconstrained handling, and
-    no-state-change witness only. This report does not assess any live
-    portfolio record or any scientific claim.
-  verdict: breaks
-  declared_source_snapshot:
+  source_snapshot:
     commit: 54b5e03675b2f444d696d59aeefd0150f3936464
-    binding_status: not_recomputed_in_this_joint
-    reason: >
-      The assigned packet permitted only the plan, handoff, and four draft
-      files; no VCS source traversal was performed.
-  checks:
-    - id: classification-totality-absent-versus-bounded
-      attack: >
-        Use four valid synthetic nodes M1, M2, M3, M4 and edges
-        M1->M2, M2->M4, M1->M3, M3->M4. Give M2 range.kind ABSENT;
-        give M1, M3, and M4 well-formed BOUNDED ranges; request M1->M4.
-      observed: >
-        This construction has an ABSENT route and an all-BOUNDED route. The
-        ABSENT rule fails because a route avoiding ABSENT exists. The
-        UNCONSTRAINED rule fails. The canonical route is M1,M2,M4 because it
-        is lexicographically earlier than M1,M3,M4, so
-        RANGE_CONSTRAINED_ROUTE fails because that selected route is not all
-        BOUNDED. NO_ROUTE also fails.
+    bindings:
+      - path: coordination/design/BATCH-5a2c49/tasks/TASK-20260909-c20960/hypothesis.yaml
+        sha256: 5749b1b8c84309c8a9db57df00a28a49820f2061e6febac17fc0e57655567130
+        matches_declared_snapshot: true
+      - path: coordination/design/BATCH-5a2c49/tasks/TASK-20260909-c20960/specification.yaml
+        sha256: f7f8b9ff218ba3031d39ad73f6b8d8a0506f99b1fd5616b5aa18165e700c7310
+        matches_declared_snapshot: true
+      - path: coordination/design/BATCH-5a2c49/tasks/TASK-20260909-c20960/readiness.md
+        sha256: 0804260ad85241c793b511a199da64e1d9bce918848ad871d66e3c2c0834e8aa
+        matches_declared_snapshot: true
+      - path: coordination/design/BATCH-5a2c49/tasks/TASK-20260909-c20960/duplication-audit.md
+        sha256: 7d4500c4060911ac78b61c1f33132fe6f078deebc28a8208f1153618e8ada198
+        matches_declared_snapshot: true
+  artifact_checks:
+    - artifact: coordination/design/BATCH-5a2c49/tasks/TASK-20260909-c20960/hypothesis.yaml
+      check: YAML parses and equals the review plan's frozen commit.
+      result: pass
+    - artifact: coordination/design/BATCH-5a2c49/tasks/TASK-20260909-c20960/specification.yaml
+      check: YAML parses and equals the review plan's frozen commit.
+      result: pass
+    - artifact: coordination/design/BATCH-5a2c49/tasks/TASK-20260909-c20960/readiness.md
+      check: Bound to the frozen commit; states the synthetic-only and no-state-change limits.
+      result: pass
+    - artifact: coordination/design/BATCH-5a2c49/tasks/TASK-20260909-c20960/duplication-audit.md
+      check: Bound to the frozen commit; records duplication as inconclusive and makes no source-backed novelty claim.
+      result: pass
+  metric_recomputations: []
+  control_checks:
+    - control: shuffled_graph_invariant
       result: breaks
-      implication: >
-        A syntactically valid input has no member of the declared exhaustive
-        classification alphabet. The contract therefore does not meet the
-        hypothesis prediction that every classification follows from closed
-        graph, range, and witness fields.
-    - id: recursive-live-locator-and-state-action-refusal
-      attack: >
-        Add live_record_path or retirement_action as an extra member of a
-        node object, its nested range object, or the no_state_change_witness,
-        without placing it at the top level.
-      observed: >
-        top_level_forbidden applies only to the top-level envelope. The
-        node_schema, range_schema, edge_schema, route_request_schema, and
-        no_state_change_witness_schema list required and selected forbidden
-        fields, but none closes its object against unlisted nested members.
-        The INVALID_INTERFACE text does not define recursive field traversal
-        or a closed result/effect schema.
+      finding: >
+        graph_id has only a format pattern and no content digest, canonical serialization,
+        or comparator.  The same MOCK-GRAPH identifier can therefore name differently
+        ordered, different, or duplicate-containing node and edge arrays.  No structural
+        invariant proves that a shuffled graph is the same graph, or that the null differs
+        only in its declared mutation.
+    - control: unconstrained_route_and_retirement_boundary
       result: breaks
-      implication: >
-        The planned live-locator, retirement, and priority controls can be
-        bypassed by a nested unlisted field. The separate witness does not
-        structurally bind a classification output to zero live effects.
-    - id: shuffled-graph-replayability
-      attack: >
-        Permute node and edge arrays while preserving the same graph, then
-        compare the requested classification and the no-state-change witness
-        interpretation.
-      observed: >
-        canonical_route_rule orders route node_id sequences, but the input
-        format supplies no canonical encoding or order-independent set
-        comparator for nodes and edges. It also does not define a precise
-        duplicate/conflict comparison beyond the phrase exact duplicate.
+      finding: >
+        The classification is not total for a valid mixed-route graph.  For example, with
+        route request M1 to M3, edges M1->M2->M3 and M1->M4->M3, M2 UNCONSTRAINED, and
+        M1, M3, and M4 BOUNDED, UNCONSTRAINED_ROUTE is false because not every candidate
+        route contains an unconstrained node.  ABSENT_ROUTE and NO_ROUTE are false, while
+        the lexicographically selected M1,M2,M3 route is not all BOUNDED, so
+        RANGE_CONSTRAINED_ROUTE is false.  The precedence list does not create a verdict.
+        Separately, no closed output schema binds a classification to the witness; a
+        structurally unrecognized output/effect field could encode RETIRE_BRANCH or
+        CHANGE_PRIORITY outside allowed_effects.
+    - control: undocumented_edge
       result: breaks
-      implication: >
-        A future parser has no frozen, replayable rule for proving that array
-        permutations denote one graph rather than distinct encodings. The
-        shuffle_invariant control is therefore not mechanically specified.
-    - id: undocumented-edge-boundary
-      attack: >
-        Add an edge between two already-declared nodes that was absent from a
-        reference synthetic graph, while keeping all required edge members
-        well formed.
-      observed: >
-        The edge relation rejects an endpoint that is not declared, which
-        holds narrowly. It does not bind the graph to a canonical permitted
-        edge inventory or finite fixture, so an added edge between declared
-        nodes is a new valid graph rather than an invalid undocumented edge.
+      finding: >
+        edge_schema permits any directed edge between declared distinct nodes and does not
+        bind a finite edge inventory to graph_id.  An added M1->M3 edge between existing
+        nodes satisfies the stated edge relation and is not an exact duplicate.  It can
+        create or bypass a route without becoming INVALID_INTERFACE.
+    - control: live_locator
       result: breaks
-      implication: >
-        The planned undocumented_edge control lacks a fixed reference object
-        against which an extra edge can be rejected.
-    - id: unconstrained-retirement-and-priority-boundary
-      attack: >
-        Start from an otherwise valid route containing one UNCONSTRAINED
-        node and attach a nested state-action or priority-bearing object to
-        the mock input or a consumer-defined classification result.
-      observed: >
-        UNCONSTRAINED_ROUTE says in prose that it has no priority or
-        retirement meaning, but the contract supplies no closed emitted
-        result/effect object. The witness constrains allowed_effects directly
-        listed in that witness but does not recursively constrain other input
-        objects or a downstream output.
+      finding: >
+        The forbidden-field list is top-level and selected edge/route fields are not
+        recursively closed.  A node or an otherwise undeclared nested object can carry a
+        live path or identifier, for example metadata: {record_path:
+        'ledger/goals/GOAL-example.yaml'}, without matching any listed forbidden key.
+        Neither node_schema nor the top-level envelope declares an exact allowed-key set
+        or a recursive live-locator rejection rule.
+    - control: retirement_and_priority_action
       result: breaks
-      implication: >
-        The no-state-change boundary cannot be checked from the proposed wire
-        interface, including for the unconstrained-retirement control.
-  narrow_holds:
-    - >
-      An edge whose endpoint is not a declared node conflicts with the stated
-      edge relation, provided an implementation applies that relation.
-    - >
-      A top-level goal_id, status_update, or retirement_action is named by
-      the top-level forbidden-field control.
+      finding: >
+        CONTROL-NO-STATE-CHANGE only mutates allowed_effects in the input witness.  The
+        specification has no closed result/effect envelope, so it does not prove that
+        result data, nested annotations, or output-adjacent metadata cannot express a
+        retirement or priority action.  The no-state-change guarantee remains prose plus
+        a partial input check rather than a complete input-to-output invariant.
+  heuristic_validation_checks: []
+  cost_model_checks: []
+  proof_architecture_checks: []
+  verdict: invalid
   limitations:
     - >
-      No live goal, lane, queue, claim, priority, ledger, source code, or
-      sibling review report was read.
+      This validation concerns only the assigned synthetic typed-graph and no-state-change
+      joint.  It does not inspect, classify, or draw an inference about any live portfolio
+      record.
     - >
-      No implementation, parser, fixture, execution, or scientific result
-      was available or attempted.
-  required_repair_before_a_new_review:
-    - >
-      Define a total route classification rule that specifies eligibility and
-      selection separately for BOUNDED, ABSENT, and UNCONSTRAINED routes.
-    - >
-      Freeze recursively closed top-level, node, range, edge, route, witness,
-      and result/effect schemas with explicit rejection of every unlisted
-      nested key and a zero-effect output invariant.
-    - >
-      Bind a finite canonical synthetic graph fixture or a canonical
-      order-independent graph serialization, including node and edge set
-      comparison, duplicate/conflict handling, and shuffle behavior.
-    - >
-      Make the undocumented-edge control test a canonical permitted edge
-      inventory, or narrow the claimed control to undeclared endpoints.
-  authority_boundary: >
-    This breaks verdict concerns only the reviewed BATCH-local mock interface.
-    It changes no official hypothesis, experiment, goal, priority, branch, or
-    approval state and establishes no ECDLP or scientific result.
-
+      No implementation exists in the permitted packet, so the control findings are static
+      counterexamples to the frozen contract rather than implementation or execution results.
+  artifact_paths:
+    - coordination/design/BATCH-5a2c49/reviews/TASK-20260909-4d891b/review.yaml
 review_attestation:
   task_id: TASK-20260909-4d891b
-  role: validator
   joint: tier_ladder_synthetic_graph_and_no_state_change
-  joints_owned:
-    - tier_ladder_synthetic_graph_and_no_state_change
+  joints_owned: [tier_ladder_synthetic_graph_and_no_state_change]
   independent_session: true
   requested_policy: review-adversarial
-  reasoning_effort: xhigh
   resolved_model_id: unavailable_to_validator
   model_verified: false
-  verdict: breaks
   sources_read:
     - ledger/handoffs/TASK-20260909-4d891b.yaml
     - coordination/design/BATCH-5a2c49/tier-ladder-review-plan-TASK-20260909-4d891b.yaml
@@ -147,8 +107,9 @@ review_attestation:
     - coordination/design/BATCH-5a2c49/tasks/TASK-20260909-c20960/readiness.md
     - coordination/design/BATCH-5a2c49/tasks/TASK-20260909-c20960/duplication-audit.md
   read_sibling_reports: false
-  sibling_reports_seen: []
-  blindness_lifted: false
-  review_scope: >
-    Source-only validation of the assigned synthetic graph and no-state-change
-    joint. No live research-state sources or sibling reports were inspected.
+  blind_from_respected: not_applicable
+  verdict: breaks
+  scope_statement: >
+    BREAKS only the assigned BATCH-local synthetic graph, range, null-control,
+    and no-state-change interface joint.  It makes no conclusion about live
+    research state, experiment approval, or ECDLP science.
