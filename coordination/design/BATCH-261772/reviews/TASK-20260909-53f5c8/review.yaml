@@ -1,0 +1,66 @@
+review:
+  task_id: TASK-20260909-53f5c8
+  experiment_id: EXP-ECDLP-df24c3
+  review_plan_id: scoped_negative_custody_v3_review
+  joint: pinned_fixture_identity_authorization_and_zero_access_v3
+  scope: source-only validation of the v3 fixture manifest binding, canonical statement key, signed authorization and replay design, and protected-input refusal boundary
+  verdict: breaks
+  reviewed_snapshot:
+    commit: 633d78ec686b76fa492f6ac4ed76d1462283355f
+    paths:
+      - experiments/EXP-ECDLP-df24c3/implementation/TASK-20260909-117280/custody-contract-v3.yaml
+      - ledger/decisions/DEC-20260909-a59857.yaml
+  attack_results:
+    - control: regenerated_fixture_manifest
+      verdict: breaks
+      finding: The contract only requires fixture_manifest_sha256 to equal the value carried by an authorization envelope. It says that the trust root is bound by SHA-256 in the Coordinator decision, but DEC-20260909-a59857 names neither a fixture-manifest digest nor a trust-root path or digest. A replacement manifest and an envelope carrying its replacement digest therefore have no decision-bound identity to compare against.
+      implication: Fixture identity is self-consistent within a later envelope but is not independently pinned by the reviewed decision. The contract cannot establish that a regenerated manifest describes the Coordinator-approved fixture set.
+    - control: statement_alias
+      verdict: breaks
+      finding: The statement hash contains record_path and statement_path, but the contract does not define an authoritative corpus-index object that maps those path strings to one source-commit object or one canonical statement boundary. Reusing a consistent alternate path or boundary in index, comparison, linkage, and exclusion rows produces a matching hash and satisfies the stated cross-binding rule.
+      implication: Cross-row equality detects disagreement between rows, but cannot reject a mutually consistent alias for the intended statement.
+    - control: forged_signature
+      verdict: breaks
+      finding: The contract's claimed authorization-trust-root binding is absent from DEC-20260909-a59857. The semantic all_hashes_exact check also has no decision-bound expected values for contract_sha256, plan_sha256, implementation_review_sha256, coordinator_decision_sha256, or fixture_manifest_sha256. In addition, the reviewed decision does not explicitly allow static_mock_only, although that is a required semantic check.
+      implication: The packet supplies neither a verifiable trusted key selection nor a constructible, decision-authorized envelope. A resolver cannot distinguish the intended key and decision from a substitute, and cannot construct a documented allow path from the reviewed decision.
+    - control: replayed_nonce
+      verdict: breaks
+      finding: authorization-nonces.jsonl has a stated path and a duplicate-refusal rule, but no authenticated registry location, current signed-head identity, head-signing key binding, lock ownership, or atomic compare-and-append protocol. A stale or replaced registry can omit a prior nonce while still presenting a syntactically valid registry to the resolver.
+      implication: The prose does not provide replay protection across resolver instances or recovery from a race; a repeated nonce is not shown to be rejected by an authoritative append-only state.
+    - control: refusal_open_path
+      verdict: breaks
+      finding: The refusal trace is a resolver-produced JSON object whose protected_mounts and open_paths fields are required to be empty. The contract does not require an isolated mount namespace, kernel or external audit source, signed trace recorder, immutable trace store, or comparison between the trace and a protected-input access log. A resolver that opened a protected path can emit an empty array afterwards.
+      implication: The trace can describe a refusal but does not prove zero protected-input access before refusal. The known-false refusal-open-path control is therefore not enforceable by this contract.
+  source_level_holds:
+    - The reviewed decision keeps implementation_authorized and scientific_execution_authorized false.
+    - The reviewed contract states that it does not authorize corpus traversal, execution, or a scientific result.
+  limitation: This was a source-only contract review. No fixture, corpus, trust root, nonce registry, resolver, mount namespace, implementation, execution, or scientific run was created or accessed. The stated holds only describe non-authorization in the reviewed text; they do not establish runtime enforcement.
+  conclusion: The v3 contract does not close the assigned custody joint and cannot support later static/mock executor admission. This is a custody-design finding only and makes no claim about the experiment hypothesis or a scientific result.
+  required_repair:
+    - Bind the exact fixture-manifest and trust-root path/digest, the expected contract/plan/review/decision identities, and an explicit static/mock-only authorization to a Coordinator decision.
+    - Define a canonical source-commit-resolved statement locator and require the corpus-index entry to prove that the locator resolves to the hashed record blob and statement boundary.
+    - Define an authenticated, single-authority nonce registry with a bound current head, signer, lock ownership, atomic append-and-compare behavior, and recovery semantics.
+    - Replace self-reported refusal arrays with an isolated protected-input namespace and an independently captured, immutable access audit that is bound to the refusal receipt.
+  next_action: Coordinator may prepare an additive v4 custody repair and a new independent source review. No executor, fixture generation, corpus access, or experiment execution is admissible from this report.
+review_attestation:
+  task_id: TASK-20260909-53f5c8
+  role: validator
+  independent_session: true
+  requested_policy: review-adversarial
+  reasoning_effort: xhigh
+  resolved_model_id: unavailable_to_validator
+  model_verified: false
+  joints_owned:
+    - pinned_fixture_identity_authorization_and_zero_access_v3
+  sources_read:
+    - AGENTS.md
+    - agents/validator.md
+    - ledger/handoffs/TASK-20260909-53f5c8.yaml
+    - experiments/EXP-ECDLP-df24c3/implementation/TASK-20260909-117280/custody-v3-review-plan-TASK-20260909-53f5c8.yaml
+    - experiments/EXP-ECDLP-df24c3/implementation/TASK-20260909-117280/custody-contract-v3.yaml
+    - ledger/decisions/DEC-20260909-a59857.yaml
+  read_sibling_reports: false
+  blindness_lifted_for: []
+  blind_rederivation_required: false
+  blind_rederivation_respected: true
+  verdict: breaks
