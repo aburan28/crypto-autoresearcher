@@ -193,6 +193,45 @@ policies:
     # a review of it.
     degradable: false
 
+  consolidation-routing:
+    aliases: []
+    summary: >-
+      Reading agent-bus traffic ACROSS lanes and carrying pointers between
+      them. Must run in a session that works none of the lanes it reads.
+    purpose:
+      - cross_lane_consolidation
+    requires:
+      # Same relaxed floor as the policies above: any backend that can reason
+      # at all may SERVE this. The requested effort below stays `high` and the
+      # independent-session requirement stays true.
+      reasoning_effort: low
+      tool_use: true
+      structured_output: true
+      # A consolidation pass reads every message in a window across every
+      # sender, so the INPUT is large by construction.
+      min_context_tokens: 180000
+      # The output is deliberately small, and smaller than every other policy
+      # here. This is a contract, not an economy: the deliverable is a handful
+      # of pointers, and a consolidator that needs a large output budget has
+      # started writing the summary the bus contract forbids. If a pass wants
+      # more room, that is the signal to carry fewer, better pointers.
+      min_output_tokens: 4000
+    # Deciding WHICH of two hundred messages a peer actually needs is a
+    # judgment task -- it is selection, not transcription, and a pass that
+    # carries everything is worth nothing. But it is not adversarial review:
+    # the consolidator weighs relevance, not correctness, and never adjudicates
+    # a claim. `high`, not `xhigh`.
+    reasoning_effort: high
+    may_change_official_state: false
+    # THE LOAD-BEARING LINE. A consolidator that also works one of the lanes it
+    # reads is not a cross-cutting pass; it is that lane arguing its case with
+    # extra steps, and it will carry its own lane's pointers outward and no
+    # others. Independence here is about SELECTION BIAS rather than review
+    # integrity, but it is enforced identically -- and `_check_policy` in
+    # orchestration/role_registry.py refuses the role otherwise.
+    independent_session_required: true
+    fallback_policy: null
+
   executor-implementation:
     aliases: [executor-terra]
     summary: >-
@@ -244,6 +283,11 @@ policies:
 
 role_defaults:
   coordinator: coordinator-orchestration-code
+  # Underscore spelling matches this table's convention (idea_generator,
+  # red_team); roles.yaml uses the hyphenated id. `adapter resolve --role`
+  # reads THIS table, so a role missing here resolves to nothing even when
+  # roles.yaml names its default_policy -- which is how it was caught.
+  consolidator: consolidation-routing
   idea_generator: research-deep
   research: research-deep
   executor: executor-implementation
