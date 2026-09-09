@@ -1,0 +1,27 @@
+**TASK-20260909-319f9c: PASS_FOR_PROTOCOL.** All five assigned protocol joints hold for the frozen, unrun EXP-DREG-a7c9c1 design at source snapshot `297d3a49bab7e39a858d3752150419e72361d6eb`. This is a recommendation for the Coordinator's later protocol decision. Implementation, formal verification, independent operational QA, scientific launch and evidence acceptance retain their separate published gates.
+
+| Joint | Verdict | Main basis |
+| --- | --- | --- |
+| C1: literal models and maps | holds | Full integer bases and fixed weights; concrete q/j/L/rho/iota maps; free-u and bit-u remain distinct. |
+| C2: ranks, Smith/Fitting and kernel base change | holds | Separate rank bounds; full unimodular equivalence and factorization; correct cokernel torsion and Av/p connecting map. |
+| C3: panel and controls | holds | All39 RUN units,12 null candidates,14 chain cells and24 corruption classes retained with explicit denominators. |
+| C4: costs and formal scope | holds | Construction/failure/growth/verification/storage costs charged; concrete D2 Lean target has an explicit finite ceiling. |
+| C5: publication and authority | holds | Exact860-path mapping; independent archives and QA; static grant precedes the later actual science claim. |
+
+The manual attacks distinguished the selected-minor candidate `{2}` from the empty exact set for `[2,3]`; checked why `diag(1,2)` defeats unconditional characteristic transfer; and preserved the difference between torsion orders2 and4 despite identical prime-field rank profiles. The integer kernel is free and saturated. Doubling a kernel basis vector does not make it torsion, and the modular connecting class is the cokernel class of `Av/p`. These are protocol checks, with zero numerical or formal execution.
+
+At free-u D2, the15 ordinary coordinates and12 normal coordinates agree with the declared maps. Direct substitution gives `q A_rel=0`, `L A_rel=I`, `qj=I` and `A_rel L+jq=I`. The point `(0,1,0,-1)` satisfies the two chain polynomials and leaf-bit equations but has `u²-u=2`; the two integral membership models therefore cannot be silently identified overQ or odd primes. Geometric exclusions `{2,3,23}` remain separate from integer rank exceptions.
+
+The complete planned accounting is25 matrix/control RUN units, including one12-candidate feasibility unit, plus14 chain cells. This yields36 standalone matrix evaluations and42 chain-presentation objects,78 matrix objects in total, and624 fixed-prime comparisons. The860 required paths are exactly39×22 RUN files plus the task execution report and run index; the scientific card and standalone handoff agree. None of those planned RUNs was executed.
+
+I read the required Semaev pages2–4, Stanley pages1–3, the Stacks Fitting and Tor statements/proofs, and Caminata–Gorla pages3–11 directly from the staged packet. All15 required PNG pages were viewed. The25 staged primary-source files and seven design artifacts matched their declared hashes before and after use. Stanley's row-cokernel convention and rectangular notation were adapted explicitly to the protocol's column map; no polynomial-ring Smith-form assumption was imported. The degree literature does not identify this one-shot bounded cokernel with iterated closure, first/last fall or solving degree. The companion inventory records all56 unique file reads and the five primary provenance URLs, including exact versions, hashes, methods, and recovered display errors.
+
+The future QA task requires both the four named generic smoke inputs and all24 corruption classes on eligible synthetic data. Its wording permits additional task-owned synthetic counterparts. Thus the four smoke inputs are not an exhaustive fixture ceiling. Actual coverage still needs the independent QA agent's archived input/certificate/diagnostic bytes; an outer hash refusal alone cannot satisfy an inner mathematical predicate. No QA coverage is claimed by this review.
+
+The formal target remains the concrete free-u D2 split and literal model counterexample in the declared Lean4.22.0 workspace. It does not verify allD0..6 maps, Smith correctness or all-prime results. The shared-runner QA failure remains undischarged, and actual experiment-specific source/profile qualification is still required. The later launch grant must use actual static hashes and an external expected lock hash, with the real scientific claim/native binding supplied after the launch snapshot.
+
+Runtime: fresh independent Validator session `01a08705-36a6-7201-8221-5e8b561e69e7`, native OpenAI / `gpt-6-astra` / literal `ultra`; `model_verified:false`, no serving probe, fallback, degradation or Bedrock. No sibling report, other agent history or memory file was read. Scientific, numerical, implementation, formal, test, shell, subprocess and web execution counts are all zero.
+
+The parent-reported full ledger remains FAILED with67 errors in eight excluded unrelated manifests; this review provides no global validation pass.
+
+Substantive review stopped at `2026-09-09T17:01:42.799Z`; the report files are serialized once through the exact temporary delivery grant. Canonical copy, publication and archive are pending parent action. Parent should verify and copy the four identical files, archive them under TASK-20260909-39a26a, and only then let TASK-20260909-4206ee record its separate disposition and TASK-20260909-116479 archive it. Exactly one machine-readable review attestation appears in protocol-review.json.
