@@ -1,0 +1,184 @@
+validation_report:
+  id: VAL-20260909-323f93
+  task_id: TASK-20260909-323f93
+  review_scope: >-
+    Source-only validation of the v4 comparison-row hash envelope. No corpus
+    record, comparison-row file, fixture, implementation, command execution,
+    or scientific run was inspected or created.
+  source_snapshot:
+    commit: c573c2427c4cd2ccc93989f8dd6d2976096156e1
+    packet_checks:
+      - path: coordination/design/BATCH-261772/tasks/TASK-20260908-5df149/specification-v3-comparison-binding.yaml
+        expected_sha256: 29cb78c1a293ea4c3d2844e038df2f74073cb17e350cc6c51f8903defdbebcf8
+        observed_sha256: 29cb78c1a293ea4c3d2844e038df2f74073cb17e350cc6c51f8903defdbebcf8
+        result: holds
+      - path: coordination/design/BATCH-261772/tasks/TASK-20260908-5df149/specification-v4-comparison-hash-envelope.yaml
+        expected_sha256: f9491e1d8359dab25edd9033daf2d24a6fcec0b096abddbb34959522e29f2483
+        observed_sha256: f9491e1d8359dab25edd9033daf2d24a6fcec0b096abddbb34959522e29f2483
+        result: holds
+      - path: coordination/design/BATCH-261772/reviews/TASK-20260909-63ab7d/review.yaml
+        expected_sha256: e0a08f9c5da6ba3174a9734dfbf73c4affb622183124307b1bf3259b265db6f8
+        observed_sha256: e0a08f9c5da6ba3174a9734dfbf73c4affb622183124307b1bf3259b265db6f8
+        result: holds
+      - path: ledger/decisions/DEC-20260909-c22031.yaml
+        expected_sha256: efff1296c6185c7911bd1666dcf958bc33710b2d7d5381bf86ac023234ca6913
+        observed_sha256: efff1296c6185c7911bd1666dcf958bc33710b2d7d5381bf86ac023234ca6913
+        result: holds
+  joint:
+    id: constructible_comparison_hash_envelope_v4
+    verdict: holds
+    conclusion: >-
+      V4 removes the v3 self-reference. Let P be any closed, RFC-8785-canonical
+      payload containing the ten required fields and satisfying the inherited
+      v3 vector, relation, cited-artifact, and identity rules. Compute
+      d = SHA-256(P), compute comparison_row_id from the v3 identity projection
+      of P, then emit the four-field outer envelope with d only in its outer
+      comparison_row_sha256 field. Verification recomputes d from P and the
+      identity from P; neither computation consumes its own result. Thus a
+      normal positive envelope has a finite deterministic construction and
+      does not require the impossible v3 full-row-digest fixed point.
+  run_ids: []
+  artifact_checks:
+    - check: closed_payload_digest_preimage
+      result: holds
+      evidence: >-
+        V4 fixes the preimage to RFC 8785 canonical UTF-8 JSON of the closed
+        payload mapping only. comparison_row_sha256 is explicitly outside that
+        mapping, while all ten payload fields are mandatory. The digest has a
+        defined finite preimage before the outer envelope is emitted.
+    - check: outer_envelope_and_identity_binding
+      result: holds
+      evidence: >-
+        The outer envelope has exactly the named four required fields. Its
+        comparison_row_id is recomputed using the inherited v3 identity
+        projection over the payload's source commit, record path and blob,
+        statement path and boundary, canonical cited-artifact identities, and
+        comparator version. A substituted outer identifier cannot meet the
+        matching-v3-identity predicate.
+    - check: v3_referential_integrity_preserved
+      result: holds
+      evidence: >-
+        V4 changes only the digest envelope. The v3 requirement for exactly
+        one matching immutable row and its complete normalized vectors,
+        per-field relations, cited identities, and comparator binding remains
+        part of comparison_evidence_bound. The replacement does not restore a
+        producer-set non-duplication Boolean.
+  metric_recomputations: []
+  control_checks:
+    - control: valid_payload_envelope
+      mutation: >-
+        Take one closed, canonical, v3-content-valid payload P; calculate
+        its SHA-256; calculate its v3 identity hash; and place those two
+        values only in the prescribed outer envelope fields.
+      expected: constructible valid comparison_evidence_bound true
+      result: holds
+      exact_route: >-
+        construction requires exactly this order. The digest verifies against
+        P, the identifier verifies against the v3 identity projection of P,
+        and an exactly-one matching envelope with valid inherited v3 content
+        may satisfy comparison_evidence_bound. No digest fixed point is
+        involved.
+    - control: digest_in_payload
+      mutation: >-
+        Insert comparison_row_sha256, or any other non-required field, inside
+        payload instead of retaining a closed ten-field payload.
+      expected: reject as payload extra key
+      result: holds
+      exact_route: >-
+        canonical_preimage rejects a payload extra key. The purported row
+        cannot satisfy the closed-payload requirement, regardless of whether
+        the inserted value resembles the outer digest.
+    - control: changed_payload_after_digest
+      mutation: >-
+        Retain the outer digest d from a canonical payload P and replace any
+        payload value with a different canonical payload P-prime.
+      expected: reject digest mismatch
+      result: holds
+      exact_route: >-
+        Verification recomputes SHA-256 over the received payload only, so the
+        retained d fails when SHA-256(P-prime) differs from SHA-256(P). This is
+        the standard digest-binding guarantee; as with every SHA-256 checksum,
+        an adversarial collision or second preimage is outside what this
+        source-definition review can exclude.
+    - control: malformed_envelope
+      mutation: >-
+        Omit a required outer or payload field; add an outer or payload field;
+        use a noncanonical payload; supply the wrong envelope version; or use
+        a digest or identifier inconsistent with the payload.
+      expected: reject
+      result: holds
+      exact_route: >-
+        required_outer_fields and payload_required_fields require the closed
+        shapes; canonical_preimage rejects extra or missing payload fields,
+        noncanonical payloads, wrong versions, and digest mismatches; and the
+        inherited matching-v3-identity predicate rejects an inconsistent
+        comparison_row_id. No malformed case can produce a valid binding
+        through an omitted producer Boolean.
+    - control: duplicate_valid_envelopes
+      mutation: >-
+        Supply two otherwise valid outer envelopes whose payloads have the
+        same selected-statement v3 identity.
+      expected: comparison_evidence_bound false
+      result: holds
+      exact_route: >-
+        comparison_evidence_bound_update requires exactly one outer envelope
+        with a matching v3 identity. Two matching envelopes take the declared
+        duplicate path and make the predicate false even if each envelope's
+        payload digest verifies individually.
+  heuristic_validation_checks: []
+  cost_model_checks: []
+  proof_architecture_checks:
+    - check: proves_too_much_v3_self_reference
+      result: holds
+      evidence: >-
+        The v3 known-false construction required a digest over row bytes that
+        included that digest field. V4 hashes only the payload before the
+        digest enters the outer envelope, so its positive construction does
+        not implicitly reuse the v3 fixed-point definition.
+  verdict: passed
+  limitations:
+    - >-
+      This review checked only the assigned v4 source-definition joint. It
+      did not inspect a live corpus, comparison-row file, selected statement,
+      artifact identity, comparator implementation, or canonical record.
+    - >-
+      The altered-payload control states the ordinary SHA-256 digest-binding
+      condition; no collision or second-preimage property was established by
+      this source-only review.
+    - >-
+      No implementation, fixture, command execution, measurement, scientific
+      evidence, or conclusion was produced.
+  authority_effect: >-
+    The assigned v4 source-definition joint holds. This report authorizes no
+    corpus work, canonical proposed record, implementation, execution,
+    measurement admission, hypothesis promotion, or scientific conclusion.
+  artifact_paths:
+    - coordination/design/BATCH-261772/reviews/TASK-20260909-323f93/review.yaml
+
+review_attestation:
+  task_id: TASK-20260909-323f93
+  role: validator
+  joints_owned:
+    - constructible_comparison_hash_envelope_v4
+  verdict: holds
+  independent_session: true
+  inference:
+    policy: review-adversarial
+    reasoning_effort: xhigh
+    fallback_allowed: false
+    degraded_allowed: false
+  read_sibling_reports: false
+  no_sibling_report_was_read: true
+  blind_rederivation_required: false
+  blind_from_respected: true
+  sources_read:
+    - AGENTS.md
+    - agents/validator.md
+    - ledger/handoffs/TASK-20260909-323f93.yaml
+    - coordination/design/BATCH-261772/scope-audit-v4-review-plan-TASK-20260909-323f93.yaml
+    - c573c2427c4cd2ccc93989f8dd6d2976096156e1:coordination/design/BATCH-261772/tasks/TASK-20260908-5df149/specification-v3-comparison-binding.yaml
+    - c573c2427c4cd2ccc93989f8dd6d2976096156e1:coordination/design/BATCH-261772/tasks/TASK-20260908-5df149/specification-v4-comparison-hash-envelope.yaml
+    - c573c2427c4cd2ccc93989f8dd6d2976096156e1:coordination/design/BATCH-261772/reviews/TASK-20260909-63ab7d/review.yaml
+    - c573c2427c4cd2ccc93989f8dd6d2976096156e1:ledger/decisions/DEC-20260909-c22031.yaml
+  procedure_deviations: []
+  execution_or_scientific_claim_made: false

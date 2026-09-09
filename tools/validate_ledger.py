@@ -1195,7 +1195,8 @@ def _safe_identity_scalar_key(node):
         if value != value:
             raise ValueError("non-reflexive scalar key")
         return value
-    except (ValueError, TypeError, OverflowError, KeyError, AttributeError) as exc:
+    except (ValueError, TypeError, OverflowError, KeyError, AttributeError,
+            IndexError) as exc:
         raise yaml.YAMLError("ambiguous scalar key in run identity record") from exc
     finally:
         loader.dispose()
@@ -1252,6 +1253,9 @@ def _nested_run_id_with_duplicate_process(text: str, run_id: str) -> str | None:
                     keys.add(key.value)
                     resolved_keys.add(resolved_key)
                     if path == ("run",) and key.value == "process":
+                        if (key.tag != "tag:yaml.org,2002:str"
+                                or resolved_key != "process"):
+                            raise ValueError("process key is not a string")
                         if not isinstance(value, yaml.MappingNode):
                             raise ValueError("process observation is not a mapping")
                     inspect(key, path)
