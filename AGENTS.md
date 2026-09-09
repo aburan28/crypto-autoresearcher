@@ -86,6 +86,13 @@ Default policies (capability contracts, not products):
 - Executor: `executor-implementation`.
 - Reviewer, Validator, and Red Team: `review-adversarial`, which requires
   `xhigh` reasoning and an independent session.
+- Consolidator: `consolidation-routing` at `high`, which requires a session
+  independent of the lanes it reads. Independence here guards against
+  SELECTION BIAS rather than review integrity — a consolidator that also works
+  one of the lanes it reads carries its own lane's pointers outward and calls
+  it a cross-cutting pass, and the bias is invisible because every carried item
+  is individually true. It is not a review tier: this role weighs relevance,
+  never correctness, and adjudicates nothing.
 - Claimed breakthroughs, closure results, and contradictions between validated
   evidence records: `review-breakthrough` at `max`. This is the only policy
   that may never be degraded — no amendment or permission runs it on a backend
@@ -478,7 +485,7 @@ handoff:
   inference:
     policy: coordinator-orchestration-code | coordinator-orchestration |
             research-deep | executor-implementation | executor-mechanical |
-            review-adversarial | review-breakthrough
+            review-adversarial | review-breakthrough | consolidation-routing
     reasoning_effort: null          # per-task calibration; null = policy default
     fallback_allowed: false
     degraded_allowed: false

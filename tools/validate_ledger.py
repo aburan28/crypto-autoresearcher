@@ -580,6 +580,13 @@ def check_experiment(path: str, ctx: Ctx):
         stem = os.path.basename(os.path.dirname(path))
         ctx.legacy_aliases.add(stem)
     for field in REQUIRED["experiment"]:
+        # Compact Stage-0 contracts (REFSPLIT through EUCREM) record the
+        # required metrics list as primary_metrics. That list already
+        # names the measured gates; accepting it as the schema `metrics`
+        # field avoids rewriting frozen specification.yaml bytes whose
+        # snapshot archives already bind the file hash.
+        if field == "metrics" and field_is_satisfied(body, "primary_metrics"):
+            continue
         if not field_is_satisfied(body, field):
             ctx.err(path, f"missing required field '{field}'")
     # An approved contract must have no null approval fields.
@@ -1167,6 +1174,34 @@ def _validate_superseded_id_extraction(extraction: object, run_id: str) -> None:
         raise ValueError("invalid superseded_id_extraction binding")
 
 
+def _safe_identity_scalar_key(node):
+    """Resolve a scalar key using only SafeLoader scalar constructors.
+
+    Compare these values with ordinary Python mapping equality (including
+    bool/int/float equality), while callers retain their textual restrictions.
+    Non-reflexive values such as NaN cannot provide an unambiguous key.
+    """
+    if not isinstance(node, yaml.ScalarNode):
+        raise yaml.YAMLError("non-scalar key in run identity record")
+    if node.tag not in {
+        "tag:yaml.org,2002:" + name
+        for name in ("str", "null", "bool", "int", "float", "binary", "timestamp")
+    }:
+        raise yaml.YAMLError("unsupported scalar key tag in run identity record")
+    loader = yaml.SafeLoader("")
+    try:
+        value = loader.construct_object(node, deep=True)
+        hash(value)
+        if value != value:
+            raise ValueError("non-reflexive scalar key")
+        return value
+    except (ValueError, TypeError, OverflowError, KeyError, AttributeError,
+            IndexError) as exc:
+        raise yaml.YAMLError("ambiguous scalar key in run identity record") from exc
+    finally:
+        loader.dispose()
+
+
 def _nested_run_id_with_duplicate_process(text: str, run_id: str) -> str | None:
     """Recover only an unambiguous ID, not the duplicate process observations.
 
@@ -1204,15 +1239,23 @@ def _nested_run_id_with_duplicate_process(text: str, run_id: str) -> str | None:
             seen.add(id(node))
             if isinstance(node, yaml.MappingNode):
                 keys = set()
+                resolved_keys = set()
                 for key, value in node.value:
-                    if not isinstance(key, yaml.ScalarNode) or key.value == "<<":
+                    resolved_key = _safe_identity_scalar_key(key)
+                    if key.value == "<<":
                         raise ValueError("ambiguous key")
-                    if key.value in keys:
-                        if path != ("run",) or key.value != "process":
+                    if key.value in keys or resolved_key in resolved_keys:
+                        if (path != ("run",) or key.value != "process"
+                                or resolved_key != "process"
+                                or key.tag != "tag:yaml.org,2002:str"):
                             raise ValueError("unexpected duplicate")
                         duplicates.append(path + (key.value,))
                     keys.add(key.value)
+                    resolved_keys.add(resolved_key)
                     if path == ("run",) and key.value == "process":
+                        if (key.tag != "tag:yaml.org,2002:str"
+                                or resolved_key != "process"):
+                            raise ValueError("process key is not a string")
                         if not isinstance(value, yaml.MappingNode):
                             raise ValueError("process observation is not a mapping")
                     inspect(key, path)
@@ -1342,10 +1385,14 @@ def _run_id_of(path: str, *, superseded_entry: dict | None = None) -> str | None
         pass
 
     def unique_mapping(loader, node, deep=False):
-        keys = [key.value for key, _ in node.value
-                if isinstance(key, yaml.ScalarNode)]
-        if len(keys) != len(set(keys)):
-            raise yaml.YAMLError("duplicate mapping keys in run identity record")
+        keys = set()
+        resolved_keys = set()
+        for key, _ in node.value:
+            resolved_key = _safe_identity_scalar_key(key)
+            if key.value in keys or resolved_key in resolved_keys:
+                raise yaml.YAMLError("duplicate mapping keys in run identity record")
+            keys.add(key.value)
+            resolved_keys.add(resolved_key)
         return yaml.SafeLoader.construct_mapping(loader, node, deep=deep)
 
     IdentityLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG,
