@@ -31,17 +31,14 @@ def _write_exp(root: Path, exp_id: str, *, designed_at: str,
     if report:
         (d / "execution-report.yaml").write_text("execution_report: {}\n")
     if has_runs:
-        # The real, universal signal this repo's own executor writes: a
-        # populated runs/RUN-*/ directory. The actual execution_report.yaml
-        # (underscore) lives per-batch under coordination/, not reachable
-        # from the experiment directory alone -- runs/ is what _completed
-        # must actually check.
+        # Legacy activity is insufficient to establish coverage. It must not
+        # be blindly re-executed, but must remain visible for reconciliation.
         run_dir = d / "runs" / f"RUN-{exp_id.split('-', 1)[1]}-001"
         run_dir.mkdir(parents=True)
         (run_dir / "manifest.yaml").write_text("run: {}\n")
 
 
-def test_newest_runnable_skips_completed_and_orders_newest(tmp_path):
+def test_newest_runnable_excludes_unreconciled_activity_and_orders_newest(tmp_path):
     (tmp_path / "orchestration").mkdir()
     (tmp_path / "orchestration/research-priority.yaml").write_text(
         "ecc_areas: [ECDLP]\n")
@@ -56,28 +53,25 @@ def test_newest_runnable_skips_completed_and_orders_newest(tmp_path):
     assert [r["id"] for r in rows] == [
         "EXP-ECDLP-new222", "EXP-ECDLP-old111", "EXP-AES-new444"]
     assert all("specification.yaml" in r["specification"] for r in rows)
+    diagnostic = mod.newest_runnable(tmp_path, include_blocked=True)
+    unresolved = {r["id"] for r in diagnostic if r["execution_state"] == "needs_reconciliation"}
+    assert unresolved == {"EXP-ECDLP-done33", "EXP-ECDLP-ran666"}
 
 
-def test_newest_runnable_skips_an_experiment_with_a_populated_runs_dir(tmp_path):
-    """The real convention: an executed experiment carries a non-empty
-    runs/RUN-*/ directory, never a bare execution-report.yaml at its own
-    top level (that file lives per-batch under coordination/, per this
-    program's own convention). A tool that only checks for the latter
-    silently re-lists every already-executed experiment as runnable."""
+def test_populated_runs_dir_is_neither_completion_nor_permission_to_rerun(tmp_path):
     (tmp_path / "orchestration").mkdir()
     (tmp_path / "orchestration/research-priority.yaml").write_text(
         "ecc_areas: [ECDLP]\n")
     _write_exp(tmp_path, "EXP-ECDLP-ran777", designed_at="2026-09-12", has_runs=True)
 
-    rows = mod.newest_runnable(tmp_path)
-    assert [r["id"] for r in rows] == []
+    assert mod.newest_runnable(tmp_path) == []
+    assert not mod._completed(tmp_path / "experiments/EXP-ECDLP-ran777")
+    rows = mod.newest_runnable(tmp_path, include_blocked=True)
+    assert rows[0]["execution_state"] == "needs_reconciliation"
 
 
 def test_newest_runnable_skips_an_experiment_superseded_before_it_ran(tmp_path):
-    """The mint-a-new-id-per-amendment convention (EXP-SMTH-9d04ba superseded
-    by EXP-SMTH-c83476 before it was ever executed): a frozen, approved,
-    never-run contract that some OTHER experiment's own `supersedes` field
-    names is abandoned research history, not a candidate to belatedly run."""
+    """Superseded immutable history is not a candidate for belated execution."""
     (tmp_path / "orchestration").mkdir()
     (tmp_path / "orchestration/research-priority.yaml").write_text(
         "ecc_areas: [ECDLP]\n")
