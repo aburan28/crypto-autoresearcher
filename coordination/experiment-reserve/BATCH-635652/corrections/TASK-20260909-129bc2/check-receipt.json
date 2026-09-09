@@ -1,0 +1,361 @@
+{
+  "schema": "crypto.autoresearch.binding_correction_custody.v1",
+  "task_id": "TASK-20260909-129bc2",
+  "scientific_runs": 0,
+  "administrative_checker_invocations": 1,
+  "maximum_administrative_checker_invocations": 2,
+  "administrative_comparisons_in_recorded_checker": 61,
+  "passed": 61,
+  "failed": 0,
+  "attempts": [
+    {
+      "reservation": {
+        "task_id": "TASK-20260909-129bc2",
+        "attempt": 1,
+        "argv": [
+          "python3",
+          "-B",
+          "/Volumes/SSD990/crypto-autoresearcher/.worktrees/coordinator-reserve-admission-20260907/coordination/experiment-reserve/BATCH-635652/corrections/TASK-20260909-129bc2/binding-checks.py",
+          "--receipt",
+          "/private/tmp/decoder-binding-TASK-20260909-129bc2-attempt1/inner.json"
+        ],
+        "cwd": "/Volumes/SSD990/crypto-autoresearcher/.worktrees/coordinator-reserve-admission-20260907",
+        "checker_sha256": "26630b8770663a5b02efa9170f412492b66fcca1d6deb71536d0beb6c04d9976",
+        "binding_sha256": "aafd78a79ef4b0e0a7918910ace409b7444021ccb7c3ad39bf183784dff01f5a",
+        "reserved_at_UTC": "2026-09-09T17:07:01.639613+00:00",
+        "watchdog_seconds": 180,
+        "scientific_runs": 0
+      },
+      "checker_source": "#!/usr/bin/env python3\n\"\"\"Administrative binding comparisons only; no solver module is imported.\"\"\"\nimport argparse, datetime, hashlib, json, platform, resource, subprocess, time\nfrom pathlib import Path\nimport yaml\n\nTASK = 'TASK-20260909-129bc2'\nDECISION = 'DEC-20260909-b69851'\nSNAPSHOT = '1c9b23b662dbe890c5b6e40a5a05979e15e079d0'\nORIGINAL = Path('experiments/EXP-ECDLP-709063/implementation/TASK-20260909-d31be5')\nHERE = Path(__file__).resolve().parent\nREPO = HERE.parents[4]\n\ndef sha(path):\n    return hashlib.sha256(Path(path).read_bytes()).hexdigest()\n\ndef unique(pairs):\n    out = {}\n    for k, v in pairs:\n        if k in out:\n            raise ValueError('duplicate JSON key: ' + k)\n        out[k] = v\n    return out\n\ndef load(path):\n    return json.loads(Path(path).read_text(), object_pairs_hook=unique)\n\ndef git(*args):\n    return subprocess.check_output(['git', *args], cwd=REPO)\n\ndef main():\n    ap = argparse.ArgumentParser()\n    ap.add_argument('--receipt', required=True)\n    args = ap.parse_args()\n    target = Path(args.receipt)\n    if target.exists():\n        raise FileExistsError('refuse existing attempt receipt')\n    started = datetime.datetime.now(datetime.timezone.utc).isoformat()\n    clock = time.monotonic()\n    rows = []\n    def check(name, fn):\n        try:\n            ok = fn()\n            if ok is not True:\n                raise AssertionError('comparison returned ' + repr(ok))\n            rows.append({'name': name, 'status': 'passed'})\n        except Exception as e:\n            rows.append({'name': name, 'status': 'failed', 'error': type(e).__name__ + ': ' + str(e)[:2000]})\n    try:\n        b = load(HERE / 'solver-source-bindings.json')\n        oldpath = REPO / ORIGINAL / 'solver-source-bindings.json'\n        old = load(oldpath)\n        hpath = REPO / 'ledger/handoffs' / (TASK + '.yaml')\n        h = yaml.safe_load(hpath.read_text())['handoff']\n        receipt = load(REPO / ORIGINAL / 'check-receipt.json')\n        report = yaml.safe_load((REPO / ORIGINAL / 'implementation-report.yaml').read_text())['execution_report']\n        phpath = REPO / 'ledger/handoffs/TASK-20260909-d31be5.yaml'\n        ph = yaml.safe_load(phpath.read_text())['handoff']\n        oldarchive = load(REPO / 'coordination/experiment-reserve/BATCH-635652/archives/TASK-20260909-7f5fe3/snapshot.json')\n        rpath = REPO / 'coordination/experiment-reserve/BATCH-635652/reviews/TASK-20260909-adf4e6/review.yaml'\n        vr = yaml.safe_load(rpath.read_text())['validation_report']\n        check('replacement_identity_and_correct_approval', lambda: b['task_id'] == TASK and b['approval_decision_id'] == h['approval_decision_id'] == DECISION and h['to'] == 'coordinator')\n        check('closed_replacement_top_level', lambda: set(b) == {'schema','task_id','experiment_id','approval_decision_id','scope','supersedes','current_source','dependency_bindings','historical_scalar_baseline','historical_inherited_assertions','recorded_source_execution','independent_review','failed_predecessor','correction_preflight','scientific_runs','measurement_admitted','source_acceptance','new_metadata_review'} and b['schema'] == 'crypto.autoresearch.solver_source_bindings.v2')\n        check('exact_superseded_document', lambda: b['supersedes']['path'] == str(ORIGINAL / 'solver-source-bindings.json') and b['supersedes']['sha256'] == sha(oldpath) and b['supersedes']['snapshot'] == SNAPSHOT)\n        check('original_binding_still_matches_snapshot', lambda: git('show', SNAPSHOT + ':' + str(ORIGINAL / 'solver-source-bindings.json')) == oldpath.read_bytes())\n        expected = {str(ORIGINAL / n) for n in ['table.py','bsgs.py','rho-corrected.py','tests.py']}\n        current = b['current_source']['path_sha256']\n        check('one_complete_current_source_map', lambda: set(current) == expected and b['current_source']['snapshot'] == SNAPSHOT and b['current_source']['source_task_id'] == 'TASK-20260909-d31be5')\n        for p, digest in current.items():\n            check('current_source_identity:' + p, lambda p=p, digest=digest: sha(REPO/p) == digest == receipt['source_sha256'][Path(p).name] == hashlib.sha256(git('show', SNAPSHOT + ':' + p)).hexdigest())\n        for p, digest in oldarchive['source_path_sha256'].items():\n            check('original_package_immutable:' + p, lambda p=p, digest=digest: sha(REPO/p) == digest == hashlib.sha256(git('show', SNAPSHOT + ':' + p)).hexdigest())\n        for p, name in [(ORIGINAL/'bsgs.py','bsgs.py'),(ORIGINAL/'rho-corrected.py','rho-corrected.py')]:\n            check('prior_kernel_preserved:' + name, lambda p=p, name=name: (REPO/p).read_bytes() == git('show','d8f64d928c8f6a28eed97eac70b741ad3232fbd5:experiments/EXP-ECDLP-709063/implementation/TASK-20260908-7771f2/' + name))\n        fields = ['current_task_source_sha256','source_binding_preflight','validation_limitation','execution_policy']\n        check('exact_historical_assertions_namespaced', lambda: b['historical_inherited_assertions']['values'] == {k:old[k] for k in fields} and b['historical_inherited_assertions']['origin'] == {'path':str(ORIGINAL/'solver-source-bindings.json'),'sha256':sha(oldpath)})\n        check('no_competing_top_level_current_fields', lambda: not (set(fields+['task_source_sha256']) & set(b)))\n        e = b['recorded_source_execution']\n        check('original_execution_links', lambda: e['receipt']['path'] == str(ORIGINAL/'check-receipt.json') and e['receipt']['sha256'] == sha(REPO/e['receipt']['path']) and e['report']['path'] == str(ORIGINAL/'implementation-report.yaml') and e['report']['sha256'] == sha(REPO/e['report']['path']))\n        check('original_execution_counts', lambda: e['checks'] == {'focused':6,'complete_suite':365,'total':371,'passed':371,'failed':0} and receipt['accounting']['total_fixed_cases'] == receipt['accounting']['passed'] == report['checks']['total'] == report['checks']['passed'] == 371 and receipt['accounting']['failed'] == report['checks']['failed'] == 0 and report['checks']['smoke'] == 6 and report['checks']['full_suite'] == 365)\n        check('original_preflight_not_inherited_49', lambda: e['prior_handoff_declared_inputs'] == len(ph['inputs']) == 62 and e['prior_reported_source_bindings_verified'] == report['source_bindings_verified'] == 62)\n        check('original_inference_uncertainty_preserved', lambda: e['inference_as_recorded'] == receipt['inference'] and e['inference_as_recorded']['resolved_model_id'] is None and e['inference_as_recorded']['model_verified'] is False and e['inference_as_recorded']['requested_policy'] == ph['inference']['policy'] == 'coordinator-orchestration-code' and e['hard_memory_guard_claim'] is False)\n        check('authority_claim_snapshot_separate', lambda: e['authority_commit'] == report['authority_commit'] and e['published_claim_commit'] == report['published_claim_commit'] and e['archived_source_snapshot'] == SNAPSHOT and len({e['authority_commit'],e['published_claim_commit'],SNAPSHOT}) == 3)\n        check('historical_scalar_baseline_preserved', lambda: b['historical_scalar_baseline'] == old['source_baseline'])\n        deps=b['dependency_bindings'];pmap={x['path']:x['sha256'] for x in ph['source_bindings']}\n        check('dependency_bindings_have_recorded_origin', lambda: deps['files'] == old['bound_files'] and deps['binding_origin'] == {'path':str(phpath.relative_to(REPO)),'sha256':sha(phpath)} and all(pmap[p] == v['sha256'] for p,v in deps['files'].items()))\n        cf=b['correction_preflight'];frozen={x['path']:x['sha256'] for x in h['source_bindings']}\n        check('correction_preflight_separate_and_complete', lambda: cf['declared_input_count'] == len(h['inputs']) == cf['verified_input_count'] == len(frozen) == 27 and cf['path_sha256'] == frozen and cf['handoff_sha256'] == sha(hpath) and cf['handoff_path'] == str(hpath.relative_to(REPO)))\n        for p, digest in frozen.items():\n            check('correction_input_unchanged:' + p, lambda p=p,digest=digest: sha(REPO/p) == digest)\n        cpath='coordination/experiment-reserve/BATCH-635652/claims/' + TASK + '.1.claim.json'\n        check('published_current_claim_binding', lambda: git('show',cf['published_claim_commit']+':'+cpath) == (REPO/cpath).read_bytes())\n        check('current_authority_ancestry', lambda: subprocess.run(['git','merge-base','--is-ancestor',cf['authority_commit'],cf['published_claim_commit']],cwd=REPO).returncode == 0)\n        check('prior_failed_review_retained', lambda: vr['verdict'] == b['independent_review']['overall_verdict'] == 'failed' and b['independent_review']['sha256'] == sha(rpath) and git('show',b['independent_review']['snapshot']+':'+str(rpath.relative_to(REPO))) == rpath.read_bytes())\n        check('missing_predecessor_receipt_not_reconstructed', lambda: b['failed_predecessor']['state'] == 'failed' and b['failed_predecessor']['snapshot'] == '2e44076ebdadb9fac6bb21b9a12257e9d7a179cc' and b['failed_predecessor']['first_per_case_receipt'] == 'unavailable; not reconstructed')\n        check('no_admission_or_scientific_claim', lambda: b['scientific_runs'] == 0 and b['source_acceptance'] is False and b['measurement_admitted'] is False and b['new_metadata_review'] == 'pending')\n    except Exception as e:\n        rows.append({'name':'administrative_checker_setup','status':'failed','error':type(e).__name__+': '+str(e)})\n    ru=resource.getrusage(resource.RUSAGE_SELF);child=resource.getrusage(resource.RUSAGE_CHILDREN)\n    out={'schema':'crypto.autoresearch.binding_administrative_checks.v1','task_id':TASK,'started_at_UTC':started,'ended_at_UTC':datetime.datetime.now(datetime.timezone.utc).isoformat(),'administrative_comparisons':rows,'passed':sum(r['status']=='passed' for r in rows),'failed':sum(r['status']=='failed' for r in rows),'scientific_runs':0,'solver_module_imports':0,'binding_sha256':sha(HERE/'solver-source-bindings.json'),'checker_sha256':sha(__file__),'wall_seconds':time.monotonic()-clock,'self_cpu_seconds':ru.ru_utime+ru.ru_stime,'children_cpu_seconds':child.ru_utime+child.ru_stime,'self_peak_rss_raw':ru.ru_maxrss,'rss_units':'bytes' if platform.system()=='Darwin' else 'KiB','hard_memory_guard_claim':False}\n    with target.open('x') as f:json.dump(out,f,indent=2);f.write('\\n')\n    print(json.dumps({'passed':out['passed'],'failed':out['failed'],'receipt':str(target)}))\n    return 1 if out['failed'] else 0\n\nif __name__ == '__main__':\n    raise SystemExit(main())\n",
+      "inner": {
+        "schema": "crypto.autoresearch.binding_administrative_checks.v1",
+        "task_id": "TASK-20260909-129bc2",
+        "started_at_UTC": "2026-09-09T17:07:01.685196+00:00",
+        "ended_at_UTC": "2026-09-09T17:07:02.218723+00:00",
+        "administrative_comparisons": [
+          {
+            "name": "replacement_identity_and_correct_approval",
+            "status": "passed"
+          },
+          {
+            "name": "closed_replacement_top_level",
+            "status": "passed"
+          },
+          {
+            "name": "exact_superseded_document",
+            "status": "passed"
+          },
+          {
+            "name": "original_binding_still_matches_snapshot",
+            "status": "passed"
+          },
+          {
+            "name": "one_complete_current_source_map",
+            "status": "passed"
+          },
+          {
+            "name": "current_source_identity:experiments/EXP-ECDLP-709063/implementation/TASK-20260909-d31be5/table.py",
+            "status": "passed"
+          },
+          {
+            "name": "current_source_identity:experiments/EXP-ECDLP-709063/implementation/TASK-20260909-d31be5/bsgs.py",
+            "status": "passed"
+          },
+          {
+            "name": "current_source_identity:experiments/EXP-ECDLP-709063/implementation/TASK-20260909-d31be5/rho-corrected.py",
+            "status": "passed"
+          },
+          {
+            "name": "current_source_identity:experiments/EXP-ECDLP-709063/implementation/TASK-20260909-d31be5/tests.py",
+            "status": "passed"
+          },
+          {
+            "name": "original_package_immutable:experiments/EXP-ECDLP-709063/implementation/TASK-20260909-d31be5/check-receipt.json",
+            "status": "passed"
+          },
+          {
+            "name": "original_package_immutable:experiments/EXP-ECDLP-709063/implementation/TASK-20260909-d31be5/README.md",
+            "status": "passed"
+          },
+          {
+            "name": "original_package_immutable:experiments/EXP-ECDLP-709063/implementation/TASK-20260909-d31be5/solver-source-bindings.json",
+            "status": "passed"
+          },
+          {
+            "name": "original_package_immutable:experiments/EXP-ECDLP-709063/implementation/TASK-20260909-d31be5/implementation-report.yaml",
+            "status": "passed"
+          },
+          {
+            "name": "original_package_immutable:experiments/EXP-ECDLP-709063/implementation/TASK-20260909-d31be5/table.py",
+            "status": "passed"
+          },
+          {
+            "name": "original_package_immutable:experiments/EXP-ECDLP-709063/implementation/TASK-20260909-d31be5/bsgs.py",
+            "status": "passed"
+          },
+          {
+            "name": "original_package_immutable:experiments/EXP-ECDLP-709063/implementation/TASK-20260909-d31be5/tests.py",
+            "status": "passed"
+          },
+          {
+            "name": "original_package_immutable:experiments/EXP-ECDLP-709063/implementation/TASK-20260909-d31be5/rho-corrected.py",
+            "status": "passed"
+          },
+          {
+            "name": "prior_kernel_preserved:bsgs.py",
+            "status": "passed"
+          },
+          {
+            "name": "prior_kernel_preserved:rho-corrected.py",
+            "status": "passed"
+          },
+          {
+            "name": "exact_historical_assertions_namespaced",
+            "status": "passed"
+          },
+          {
+            "name": "no_competing_top_level_current_fields",
+            "status": "passed"
+          },
+          {
+            "name": "original_execution_links",
+            "status": "passed"
+          },
+          {
+            "name": "original_execution_counts",
+            "status": "passed"
+          },
+          {
+            "name": "original_preflight_not_inherited_49",
+            "status": "passed"
+          },
+          {
+            "name": "original_inference_uncertainty_preserved",
+            "status": "passed"
+          },
+          {
+            "name": "authority_claim_snapshot_separate",
+            "status": "passed"
+          },
+          {
+            "name": "historical_scalar_baseline_preserved",
+            "status": "passed"
+          },
+          {
+            "name": "dependency_bindings_have_recorded_origin",
+            "status": "passed"
+          },
+          {
+            "name": "correction_preflight_separate_and_complete",
+            "status": "passed"
+          },
+          {
+            "name": "correction_input_unchanged:AGENTS.md",
+            "status": "passed"
+          },
+          {
+            "name": "correction_input_unchanged:agents/coordinator.md",
+            "status": "passed"
+          },
+          {
+            "name": "correction_input_unchanged:docs/task-lifecycle.md",
+            "status": "passed"
+          },
+          {
+            "name": "correction_input_unchanged:docs/dynamic-subagent-dispatch.md",
+            "status": "passed"
+          },
+          {
+            "name": "correction_input_unchanged:docs/evidence-and-reproducibility.md",
+            "status": "passed"
+          },
+          {
+            "name": "correction_input_unchanged:ledger/decisions/DEC-20260909-adc75b.yaml",
+            "status": "passed"
+          },
+          {
+            "name": "correction_input_unchanged:ledger/handoffs/TASK-20260909-d31be5.yaml",
+            "status": "passed"
+          },
+          {
+            "name": "correction_input_unchanged:coordination/experiment-reserve/BATCH-635652/archives/TASK-20260909-7f5fe3/snapshot.json",
+            "status": "passed"
+          },
+          {
+            "name": "correction_input_unchanged:coordination/experiment-reserve/BATCH-635652/reviews/TASK-20260909-adf4e6/review.yaml",
+            "status": "passed"
+          },
+          {
+            "name": "correction_input_unchanged:coordination/experiment-reserve/BATCH-635652/reviews/TASK-20260909-adf4e6/checks.py",
+            "status": "passed"
+          },
+          {
+            "name": "correction_input_unchanged:coordination/experiment-reserve/BATCH-635652/reviews/TASK-20260909-adf4e6/check-receipt.json",
+            "status": "passed"
+          },
+          {
+            "name": "correction_input_unchanged:coordination/experiment-reserve/BATCH-635652/archives/TASK-20260909-4607fb/snapshot.json",
+            "status": "passed"
+          },
+          {
+            "name": "correction_input_unchanged:ledger/decisions/DEC-20260909-664ee0.yaml",
+            "status": "passed"
+          },
+          {
+            "name": "correction_input_unchanged:coordination/experiment-reserve/BATCH-635652/archives/TASK-20260909-ff426d/snapshot.json",
+            "status": "passed"
+          },
+          {
+            "name": "correction_input_unchanged:experiments/EXP-ECDLP-709063/implementation/TASK-20260909-d31be5/check-receipt.json",
+            "status": "passed"
+          },
+          {
+            "name": "correction_input_unchanged:experiments/EXP-ECDLP-709063/implementation/TASK-20260909-d31be5/README.md",
+            "status": "passed"
+          },
+          {
+            "name": "correction_input_unchanged:experiments/EXP-ECDLP-709063/implementation/TASK-20260909-d31be5/solver-source-bindings.json",
+            "status": "passed"
+          },
+          {
+            "name": "correction_input_unchanged:experiments/EXP-ECDLP-709063/implementation/TASK-20260909-d31be5/implementation-report.yaml",
+            "status": "passed"
+          },
+          {
+            "name": "correction_input_unchanged:experiments/EXP-ECDLP-709063/implementation/TASK-20260909-d31be5/table.py",
+            "status": "passed"
+          },
+          {
+            "name": "correction_input_unchanged:experiments/EXP-ECDLP-709063/implementation/TASK-20260909-d31be5/bsgs.py",
+            "status": "passed"
+          },
+          {
+            "name": "correction_input_unchanged:experiments/EXP-ECDLP-709063/implementation/TASK-20260909-d31be5/tests.py",
+            "status": "passed"
+          },
+          {
+            "name": "correction_input_unchanged:experiments/EXP-ECDLP-709063/implementation/TASK-20260909-d31be5/rho-corrected.py",
+            "status": "passed"
+          },
+          {
+            "name": "correction_input_unchanged:experiments/EXP-ECDLP-709063/implementation/TASK-20260909-85c2fe/solver-source-bindings.json",
+            "status": "passed"
+          },
+          {
+            "name": "correction_input_unchanged:experiments/EXP-ECDLP-709063/implementation/TASK-20260909-85c2fe/check-receipt.json",
+            "status": "passed"
+          },
+          {
+            "name": "correction_input_unchanged:experiments/EXP-ECDLP-709063/implementation/TASK-20260909-85c2fe/implementation-report.yaml",
+            "status": "passed"
+          },
+          {
+            "name": "correction_input_unchanged:ledger/handoffs/TASK-20260909-d20a62.yaml",
+            "status": "passed"
+          },
+          {
+            "name": "correction_input_unchanged:ledger/decisions/DEC-20260909-f7c4cb.yaml",
+            "status": "passed"
+          },
+          {
+            "name": "published_current_claim_binding",
+            "status": "passed"
+          },
+          {
+            "name": "current_authority_ancestry",
+            "status": "passed"
+          },
+          {
+            "name": "prior_failed_review_retained",
+            "status": "passed"
+          },
+          {
+            "name": "missing_predecessor_receipt_not_reconstructed",
+            "status": "passed"
+          },
+          {
+            "name": "no_admission_or_scientific_claim",
+            "status": "passed"
+          }
+        ],
+        "passed": 61,
+        "failed": 0,
+        "scientific_runs": 0,
+        "solver_module_imports": 0,
+        "binding_sha256": "aafd78a79ef4b0e0a7918910ace409b7444021ccb7c3ad39bf183784dff01f5a",
+        "checker_sha256": "26630b8770663a5b02efa9170f412492b66fcca1d6deb71536d0beb6c04d9976",
+        "wall_seconds": 0.5336164999753237,
+        "self_cpu_seconds": 0.101355,
+        "children_cpu_seconds": 0.392131,
+        "self_peak_rss_raw": 26476544,
+        "rss_units": "bytes",
+        "hard_memory_guard_claim": false
+      },
+      "outer_wrapper": {
+        "argv": [
+          "python3",
+          "-B",
+          "/Volumes/SSD990/crypto-autoresearcher/.worktrees/coordinator-reserve-admission-20260907/coordination/experiment-reserve/BATCH-635652/corrections/TASK-20260909-129bc2/binding-checks.py",
+          "--receipt",
+          "/private/tmp/decoder-binding-TASK-20260909-129bc2-attempt1/inner.json"
+        ],
+        "started_at_UTC": "2026-09-09T17:07:01.639837+00:00",
+        "ended_at_UTC": "2026-09-09T17:07:02.275416+00:00",
+        "wall_seconds": 0.6355792499380186,
+        "exit_code": 0,
+        "timed_out": false,
+        "stdout": "{\"passed\": 61, \"failed\": 0, \"receipt\": \"/private/tmp/decoder-binding-TASK-20260909-129bc2-attempt1/inner.json\"}\n",
+        "stderr": "",
+        "children_user_cpu_seconds": 0.229543,
+        "children_system_cpu_seconds": 0.270808,
+        "children_peak_rss_bytes": 26574848,
+        "hard_memory_guard_claim": false,
+        "receipt_path": "/private/tmp/decoder-binding-TASK-20260909-129bc2-attempt1/inner.json"
+      },
+      "outer_tool_response": {
+        "chunk_id": "c9e1ec",
+        "wall_time_seconds": 0.559974792,
+        "exit_code": 0,
+        "original_token_count": 217,
+        "output": "{\"argv\": [\"python3\", \"-B\", \"/Volumes/SSD990/crypto-autoresearcher/.worktrees/coordinator-reserve-admission-20260907/coordination/experiment-reserve/BATCH-635652/corrections/TASK-20260909-129bc2/binding-checks.py\", \"--receipt\", \"/private/tmp/decoder-binding-TASK-20260909-129bc2-attempt1/inner.json\"], \"started_at_UTC\": \"2026-09-09T17:07:01.639837+00:00\", \"ended_at_UTC\": \"2026-09-09T17:07:02.275416+00:00\", \"wall_seconds\": 0.6355792499380186, \"exit_code\": 0, \"timed_out\": false, \"stdout\": \"{\\\"passed\\\": 61, \\\"failed\\\": 0, \\\"receipt\\\": \\\"/private/tmp/decoder-binding-TASK-20260909-129bc2-attempt1/inner.json\\\"}\\n\", \"stderr\": \"\", \"children_user_cpu_seconds\": 0.229543, \"children_system_cpu_seconds\": 0.270808, \"children_peak_rss_bytes\": 26574848, \"hard_memory_guard_claim\": false, \"receipt_path\": \"/private/tmp/decoder-binding-TASK-20260909-129bc2-attempt1/inner.json\"}\n"
+      }
+    }
+  ],
+  "final_source_sha256": {
+    "coordination/experiment-reserve/BATCH-635652/corrections/TASK-20260909-129bc2/solver-source-bindings.json": "aafd78a79ef4b0e0a7918910ace409b7444021ccb7c3ad39bf183784dff01f5a",
+    "coordination/experiment-reserve/BATCH-635652/corrections/TASK-20260909-129bc2/binding-checks.py": "26630b8770663a5b02efa9170f412492b66fcca1d6deb71536d0beb6c04d9976"
+  },
+  "bound_originals_unchanged_after_checks": {
+    "AGENTS.md": "fa897cb4621084c3990018f4b65df0d2a29838c4f24eccbde4871d969ba05d43",
+    "agents/coordinator.md": "8ae3be687c4f47d42db3e3f72a3c82e8e5654047bec05c89f979aec79969c5fe",
+    "docs/task-lifecycle.md": "936e5f3c604e8c426ed680b283fa28adf0a327ad1051df5d942c0bd0be3fca86",
+    "docs/dynamic-subagent-dispatch.md": "12f925eaca2faa414143b1f58e88fe8077f4c1de1ceaa34555c9d45791d03c57",
+    "docs/evidence-and-reproducibility.md": "f45eddbf64f99ff977c2c1a23b5c4c8a0931272d2cb2aae559e4cfa3d988cc28",
+    "ledger/decisions/DEC-20260909-adc75b.yaml": "ccf03dcc1c5aabfea57f6b270ce9c1abe8b47e5ecc74e7d9f3ee810f4ea6b8d6",
+    "ledger/handoffs/TASK-20260909-d31be5.yaml": "c7f5b045b0a7d9ea4b5b508e179a066879e42b56c4aa0134465f28a2d9ec1850",
+    "coordination/experiment-reserve/BATCH-635652/archives/TASK-20260909-7f5fe3/snapshot.json": "4d79a3af612476f91191e6349ed488bf7488e4f29608d92c3ab89a5f3b8c23ca",
+    "coordination/experiment-reserve/BATCH-635652/reviews/TASK-20260909-adf4e6/review.yaml": "2a60c029bcf6762fa5812cd9c0633daa2bd5eeea3abeec837e33d5b087cb789f",
+    "coordination/experiment-reserve/BATCH-635652/reviews/TASK-20260909-adf4e6/checks.py": "15c21f449b3bc8602f16bc9f28eb6f019537b4e75c13347793f9acbad02ce4cb",
+    "coordination/experiment-reserve/BATCH-635652/reviews/TASK-20260909-adf4e6/check-receipt.json": "ff6957d69c4356830702bf55bbd319818ba95c8671a046774b25eb4081ef1a37",
+    "coordination/experiment-reserve/BATCH-635652/archives/TASK-20260909-4607fb/snapshot.json": "e8ccc1f07c75562144156f97b5cf3934b36f57a11315b95e08248e4e022fd278",
+    "ledger/decisions/DEC-20260909-664ee0.yaml": "b33d284cc53628ce70e2650aecd858d6013e5764be07c9f183d28acb085a9784",
+    "coordination/experiment-reserve/BATCH-635652/archives/TASK-20260909-ff426d/snapshot.json": "60ca426dee778fd23c4ac6db1204a154c8c8fbbe90e6f17e6873baf86d30d5e0",
+    "experiments/EXP-ECDLP-709063/implementation/TASK-20260909-d31be5/check-receipt.json": "1d64ba8718764a60e8c4808381433078f6bced67a90ad3afe6370794045076c3",
+    "experiments/EXP-ECDLP-709063/implementation/TASK-20260909-d31be5/README.md": "d40fcfdedf646b2e94ccc812ae40a9a70fe4084d92145e37b8bef1e4cd31db87",
+    "experiments/EXP-ECDLP-709063/implementation/TASK-20260909-d31be5/solver-source-bindings.json": "e8d237e31ba8955a5ca373dd24b7c14f7a6d3e4b78cd05420cdcaa5125c7a21f",
+    "experiments/EXP-ECDLP-709063/implementation/TASK-20260909-d31be5/implementation-report.yaml": "1980dcf010b76cb5dc91e2abcd9141b8b6c4a2149e7da48ba8451ed791a8bff9",
+    "experiments/EXP-ECDLP-709063/implementation/TASK-20260909-d31be5/table.py": "83c39b6b1c7098002987c268c4aafedaed90f66006988f6da524c4392133ea10",
+    "experiments/EXP-ECDLP-709063/implementation/TASK-20260909-d31be5/bsgs.py": "022650498d27b40c45d1d592466c4a8de5e6c7a5820a8098d568b69bf18811b1",
+    "experiments/EXP-ECDLP-709063/implementation/TASK-20260909-d31be5/tests.py": "8f215f8baaf45ad084904018e26f5ad182d01efb33423a80592aba15497d98b3",
+    "experiments/EXP-ECDLP-709063/implementation/TASK-20260909-d31be5/rho-corrected.py": "0d05b954593d1d6adeb8f0764eb0acda280f938f58cb453f1259fd0e61eaa233",
+    "experiments/EXP-ECDLP-709063/implementation/TASK-20260909-85c2fe/solver-source-bindings.json": "9975f731f157dbfd593141f7ab785e4711728286dfde73d53243675e192d3eaa",
+    "experiments/EXP-ECDLP-709063/implementation/TASK-20260909-85c2fe/check-receipt.json": "b2658e0ce5d2a6edaf9fd6f8ec89d167606cc63b4a5809a8e2ab213064681441",
+    "experiments/EXP-ECDLP-709063/implementation/TASK-20260909-85c2fe/implementation-report.yaml": "1c4c7616111b889b768bd31395c9e723b2ea9d95cc05656e2cfea67a56c5ca6d",
+    "ledger/handoffs/TASK-20260909-d20a62.yaml": "8f08688262326a68c6d479749b89c4550175280d90374b1a571072e18e7f34f6",
+    "ledger/decisions/DEC-20260909-f7c4cb.yaml": "faa7ca4d10c23253163a823820b4f3f3650cf24ab59f047e1fa2694af414786d"
+  },
+  "memory_limit_note": "One checker worker with observed RSS below2GiB; no hard memory limit was installed or claimed.180s process watchdog did not fire. Raw tool and nested timings are retained separately and are not algorithm performance.",
+  "canonical_receipt_created_after_all_attempts": true,
+  "no_further_checker_invocation_planned": true,
+  "receipt_self_hash": null
+}
