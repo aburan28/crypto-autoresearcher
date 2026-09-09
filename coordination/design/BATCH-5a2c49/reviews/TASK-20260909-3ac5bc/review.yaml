@@ -1,0 +1,75 @@
+review:
+  task_id: TASK-20260909-3ac5bc
+  review_plan_id: tier_ladder_v5_literal_fixture_review
+  joint: tier_ladder_literal_fixture_v5
+  scope: BATCH-local literal graph fixture only; no live-state conclusion.
+  source_snapshot:
+    commit: 707485bb8a86e6d8416aa01fbb5d30f325d10d97
+    paths:
+      - coordination/design/BATCH-5a2c49/tasks/TASK-20260909-c20960/specification-v5-literal-fixtures.yaml
+      - ledger/decisions/DEC-20260909-16f3db.yaml
+  control_checks:
+    - id: digest
+      procedure: SHA-256 over the exact UTF-8 bytes in base_graph.canonical_json.
+      observed: 9859fc730619b70aa706c4a812d1a6ba3018814ffcfde0346557e86be3051f5e
+      declared: 6872d49aa37b7d400be62638a3aba3629752735e4b028ea2d3b0d5fff9ae7c2f
+      verdict: FAIL
+      implication: The declared graph identity rejects its own pinned literal bytes.
+    - id: edge_and_node_mutation
+      procedure: Mutate one edge and separately change N1 from ABSENT to BOUNDED, then recompute the literal SHA-256.
+      observed: Both mutations differ from the SHA-256 of the supplied base bytes.
+      verdict: INCOMPLETE
+      implication: Byte changes are detectable in principle, but the declared digest already differs from the unmutated base, so the fixture has no usable accept-versus-reject baseline.
+    - id: route_semantics
+      procedure: Apply the declared precedence to the supplied base, all-UNCONSTRAINED null, all-BOUNDED control, and ABSENT-only control.
+      observed:
+        base: UNCONSTRAINED_ROUTE
+        unconstrained_null: UNCONSTRAINED_ROUTE
+        all_bounded_control: ROUTE_EXISTS
+        absent_only_control: ABSENT_ROUTE
+      verdict: HOLDS_NARROWLY
+      implication: The prose precedence gives these four classifications, but it does not bind a base output classification to the fixture.
+    - id: shuffled_null
+      procedure: SHA-256 the supplied shuffled_null.canonical_json bytes and compare the result with the supplied base bytes digest.
+      observed:
+        shuffled_sha256: 0a72ad473790672d725c6bc8ee4b01f27d5e75f34d746659820fa88f45adcbb1
+        differs_from_base_bytes_sha256: true
+      verdict: HOLDS_NARROWLY
+      implication: The literal shuffled bytes differ from the literal base bytes, without repairing the incorrect declared base digest.
+    - id: unconstrained_null
+      procedure: Apply the stated route precedence to the supplied unconstrained_null literal fixture.
+      observed: UNCONSTRAINED_ROUTE
+      expected: UNCONSTRAINED_ROUTE
+      verdict: HOLDS_NARROWLY
+      implication: This null's stated classification agrees with the prose precedence.
+    - id: nested_effect
+      procedure: Insert a mapping into effects while retaining the other declared exact output values.
+      observed: The exact effects value of [] rejects a nonempty nested effect.
+      verdict: HOLDS_NARROWLY
+      implication: This direct effect insertion is refused by the stated exact value.
+    - id: output_binding
+      procedure: Construct an output with all declared exact keys and exact values, but graph_sha256 set to 64 zeroes and classification set to ABSENT_ROUTE.
+      observed: The constructed output satisfies every declared exact output value because graph_sha256 and classification are not included in exact_values.
+      verdict: FAIL
+      implication: Output is not bound to the literal graph identity or to the declared route semantics.
+  joint_verdict: breaks
+  limitations:
+    - This report validates only the declared synthetic fixture joint.
+    - No live goals, lanes, queues, claims, priorities, branches, or research records were inspected.
+    - No execution, artifact creation beyond this review record, retirement, approval, or canonical-state change occurred.
+  next_action: Replace the base digest with one computed over a specified canonical byte representation, then bind graph_sha256 and classification in the closed output contract to that base fixture and its route evaluation before a fresh independent review.
+review_attestation:
+  task_id: TASK-20260909-3ac5bc
+  reviewer_role: validator
+  joints_owned: [tier_ladder_literal_fixture_v5]
+  sources_read:
+    - coordination/design/BATCH-5a2c49/tier-ladder-v5-review-plan-TASK-20260909-3ac5bc.yaml
+    - ledger/handoffs/TASK-20260909-3ac5bc.yaml
+    - coordination/design/BATCH-5a2c49/tasks/TASK-20260909-c20960/specification-v5-literal-fixtures.yaml
+    - ledger/decisions/DEC-20260909-16f3db.yaml
+  read_sibling_reports: false
+  independent_session: true
+  requested_policy: review-adversarial
+  reasoning_effort: xhigh
+  resolved_model_id: unavailable_to_validator
+  verdict: breaks
