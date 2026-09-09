@@ -1,0 +1,91 @@
+review:
+  task_id: TASK-20260909-bc1872
+  joint: synthetic_null_fixture_envelope_v2
+  verdict: holds
+  scope: >-
+    This verdict covers only the finite v2 synthetic fixture, its declared
+    predicate and controls, and the stated exact-key result-envelope rule. It
+    does not validate a live mechanism screen, replay, false-positive rate,
+    ECDLP result, implementation, execution, scheduling, or approval.
+  recomputations:
+    - name: canonical_fixture_sha256
+      method: >-
+        SHA-256 over the UTF-8 bytes of fixture.canonical_utf8_json exactly as
+        declared in the v2 amendment.
+      observed: e9695563ad1fcc07bc2025cb1183c27ada05720074fca2159fd3d89b7451ece9
+      declared: e9695563ad1fcc07bc2025cb1183c27ada05720074fca2159fd3d89b7451ece9
+      result: equal
+    - name: predicate_and_controls
+      method: >-
+        Apply SYNTH-NULL-PRED-v1, which returns true only for the exact token
+        pair [shape, relation], to each fixture predicate_input.
+      observations:
+        - id: P
+          predicate_input: [shape, relation]
+          recomputed_flag: true
+          declared_control: true
+          result: equal
+        - id: N
+          predicate_input: [shape, random]
+          recomputed_flag: false
+          declared_control: false
+          result: equal
+        - recomputed_flag_count: 1
+          declared_flag_count: 1
+          result: equal
+  mutation_checks:
+    acceptance_rule: >-
+      A receipt must have exactly fixture_sha256, predicate_version, controls,
+      flag_count, and interpretation; fixture_sha256 must match the declared
+      fixture digest, and the remaining fields must equal their declared
+      required values. This is the direct application of result_envelope.
+    cases:
+      - mutation: replace fixture_sha256 with 64 zero hex characters
+        result: rejected
+        reason: digest mismatch
+      - mutation: replace predicate_version with SYNTH-NULL-PRED-v2
+        result: rejected
+        reason: unequal required value
+      - mutation: "replace controls with {P: false, N: false}"
+        result: rejected
+        reason: unequal required value
+      - mutation: replace flag_count with 0
+        result: rejected
+        reason: unequal required value
+      - mutation: omit controls
+        result: rejected
+        reason: missing exact key
+      - mutation: "add live_screen_replay: true"
+        result: rejected
+        reason: extra key; live-screen field is also expressly forbidden
+      - mutation: "add scheduling_decision: approve"
+        result: rejected
+        reason: extra key; scheduling field is expressly forbidden
+      - mutation: "add scientific_claim: ECDLP result"
+        result: rejected
+        reason: extra key; scientific field is expressly forbidden
+  proves_too_much_control:
+    object: synthetic result with live-screen claim
+    result: rejected
+    reason: >-
+      A live-screen claim is an additional, expressly forbidden field and
+      therefore cannot satisfy the exact-key envelope.
+  limitations:
+    - >-
+      No replay, implementation, execution, live-screen observation, or
+      scientific run occurred; scientific_runs is 0.
+    - >-
+      The hold is confined to the literal v2 fixture-envelope interface and
+      does not promote H-ECDLP-cb0b9b or EXP-ECDLP-2a96d0.
+  scientific_runs: 0
+review_attestation:
+  task_id: TASK-20260909-bc1872
+  joints_owned: [synthetic_null_fixture_envelope_v2]
+  sources_read:
+    - coordination/design/BATCH-8bc32a/review-plan-v2-TASK-20260909-bc1872.yaml
+    - ledger/handoffs/TASK-20260909-bc1872.yaml
+    - coordination/design/BATCH-8bc32a/tasks/TASK-20260909-2eebd7/specification-v2-fixture-envelope.yaml
+  read_sibling_reports: false
+  independent_session: true
+  blind_from_respected: true
+  verdict: holds
