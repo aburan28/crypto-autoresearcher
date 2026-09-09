@@ -312,6 +312,61 @@ def named_predicate(name):
     return table.get(name)
 
 
+def evaluate_manifest_expectations(
+    prior_pass,
+    expected_status,
+    actual_status,
+    actual_valid=None,
+    expected_predicate=None,
+    fixed_predicate=None,
+    postflight_failures=None,
+):
+    """Pure conjunction for the admitted manifest comparator (DEC-2ebfcc).
+
+    Reaching this function does not establish admission or scientific validity.
+    The caller must also retain every applicable integrity/profile/timing check.
+    Missing validity is intentionally treated like any other non-boolean value.
+    """
+    terminal_failures = {
+        "completed_invalid", "failed_infrastructure", "failed_implementation",
+        "resource_exhaustion", "cancelled_by_budget",
+    }
+    expected_known = type(expected_status) is str and (
+        expected_status == "completed_valid" or expected_status in terminal_failures)
+    expected_valid = (expected_status == "completed_valid") if expected_known else None
+    prior_ok = prior_pass is True
+    status_ok = (expected_known and type(actual_status) is str
+                 and actual_status == expected_status)
+    validity_ok = expected_known and actual_valid is expected_valid
+    failures_typed = (type(postflight_failures) is list
+                      and all(type(item) is str and bool(item) for item in postflight_failures))
+    if expected_predicate is not None:
+        predicate_ok = (
+            type(expected_predicate) is str and bool(expected_predicate)
+            and failures_typed and expected_predicate in postflight_failures
+            and (fixed_predicate is None or (
+                type(fixed_predicate) is str and expected_predicate == fixed_predicate)))
+    elif expected_status == "completed_valid":
+        predicate_ok = failures_typed and postflight_failures == []
+    else:
+        # No-target terminal failures retain their prior classification and
+        # integrity rules; no target membership assertion is invented.
+        predicate_ok = expected_known
+    checks = {"prior_ok": prior_ok, "status_ok": status_ok,
+              "validity_ok": validity_ok, "predicate_ok": predicate_ok}
+    details = {
+        "prior_ok": "an earlier check did not pass exactly True",
+        "status_ok": "actual status is missing, malformed, unknown or differs from the frozen expected status",
+        "validity_ok": "actual validity is not the exact boolean required by the expected terminal status",
+        "predicate_ok": "target predicate/list/fixed mapping does not match, or positive postflight failures are not empty",
+    }
+    reasons = [{"check": name, "reason": details[name]}
+               for name, value in checks.items() if value is not True]
+    passed = all(value is True for value in checks.values())
+    return {"passed": passed, "acceptance_covered": passed,
+            "expected_valid": expected_valid, "checks": checks, "reasons": reasons}
+
+
 def admitted(case, module, record, blobs):
     """One exact parent-prepared case. Never synthesize missing authority."""
     p, name = module._p, case["case_id"]
@@ -378,16 +433,31 @@ def admitted(case, module, record, blobs):
         else:
             manifest_path = module.execute_locked(token)
             manifest = p.strict_json(Path(manifest_path).read_bytes())["run"]
+            prior_pass = result.get("outcome", "pass") == "pass"
+            status_matches = (type(manifest.get("status")) is str
+                              and manifest.get("status") == record["expected_status"])
             result.update(manifest=manifest, manifest_path=manifest_path,
-                          outcome="pass" if manifest["status"] == record["expected_status"] else "fail")
+                          outcome="pass" if prior_pass and status_matches else "fail")
+            if not prior_pass or not status_matches:
+                result.setdefault("failure_reasons", []).append({
+                    "check": "preliminary_status_and_prior",
+                    "reason": "prior failure or status mismatch retained before reading later comparison data"})
             raw = p.strict_json((Path(manifest_path).parent / "raw-result.json").read_bytes())
             result["raw_result"] = raw
             log = (Path(manifest_path).parent / "stdout.txt").read_text()
             result["child_entered"] = '"sentinel_entered": true' in log
-            target = record["expected_predicate"]
-            if target is not None:
-                fixed = named_predicate(name)
-                result["outcome"] = "pass" if target in raw["postflight_failures"] and not manifest["result"]["valid"] and (fixed is None or target == fixed) else "fail"
+            comparison = evaluate_manifest_expectations(
+                prior_pass=prior_pass,
+                expected_status=record["expected_status"],
+                actual_status=manifest.get("status"),
+                actual_valid=(manifest.get("result") or {}).get("valid"),
+                expected_predicate=record["expected_predicate"],
+                fixed_predicate=named_predicate(name),
+                postflight_failures=raw.get("postflight_failures"),
+            )
+            result["manifest_expectations"] = comparison
+            result.setdefault("failure_reasons", []).extend(comparison["reasons"])
+            result["outcome"] = "pass" if result["outcome"] == "pass" and comparison["passed"] is True else "fail"
             # The test independently recomputes every declared artifact hash and
             # exact expected profile membership. It does not rely on a producer
             # status string alone for a clean positive control.
@@ -429,9 +499,15 @@ def admitted(case, module, record, blobs):
                 stdout = output / "stdout.txt"
                 if stdout.is_file() and not stdout.is_symlink():
                     result["child_entered"] = '"sentinel_entered": true' in stdout.read_text(errors="replace")
+        prior_outcome_ok = result.get("outcome", "pass") == "pass"
+        exception_matches = (expected is not None and actual_predicate == expected
+                             and (fixed is None or fixed == expected))
         result.update(error={"type": type(exc).__name__, "message": str(exc), "predicate": exc.predicate},
                       actual_target_predicate=actual_predicate,
-                      outcome="pass" if expected is not None and actual_predicate == expected and (fixed is None or fixed == expected) else "fail")
+                      outcome="pass" if prior_outcome_ok and exception_matches else "fail")
+        if not prior_outcome_ok:
+            result.setdefault("failure_reasons", []).append({
+                "check": "prior_failure_preserved", "reason": "matching exception cannot promote an earlier failed comparison"})
         result["acceptance_covered"] = result["outcome"] == "pass"
     finally:
         result["after"] = [capture(path, blobs) for path in record["evidence_paths"]]
