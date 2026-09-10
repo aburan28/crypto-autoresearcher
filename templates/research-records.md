@@ -475,6 +475,9 @@ run:
   depends_on_runs: []
   artifacts: []
   failure_reason: null
+  # `expired` is forbidden. A watchdog or advisory estimate may checkpoint a
+  # run, but cannot retire an unfinished experiment; use failed/cancelled with
+  # an explicit receipt and preserve the unfinished scope.
 ```
 
 ## Correction

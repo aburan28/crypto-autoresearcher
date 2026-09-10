@@ -611,6 +611,13 @@ def check_run(path: str, ctx: Ctx, supersessions: dict[str, dict] | None = None)
     rec_id = body.get("id")
     if not rec_id or not RUN_ID.match(str(rec_id)):
         ctx.err(path, f"bad run id {rec_id!r}")
+    # Experiment/run lifetime is not a research conclusion.  A watchdog or
+    # estimate may checkpoint a live run, but it may never manufacture an
+    # `expired` terminal status (which would silently discard an unfinished
+    # experiment).  Use `failed` with an explicit infrastructure reason or
+    # `cancelled` under a Coordinator decision instead.
+    if str(body.get("status", "")).lower() in {"expired", "budget_expired", "time_expired"}:
+        ctx.err(path, "experiment runs may not expire; checkpoint or record an explicit failed/cancelled receipt", force=True)
     for field in RUN_REQUIRED_TOP:
         if body.get(field) in (None, ""):
             ctx.err(path, f"run missing required field '{field}'")
