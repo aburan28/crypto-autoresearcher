@@ -100,8 +100,7 @@ Research state becomes durable only when it is committed, pushed, and
 reviewable. Every generation step — a new goal, idea, hypothesis, experiment,
 evidence record, decision, or knowledge entry — carries two git duties that
 the Coordinator must ensure are completed (executed by the control plane /
-session that drives this role; see `.claude/skills/launch-research-harness`
-and `.claude/skills/coordinate-research-goal`):
+session that drives this role; see `plugins/crypto-autoresearcher-harness/skills/crypto-autoresearcher-harness/references/lifecycle.md`):
 
 1. **Merge `main` in before generating.** Before a new goal or batch is
    created, merge `origin/main` into the working branch — merge, never rebase

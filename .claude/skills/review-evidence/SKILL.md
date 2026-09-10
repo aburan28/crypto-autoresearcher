@@ -4,7 +4,7 @@ description: >-
   Coordinator review of a completed experiment: validate run records, write
   the evidence record, assign evidence strength, and record the official
   decision (replicate/expand/refine/support/weaken/reject_scoped/
-  inconclusive/pause). Use after /run-experiment completes.
+  inconclusive/pause). Use after /run completes.
 ---
 
 # Review evidence

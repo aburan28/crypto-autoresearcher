@@ -54,8 +54,8 @@ agents/validator.md                    Independent receipt and control validatio
 agents/red-team.md                     Interpretation and cost-model falsification
 .claude/agents/                        Operational subagent definitions (Claude Code)
 .claude/skills/                        Lifecycle skills: /propose-ideas, /design-experiment,
-                                       /run-experiment, /review-evidence, /research-status,
-                                       /curate-knowledge, /coordinate-research-goal
+                                       /run, /review-evidence, /research-status,
+                                       /curate-knowledge
 orchestration/roles.yaml               Role authority and tool surface, runtime-neutral
 orchestration/model-policies.yaml      What each role needs from a model (no vendors)
 orchestration/providers.yaml           Backends, wire protocols, and runtimes
@@ -188,17 +188,22 @@ name a winner when they overlap.
 
 ## Getting started
 
-When working in Claude Code, the lifecycle is driven by skills — see
-[`CLAUDE.md`](CLAUDE.md):
+Use **`$run`** in Codex/OpenCode or **`/run`** in Claude Code to execute existing
+experiments. Name an experiment or goal to restrict the scope:
 
 ```text
-/research-status → /propose-ideas → /design-experiment → /run-experiment → /review-evidence
+$run
+$run EXP-...
+$run GOAL-...
 ```
 
-The skills are one runtime's front end. Under another runtime, the same
-lifecycle is driven from the role contracts in `agents/` and the dispatch
-queue in `tools/research_dispatch.py`. To execute a task without any agent CLI
-at all:
+`run` launches existing programs, shows progress, preserves outputs, and reports
+results. It does not start a protocol/schema-validation phase, write protocols,
+audit the portfolio, or require a PR/review cycle. The launcher's built-in checks
+remain active. Research design, maintenance, and scientific review are separate
+tasks; see [`CLAUDE.md`](CLAUDE.md) for their role bindings.
+
+To execute a prepared task without an agent CLI:
 
 ```sh
 python3 -m orchestration.agent plan --task ledger/handoffs/TASK-....yaml
@@ -208,7 +213,7 @@ python3 -m orchestration.agent run  --task ... --backend zai --out <task-dir>/ag
 That runtime enforces the task's `write_scope` in the tools rather than asking
 the model to respect it, and needs `requirements-agent.txt`.
 
-Manual path:
+For explicitly requested experiment preparation and scientific review:
 
 1. Read [`AGENTS.md`](AGENTS.md).
 2. Review the role contract for the agent being instantiated.
@@ -222,14 +227,14 @@ Manual path:
 The repository ships a thin, portable
 [`crypto-autoresearcher-harness`](plugins/crypto-autoresearcher-harness/README.md)
 plugin package for Codex, Claude Code, and OpenCode. It supplies a shared
-front-door skill and a read-only preflight; it does not duplicate the role
+`run` skill and an optional read-only maintenance preflight; it does not duplicate the role
 contracts or create an alternate dispatch path. The checked-in bindings remain
 the authority: `.claude/agents/`, `.opencode/agent/`, and `.codex/agents/` are
 all generated from `orchestration/roles.yaml`.
 
 Install instructions and host-specific discovery details are in the plugin
-README. Every invocation begins with a no-cost readiness check before an agent
-can dispatch a task or call a backend.
+README. Preflight is available for maintenance; it is not a prerequisite added
+by the `run` skill.
 
 For multiple local agents, the same package also ships opt-in snippets for a
 single loopback-only peer-check-in MCP daemon. It provides advisory presence
