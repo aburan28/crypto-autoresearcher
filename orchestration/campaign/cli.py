@@ -50,10 +50,13 @@ def cmd_workspace(args: argparse.Namespace) -> int:
     if not repo.is_dir():
         print(f"campaign workspace error: repository root does not exist: {repo}", file=sys.stderr)
         return 2
+    from .session_tools import repository_fingerprint
     _emit(
         {
             "schema": "crypto.autoresearch.peer_workspace.v1",
             "workspace_id": workspace_fingerprint(repo),
+            "repository_id": repository_fingerprint(repo),
+            "checkout_root": str(repo),
             "source_commit": current_source_commit(repo),
             "advisory_only": True,
         }
