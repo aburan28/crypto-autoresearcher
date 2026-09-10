@@ -82,8 +82,26 @@ EULER_GAMMA = 0.5772156649015328606
 RAW_PATH = os.environ.get(
     "WESOVOW_RAW_PATH",
     os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                 "runs", "RUN-WESOVOW-201692-001", "raw-result.json"),
+                 "runs", "RUN-WESOVOW-201692-002", "raw-result.json"),
 )
+
+# CF-10: committed run directories are immutable receipts. No invocation may
+# write into one, with or without WESOVOW_RAW_PATH set. The default path above
+# is a NEW run directory, not a committed one; the guard enforces the property
+# for the WESOVOW_RAW_PATH-set case as well.
+_COMMITTED_RUN_DIRS = (
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "runs", "RUN-WESOVOW-001"),
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "runs", "RUN-WESOVOW-201692-001"),
+)
+
+
+def _assert_not_in_committed_run_dir(path):
+    """Raise if the resolved write path is inside a committed run directory."""
+    ap = os.path.abspath(path)
+    for d in _COMMITTED_RUN_DIRS:
+        if ap == d or ap.startswith(d + os.sep):
+            raise RuntimeError(
+                f"refusing to write {ap}: inside committed run directory {d} (CF-10)")
 
 _GL_X, _GL_W = leggauss(GL_NODES)
 _GL_S = 0.5 * (_GL_X + 1.0)     # nodes mapped to [0,1]
@@ -299,10 +317,17 @@ def main():
             "optimal": opt,
             "B_opt_decimal_approx": 2.0 ** opt["log2B"],
             "asymptotic_B_choice": {"log2B": log2B_asym, **(asym or {})},
-            "paper_pair": {"log2time": pt, "log2memory": pm},
+            "paper_pair": {
+                "log2time": pt,
+                "log2memory": pm,
+                "relation": "lower_bound",
+                "unit": "log2 (time: F_{p^2}-ops; memory: table entries)",
+                "source_locator": "inputs/P13-WESOLOWSKI-2026/paper_fulltext.md:234-238",
+            },
             "deviation_bits": {"time": float(dev_t), "memory": float(dev_m),
                                "within_tolerance_0.75bit":
                                    bool(abs(dev_t) <= SANITY_TOLERANCE_BITS and abs(dev_m) <= SANITY_TOLERANCE_BITS)},
+            "anchor_reachability": "reachable" if pt >= opt["log2T"] else "off_curve",
             "baseline_log2TDG": log2TDG,
             "van_oorschot_wiener": vow,
             "crossover": crossovers,
@@ -320,6 +345,7 @@ def main():
 
     results["wall_clock_seconds_script"] = time.time() - t0
 
+    _assert_not_in_committed_run_dir(RAW_PATH)
     os.makedirs(os.path.dirname(RAW_PATH), exist_ok=True)
     with open(RAW_PATH, "w") as f:
         json.dump(results, f, indent=2, sort_keys=False)
