@@ -1,0 +1,683 @@
+# Red-team report — EXP-ECDLP-e962f6 Stages 1-2, joints J3 and J4.
+# Role: red-team (review-adversarial, independent session).
+# Scope: J3 (permutation nearby-object control) and J4 (proves-too-much
+# non-uniform control) ONLY. No whole-claim verdict; no hypothesis status
+# change (H-ECDLP-f2bdd0 stays `specified`); the ceiling claim is not
+# citable until the Stage 0 audit completes.
+# Provenance: every citation carries its provenance (recalled | retrieved |
+# kb | internal). recalled entries stay pointers.
+
+red_team_report:
+  task_id: TASK-20260910-2c0931
+  experiment_id: EXP-ECDLP-e962f6
+  hypothesis_id: H-ECDLP-f2bdd0
+  hypothesis_status: specified   # read-only; NOT changed by this report
+  review_plan: coordination/reviews/e962f6-stages12-20260910/review-plan.yaml
+  joints_reviewed: [J3, J4]
+  joints_not_reviewed: [J1, J2, J5, J6, J7, J8]   # assigned to TASK-20260910-6d6bd3
+  date: '2026-09-10'
+  claim_tier: toy
+  scope_note: >
+    This report attacks the INTERPRETATION of the Stages 1-2 run package on
+    joints J3 and J4 only. It asserts no results, moves no status, and makes
+    no whole-claim verdict. The ceiling claim is not citable until the Stage 0
+    validator audit completes (a separate reserved task). This is a
+    toy-tier verification-protocol review; no B71 batch language and no
+    breakthrough-tier language is used.
+
+  # ---------------------------------------------------------------------------
+  # BLINDNESS ATTESTATION
+  # ---------------------------------------------------------------------------
+  blindness:
+    declaration: >
+      Per the frozen review plan, red-team TASK-20260910-2c0931 must not read
+      the validator report of TASK-20260910-6d6bd3 or any sibling reviewer
+      output during this round.
+    attested: true
+    statement: >
+      I did NOT open, read, or reference
+      experiments/EXP-ECDLP-e962f6/tasks/TASK-20260910-6d6bd3/ or any file
+      under it (including work/j1_quadrature.py, work/j1_quadrature_independent.json,
+      work/j2_anchor.py, work/verify_receipt_hashes.py), nor
+      ledger/handoffs/TASK-20260910-6d6bd3.yaml, nor any sibling reviewer
+      output. I listed the directory (to confirm its existence and to name the
+      files I avoided) but opened none of its contents. My analysis rests only
+      on the sources listed in sources_read below.
+    avoided_paths:
+      - experiments/EXP-ECDLP-e962f6/tasks/TASK-20260910-6d6bd3/   # validator work (blind)
+      - ledger/handoffs/TASK-20260910-6d6bd3.yaml                  # validator handoff (blind)
+
+  # ---------------------------------------------------------------------------
+  # J3 — PERMUTATION NEARBY-OBJECT CONTROL (RUN-ECDLP-e962f6-003/004/005)
+  # ---------------------------------------------------------------------------
+  J3:
+    joint: >
+      The permutation nearby-object control discriminates — the top-T share is
+      below the FROZEN threshold 3TW/N = 0.046875 at every seed (control passes
+      as frozen, C2) and does not reproduce C_max(1/4) (not void) — AND the
+      arithmetically-correct threshold 3TW/N = 0.01171875 is reported as
+      secondary, with the top-T share (0.0248-0.0252) ABOVE it at every seed
+      (F3 would trigger under the corrected threshold).
+    verdict: >
+      The interpretation "the control passes as frozen (C2)" is NOT a
+      meaningful pass. The frozen threshold 0.046875 is arithmetically wrong by
+      a factor of 4 (the correct 3TW/N is 0.01171875), so "passing" it is weak
+      evidence of collapse. Under the arithmetically-correct threshold the
+      control does NOT pass: the measured top-T share (0.0248-0.0252) is ABOVE
+      3TW/N = 0.01171875 at every seed (2.11x-2.15x), so the F3 falsification
+      condition ("top-T share not below 3TW/N at a majority of seeds") IS
+      triggered under the corrected arithmetic. The collapse is real in the
+      qualitative sense (the top-T share 0.025 is 15.7x below C_max(1/4) =
+      0.3889, so the tree-driven ceiling does drop dramatically on the
+      permutation), but its magnitude is NOT "of order TW/N" as the derivation
+      states: it is (TW/N) * (ln(N/(WT)) + 1), a logarithmic factor the
+      derivation does not disclose. The derivation's own stated formula
+      "T W (ln(N/W) + 1)" is also not borne out (it over-predicts the measured
+      top-T share by 67%). And the stated mechanism ("segment sizes are
+      Geometric(theta)") is rejected by the KS test at every seed. The
+      derivation has not correctly identified the load-bearing structure: its
+      quantitative collapse prediction and its stated segment mechanism are
+      both contradicted by the data.
+    evidence:
+      - id: J3-E1
+        claim: >
+          The contract's frozen threshold 3TW/N = 0.046875 is arithmetically
+          wrong by a factor of 4.
+        arithmetic: >
+          T = 64, W = 64, N = 2^20 = 1048576. T*W = 4096 = 2^12. T*W/N =
+          2^12/2^20 = 2^-8 = 0.00390625. Hence 3*T*W/N = 3*2^-8 =
+          0.01171875. The contract's definitions text reads "T W/N = 2^-6 =
+          0.015625, 3 T W/N = 0.046875"; 2^-6 = 0.015625 is 4x the correct
+          2^-8 = 0.00390625, and 0.046875 = 3*2^-6 is 4x the correct
+          0.01171875.
+        independent_check: >
+          Recomputed by hand and by an independent Python evaluation
+          (T*W/N = 0.00390625 = 2^-8; 3*T*W/N = 0.01171875; factor error =
+          0.046875/0.01171875 = 4.0). Confirmed.
+        provenance: internal
+        cites:
+          - experiments/EXP-ECDLP-e962f6/specification.yaml (definitions.T_W_over_N; controls C2; success_criterion S4; falsification_criterion F3)
+          - experiments/EXP-ECDLP-e962f6/tasks/TASK-20260909-2989a0/execution-report.md (section 7c.2)
+          - experiments/EXP-ECDLP-e962f6/source/run_permutation.py (FROZEN_3TW_OVER_N, CORRECT_3TW_OVER_N, protocol_deviations)
+      - id: J3-E2
+        claim: >
+          The measured top-T share is below the frozen threshold at every seed
+          but ABOVE the arithmetically-correct threshold at every seed.
+        data:
+          - {seed: 1, run: RUN-ECDLP-e962f6-003, top_T_share: 0.024770736694335938, below_frozen_0.046875: true, below_correct_0.01171875: false, ratio_to_TW_over_N: 6.3413, ratio_to_3TW_over_N_correct: 2.1138}
+          - {seed: 2, run: RUN-ECDLP-e962f6-004, top_T_share: 0.025231361389160156, below_frozen_0.046875: true, below_correct_0.01171875: false, ratio_to_TW_over_N: 6.4592, ratio_to_3TW_over_N_correct: 2.1531}
+          - {seed: 3, run: RUN-ECDLP-e962f6-005, top_T_share: 0.025061607360839844, below_frozen_0.046875: true, below_correct_0.01171875: false, ratio_to_TW_over_N: 6.4158, ratio_to_3TW_over_N_correct: 2.1386}
+        independent_check: >
+          Ratios recomputed independently: top_T_share / (T*W/N) = 6.34-6.46
+          (about 6.4x); top_T_share / (3*T*W/N correct) = 2.11-2.15 (about
+          2.1x). Confirmed. The top-T share is ~6.4x the correct TW/N scale
+          and ~2.1x the correct 3TW/N threshold, at every seed.
+        provenance: internal
+        cites:
+          - experiments/EXP-ECDLP-e962f6/runs/RUN-ECDLP-e962f6-003/raw-result.json
+          - experiments/EXP-ECDLP-e962f6/runs/RUN-ECDLP-e962f6-004/raw-result.json
+          - experiments/EXP-ECDLP-e962f6/runs/RUN-ECDLP-e962f6-005/raw-result.json
+      - id: J3-E3
+        claim: >
+          The derivation's stated collapse formula "T W (ln(N/W) + 1)" is not
+          borne out by the data; it over-predicts the measured top-T share by
+          67%. The correct asymptotic for the top-T sum of the cycle segments
+          is (TW/N) * (ln(N/(WT)) + 1), which matches the measurement to
+          within 2%.
+        arithmetic: >
+          The permutation's "basins" are cycle segments: one per marked point,
+          so there are n = N/W = 16384 segments, each approximately
+          Geometric(theta) (mean W, tail e^{-x/W}). The k-th largest of n such
+          segments is ~ W ln(n/k); the top-T sum is ~ W * sum_{k=1..T} ln(n/k)
+          = W*T*(ln(n/T) + 1) (Stirling). With n = N/W this is
+          (TW/N)*(ln(N/(WT)) + 1). At N = 2^20, T = W = 64: ln(N/(WT)) =
+          ln(256) = 5.545, so the correct prediction is 0.00390625 * 6.545 =
+          0.02557. The measured mean top-T share is 0.02502; the ratio
+          measured/correct = 0.979 (within 2.1%). The derivation's stated
+          formula uses ln(N/W) = ln(16384) = 9.704 instead of ln(N/(WT)) =
+          ln(256) = 5.545 (an extra ln T = ln 64 = 4.16), giving
+          0.00390625 * 10.704 = 0.04181; the ratio measured/derivation =
+          0.598, i.e. the derivation over-predicts by 67%.
+        independent_check: >
+          The order-statistic approximation (k-th largest of n Geometric(theta)
+          is ~ W ln(n/k)) is a standard result for exponential order
+          statistics (the Geometric is the discrete analog). Recomputed
+          independently: correct asymptotic 0.02557, derivation formula
+          0.04181, measured mean 0.02502. Confirmed. The largest-segment
+          check agrees: W ln(n) = 64 * ln(16384) = 621, and the measured
+          largest segments are 600, 626, 650 (consistent).
+        provenance: internal (the order-statistic approximation is a recalled
+          standard result; it is used here only to assess the derivation's
+          stated formula against the data, not as support for the ceiling)
+        cites:
+          - experiments/EXP-ECDLP-e962f6/derivation/derivation-lemmas-1-6.md (Permutation collapse argument, lines 482-498)
+          - experiments/EXP-ECDLP-e962f6/runs/RUN-ECDLP-e962f6-003/raw-result.json (largest_segment 600)
+          - experiments/EXP-ECDLP-e962f6/runs/RUN-ECDLP-e962f6-004/raw-result.json (largest_segment 626)
+          - experiments/EXP-ECDLP-e962f6/runs/RUN-ECDLP-e962f6-005/raw-result.json (largest_segment 650)
+      - id: J3-E4
+        claim: >
+          The derivation's "O(TW/N)" statement is missing a logarithmic
+          factor: the top-T share is (TW/N) * (ln(N/(WT)) + 1), and the factor
+          ln(N/(WT)) + 1 grows (slowly) with N, so the correct order is
+          O((TW/N) ln N), not O(TW/N).
+        arithmetic: >
+          With T = W = N^{1/3}, ln(N/(WT)) = ln(N^{1/3}) = (1/3) ln N, so the
+          top-T share is (TW/N) * ((1/3) ln N + 1). The factor ((1/3) ln N + 1)
+          diverges as (1/3) ln N, so the ratio (top-T share)/(TW/N) is not a
+          constant; it grows as (1/3) ln N. Hence the top-T share is
+          O((TW/N) ln N), not O(TW/N). At the tested N = 2^20 the factor is
+          ln(256) + 1 = 6.545 (the measured ratio is 6.4).
+        independent_check: >
+          Recomputed: at N = 2^20, T = W = 64, the factor ln(N/(WT)) + 1 =
+          6.545. Confirmed. The "of order TW/N" statement is technically true
+          in the big-O sense at fixed N (6.5 is a constant), but it is
+          misleading because the factor is not a fixed constant — it grows as
+          (1/3) ln N — and the operationalized prediction in the contract
+          ("below 3TW/N") is a specific constant (3) that the measurement
+          (6.4x) violates under the correct arithmetic.
+        provenance: internal
+        cites:
+          - 'experiments/EXP-ECDLP-e962f6/derivation/derivation-lemmas-1-6.md (Permutation collapse argument: "of order T W (ln(N/W) + 1), i.e. O(T W/N)")'
+          - 'experiments/EXP-ECDLP-e962f6/specification.yaml (controls C2: "a top-T share of order T W/N"; falsification_criterion F3: "not below 3 T W/N")'
+      - id: J3-E5
+        claim: >
+          The stated mechanism ("the segment sizes are Geometric(theta)") is
+          rejected by the KS test at every seed; the segments are
+          non-geometric.
+        data:
+          - {seed: 1, run: RUN-ECDLP-e962f6-003, ks_statistic: 0.015625, ks_p_value: 0.0006183843218150728, reference: "one-based Geometric(theta), P(S=k)=(1-theta)^{k-1} theta, S>=1"}
+          - {seed: 2, run: RUN-ECDLP-e962f6-004, ks_statistic: 0.018140594845099126, ks_p_value: 4.357397305555501e-05, reference: "one-based Geometric(theta)"}
+          - {seed: 3, run: RUN-ECDLP-e962f6-005, ks_statistic: 0.016955286958092723, ks_p_value: 0.00016982219723063458, reference: "one-based Geometric(theta)"}
+        independent_check: >
+          The KS test rejects Geometric(theta) at alpha = 0.01 at every seed
+          (p < 0.01). The deviation is small in magnitude (KS statistic
+          0.0156-0.0181) but statistically significant because n = 16283-16529
+          is large. The segments are approximately (not exactly) Geometric:
+          they are a mixture over cycles (approximately Geometric for long
+          cycles, smaller for short cycles, with a sum constraint per cycle),
+          so the KS test correctly detects the small deviation. The
+          derivation's stated mechanism is therefore not exactly right.
+        provenance: internal
+        cites:
+          - 'experiments/EXP-ECDLP-e962f6/derivation/derivation-lemmas-1-6.md (Permutation collapse argument: "whose sizes are Geometric(theta)")'
+          - experiments/EXP-ECDLP-e962f6/runs/RUN-ECDLP-e962f6-003/raw-result.json (segment_size_ks_vs_geometric_theta)
+          - experiments/EXP-ECDLP-e962f6/runs/RUN-ECDLP-e962f6-004/raw-result.json
+          - experiments/EXP-ECDLP-e962f6/runs/RUN-ECDLP-e962f6-005/raw-result.json
+          - experiments/EXP-ECDLP-e962f6/source/instrument.py (geometric_cdf_segment, ks_against_cdf)
+    breaking_artifacts:
+      - >
+        Corrected arithmetic table: T*W/N = 2^-8 = 0.00390625 (NOT 2^-6 =
+        0.015625 as the contract text states); 3*T*W/N = 0.01171875 (NOT
+        0.046875). The frozen threshold is 4x too loose.
+      - >
+        Statement of which threshold the collapse argument actually predicts:
+        the derivation states "of order T W (ln(N/W) + 1), i.e. O(T W/N)". The
+        correct asymptotic is (TW/N)*(ln(N/(WT)) + 1) = 0.02557 at the tested
+        parameters, NOT the derivation's 0.04181 and NOT TW/N = 0.0039. The
+        measured top-T share (0.02502) matches the correct asymptotic (within
+        2%) and is 6.4x TW/N and 2.1x the correct 3TW/N.
+      - >
+        Assessment: the measured top-T share (0.025) is INCONSISTENT with
+        "below 3TW/N" under the arithmetically-correct threshold (it is 2.1x
+        above it at every seed, so F3 is triggered under the corrected
+        arithmetic), and the segments are NON-GEOMETRIC (KS rejects
+        Geometric(theta) at every seed). The interpretation "the control
+        passes as frozen" is therefore not a meaningful pass: it passes only
+        because the frozen threshold is arithmetically wrong.
+    falsification_routes:
+      - id: J3-F1
+        route: >
+          Re-run the permutation control with the arithmetically-correct
+          threshold 3TW/N = 0.01171875 as the primary (not secondary)
+          threshold, and record whether the top-T share is below it at a
+          majority of seeds. Under the current data it is NOT (2.1x above at
+          every seed), so F3 would trigger.
+        test_boundary: >
+          N = 2^20, a = 1/4, T = 64, W = 64, theta = 1/64; permutation seeds
+          s in {1, 2, 3} (the committed RUN-003/004/005); threshold
+          3*T*W/N = 0.01171875. No new compute required (the top-T shares are
+          already committed); this is a re-scoring of the committed data under
+          the corrected threshold, which requires a versioned
+          protocol_amendment (executed runs are never re-scored under the
+          frozen threshold).
+      - id: J3-F2
+        route: >
+          Replace the derivation's stated collapse formula "T W (ln(N/W) + 1)"
+          with the correct asymptotic "(TW/N) * (ln(N/(WT)) + 1)" (equivalently
+          W*T*(ln(N/(WT)) + 1)) and re-check the prediction against the
+          committed top-T shares. The corrected formula matches the data to
+          within 2%; the stated formula over-predicts by 67%.
+        test_boundary: >
+          The committed top-T shares of RUN-003/004/005 (0.02477, 0.02523,
+          0.02506) at N = 2^20, T = W = 64. The corrected formula predicts
+          0.02557; the stated formula predicts 0.04181. This is a
+          derivation-document correction (Stage 0 audit territory), not a new
+          run.
+      - id: J3-F3
+        route: >
+          Characterize the segment-size distribution explicitly as a mixture
+          over cycles (approximately Geometric(theta) for long cycles, smaller
+          for short cycles, with a per-cycle sum constraint) rather than a
+          single Geometric(theta), and re-run the KS test against the mixture
+          (or a size-biased cycle-length mixture) to confirm the segments are
+          consistent with the mixture and inconsistent with a single
+          Geometric(theta).
+        test_boundary: >
+          The committed segment-size multisets of RUN-003/004/005 (n = 16283-
+          16529 segments each). The KS test against a single Geometric(theta)
+          rejects at every seed (p < 0.01); the question is whether a mixture
+          model fits. This requires a new analysis (not a new run) of the
+          committed segment sizes.
+
+  # ---------------------------------------------------------------------------
+  # J4 — PROVES-TOO-MUCH NON-UNIFORM CONTROL (RUN-ECDLP-e962f6-006)
+  # ---------------------------------------------------------------------------
+  J4:
+    joint: >
+      The non-uniform {0, 2theta} control fires at least one loudness threshold
+      (so it is not void), and the firing is via the KS test (statistic 0.0156,
+      p = 6.5e-9), NOT via the mean walk length (60.24, 5.87% from W = 64,
+      below the 10% threshold) or the top-T share (0.3788, 2.61% from C_max,
+      below the 15% threshold).
+    verdict: >
+      The control is technically not void (it fires via the KS test), but the
+      interpretation "the machinery fails loudly on the non-uniform object as
+      required" is NOT supported on the quantity the ceiling claim is about
+      (the top-T share). The top-T share on the known-false object (0.3788) is
+      within 2.6% of C_max(1/4) = 0.3889 — the Borel/erfc machinery NEARLY
+      REPRODUCES the ceiling on the object where its Lemma 6 conclusion is
+      known false. The only firing channel is a small-magnitude KS deviation
+      (statistic 0.0156, only 1.92x the alpha = 0.01 critical value) on the
+      walk-length distribution, which is a Lemma 6 (online-cost) quantity, not
+      a Lemma 5 (ceiling) quantity. And the derivation's pre-registered
+      mixture-mean prediction (W/2 + 1 = 33) is NOT borne out: the measured
+      mean walk length is 60.24 (5.87% from W), not 33 (48% from W). The
+      derivation's stated REASON for the firing (the mixture mean is W/2 + 1)
+      is therefore wrong as stated: the random-function walk mixes between the
+      even/odd hash halves, so the effective mark rate stays ~theta and the
+      mean stays near W, not W/2 + 1. The control does not show the machinery
+      failing loudly on the top-T share, and the derivation's proves-too-much
+      argument (the mixture-mean mechanism) is wrong as stated.
+    evidence:
+      - id: J4-E1
+        claim: >
+          The control fires only via the KS test, at small magnitude; the mean
+          and the top-T share do NOT cross their loudness thresholds.
+        data:
+          mean_walk_length: 60.240275
+          W_model: 64.0
+          mean_deviation_from_W_fraction: 0.05874570312500005
+          loud_mean_threshold: 0.10
+          loud_mean: false
+          ks_primary_zero_based: {statistic: 0.015625, p_value: 6.512961743494091e-09}
+          ks_secondary_one_based: {statistic: 0.016225, p_value: 1.411185725981786e-09}
+          loud_ks_alpha: 0.01
+          loud_ks: true
+          top_T_share_8W: 0.3787708282470703
+          C_max_1_4: 0.3889120129663709
+          deviation_top_T_from_C_max: 0.02607578161947261
+          loud_top_T_threshold: 0.15
+          loud_top_T: false
+          control_fires_at_least_one: true
+        independent_check: >
+          Recomputed: mean deviation = |60.240275 - 64|/64 = 0.0587 (5.87%),
+          below the 10% threshold (does not fire). top-T deviation =
+          |0.37877 - 0.38891|/0.38891 = 0.0261 (2.61%), below the 15%
+          threshold (does not fire). KS primary p = 6.5e-9 < 0.01 (fires). The
+          KS statistic 0.015625 is only 1.92x the two-sided alpha = 0.01
+          critical value 1.6276/sqrt(40000) = 0.00814 — significant but small
+          in magnitude. Confirmed: the only firing channel is the KS test, at
+          small magnitude.
+        provenance: internal
+        cites:
+          - experiments/EXP-ECDLP-e962f6/runs/RUN-ECDLP-e962f6-006/raw-result.json (online_walks, ks_walk_lengths_vs_geometric_theta, top_T_share_vs_C_max, loudness_verdict)
+          - experiments/EXP-ECDLP-e962f6/runs/RUN-ECDLP-e962f6-006/summary.json
+      - id: J4-E2
+        claim: >
+          The top-T share on the known-false object (0.3788) is within 2.6% of
+          C_max(1/4) = 0.3889: the Borel/erfc machinery nearly reproduces the
+          ceiling on the object where its Lemma 6 conclusion is known false.
+        data:
+          top_T_share_8W: 0.3787708282470703
+          C_max_1_4: 0.3889120129663709
+          ratio_top_T_to_C_max: 0.9739242183805273
+          deviation_fraction: 0.02607578161947261
+        independent_check: >
+          Recomputed: 0.37877/0.38891 = 0.9739 (97.4% of C_max), deviation
+          2.61%. Confirmed. The ceiling C_max(a) depends only on a = T W^2/N
+          (here a = 1/4), not on the mark rule; as long as the average mark
+          density is theta, the top-T share is ~ C_max(a) regardless of the
+          non-uniformity. The ceiling is therefore NOT sensitive to the
+          non-uniformity of the mark rule — it is robust to it. This is the
+          sense in which the machinery "nearly reproduces the ceiling" on the
+          known-false object.
+        provenance: internal
+        cites:
+          - experiments/EXP-ECDLP-e962f6/runs/RUN-ECDLP-e962f6-006/raw-result.json (top_T_share_8W, top_T_share_vs_C_max)
+          - 'experiments/EXP-ECDLP-e962f6/derivation/derivation-lemmas-1-6.md (Lemma 5: C_max(a) depends only on a = T W^2/N)'
+      - id: J4-E3
+        claim: >
+          The derivation's pre-registered mixture-mean prediction (W/2 + 1 =
+          33) is NOT borne out: the measured mean walk length is 60.24 (5.87%
+          from W), not 33 (48% from W). The derivation's stated reason for the
+          firing (the mixture mean is W/2 + 1) is wrong as stated.
+        data:
+          predicted_mixture_mean: 33.0   # W/2 + 1 = 64/2 + 1
+          measured_mean_walk_length: 60.240275
+          W_model: 64.0
+          measured_deviation_from_W: 0.05874570312500005
+          predicted_deviation_from_W: 0.484375   # |33 - 64|/64
+          ratio_measured_to_predicted: 1.8254628787878786
+        independent_check: >
+          Recomputed: W/2 + 1 = 33; |33 - 64|/64 = 0.484 (48% from W).
+          Measured mean 60.24; |60.24 - 64|/64 = 0.0587 (5.87% from W).
+          measured/predicted = 60.24/33 = 1.825. Confirmed: the prediction is
+          off by a factor of 1.8. The reason: the derivation's mixture argument
+          assumes the walk stays in one hash half (fast component: marked half,
+          local rate 2theta, mean W/2; slow component: unmarked half, hitting
+          time + Geometric(2theta)), giving a mixture mean of ~W/2 + 1. But in
+          a random function the walk MIXES between the even and odd hash halves
+          at each step (the hash sequence is a Markov chain that mixes in one
+          step, since f(x) is uniform over [N] and hence h(f(x)) is uniform
+          over {even, odd}). The effective mark rate is therefore the average
+          density (1/2)(2theta) + (1/2)(0) = theta, and the mean walk length
+          is ~ 1/theta = W = 64, not W/2 + 1 = 33. The measured mean (60.24)
+          is consistent with the effective rate theta, not with the derivation's
+          no-mixing mixture.
+        provenance: internal (the Markov-mixing argument is a recalled standard
+          result about random functions; it is used here only to assess the
+          derivation's stated mixture-mean prediction against the data, not as
+          support for the ceiling)
+        cites:
+          - 'experiments/EXP-ECDLP-e962f6/derivation/derivation-lemmas-1-6.md (Proves-too-much argument, lines 502-518: "mixture mean of about W/2 + 1, not W")'
+          - 'experiments/EXP-ECDLP-e962f6/specification.yaml (preregistered_prediction.formula: "NON-UNIFORM: mean walk length about W/2 + 1 (not W)")'
+          - experiments/EXP-ECDLP-e962f6/runs/RUN-ECDLP-e962f6-006/raw-result.json (online_walks.mean_walk_length)
+          - 'experiments/EXP-ECDLP-e962f6/source/instrument.py (is_dp_nonuniform_fn: the even/odd hash split)'
+    breaking_artifacts:
+      - >
+        Statement that the top-T share on the non-uniform object (0.3788) is
+        within 2.6% of C_max(1/4) (0.3889) — the machinery nearly reproduces
+        the ceiling on the known-false object. The ceiling C_max(a) depends
+        only on a = T W^2/N, not on the mark rule, so it is robust to the
+        non-uniformity (as long as the average density is theta).
+      - >
+        Statement that the only firing channel is a small-magnitude KS
+        deviation (statistic 0.0156, 1.92x the alpha = 0.01 critical value) on
+        the walk-length distribution — a Lemma 6 (online-cost) quantity, not a
+        Lemma 5 (ceiling) quantity. The control does NOT show the machinery
+        failing loudly on the top-T share (the quantity the ceiling claim is
+        about).
+      - >
+        Statement that the mixture-mean prediction (33) vs measured (60.24)
+        discrepancy shows the derivation's proves-too-much mechanism is wrong
+        as stated: the walk mixes between the even/odd hash halves, so the
+        effective mark rate stays ~theta and the mean stays near W, not W/2 + 1.
+    falsification_routes:
+      - id: J4-F1
+        route: >
+          Re-score the proves-too-much control on the top-T share (the
+          ceiling quantity) rather than the walk-length distribution: the
+          top-T share on the non-uniform object (0.3788) is within 2.6% of
+          C_max(1/4) (0.3889), so the ceiling is NOT falsified by the
+          non-uniform object. The control's discrimination, if any, is on the
+          walk-length distribution (Lemma 6), not on the ceiling (Lemma 5).
+          Record this scope explicitly: the proves-too-much control tests
+          Lemma 6 (the online-cost / geometric-walk claim), not Lemma 5 (the
+          ceiling).
+        test_boundary: >
+          The committed top_T_share_8W of RUN-006 (0.37877) beside C_max(1/4)
+          = 0.38891, at N = 2^20, a = 1/4, T = 64, W = 64. No new compute
+          required; this is a re-scoping of the committed data.
+      - id: J4-F2
+        route: >
+          Correct the derivation's proves-too-much argument: replace the
+          no-mixing mixture-mean prediction (W/2 + 1 = 33) with the
+          mixing-correct prediction (effective mark rate theta, mean ~ W =
+          64), and re-state the known-false conclusion as "the walk-length
+          distribution is not Geometric(theta)" (which the KS test detects at
+          small magnitude) rather than "the mean walk length is W/2 + 1"
+          (which is not borne out).
+        test_boundary: >
+          The committed mean_walk_length of RUN-006 (60.24) and the KS
+          statistic (0.0156, p = 6.5e-9) at N = 2^20, a = 1/4, T = 64, W = 64.
+          This is a derivation-document correction (Stage 0 audit territory),
+          not a new run.
+      - id: J4-F3
+        route: >
+          If the Coordinator requires the proves-too-much control to fail
+          LOUDLY on the ceiling quantity (the top-T share), the current
+          non-uniform {0, 2theta} object is insufficient (it reproduces the
+          ceiling within 2.6%). Route to the Coordinator for a stronger object
+          under a versioned amendment — e.g. a mark rule that changes the
+          average density or the basin-size tail (not just the within-half
+          density) so that the top-T share deviates from C_max(a) by more than
+          15%.
+        test_boundary: >
+          A new non-uniform object (to be designed under a versioned
+          protocol_amendment) at N = 2^20, a = 1/4, T = 64, W = 64, with the
+          loudness threshold top-T deviation from C_max(1/4) > 15%. This
+          requires a new run (within the contract's maximum_runs budget if a
+          spare slot remains, or under an amendment).
+
+  # ---------------------------------------------------------------------------
+  # FALSIFICATION ROUTES FOR THE CEILING CLAIM (cross-joint)
+  # ---------------------------------------------------------------------------
+  ceiling_claim_falsification_routes:
+    note: >
+      The ceiling claim (C_max(a) as the standing model for the RQ-ECDLP-78dbc5
+      lane) is not citable until the Stage 0 audit completes. These routes are
+      falsification paths for the ceiling claim, each with a named test
+      boundary. They are scoped to the interpretation attacks on J3 and J4 and
+      do not assert that the ceiling is false.
+    routes:
+      - id: FR-1
+        claim_attacked: >
+          The permutation collapse prediction (the ceiling collapses to
+          "order TW/N" on the permutation, with the top-T share below 3TW/N).
+        route: >
+          The collapse prediction is not borne out under the
+          arithmetically-correct threshold: the top-T share (0.025) is 6.4x
+          TW/N and 2.1x the correct 3TW/N (0.0117) at every seed. The correct
+          collapse magnitude is (TW/N) * (ln(N/(WT)) + 1), not TW/N. If the
+          ceiling's error term is stated as O(theta) = O(N^{-1/3}) without the
+          logarithmic factor, the permutation control shows the constant is
+          not bounded by 3 (it is ~6.5 at N = 2^20 and grows as (1/3) ln N).
+        test_boundary: >
+          The committed top-T shares of RUN-003/004/005 at N = 2^20, a = 1/4,
+          T = W = 64, beside the corrected threshold 3TW/N = 0.01171875 and
+          the corrected asymptotic (TW/N)*(ln(N/(WT)) + 1) = 0.02557.
+      - id: FR-2
+        claim_attacked: >
+          The proves-too-much control's role in validating the ceiling (the
+          machinery must fail loudly on the known-false object).
+        route: >
+          The control does NOT fail loudly on the ceiling quantity (the top-T
+          share): the top-T share on the non-uniform object (0.3788) is within
+          2.6% of C_max(1/4) (0.3889). The ceiling is robust to the
+          non-uniformity of the mark rule (it depends only on a = T W^2/N, not
+          on the rule). The only firing channel is a small-magnitude KS
+          deviation on the walk-length distribution (a Lemma 6 quantity). So
+          the proves-too-much control does not validate the ceiling; it
+          validates (weakly) the Lemma 6 geometric-walk claim. If the ceiling
+          is to be validated by a proves-too-much control, the control object
+          must be one that changes the ceiling quantity (the top-T share), not
+          just the walk-length distribution.
+        test_boundary: >
+          The committed top_T_share_8W of RUN-006 (0.37877) beside C_max(1/4)
+          = 0.38891, and the KS statistic (0.0156, p = 6.5e-9) on the
+          walk-length distribution, at N = 2^20, a = 1/4, T = 64, W = 64.
+      - id: FR-3
+        claim_attacked: >
+          The derivation's identification of the load-bearing structure (the
+          tree branching) via the permutation control.
+        route: >
+          The permutation control is supposed to show that the tree branching
+          is load-bearing (remove the trees, and the ceiling collapses). The
+          collapse is real (0.025 << 0.389), but the derivation's quantitative
+          prediction of the collapse (the top-T share of order TW/N, below
+          3TW/N) is not borne out (the top-T share is 6.4x TW/N, above the
+          correct 3TW/N), and the derivation's stated mechanism (Geometric
+          segments) is rejected by the KS test. So the derivation has not
+          correctly identified the load-bearing structure: it predicts the
+          wrong collapse magnitude and the wrong segment mechanism. The
+          correct collapse magnitude is (TW/N) * (ln(N/(WT)) + 1), and the
+          correct segment mechanism is a mixture over cycles, not a single
+          Geometric(theta).
+        test_boundary: >
+          The committed top-T shares and segment-size KS statistics of
+          RUN-003/004/005 at N = 2^20, a = 1/4, T = W = 64, beside the
+          derivation's stated collapse formula and segment mechanism.
+
+  # ---------------------------------------------------------------------------
+  # SOURCES READ (attestation)
+  # ---------------------------------------------------------------------------
+  sources_read:
+    - path: ledger/handoffs/TASK-20260910-2c0931.yaml
+      role: my full contract (governs over the brief)
+      provenance: internal
+    - path: coordination/reviews/e962f6-stages12-20260910/review-plan.yaml
+      role: frozen review plan (joints J3/J4 are mine; blindness declaration)
+      provenance: internal
+    - path: experiments/EXP-ECDLP-e962f6/specification.yaml
+      role: frozen contract v1 (definitions, controls C2/C4, success/falsification criteria S4/F3/F5, preregistered prediction)
+      provenance: internal
+    - path: experiments/EXP-ECDLP-e962f6/tasks/TASK-20260909-2989a0/execution-report.md
+      role: Stages 1-2 execution report (the claim under review; sections 4, 5, 7c, 10)
+      provenance: internal
+    - path: experiments/EXP-ECDLP-e962f6/derivation/derivation-lemmas-1-6.md
+      role: derivation document (Permutation collapse argument lines 482-498; Proves-too-much argument lines 502-518; Lemma 5; Lemma 6)
+      provenance: internal
+    - path: experiments/EXP-ECDLP-e962f6/runs/RUN-ECDLP-e962f6-003/raw-result.json
+      role: permutation seed 1 (top-T share, KS statistic, comparisons)
+      provenance: internal
+    - path: experiments/EXP-ECDLP-e962f6/runs/RUN-ECDLP-e962f6-003/summary.json
+      role: permutation seed 1 summary
+      provenance: internal
+    - path: experiments/EXP-ECDLP-e962f6/runs/RUN-ECDLP-e962f6-004/raw-result.json
+      role: permutation seed 2
+      provenance: internal
+    - path: experiments/EXP-ECDLP-e962f6/runs/RUN-ECDLP-e962f6-004/summary.json
+      role: permutation seed 2 summary
+      provenance: internal
+    - path: experiments/EXP-ECDLP-e962f6/runs/RUN-ECDLP-e962f6-005/raw-result.json
+      role: permutation seed 3
+      provenance: internal
+    - path: experiments/EXP-ECDLP-e962f6/runs/RUN-ECDLP-e962f6-005/summary.json
+      role: permutation seed 3 summary
+      provenance: internal
+    - path: experiments/EXP-ECDLP-e962f6/runs/RUN-ECDLP-e962f6-006/raw-result.json
+      role: non-uniform proves-too-much (mean walk length, KS statistic, top-T share, loudness verdict)
+      provenance: internal
+    - path: experiments/EXP-ECDLP-e962f6/runs/RUN-ECDLP-e962f6-006/summary.json
+      role: non-uniform summary
+      provenance: internal
+    - path: experiments/EXP-ECDLP-e962f6/source/run_permutation.py
+      role: permutation control implementation (FROZEN_3TW_OVER_N, CORRECT_3TW_OVER_N, segment-size KS, protocol_deviations)
+      provenance: internal
+    - path: experiments/EXP-ECDLP-e962f6/source/run_nonuniform.py
+      role: non-uniform control implementation (loudness thresholds, KS reference conventions)
+      provenance: internal
+    - path: experiments/EXP-ECDLP-e962f6/source/instrument.py
+      role: shared core (cell_params, geometric CDFs, ks_against_cdf, is_dp_nonuniform_fn)
+      provenance: internal
+    - path: ledger/hypotheses/H-ECDLP-f2bdd0.yaml
+      role: hypothesis under test (read-only; status `specified`; predictions and falsification_conditions)
+      provenance: internal
+    - path: experiments/EXP-ECDLP-e962f6/tasks/TASK-20260910-6d6bd3/
+      role: NOT READ (blindness; directory listed only to confirm existence and name the avoided files)
+      provenance: internal
+    - path: ledger/handoffs/TASK-20260910-6d6bd3.yaml
+      role: NOT READ (blindness)
+      provenance: internal
+  sources_not_read:
+    - path: experiments/EXP-ECDLP-e962f6/runs/RUN-ECDLP-e962f6-001/
+      reason: quadrature (J1, validator's joint; not needed for J3/J4)
+    - path: experiments/EXP-ECDLP-e962f6/runs/RUN-ECDLP-e962f6-002/
+      reason: 2^26 anchor (J2, validator's joint; not needed for J3/J4)
+    - path: experiments/EXP-ECDLP-e962f6/runs/RUN-ECDLP-e962f6-007/
+      reason: defective Stage 2 record (J6, validator's joint)
+    - path: experiments/EXP-ECDLP-e962f6/runs/RUN-ECDLP-e962f6-008/
+      reason: Stage 2 re-read (J5, validator's joint)
+    - path: experiments/EXP-ECDLP-e962f6/source/run_quadrature.py
+      reason: quadrature (J1, validator's joint)
+    - path: experiments/EXP-ECDLP-e962f6/source/run_anchor.py
+      reason: anchor (J2, validator's joint)
+    - path: experiments/EXP-ECDLP-e962f6/source/run_reread.py
+      reason: Stage 2 re-read (J5, validator's joint)
+    - path: experiments/EXP-ECDLP-e962f6/source/runcommon.py
+      reason: run wrapper (J7, validator's joint; not load-bearing for J3/J4)
+
+  # ---------------------------------------------------------------------------
+  # OBSERVATIONS (recorded, not interpreted; routed to the Coordinator)
+  # ---------------------------------------------------------------------------
+  observations:
+    - id: OBS-1
+      observation: >
+        The KS test in instrument.py (ks_against_cdf) uses
+        scipy.stats.kstest (a non-stdlib import). The contract's J7 attack
+        plan names "stdlib-only" as a fidelity check, and J7 is the
+        validator's joint (not mine). I record this only because the KS
+        statistic is load-bearing for J3 and J4: the KS statistic and p-value
+        are deterministic functions of the samples and the reference CDF, so
+        the use of scipy does not change their values, but the "stdlib-only"
+        claim (if made) is not literally true. This is for the validator's J7,
+        not a J3/J4 verdict.
+      provenance: internal
+      cites:
+        - 'experiments/EXP-ECDLP-e962f6/source/instrument.py (line 309: from scipy import stats)'
+    - id: OBS-2
+      observation: >
+        The arithmetic error in the contract's T W/N definition (2^-6 instead
+        of 2^-8) is propagated consistently into the hypothesis
+        (H-ECDLP-f2bdd0 predictions: "Below 3 T W/N = 0.047 at every seed"),
+        the contract (definitions, controls C2, success S4, falsification F3),
+        and the derivation (the collapse argument). The error was made once
+        and propagated; it is not a local transcription slip in one document.
+        A versioned protocol_amendment correcting the threshold would be
+        required to re-score the committed runs under the correct threshold
+        (executed runs are never re-scored under the frozen threshold).
+      provenance: internal
+      cites:
+        - experiments/EXP-ECDLP-e962f6/specification.yaml (definitions.T_W_over_N)
+        - 'ledger/hypotheses/H-ECDLP-f2bdd0.yaml (predictions: "Below 3 T W/N = 0.047")'
+        - experiments/EXP-ECDLP-e962f6/derivation/derivation-lemmas-1-6.md (Permutation collapse argument)
+
+  # ---------------------------------------------------------------------------
+  # RESOURCE USAGE
+  # ---------------------------------------------------------------------------
+  resource_usage:
+    wall_clock_seconds: null   # self-reported estimate below
+    wall_clock_seconds_estimate: 900   # within the 1800s budget
+    memory_gb: 0.1   # read-and-analyze only; no new runs; well within the 2 GB budget
+    maximum_runs: 0   # no new runs, no re-simulation (per the contract)
+    runs_executed: 0
+    bedrock_used: false
+    note: >
+      Read and analyze only. No new runs, no re-simulation, no commit, no
+      push, no pull request. No Bedrock provider, backend, endpoint, or model
+      identifier used. All arithmetic verified by an independent Python
+      evaluation (no new experiment runs).
+
+  # ---------------------------------------------------------------------------
+  # SCOPE AND LIMITS
+  # ---------------------------------------------------------------------------
+  scope_and_limits:
+    - >
+      Verdicts are scoped to joints J3 and J4 only. No whole-claim verdict is
+      made. Joints J1, J2, J5, J6, J7, J8 belong to the sibling reviewer
+      (TASK-20260910-6d6bd3) and are not assessed here.
+    - >
+      The hypothesis H-ECDLP-f2bdd0 stays `specified`; this report changes no
+      status. The ceiling claim is not citable until the Stage 0 audit
+      completes.
+    - >
+      This is a toy-tier verification-protocol review. No B71 batch language
+      and no breakthrough-tier language is used. The tested N range is 2^20
+      (permutation and non-uniform controls); extrapolation to cryptographic N
+      is an assumption, not a result.
+    - >
+      The independent asymptotic derivations (the top-T sum of cycle segments;
+      the Markov-mixing argument for the non-uniform walk) are recalled
+      standard results used to assess the derivation's stated predictions
+      against the committed data. They are not citations in support of the
+      ceiling; they are attack tools for the interpretation.
