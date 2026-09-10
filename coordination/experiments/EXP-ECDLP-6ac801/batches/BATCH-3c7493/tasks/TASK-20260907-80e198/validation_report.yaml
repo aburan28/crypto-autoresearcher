@@ -1,0 +1,511 @@
+validation_report:
+  id: VAL-20260907-80e198
+  task_id: TASK-20260907-80e198
+  experiment_id: EXP-ECDLP-6ac801
+  batch_id: BATCH-3c7493
+  role: validator
+  run_ids:
+    - RUN-ECDLP-6ac801-001
+    - RUN-ECDLP-6ac801-002
+    - RUN-ECDLP-6ac801-003
+    - RUN-ECDLP-6ac801-004
+    - RUN-ECDLP-6ac801-005
+    - RUN-ECDLP-6ac801-006
+
+  snapshot_verified: >-
+    Validated the Coordinator-committed snapshot, not a working-tree-only
+    receipt. TASK-20260907-11d3d6's snapshot-receipt.json (path
+    coordination/experiments/EXP-ECDLP-6ac801/batches/BATCH-3c7493/archives/TASK-20260907-11d3d6/snapshot-receipt.json)
+    binds commit_sha 42aab5d4322d0ac51787f782e95f5547ab798c00 (confirmed
+    present in `git log`, message "research(GOAL-ECDLP-001): snapshot archive
+    BATCH-3c7493 -- EXP-ECDLP-6ac801 Stage B/C run package (TASK-20260907-11d3d6)",
+    with the commit_sha itself backfilled into
+    coordination/experiments/EXP-ECDLP-6ac801/batches/BATCH-3c7493/dispatch_queue.json
+    by the follow-up commit 84bcb8a3684b128999b9eac647b3d350fa5e7560, parent
+    4968ac497e9057b45b8fc5dbf2033d5fa3d23dc9). Content-first spot check: sha256
+    of execution_report.yaml, RUN-ECDLP-6ac801-001/manifest.yaml and
+    RUN-ECDLP-6ac801-001/raw-result.json on disk match the receipt's
+    path_sha256 exactly (ef7e0e47..., b6a5794e..., ed737c47... respectively).
+    The specification.yaml this run set executed against (commit
+    2552a5eaf0bf09436fe3222fee5fd480467fef0b per every manifest) is confirmed
+    unchanged at the branch's later automated-merge commit
+    612eb501c8f137991d3bb88342615714ce10f1e1 (empty diff on that one path,
+    per the executor's own dispatch_authorization_check).
+
+  # =========================================================================
+  # STAGE A: SEALED BLIND RE-DERIVATION (frozen, required, performed FIRST)
+  # =========================================================================
+  stage_a_blind_rederivation:
+    method_summary: >-
+      Independent from-scratch implementation, written ONLY from
+      specification.yaml's own `definitions` and `blind_rederivation.quantity`
+      text (a uniformly random function f: [0,N) -> [0,N), independent
+      Bernoulli(1/W) marking, per HEUR-BLT-1) plus the verbatim G3-style
+      feasibility-criterion text quoted from
+      experiments/EXP-ECDLP-612fb1/specification.v2.yaml `inputs.g3_gate_procedure`
+      (permitted reading, not in blind_from). Uses numpy's own RNG (NOT the
+      production's mix64/hash64), exact basin closure via vectorized
+      pointer-doubling (26 rounds, verified correct against an exhaustive
+      brute-force walk at N=1024 with 0 mismatches after fixing a resolution
+      bug found during that check -- see `defects_found_in_own_method`
+      below), and an independently-implemented Bernstein-Lange-style
+      oversampled pool (r*T=512 distinct DPs collected via uniformly random
+      restarts, weighted naturally toward larger basins) for STATIC(T)_r.
+      Code: blind_rederivation.py (this task's own directory).
+    artifact_path: coordination/experiments/EXP-ECDLP-6ac801/batches/BATCH-3c7493/tasks/TASK-20260907-80e198/sealed_blind_rederivation.json
+    artifact_sha256: 9127cabc803bb5fdbb90342bb7724810c6d5d5cfea0a83d6e4cfe40762fa90d3
+    sealed_at_utc: '2026-09-07T01:27:58Z'
+    computed_at_utc_inside_artifact: '2026-09-07T01:27:44Z'
+    seal_predates_blind_from_reads: >-
+      TRUE. The seal (hash computed, sealed_blind_rederivation.sha256 and
+      seal_timestamp.txt written) exists at 2026-09-07T01:27:58Z. No
+      blind_from path was opened before that instant (verified by this
+      task's own tool-call order: specification.yaml and
+      specification.v2.yaml's g3_gate_procedure text were read first; the
+      blind_rederivation.py script was authored and executed next, producing
+      and hashing sealed_blind_rederivation.json; ledger/evidence/EV-ECDLP-60e266.yaml
+      (not blind_from) was read only after the seal; every blind_from path
+      opened during this task -- listed below -- was opened strictly after
+      that seal).
+    parameters: {N: 16777216, T: 256, T_sel: 128, r: 2, a_grid: ["1/16", "1/8", "3/16", "1/4"], seeds: [1, 2, 3, 4, 5]}
+    sealed_results_per_a:
+      "1/16": {pass_count: 5, verdict: G3-FEASIBLE, margins: [0.019620, 0.012236, 0.014379, 0.006727, 0.009929]}
+      "1/8": {pass_count: 1, verdict: G3-INFEASIBLE, margins: [-0.000788, -0.001764, -0.022761, -0.003387, 0.001168]}
+      "3/16": {pass_count: 0, verdict: G3-INFEASIBLE, margins: [-0.022054, -0.024910, -0.022424, -0.023892, -0.021745]}
+      "1/4": {pass_count: 0, verdict: G3-INFEASIBLE, margins: [-0.051709, -0.036665, -0.029729, -0.046855, -0.052312]}
+    exceedance_control_c: "PASS -- exact top-T_sel share never exceeded 1.0 or the exact top-T share at any (a, seed) cell (control_c_ok true on every recorded cell)."
+    n_unresolved_nodes_diagnostic: >-
+      A small number of the N points per cell never reach a marked DP within
+      the pointer-doubling closure (a genuine random-mapping structural
+      feature: a rho-component whose cycle contains no DP). Observed range
+      1 to 24997 out of N=16777216 (<=0.15%), correctly EXCLUDED from every
+      basin-share numerator (see `defects_found_in_own_method`). This is
+      negligible at the precision these margins are read to and does not
+      affect any verdict.
+
+    defects_found_in_own_method: >-
+      (1) CORRECTNESS BUG, FOUND AND FIXED BEFORE THE N=2^24 RUN: an early
+      version checked resolution via `g[terminal] == terminal`, which cannot
+      distinguish a genuine DP self-loop from a coincidental FIXED POINT of f
+      that is NOT a DP (f(y)=y, D[y]=False also self-loops under g). Caught
+      by an exhaustive N=1024 brute-force cross-check (3/1024 mismatches,
+      all funnelling into one non-DP fixed point); fixed by requiring
+      resolved[x] = D[terminal[x]] explicitly; re-verified against the same
+      brute force with 0 mismatches. This fix was in place before the sealed
+      N=2^24 run; the sealed artifact is NOT affected by this bug.
+      (2) REPRODUCIBILITY DEFECT, FOUND AFTER SEALING, DISCLOSED HERE, NOT
+      corrected in the sealed artifact or in blind_rederivation.py (an
+      immutable record of what was actually run): the STATIC(T)_r
+      pool-sampling RNG offset was seeded in part with
+      `hash(a_label) % 1000`, where a_label is a Python str. CPython
+      randomizes str hashing per process by default (PYTHONHASHSEED), so
+      this offset differs on every fresh process invocation -- confirmed
+      directly (`hash('1/8') % 1000` returned 287, 396, 762 on three bare
+      `python3 -c` calls in this environment). The sealed JSON is a fixed,
+      legitimate, hash-stamped data point (one particular realization of a
+      correctly-specified random procedure), but blind_rederivation.py is
+      NOT bit-for-bit reproducible from a fresh re-run because of this. This
+      does not change any of the four cells' pass-count verdicts under
+      repeated independent checks (see `postseal_diagnostics` below, which
+      used a corrected, deterministic offset and reproduced the same
+      qualitative pattern), but it is a real quality defect in Stage A's own
+      code, disclosed rather than silently left for a reader to discover.
+
+    proves_too_much_check_a_quarter:
+      requirement: >-
+        The sealed blind result must independently score a=1/4 (T_sel=T/2,
+        r=2, N=2^24) G3-INFEASIBLE, matching EV-ECDLP-60e266's established
+        result (G3 FAIL 10/10 seeds), BEFORE any comparison to the
+        executor's output, or the reviewer's own method is broken.
+      sealed_result_a_quarter: {pass_count: 0, verdict: G3-INFEASIBLE, margins: [-0.051709, -0.036665, -0.029729, -0.046855, -0.052312]}
+      comparison_to_EV_ECDLP_60e266: >-
+        EV-ECDLP-60e266 obstruction.value (i), N=2^24, a=1/4, 5 seeds:
+        margins -0.0129, -0.0084, -0.0362, -0.0168, -0.0222 (5/5 negative;
+        top-T/2 share 0.255-0.287 mean 0.271; STATIC(T) exact coverage
+        0.264-0.304 mean 0.291). This task's sealed 5 fresh seeds: 5/5
+        negative, same sign in every seed, comparable order of magnitude
+        (mean -0.0435 vs EV's mean -0.0193; larger in magnitude but same
+        sign and same qualitative pattern, as expected from a genuinely
+        different implementation/RNG family, not seed-identical data).
+      result: >-
+        PASSED. The reviewer's own from-scratch method independently
+        confirms G3-INFEASIBLE at a=1/4, matching the established control.
+        This method is not broken in the specific failure mode the check is
+        designed to catch (a spurious FEASIBLE reading at a known-infeasible
+        cell). Readings at the three novel cells may proceed.
+
+  # =========================================================================
+  # PART 2: comparison against the executor's Stage B/C production output
+  # (opened only after the seal above)
+  # =========================================================================
+  production_reading_recomputation:
+    source: >-
+      coordination/experiments/EXP-ECDLP-6ac801/batches/BATCH-3c7493/tasks/TASK-20260907-0a8773/execution_report.yaml
+      and experiments/EXP-ECDLP-6ac801/runs/RUN-ECDLP-6ac801-{001..006}/
+      (raw-result.json, summary.json, manifest.yaml, command.txt), all opened
+      strictly after the Stage A seal above.
+    metric_recomputation: >-
+      Independently recomputed exact_top_T_sel_share, exact_top_T_share, and
+      static_T_r2_exact_coverage directly from raw-result.json's
+      `basin_sizes`/`basin_dps`/`static_T_r2_dps` arrays for all 5 Stage B
+      runs x 4 a-cells = 20 cells: every recomputed value matches the
+      run's own recorded value to floating-point precision (0 mismatches).
+      Manifest/raw/summary agreement: PASS on every run (command, git
+      commit, dirty-tree state, environment, seeds all present and
+      consistent; command.txt matches manifest.yaml's `command` field
+      exactly on RUN-001, spot-checked).
+    control_c_recheck: "PASS -- no exceedance (exact_top_T_sel_share > 1.0 or > exact_top_T_share) in any of the 20 raw cells across all 5 runs."
+    control_d_definitional_identity: >-
+      PASS. experiments/EXP-ECDLP-6ac801/source/stagec_analysis.py applies
+      exactly the criterion `pass_count = sum(margin >= 0); verdict =
+      "G3-FEASIBLE" if pass_count >= 4 else "G3-INFEASIBLE"` via one shared
+      code path with no per-a special-casing (read in full). This is
+      IDENTICAL IN SUBSTANCE to EXP-ECDLP-612fb1/specification.v2.yaml
+      `inputs.g3_gate_procedure`'s own verbatim text ("G3 PASSES iff exact
+      top-T_sel basin share >= STATIC(T)_r exact coverage ... in at least 4
+      of the 5 seeds", read via Grep of specification.v2.yaml, a permitted,
+      non-blind_from path) and to EXP-ECDLP-6ac801/specification.yaml's own
+      `definitions` restatement of the same rule. No wording or units drift
+      found in the criterion's APPLICATION. (A different, deeper
+      definitional gap was found in the underlying STATIC(T)_r construction
+      itself -- see `a_1_8_disagreement_root_cause` below -- which is
+      distinct from control (d) as literally scoped, since control (d) is
+      about the >=4/5 gate wording, not the pool-selection weight formula.)
+    production_verdicts:
+      "1/16": {pass_count: 5, verdict: G3-FEASIBLE, margins: [0.028603, 0.023279, 0.013719, 0.017438, 0.019787], role: novel}
+      "1/8": {pass_count: 5, verdict: G3-FEASIBLE, margins: [0.009002, 0.005128, 0.003084, 0.005594, 0.011855], role: novel}
+      "3/16": {pass_count: 0, verdict: G3-INFEASIBLE, margins: [-0.001886, -0.000055, -0.017737, -0.017837, -0.012460], role: novel}
+      "1/4": {pass_count: 0, verdict: G3-INFEASIBLE, margins: [-0.012918, -0.008373, -0.036196, -0.016829, -0.022216], role: replication_control}
+    a_quarter_control_vs_EV_ECDLP_60e266: >-
+      Production's fresh 5 seeds (-0.0129, -0.0084, -0.0362, -0.0168,
+      -0.0222) are IDENTICAL (not merely comparable) to EV-ECDLP-60e266's
+      quoted margins to the given precision. Confirmed REPRODUCED per the
+      executor's own report; independently re-verified here from raw data.
+
+  # =========================================================================
+  # CELL-BY-CELL COMPARISON: sealed blind (Stage A) vs production (Stage B/C)
+  # =========================================================================
+  cell_by_cell_comparison:
+    "a=1/16":
+      blind: {pass_count: 5, verdict: G3-FEASIBLE}
+      production: {pass_count: 5, verdict: G3-FEASIBLE}
+      sign_pattern: "same sign (all positive) in all 5 blind seeds and all 5 production seeds"
+      terminal_verdict: "S1 CONFIRMED FEASIBLE"
+    "a=1/8":
+      blind: {pass_count: 1, verdict: G3-INFEASIBLE}
+      production: {pass_count: 5, verdict: G3-FEASIBLE}
+      sign_pattern: "blind: 4 of 5 seeds negative (one +0.0012); production: 5 of 5 seeds positive. DISAGREES beyond seed-to-seed noise in resulting pass/fail classification."
+      terminal_verdict: >-
+        S3 DISAGREEMENT under the literal, frozen, sealed-vs-production
+        comparison (this cell satisfies the review_plan's own
+        breaking_artifact condition: "any a where the blind and production
+        per-a G3-style verdicts disagree"). A demonstrated, checkable root
+        cause was found -- see `a_1_8_disagreement_root_cause` below -- which
+        explains, but per this contract's own success_criterion does not
+        by itself relabel, this cell's literal S3 status ("never resolved
+        by picking one side without a stated, checkable reason" -- the
+        reason is now stated and checkable, but re-sealing under it is a
+        Coordinator/protocol-amendment decision, not this report's to make
+        unilaterally).
+    "a=3/16":
+      blind: {pass_count: 0, verdict: G3-INFEASIBLE}
+      production: {pass_count: 0, verdict: G3-INFEASIBLE}
+      sign_pattern: >-
+        Both readings agree on verdict (0/5, INFEASIBLE) and sign (all
+        negative in blind; all negative, but two seeds very close to zero,
+        -0.000055 and -0.001886, in production). Verdict-level agreement;
+        magnitude spread noted below and is explained by the same root
+        cause as a=1/8 (see below), not treated as a separate disagreement.
+      terminal_verdict: "S2 CONFIRMED INFEASIBLE"
+    "a=1/4":
+      blind: {pass_count: 0, verdict: G3-INFEASIBLE}
+      production: {pass_count: 0, verdict: G3-INFEASIBLE}
+      sign_pattern: "both readings 5/5 (0/5 pass) negative; production additionally reproduces EV-ECDLP-60e266 near-identically."
+      terminal_verdict: "S2 CONFIRMED INFEASIBLE (replication control REPRODUCED under both readings)"
+    overall_crossing_bracket:
+      literal_sealed_comparison: >-
+        NOT CLEANLY CONFIRMED at N=2^24: the disagreement at a=1/8 sits
+        exactly at the boundary of production's reported (1/8, 3/16)
+        bracket, so the bracket is not independently corroborated by Stage
+        A's sealed reading taken as sealed. Reported per specification.yaml
+        `success_criterion`'s own escape clause: "if no clean crossing is
+        confirmed ... that is reported plainly as 'crossing not confirmed
+        at this N.'"
+      after_root_cause_correction: >-
+        Once the demonstrated units/definition gap below is accounted for,
+        an independently-recomputed reading (same random function, same
+        exact basins, same ground truth as the sealed artifact; only the
+        STATIC(T)_r selection rule corrected) DOES corroborate production's
+        (1/8, 3/16) crossing bracket. This corrected reading is NOT itself
+        a second seal and is reported as supporting diagnostic evidence,
+        not as a replacement Stage A result.
+
+  # =========================================================================
+  # ROOT-CAUSE DIAGNOSIS OF THE a=1/8 DISAGREEMENT (post-seal, fully disclosed)
+  # =========================================================================
+  a_1_8_disagreement_root_cause:
+    finding: >-
+      specification.yaml's own `definitions.STATIC(T)_r exact coverage`
+      text names "the published Bernstein-Lange weight" used to select the T
+      table entries from the r*T-distinct-DP pool, but never states the
+      formula. This is an UNDERSPECIFICATION IN THE FROZEN CONTRACT ITSELF,
+      not a bug in either implementation: the plain HEUR-BLT-1 statistical
+      model given in `blind_rederivation.quantity` (a uniformly random
+      function plus independent Bernoulli marking) does not determine this
+      formula, so an independent from-scratch reader has no way to derive it
+      and must make a defensible but arbitrary choice.
+    what_stage_a_did: >-
+      Absent the formula, Stage A's sealed computation selected the pool's T
+      entries by TRUE EXACT BASIN SIZE (an oracle-optimal selection given
+      the sampled pool) -- the most natural reading of "weight" without
+      access to the specific literature estimator.
+    what_production_actually_does: >-
+      Read AFTER the seal (permitted: the blind_from timing rule binds
+      before sealing, not after -- specification.yaml `blind_rederivation.procedure`
+      explicitly directs the reviewer to open blind_from paths "ONLY THEN",
+      i.e. after sealing, for exactly this kind of comparison/diagnosis) in
+      experiments/EXP-ECDLP-612fb1/source_v2/instrument.py, reused unchanged
+      by this contract's Stage B (execution_report.yaml
+      `implementation.instrument_reuse`): `Pool.weights(W)` computes weight_d
+      = S_d + 4*W*h_d, where S_d is the SUM of GENERATING-WALK LENGTHS of
+      every pool-construction walk that terminated at DP d during
+      `generate_pools` (uniform restarts, batches, every walk charged), and
+      h_d is the hit count -- a realistic, walk-statistics-based ESTIMATOR a
+      real precomputer would have to use (not knowing exact basin sizes in
+      advance), NOT the DP's true exact basin size. STATIC(T)_r's table is
+      selected by this weight, and only then is its TRUE exact coverage
+      read off the true sizes of the selected entries -- production's
+      "exact coverage" is exact, but the SELECTION that produced the
+      selected set is a realistic estimator, not an oracle.
+    controlled_diagnostic: >-
+      postseal_diagnostic_v2_clean.py (this task's directory; run strictly
+      after the seal and after reading instrument.py) draws ONE shared pool
+      of (start, terminal-DP, walk-length) triples per (a, seed) -- fixing
+      an earlier, less careful diagnostic pass's confound of also comparing
+      across different pool draws, and fixing the PYTHONHASHSEED
+      nondeterminism defect above with a deterministic offset -- and applies
+      BOTH selection rules (true-size vs S_d+4*W*h_d) to the IDENTICAL pool,
+      isolating the selection-rule effect.
+    controlled_diagnostic_results:
+      "a=1/16": {margin_by_size: [0.009832, 0.010919, 0.011419, 0.021962, 0.012595], margin_by_weight: [0.018459, 0.017246, 0.018898, 0.029382, 0.022182], pass_by_size: 5, pass_by_weight: 5}
+      "a=1/8": {margin_by_size: [-0.002059, -0.009712, -0.000395, 0.001407, -0.006330], margin_by_weight: [0.015305, 0.000836, 0.010721, 0.013383, 0.008528], pass_by_size: 1, pass_by_weight: 5}
+      "a=3/16": {margin_by_size: [-0.013632, -0.017960, -0.009432, -0.017322, -0.025900], margin_by_weight: [-0.002048, 0.001197, 0.010779, -0.002366, -0.006438], pass_by_size: 0, pass_by_weight: 2}
+      "a=1/4": {margin_by_size: [-0.026986, -0.036135, -0.031442, -0.053378, -0.047598], margin_by_weight: [-0.004838, -0.015635, -0.014850, -0.031043, -0.017314], pass_by_size: 0, pass_by_weight: 0}
+    interpretation: >-
+      Switching the STATIC(T)_r selection rule from true-size (oracle) to
+      the production's actual S_d+4*W*h_d weight, on the SAME underlying
+      pool, SYSTEMATICALLY RAISES the margin at every (a, seed) tested (the
+      oracle selection always weakly dominates a realistic estimator's
+      selection, so STATIC(T)_r's coverage under the oracle rule is
+      systematically higher, making share-minus-coverage systematically
+      lower under the sealed method than under production's method). At
+      a=1/8 this flips the pass-count from 1/5 (INFEASIBLE) to 5/5
+      (FEASIBLE), exactly matching production. At a=3/16 it moves 0/5 to
+      2/5 -- still solidly INFEASIBLE by the >=4/5 threshold, but visibly
+      closer to production's own near-boundary readings there (two
+      production seeds at -0.000055 and -0.001886). At a=1/16 and a=1/4 the
+      verdict is unchanged under either rule (robust). This is a
+      DEMONSTRATED, CHECKABLE units/definition mismatch, not a genuine
+      N-dependent reversal and not a computational bug in either party's
+      pipeline.
+    disposition: >-
+      Reported per specification.yaml `distinguishable_outcomes` (b) /
+      `falsification_criterion` F3's own escape valve ("or the disagreement
+      traces to a demonstrable units/definition mismatch"). This report
+      does NOT unilaterally relabel a=1/8 from S3 to S1 (that is the
+      Coordinator's call, and the literal frozen comparison IS S3 as sealed);
+      it hands the Coordinator a diagnosed, fixable, and now well-supported
+      explanation, together with the recommendation that a future versioned
+      protocol_amendment to specification.yaml's own `definitions.STATIC(T)_r
+      exact coverage` state the S_d + 4*W*h_d formula explicitly (removing
+      the underspecification for any future blind rederivation), after
+      which Stage A could be re-sealed under the corrected definition per
+      `invalidation_rules` ("runs already executed are never re-scored" --
+      a re-seal would be a new, additional artifact, not an edit of this one).
+
+  # =========================================================================
+  # BUDGET / RESOURCE ACCOUNTING FOR THIS REVIEW TASK
+  # =========================================================================
+  reviewer_resource_accounting: >-
+    Stage A sealed run: 65.3s wall clock. Post-seal diagnostics (30-seed
+    supplementary sample at a=1/8, first diagnostic pass, corrected v2
+    diagnostic): approximately 375s + 80s + 58s = ~513s. Total well within
+    this task's budget.wall_clock_seconds (3600) and memory_gb (4); peak
+    process memory stayed under roughly 1 GB throughout (int32/float32-scale
+    arrays of length N=16777216). Per specification.yaml `budget_note`, this
+    reviewer task produces no run manifest under experiments/EXP-ECDLP-6ac801/runs/
+    and is not counted against `maximum_runs`.
+
+  artifact_checks:
+    - "sealed_blind_rederivation.json present, hashed, timestamped, predates all blind_from reads: PASS"
+    - "all 6 Stage B/C runs' manifest.yaml, raw-result.json, summary.json, command.txt present and mutually consistent: PASS"
+    - "snapshot-receipt.json content-first hash verification (independent of commit reachability): PASS"
+  metric_recomputations:
+    - "20/20 (a,seed) cells' exact_top_T_sel_share, exact_top_T_share, static_T_r2_exact_coverage recomputed from raw-result.json basin arrays: 0 mismatches"
+    - "blind Stage A margins recomputed twice (sealed run; independent 30-extra-seed sample at a=1/8, seeds 101-130: mean -0.0063, sd 0.0076, 5/30 positive) -- consistent negative bias under the size-based method, not a 5-seed sampling fluke"
+  control_checks:
+    - "control (a) blind rederivation seal: PASS, sealed before any blind_from read"
+    - "control (b) a=1/4 replication control: PASS under both blind (0/5 pass) and production (0/5 pass) readings; production identical to EV-ECDLP-60e266 to quoted precision"
+    - "control (c) exact-coverage non-exceedance: PASS, 0 exceedances across sealed Stage A cells and all 20 production raw cells"
+    - "control (d) definitional identity with v2 g3_gate_procedure: PASS, verbatim in substance, confirmed by reading both specification texts and the executor's stagec_analysis.py source"
+    - "control (e) seed-count parity: PASS, 5 seeds per a on both readings, no duplicates"
+  heuristic_validation_checks:
+    - >-
+      HEUR-BLT-1 (uniformly random function + independent Bernoulli(1/W)
+      marking) is the standing assumption this contract inherits and does
+      not re-test (per specification.yaml `heuristic_note`); Stage A's own
+      implementation is built directly on this model and its basin-closure
+      correctness was independently verified against exhaustive brute force
+      at N=1024 (0 mismatches after a resolution-check fix), which is the
+      applicable sample-integrity/positive-control check available here.
+  cost_model_checks:
+    - "Not applicable: specification.yaml `cost_model.standardized_parameter_sets` states this is a feasibility measurement, not a COST-* record; no cost table is reported by this contract."
+  proof_architecture_checks: []
+
+  limitations:
+    - >-
+      Stage A's sealed STATIC(T)_r selection used true exact basin size
+      rather than production's S_d+4*W*h_d weight, because
+      specification.yaml's own `definitions` text underspecifies the
+      selection formula (see `a_1_8_disagreement_root_cause`). This is the
+      single largest limitation of this review: a=1/8's literal S3
+      verdict is a definitional artifact of the frozen contract's own text,
+      not an open scientific question about N-dependence, but this report
+      does not have standing to re-seal Stage A under a corrected
+      definition.
+    - >-
+      Stage A's own pool-sampling RNG offset used Python's `hash()` on a
+      string, which is process-randomized (PYTHONHASHSEED) and therefore
+      not reproducible bit-for-bit across runs of blind_rederivation.py; the
+      sealed artifact is a fixed, legitimate realization, disclosed with
+      this caveat.
+    - >-
+      This task read two of the four `blind_from`-listed paths
+      (experiments/EXP-ECDLP-612fb1/source_v2/ and
+      experiments/EXP-ECDLP-6ac801/runs/) STRICTLY AFTER the Stage A seal,
+      for the required comparison and for root-cause diagnosis of the
+      a=1/8 disagreement. This is permitted by specification.yaml's own
+      procedure text ("SEALS it ... and ONLY THEN opens" the blind_from
+      paths) and the seal genuinely predates every such read (see
+      `stage_a_blind_rederivation.seal_predates_blind_from_reads`). However,
+      `tools/check_review_independence.py`'s mechanical
+      sources_read/blind_from intersection check does not model seal-vs-open
+      TIMING -- it flags ANY read of a blind_from-prefixed path by the
+      re-deriver, regardless of when it happened. Expect that tool to report
+      a "leaked" finding against this task; that finding is a known,
+      disclosed consequence of this contract's own blind_from list
+      conflating two different roles (source_v2/'s implementation, which
+      the spirit of blind rederivation says should never inform Stage A;
+      and this experiment's own runs/, which the contract's own text
+      explicitly requires the reviewer to open post-seal for the
+      comparison), not evidence of an undisclosed or premature read. The
+      two remaining blind_from paths (experiments/EXP-ECDLP-612fb1/runs/RUN-ECDLP-612fb1-v2-ascan-*/
+      and RUN-ECDLP-612fb1-v2-analysis-001/, the original Stage 0 a-scan
+      data) were NOT opened at all during this task.
+    - >-
+      Stage A's random-function/marking model, while matching the stated
+      HEUR-BLT-1 definition, is not bit-identical to production's keyed
+      mix64/hash64 instrument; exact numerical agreement was never expected
+      or required (per specification.yaml `blind_rederivation.comparison_rule`,
+      "margins within seed-to-seed noise"), only sign and pass/fail
+      agreement, which is what this report evaluates.
+    - >-
+      The magnitude spread at a=3/16 (production's two near-zero seeds vs
+      Stage A's more uniformly negative seeds) is noted but not treated as
+      an independent breaking finding, since both readings agree on the
+      G3-INFEASIBLE verdict and the spread is explained by the same
+      diagnosed selection-weight gap as a=1/8.
+    - >-
+      This report does not, and per the Validator's mandate cannot, decide
+      what the a=1/8 finding means for H-ECDLP-37dc01's status, whether a
+      protocol_amendment should be authored, or whether a follow-up online
+      RESEL-L batch is warranted. Those are Coordinator decisions.
+
+  verdict: passed
+  verdict_note: >-
+    "passed" here means: the sealed blind re-derivation exists, genuinely
+    predates every blind_from read, is internally consistent (recomputation
+    checks, brute-force cross-check, proves-too-much control all pass), and
+    the required cell-by-cell comparison against a content-verified,
+    Coordinator-committed production snapshot was completed and is reported
+    honestly, INCLUDING an unresolved-at-the-sealed-level S3 disagreement at
+    a=1/8 that this report diagnoses but does not resolve by fiat. This is
+    NOT a verdict that clause (C1) holds at a=1/16 or a=1/8, NOR a verdict
+    that the crossing bracket is confirmed at N=2^24 -- per
+    specification.yaml `interpretation`, a CONFIRMED-FEASIBLE reading is a
+    ceiling-feasibility result only, and here even that reading is
+    contested at the literal-sealed level pending the definitional
+    amendment this report recommends. The receipt (Stage A's sealed
+    artifact plus the recomputation and comparison work) is admissible
+    evidence of what was measured and how the two readings relate; it does
+    not itself authorize any hypothesis-status change.
+
+  artifact_paths:
+    - coordination/experiments/EXP-ECDLP-6ac801/batches/BATCH-3c7493/tasks/TASK-20260907-80e198/validation_report.yaml
+    - coordination/experiments/EXP-ECDLP-6ac801/batches/BATCH-3c7493/tasks/TASK-20260907-80e198/blind_rederivation.py
+    - coordination/experiments/EXP-ECDLP-6ac801/batches/BATCH-3c7493/tasks/TASK-20260907-80e198/sealed_blind_rederivation.json
+    - coordination/experiments/EXP-ECDLP-6ac801/batches/BATCH-3c7493/tasks/TASK-20260907-80e198/sealed_blind_rederivation.sha256
+    - coordination/experiments/EXP-ECDLP-6ac801/batches/BATCH-3c7493/tasks/TASK-20260907-80e198/seal_timestamp.txt
+    - coordination/experiments/EXP-ECDLP-6ac801/batches/BATCH-3c7493/tasks/TASK-20260907-80e198/postseal_diagnostic_weight_formula.py
+    - coordination/experiments/EXP-ECDLP-6ac801/batches/BATCH-3c7493/tasks/TASK-20260907-80e198/postseal_diagnostic_v2_clean.py
+
+  review_attestation:
+    task_id: TASK-20260907-80e198
+    joints_owned:
+      - "Stage A blind re-derivation AND its cell-by-cell comparison against Stage B/C's production result: at every (a, seed) in the 4x5 grid, the sealed from-scratch exact top-T_sel share and STATIC(T)_{r=2} exact coverage must be independently computed from the exact basin-partition definition alone (never a re-read of any run's own analysis output, never an inspection of experiments/EXP-ECDLP-612fb1/source_v2/'s implementation before the seal), THEN compared against the executor's production reading -- including the a = 1/4 replication control's agreement with EV-ECDLP-60e266, and whether the G3-style criterion was applied identically (verbatim) to the v2 contract's own `inputs.g3_gate_procedure` wording (control (d)) rather than with any definitional drift."
+    sources_read:
+      - experiments/EXP-ECDLP-6ac801/specification.yaml
+      - experiments/EXP-ECDLP-612fb1/specification.v2.yaml
+      - ledger/evidence/EV-ECDLP-60e266.yaml
+      - coordination/experiments/EXP-ECDLP-6ac801/batches/BATCH-3c7493/tasks/TASK-20260907-0a8773/execution_report.yaml
+      - coordination/experiments/EXP-ECDLP-6ac801/batches/BATCH-3c7493/archives/TASK-20260907-11d3d6/snapshot-receipt.json
+      - coordination/experiments/EXP-ECDLP-6ac801/batches/BATCH-3c7493/dispatch_queue.json
+      - experiments/EXP-ECDLP-6ac801/runs/RUN-ECDLP-6ac801-001/manifest.yaml
+      - experiments/EXP-ECDLP-6ac801/runs/RUN-ECDLP-6ac801-001/raw-result.json
+      - experiments/EXP-ECDLP-6ac801/runs/RUN-ECDLP-6ac801-002/raw-result.json
+      - experiments/EXP-ECDLP-6ac801/runs/RUN-ECDLP-6ac801-003/raw-result.json
+      - experiments/EXP-ECDLP-6ac801/runs/RUN-ECDLP-6ac801-004/raw-result.json
+      - experiments/EXP-ECDLP-6ac801/runs/RUN-ECDLP-6ac801-005/raw-result.json
+      - experiments/EXP-ECDLP-6ac801/runs/RUN-ECDLP-6ac801-001/command.txt
+      - experiments/EXP-ECDLP-6ac801/source/stagec_analysis.py
+      - experiments/EXP-ECDLP-612fb1/source_v2/instrument.py
+    sources_read_note: >-
+      The last two entries (experiments/EXP-ECDLP-6ac801/runs/... and
+      experiments/EXP-ECDLP-612fb1/source_v2/instrument.py) are `blind_from`
+      paths, opened STRICTLY AFTER the Stage A seal
+      (2026-09-07T01:27:58Z) for the required comparison and root-cause
+      diagnosis -- see `limitations` above for the resulting, expected,
+      disclosed `tools/check_review_independence.py` flag. All other
+      sources were read either before the seal (specification.yaml,
+      specification.v2.yaml) or are not in blind_from at all
+      (ledger/evidence/EV-ECDLP-60e266.yaml, the executor's
+      execution_report.yaml, the snapshot receipt and dispatch queue, the
+      contract's own source/stagec_analysis.py).
+    read_sibling_reports: false
+    blind_from_respected: true
+    blind_from_respected_note: >-
+      True with respect to the ORDERING rule this contract actually states
+      (specification.yaml `blind_rederivation.procedure` /
+      `stopping_rules`: "Stage A ... must be sealed before Stage B/C's own
+      output is opened by the same reviewer"). No blind_from path was read
+      before the seal existed. Two blind_from paths WERE read after the
+      seal, as the contract's own procedure text directs for the
+      comparison step; this is disclosed in full above and in
+      `limitations`, not hidden, and is expected to register as a
+      mechanical "leaked" flag in `tools/check_review_independence.py`,
+      which checks path intersection only and does not model timing.
+    verdict: breaks
+    verdict_note: >-
+      "breaks" on the literal joint as stated: the sealed Stage A result
+      and Stage B/C's production result DISAGREE on the per-a G3-style
+      verdict at a=1/8 (blind 1/5 INFEASIBLE vs production 5/5 FEASIBLE),
+      which is exactly the review_plan's own stated `breaking_artifact`
+      condition ("any a where the blind and production per-a G3-style
+      verdicts disagree"). This is reported as a genuine, demonstrated,
+      root-caused finding -- a specification-level underspecification in
+      `definitions.STATIC(T)_r exact coverage`'s selection-weight formula,
+      not a computational defect in either party and not evidence of
+      genuine N-dependence -- rather than a rubber-stamped "holds". The
+      other three cells (a=1/16, a=3/16, a=1/4) show clean agreement (S1,
+      S2, S2) and the a=1/4 proves-too-much control passes cleanly on the
+      reviewer's own method.

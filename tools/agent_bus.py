@@ -53,6 +53,17 @@ USAGE
 
 Across containers the bus travels by git like everything else:
 
+A consolidation pass reads across addresses and carries pointers, never
+findings, from one group to another:
+
+    python3 tools/agent_bus.py digest --since 36h --unconsolidated
+    python3 tools/agent_bus.py consolidate --from consolidator --to executor-2 \\
+        --subject "executor-3 is already measuring what you queued" \\
+        --source MSG-20260908-aa11bb --ref EXP-SMTH-afd6f7 \\
+        --body "See the run record before you re-run this."
+
+Across containers the bus travels by git like everything else:
+
     python3 tools/agent_bus.py sync --push        # publish mine, collect theirs
     python3 tools/agent_bus.py watch --as executor --sync   # poll loop
 """
@@ -91,6 +102,27 @@ ADDR = re.compile(r"^[a-z0-9][a-z0-9._-]{0,63}$")
 BROADCAST = "all"
 
 PRIORITIES = ("low", "normal", "high")
+
+# A message's kind. "message" is ordinary first-hand traffic: the sender is
+# telling a peer something the sender knows. "consolidation" is second-hand
+# ROUTING: a consolidator read several sessions' traffic and is carrying
+# pointers across a group boundary it does not itself work inside.
+#
+# The distinction is recorded because it changes how a reader must treat the
+# body. A consolidation's author did not observe what it describes, so its body
+# is a claim about other messages, and the reader's next move is to follow
+# `sources` and `refs` rather than to act on the prose.
+MESSAGE_KINDS = ("message", "consolidation")
+
+# Identifier prefixes whose existence tools/allocate_id.py can settle by
+# scanning path components. Anything outside this set (KN-*, SRC-*, a bare
+# path) is NOT checkable that way, and this module says so rather than
+# implying a check it did not run.
+CHECKABLE_REF = re.compile(
+    r"^(?:GOAL|RQ|IDEA|H|EXP|RUN|EV|DEC|TASK|BATCH|CORR)-")
+
+_WINDOW = re.compile(r"^(\d+(?:\.\d+)?)([hdw])$")
+_WINDOW_SECONDS = {"h": 3600.0, "d": 86400.0, "w": 604800.0}
 
 
 def _root(args) -> str:
@@ -209,6 +241,21 @@ MESSAGE_HEADER = """\
 # refs below point at the ledger, which is where the state actually lives.
 """
 
+CONSOLIDATION_HEADER = """\
+# WRITE-ONCE consolidation. Same store, same immutability, one difference that
+# changes how you read it: THE AUTHOR DID NOT OBSERVE ANY OF THIS.
+#
+# A consolidation is a routing act. Some session read several other sessions'
+# traffic and carried pointers across a group boundary. The body is therefore a
+# claim ABOUT the messages in `sources`, not a first-hand report, and it is not
+# evidence for anything -- no more than an ordinary message is.
+#
+# Read it by following `sources` and `refs`. `ref_check` records which refs
+# resolved to a record in the checkout at write time, which did not, and which
+# could not be checked that way at all; an unchecked ref is unchecked, never
+# implied to have passed.
+"""
+
 RECEIPT_HEADER = """\
 # WRITE-ONCE read receipt. Its existence is the entire payload: it marks one
 # (message, reader) pair handled. Written by tools/agent_bus.py; do not edit.
@@ -262,6 +309,114 @@ def acked_by(root: str, mid: str, addr: str) -> bool:
 def addressed_to(rec: dict, addr: str) -> bool:
     to = rec.get("to") or []
     return addr in to or BROADCAST in to
+
+
+def parse_window(spec: str | None) -> float | None:
+    """Turn `--since 36h` or an ISO timestamp into an epoch, or None.
+
+    A relative window is what a consolidator actually types, because the
+    question is always "what happened since I last looked", never "what
+    happened after 2026-09-08T04:00:00Z".
+    """
+    if not spec:
+        return None
+    m = _WINDOW.match(spec.strip())
+    if m:
+        return time.time() - float(m.group(1)) * _WINDOW_SECONDS[m.group(2)]
+    text = spec.strip().replace("Z", "+00:00")
+    try:
+        parsed = _dt.datetime.fromisoformat(text)
+    except ValueError:
+        raise SystemExit(
+            f"REFUSE: {spec!r} is not a window. Use 36h / 7d / 2w, or an "
+            "ISO-8601 timestamp such as 2026-09-08T04:00:00Z."
+        )
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=_dt.timezone.utc)
+    return parsed.timestamp()
+
+
+def _sent_epoch(rec: dict) -> float | None:
+    raw = str(rec.get("sent_at") or "").strip().replace("Z", "+00:00")
+    if not raw:
+        return None
+    try:
+        parsed = _dt.datetime.fromisoformat(raw)
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=_dt.timezone.utc)
+    return parsed.timestamp()
+
+
+def in_window(rec: dict, since: float | None, until: float | None) -> bool:
+    """Whether a message falls in [since, until].
+
+    A message with an unreadable `sent_at` is KEPT, not dropped. Silently
+    hiding traffic from the one view whose job is to see all of it is the
+    worse failure: a consolidator that cannot see a message cannot carry it,
+    and nothing else in the harness would notice the omission.
+    """
+    if since is None and until is None:
+        return True
+    epoch = _sent_epoch(rec)
+    if epoch is None:
+        return True
+    if since is not None and epoch < since:
+        return False
+    if until is not None and epoch > until:
+        return False
+    return True
+
+
+def consolidated_sources(root: str) -> dict[str, list[str]]:
+    """Map every message id to the consolidations that already drew on it.
+
+    This is what keeps a consolidation pass from re-carrying material it
+    carried last cycle. It is DERIVED from the consolidation records, exactly
+    as read state is derived from receipts -- no message is edited to record
+    that it was consolidated, so two consolidators working concurrently never
+    touch the same bytes.
+    """
+    out: dict[str, list[str]] = {}
+    for rec in load_messages(root):
+        if rec.get("kind") != "consolidation":
+            continue
+        for src in rec.get("sources") or []:
+            out.setdefault(str(src), []).append(rec["id"])
+    return out
+
+
+def verify_refs(refs: list[str]) -> tuple[dict[str, list[str]], list[str], list[str]]:
+    """Split refs into resolved, unresolved, and not-checkable-here.
+
+    `--ref` has always been the field that makes a message worth a peer's
+    wake, but nothing ever checked that a ref named anything real, so a typo
+    pointed a reader at nothing and looked exactly like a good pointer. This
+    settles the prefixes tools/allocate_id.py can settle by path scan and is
+    HONEST about the rest: KN-*, SRC-* and bare paths are reported as
+    unchecked, never folded into the resolved set.
+    """
+    resolved: dict[str, list[str]] = {}
+    unresolved: list[str] = []
+    unchecked: list[str] = []
+    checkable = [r for r in refs if CHECKABLE_REF.match(r)]
+    unchecked = [r for r in refs if not CHECKABLE_REF.match(r)]
+    if checkable:
+        try:
+            sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+            import allocate_id  # noqa: PLC0415 -- optional, repo-local
+        except Exception:
+            # Without the checker every ref is unchecked. That is a weaker
+            # result, not a failure, and it must not read as a pass.
+            return {}, [], list(refs)
+        for ref in checkable:
+            hits = allocate_id.occurrences(ref)
+            if hits:
+                resolved[ref] = hits
+            else:
+                unresolved.append(ref)
+    return resolved, unresolved, unchecked
 
 
 def inbox_for(root: str, addr: str, *, include_read: bool = False,
@@ -349,6 +504,211 @@ def cmd_send(args) -> int:
                 payload, header=MESSAGE_HEADER)
     print(f"{mid}  {sender} -> {', '.join(recipients)}")
     print(f"  {_show(os.path.join(root, 'messages', mid + '.yaml'))}")
+    if not args.no_sync_hint:
+        print("  NOT yet visible to sessions in other containers. Publish with: "
+              "python3 tools/agent_bus.py sync --push")
+    return 0
+
+
+def cmd_digest(args) -> int:
+    """The cross-cutting read a consolidator needs and `inbox` cannot give.
+
+    `inbox --as X` answers "what is waiting for X", which is the right question
+    for a worker and the wrong one for a consolidator: the whole point of a
+    consolidation pass is to see traffic that was never addressed to it, across
+    group boundaries, and notice that two sessions are circling the same
+    record. So this view is BY SENDER over a time window, not by recipient.
+
+    Strictly read-only. It writes nothing, acks nothing, and marks nothing --
+    reading a peer's traffic is not participating in it.
+    """
+    root = _root(args)
+    since = parse_window(args.since)
+    until = parse_window(args.until)
+    senders = {_check_addr(a.strip()) for a in (args.sender or "").split(",")
+               if a.strip()} or None
+
+    already = consolidated_sources(root)
+    rows = []
+    for rec in load_messages(root):
+        if not in_window(rec, since, until):
+            continue
+        if senders and rec.get("from") not in senders:
+            continue
+        if args.kind and rec.get("kind", "message") != args.kind:
+            continue
+        if args.unconsolidated and (rec["id"] in already
+                                    or rec.get("kind") == "consolidation"):
+            continue
+        rows.append(rec)
+
+    if args.json:
+        print(json.dumps([dict(r, consolidated_by=already.get(r["id"], []))
+                          for r in rows], indent=2))
+        return 0
+
+    if not rows:
+        print("no messages in this window."
+              + ("  (--unconsolidated hides what a consolidation already drew "
+                 "on)" if args.unconsolidated else ""))
+        return 0
+
+    by_sender: dict[str, list[dict]] = {}
+    for rec in rows:
+        by_sender.setdefault(str(rec.get("from") or "?"), []).append(rec)
+
+    window = args.since or "all time"
+    print(f"{len(rows)} message(s) from {len(by_sender)} sender(s), "
+          f"window: {window}")
+    if args.unconsolidated:
+        print("showing only traffic no consolidation has drawn on yet")
+    for sender in sorted(by_sender):
+        print(f"\n  {sender}")
+        for rec in by_sender[sender]:
+            drawn = already.get(rec["id"], [])
+            mark = "+" if drawn else " "
+            kind = "" if rec.get("kind", "message") == "message" else \
+                f"[{rec.get('kind')}] "
+            to = ",".join(rec.get("to") or [])
+            print(f"   {mark} {rec['id']}  {rec.get('sent_at', '?'):20} "
+                  f"-> {to:<14} {kind}{rec.get('subject') or ''}")
+            refs = rec.get("refs") or []
+            if refs:
+                print(f"       refs: {', '.join(refs)}")
+            if drawn:
+                print(f"       already consolidated by: {', '.join(drawn)}")
+
+    unref = [r for r in rows if not (r.get("refs") or [])]
+    if unref:
+        print(f"\nnote: {len(unref)} of {len(rows)} carry no --ref. A message "
+              "with no pointer into committed state is the hardest kind to "
+              "consolidate, because there is nothing to carry but its prose.")
+    print("\nThis view is read-only. Carrying anything across a boundary is a "
+          "separate, recorded act: agent_bus.py consolidate")
+    return 0
+
+
+def cmd_consolidate(args) -> int:
+    """Write a consolidation: pointers carried across a group boundary.
+
+    WHY THIS IS NOT JUST `send --subject "consolidation"`
+    ----------------------------------------------------
+    A consolidator is the one writer in this harness that reports on work it
+    did not do. That is exactly the position from which a finding gets
+    laundered: session A's tentative intermediate result is summarised by a
+    consolidator, lands in session B's inbox as a confident sentence with no
+    receipt, and B builds on it. `docs/inter-agent-messaging.md` already
+    forbids that in prose ("a message is a pointer, never a permission"); the
+    cost of leaving it in prose is that nothing checks it.
+
+    So the three things a consolidation cannot omit are arguments, not
+    etiquette:
+
+      --source   the messages this drew on. Provenance: a reader can diff the
+                 consolidation against its inputs, and `digest --unconsolidated`
+                 can tell what has already been carried.
+      --ref      at least one pointer into committed state. A consolidation
+                 whose entire payload is the consolidator's own prose is the
+                 failure mode this command exists to make awkward.
+      (checked)  every ref whose prefix allocate_id.py can settle must resolve.
+
+    WHAT IT STILL CANNOT DO, stated plainly: nothing here reads the body. A
+    consolidator determined to restate a finding instead of pointing at it can
+    do so, and the refs will pass. This makes provenance auditable; it does not
+    make the summary true. The reader's obligation is unchanged -- follow the
+    refs, and treat the prose as a claim about messages rather than about the
+    world.
+    """
+    root = _root(args)
+    sender = _check_addr(args.sender)
+    recipients = [_check_addr(a.strip()) if a.strip() != BROADCAST else BROADCAST
+                  for a in args.to.split(",") if a.strip()]
+    if not recipients:
+        raise SystemExit("REFUSE: --to named no recipient.")
+
+    body = args.body
+    if args.body_file:
+        with open(args.body_file, encoding="utf-8") as fh:
+            body = fh.read()
+    if not body or not body.strip():
+        raise SystemExit("REFUSE: an empty message wastes a peer's wake. "
+                         "Give --body or --body-file.")
+
+    sources = [_check_msg_id(m) for m in (args.source or [])]
+    if not sources:
+        raise SystemExit(
+            "REFUSE: a consolidation with no --source is not a consolidation, "
+            "it is an opinion. Name the MSG-ids you drew on so a reader can "
+            "diff this against them (find them with: agent_bus.py digest "
+            "--since 36h --unconsolidated)."
+        )
+    missing = [m for m in sources
+               if not os.path.exists(os.path.join(root, "messages", m + ".yaml"))]
+    if missing:
+        raise SystemExit(
+            "REFUSE: these --source messages do not exist in this bus: "
+            + ", ".join(missing)
+            + ".\nIf they were written in another container, collect them "
+              "first: agent_bus.py sync"
+        )
+    if sender in sources:
+        pass  # a consolidator may cite its own earlier consolidation
+
+    refs = list(args.ref or [])
+    if not refs:
+        raise SystemExit(
+            "REFUSE: a consolidation must carry at least one --ref. The whole "
+            "value of this pass is moving POINTERS across a boundary; a "
+            "summary with nothing to point at is the thing the bus contract "
+            "calls chatter, and it costs every recipient a wake."
+        )
+    resolved, unresolved, unchecked = verify_refs(refs)
+    if unresolved and not args.allow_unresolved_refs:
+        raise SystemExit(
+            "REFUSE: these refs name no record in this checkout: "
+            + ", ".join(unresolved)
+            + ".\nA ref that resolves to nothing is worse than no ref: it "
+              "reads as a pointer and leads nowhere. Fix the id, run "
+              "`agent_bus.py sync` if the record is on another branch, or "
+              "pass --allow-unresolved-refs if you are deliberately pointing "
+              "at state a peer will create."
+        )
+
+    mid = mint_id(root, seed=args.seed)
+    payload = {"message": {
+        "id": mid,
+        "kind": "consolidation",
+        "from": sender,
+        "to": recipients,
+        "subject": args.subject,
+        "priority": args.priority,
+        "thread": mid,
+        "in_reply_to": None,
+        "sent_at": _now(),
+        "refs": refs,
+        "sources": sources,
+        "ref_check": {
+            "resolved": sorted(resolved),
+            "unresolved": sorted(unresolved),
+            "not_checkable_by_path_scan": sorted(unchecked),
+        },
+        "commit": _git(["rev-parse", "HEAD"], cwd=root) or None,
+        "branch": _git(["rev-parse", "--abbrev-ref", "HEAD"], cwd=root) or None,
+        "body": body.rstrip() + "\n",
+    }}
+    _write_once(os.path.join(_dir(root, "messages"), mid + ".yaml"),
+                payload, header=CONSOLIDATION_HEADER)
+    print(f"{mid}  [consolidation] {sender} -> {', '.join(recipients)}")
+    print(f"  {_show(os.path.join(root, 'messages', mid + '.yaml'))}")
+    print(f"  drew on {len(sources)} message(s): {', '.join(sources)}")
+    if resolved:
+        print(f"  refs resolved: {', '.join(sorted(resolved))}")
+    if unchecked:
+        print(f"  refs NOT checkable by path scan (recorded as unchecked): "
+              f"{', '.join(sorted(unchecked))}")
+    if unresolved:
+        print(f"  refs unresolved, recorded as such: "
+              f"{', '.join(sorted(unresolved))}")
     if not args.no_sync_hint:
         print("  NOT yet visible to sessions in other containers. Publish with: "
               "python3 tools/agent_bus.py sync --push")
@@ -707,6 +1067,38 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--subject", help="default: Re: <original subject>")
     _add_send_fields(p)
     p.set_defaults(func=cmd_reply)
+
+    p = sub.add_parser("digest",
+                       help="read traffic ACROSS addresses in a time window")
+    _add_common(p)
+    p.add_argument("--since", metavar="WINDOW",
+                   help="36h / 7d / 2w, or an ISO-8601 timestamp")
+    p.add_argument("--until", metavar="WINDOW")
+    p.add_argument("--from", dest="sender", metavar="ADDR[,ADDR...]",
+                   help="restrict to these senders (default: every sender)")
+    p.add_argument("--kind", choices=MESSAGE_KINDS,
+                   help="restrict to one message kind")
+    p.add_argument("--unconsolidated", action="store_true",
+                   help="hide traffic a consolidation already drew on -- the "
+                        "default view for a consolidation pass")
+    p.add_argument("--json", action="store_true")
+    p.set_defaults(func=cmd_digest)
+
+    p = sub.add_parser("consolidate",
+                       help="carry pointers across a group boundary, with "
+                            "provenance and checked refs")
+    _add_common(p)
+    p.add_argument("--from", dest="sender", required=True)
+    p.add_argument("--to", required=True,
+                   help=f"comma-separated addresses, or '{BROADCAST}'")
+    p.add_argument("--subject", required=True)
+    p.add_argument("--source", action="append", metavar="MSG-ID", required=True,
+                   help="a message this drew on (repeatable, at least one)")
+    p.add_argument("--allow-unresolved-refs", action="store_true",
+                   help="record a ref that names no record yet, e.g. state a "
+                        "peer is being asked to create")
+    _add_send_fields(p)
+    p.set_defaults(func=cmd_consolidate)
 
     p = sub.add_parser("thread", help="print every message in a thread")
     _add_common(p)

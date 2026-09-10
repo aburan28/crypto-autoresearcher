@@ -1,0 +1,259 @@
+id: EXP-ECDLP-df24c3
+kind: experiment
+status: draft
+title: Source-bound control-plane audit of scoped-negative conclusion coverage
+source_hypothesis: H-ECDLP-576e57
+source_idea:
+  id: IDEA-20260815-024cf2
+  provenance: internal
+design_basis:
+  handoff: TASK-20260908-5df149
+  provenance: internal
+  note: Parent-supplied material; this role did not independently read source records.
+approval:
+  approved_by: null
+  review_required: true
+  implementation_authorized: false
+  scientific_execution_authorized: false
+  execution_state: zero-run design only
+scope:
+  audited_object: >-
+    Record-level alignment between a selected ledger negative conclusion's
+    stated scope and the scope covered by its explicitly cited run or manifest.
+  excluded_object: >-
+    Cryptanalytic effectiveness, mathematical validity, run correctness,
+    solver correctness, and any conclusion about an ECDLP hypothesis.
+frozen_corpus_selector:
+  selector_version: scope-coverage-selector-v1
+  source_binding:
+    required_before_execution: true
+    fixed_source_commit: null
+    draft_reason: The handoff intentionally withholds a source commit; no audit may run until a commit identifier is recorded.
+  traversal:
+    roots:
+      - ledger/decisions
+      - ledger/evidence
+    file_globs:
+      - '**/*.yaml'
+      - '**/*.yml'
+    ordering: repository-relative path, UTF-8 bytewise ascending; one parse per path
+    record_identity: repository-relative source path plus source-commit blob identity, both required at execution
+  inclusion_schema:
+    record_kind: record under either traversal root that parses as a mapping
+    negative_statement_locations:
+      - conclusions[]
+      - conclusion
+      - findings[]
+      - findings
+      - claims[]
+      - claims
+    declared_negative_tokens:
+      - negative
+      - not_supported
+      - unsupported
+      - no_effect
+      - no_improvement
+      - failed_scope
+      - closed_scope
+    token_fields:
+      - status
+      - verdict
+      - outcome
+      - conclusion_kind
+      - result
+    citation_locations:
+      - run_id
+      - run_ids
+      - manifest
+      - manifest_path
+      - manifest_paths
+      - artifact_paths
+      - evidence_paths
+      - citations
+    eligibility: >-
+      Include a statement only if one listed token field, normalized by Unicode
+      casefold and '_'/'-'/space normalization, equals a declared negative
+      token and at least one listed citation location is present. Presence is
+      not successful resolution: absent, ambiguous, or unresolvable cited
+      artifacts remain selected and are classified unauditable.
+    exclusion_record: >-
+      Emit selector-exclusion rows for parse failures, no declared negative
+      token, or no citation location. These rows are accounting metadata, not
+      verdicts on an excluded statement.
+  fixed_sample_rule: >-
+    The sample is the complete sorted set selected from the two roots at the
+    bound source commit. No sampling, ranking, date window, early pruning, or
+    discretionary record addition is allowed. Synthetic controls are evaluated
+    separately and never change corpus counts.
+extraction_schema:
+  row_identity:
+    - source_commit
+    - conclusion_path
+    - statement_index
+    - record_path
+    - record_blob_id
+    - selector_version
+    - extractor_version
+  conclusion_scope:
+    - field: target_object_or_curve_family
+      type: enum_or_set
+    - field: concrete_curve_or_instance
+      type: enum_or_set
+    - field: field_and_parameter_set
+      type: interval_set_or_structured_tuple
+    - field: subgroup_or_order_scope
+      type: enum_or_set
+    - field: solver_or_method
+      type: enum_or_set
+    - field: solver_version_or_configuration
+      type: enum_or_set
+    - field: input_or_sampling_distribution
+      type: structured_descriptor
+    - field: budget_and_stopping_boundary
+      type: numeric_interval_or_structured_tuple
+    - field: measured_metric_and_negative_threshold
+      type: structured_descriptor
+    - field: randomness_seed_or_reproducibility_boundary
+      type: enum_or_set
+  cited_coverage:
+    per_artifact_fields: [artifact_path, artifact_blob_id, artifact_type, run_or_manifest_identity, coverage_vector, binding_resolution]
+    coverage_vector: same ordered field list as conclusion_scope
+    binding_resolution_values: [resolved_unique, absent, ambiguous, unreadable, schema_missing]
+  comparison:
+    field_relation_values: [equal, conclusion_subset_of_coverage, conclusion_strict_superset_of_coverage, noncomparable, missing_conclusion_field, missing_coverage_field]
+    aggregation: >-
+      Aggregate cited artifacts only when they have the same solver_or_method,
+      measured_metric_and_negative_threshold, and negative criterion. Otherwise
+      retain per-artifact comparisons and set aggregate relation noncomparable.
+decision_rule:
+  clean:
+    all_of:
+      - Every cited artifact binding is resolved_unique.
+      - Every required field used by the statement is present in both vectors.
+      - Every compared field relation is equal or conclusion_subset_of_coverage.
+      - No semantic-generalization marker requires human review.
+  overbroad:
+    all_of:
+      - Every cited artifact binding needed for the asserted field is resolved_unique.
+      - At least one recognized typed field relation is conclusion_strict_superset_of_coverage.
+      - The strict relation is preserved with its source paths and normalized values.
+      - No verdict depends on an untyped prose entailment.
+  unauditable:
+    any_of:
+      - A cited run or manifest binding is absent, ambiguous, unreadable, or schema_missing.
+      - A necessary asserted field lacks an identifiable coverage value.
+      - Required source identity, record blob identity, or extractor version is absent.
+    prohibition: Missing or unidentifiable binding must never be relabeled overbroad.
+  inconclusive:
+    any_of:
+      - A complete binding has a noncomparable field relation.
+      - Several cited artifacts cannot be validly aggregated.
+      - The record marks or documents a legitimate prose/theorem-level generalization whose entailment is outside the typed schema.
+    action: human-review-required; no automatic pass or fail
+  precedence: unauditable, then inconclusive, then overbroad, then clean
+controls:
+  clean_control:
+    shape: synthetic record and manifest with identical values for every required typed field
+    expected_verdict: clean
+  widened_control:
+    shape: synthetic record whose conclusion is a strict superset of its resolved manifest in exactly one predeclared recognized field
+    expected_verdict: overbroad
+  missing_binding_control:
+    shape: synthetic negative statement with a declared manifest citation that cannot resolve uniquely
+    expected_verdict: unauditable
+  legitimate_generalization_control:
+    shape: synthetic negative statement with documented prose generalization and no recognized typed comparand for the generalization
+    expected_verdict: inconclusive
+    required_flag: human-review-required
+  null_controls: >-
+    The clean control is the null for an overbreadth signal; the missing-binding
+    control is the null for any claim that parser failure detects scope
+    widening. All four controls are evaluated by the identical extractor and
+    comparator used for the corpus.
+metrics:
+  primary:
+    - selected_statement_count
+    - selector_exclusion_count_by_reason
+    - clean_count
+    - overbroad_count
+    - unauditable_count
+    - inconclusive_count
+    - control_expected_verdict_match_rate
+  integrity:
+    - resolved_unique_binding_rate
+    - rows_with_complete_provenance_rate
+    - field_relation_count_by_type
+    - human_review_required_count
+  performance_if_later_implemented:
+    - parsed_bytes
+    - wall_clock_seconds
+    - peak_memory_bytes
+    - selected_statements_per_second
+    - reviewer_disposition_count
+artifact_and_custody_requirements:
+  required_before_any_execution:
+    - source-commit.txt containing the exact audited commit
+    - selector-config.yaml byte-identical to frozen_corpus_selector
+    - extractor-version.txt and comparator-version.txt
+    - corpus-index.jsonl with record path and blob identity for every traversed item
+    - control-fixtures/ with immutable fixture identities and expected labels
+    - environment-manifest.yaml
+  required_outputs_if_execution_is_later_authorized:
+    - selector-exclusions.jsonl
+    - scope-extractions.jsonl
+    - scope-comparisons.jsonl
+    - per-negative-verdicts.jsonl
+    - control-results.jsonl
+    - aggregate-counts.yaml
+    - anomaly-log.jsonl
+    - immutable run receipt and artifact digest manifest
+  custody_rules:
+    - Every verdict row carries its record path, conclusion path, cited artifact paths, source identities, extractor version, and comparison rule version.
+    - Aggregate counts are derived only from immutable per-negative verdict rows.
+    - No current artifact or receipt exists; this draft creates no execution record.
+stopping_and_anomaly_rules:
+  current_execution_limit:
+    maximum_runs: 0
+    rule: No executable measurement, implementation, source retrieval, or audit run is authorized by this draft.
+  future_stop_conditions_if_authorized_by_a_new_record:
+    - Stop before classifying corpus records if the fixed source commit is absent or mismatches all corpus row identities.
+    - Stop before emitting automatic verdicts if the frozen selector/extractor/comparator versions are not recorded.
+    - Stop and preserve partial custody if any control is misclassified.
+    - Stop and preserve partial custody if parsing changes a source record or duplicate record identities appear.
+    - Treat uncategorized schema paths, aggregate conflicts, and extraction collisions as anomalies requiring an inconclusive or unauditable disposition, never a guessed clean/overbroad label.
+cost_and_frontier:
+  target_complexity: not applicable; control-plane audit with no cryptanalytic complexity assertion
+  accounting_model: >-
+    A later implementation must report N selected statements, R resolved
+    artifacts, F fields, parsed bytes, parsing/extraction/comparison wall time,
+    peak memory, control count, and human-review dispositions. It must report
+    manual-review time separately if used.
+  frontier_comparison:
+    dimensions: [automated coverage, unresolved-binding visibility, semantic soundness, wall-clock time, peak memory, reviewer time]
+    baseline: manual record review; no baseline cost is measured in this draft
+    quantitative_delta: unmeasured; no performance or dominance result may be claimed
+    dominated_by: unassessed pending a source-bound frontier inventory and measured controls
+interpretation_limits:
+  - A clean classification is not scientific validation of the cited run or conclusion.
+  - An overbroad classification is not evidence against any mathematical or cryptanalytic hypothesis.
+  - An unauditable classification says a record-level comparison could not be made under this schema.
+  - An inconclusive classification requires human review and is not a silent failure.
+  - Aggregate counts describe only the frozen corpus, source commit, schema versions, and extractor versions.
+  - This draft contains no source retrieval, run, outcome, receipt, reviewer report, or approval.
+proof_search_map:
+  applies: true
+  exact_baseline_reproduction:
+    task: Hand-derive vectors and relations for all four fixtures from their declared fields alone.
+    success_boundary: Matches expected fixture labels; this does not validate corpus outcomes.
+  observation_collision_search:
+    task: Look for distinct source encodings that normalize to an identical field vector.
+    nearby_object_control: legitimate_generalization_control
+    required_record: collision examples or a bounded statement of checked schema encodings
+  quantifier_order:
+    task: Resolve source identity and cited artifact identity before vector extraction; compare vectors before verdict aggregation.
+  method_ceiling:
+    task: Demonstrate that a typed field checker declines semantic entailment and theorem-level prose generalization.
+    nearby_object_control: legitimate_generalization_control
+review_plan_requirement: >-
+  Any later claim-changing interpretation requires a Coordinator-authored review
+  plan and independent review. This zero-run draft opens no review round.

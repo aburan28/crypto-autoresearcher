@@ -23,7 +23,7 @@ from datetime import date, datetime, timezone
 from typing import Any
 
 from .index import (KIND_LABELS, KIND_ORDER, TERMINAL_GOAL_STATUSES, Finding, OpenProblem,
-                    ResearchIndex, _neg_date)
+                    ResearchIndex, _neg_date, _epoch)
 from .scan import RECORD_ID_RE, STRUCTURED, id_kind
 
 # `data/index.json` rows are positional, not objects. At 14.6k records the
@@ -102,6 +102,7 @@ def goal_payload(index: ResearchIndex, goal, detail: bool = False) -> dict[str, 
         "flags": goal.flags,
         "terminal": goal.status in TERMINAL_GOAL_STATUSES,
         "next_action_preview": goal.next_action[:260],
+        "objective_preview": goal.objective[:360],
     }
     if detail:
         payload |= {
@@ -116,6 +117,52 @@ def goal_payload(index: ResearchIndex, goal, detail: bool = False) -> dict[str, 
             "mentions": sorted(index.backlinks.get(goal.record_id, ())),
         }
     return payload
+
+
+def activity_time(index: ResearchIndex, path: str, declared: str, *, directory: str = "") -> dict:
+    """Keep observed and declared dates labelled; never infer a running process."""
+    _, touched = index.git.of(path)
+    if directory:
+        _, child_touched = index.git.dir_span(directory)
+        touched = max(touched or 0, child_touched or 0) or None
+    if touched is not None:
+        return {"at": touched, "basis": "committed"}
+    return {"at": _epoch(declared), "basis": "recorded"}
+
+
+def recent_work(index: ResearchIndex, limit: int = 60) -> list[dict]:
+    """A bounded research feed; omit task traffic and literature imports.
+
+    Use commit times when available, including for records without declared
+    dates. Unknown dates remain unknown and do not displace dated activity.
+    """
+    rows = []
+    categories = {"EXP": "experiments", "IDEA": "ideas", "DEC": "decisions",
+                  "EV": "evidence", "CORR": "corrections"}
+    for r in index.records.values():
+        category = "findings" if r.record_id.startswith("KN-FIND-") else categories.get(r.kind)
+        if not category:
+            continue
+        timing = activity_time(index, r.path, r.date)
+        if timing["at"] is None:
+            continue
+        rows.append({"id": r.record_id, "title": r.title, "status": r.status,
+                     "category": category, "area": r.area, "date": timing,
+                     "claim_tier": _scalar(r.fields, "claim_tier")})
+    return sorted(rows, key=lambda r: (-r["date"]["at"], r["id"]))[:limit]
+
+
+def current_work(index: ResearchIndex, limit: int = 6) -> list[dict]:
+    rows = []
+    for goal in index.goals:
+        if goal.status != "active":
+            continue
+        directory = goal.path.rsplit("/", 1)[0] if goal.sharded else ""
+        rows.append(goal_payload(index, goal) | {
+            "activity": activity_time(index, goal.path, goal.updated_at, directory=directory)})
+    # ECC remains first. Within that scope, feature recently touched goals;
+    # unknown dates sort last and the id gives deterministic ties.
+    return sorted(rows, key=lambda g: (not g["ecc"], -(g["activity"]["at"] or 0), g["id"]))[:limit]
 
 
 def overview_payload(index: ResearchIndex) -> dict[str, Any]:
@@ -203,6 +250,8 @@ def overview_payload(index: ResearchIndex) -> dict[str, Any]:
         "ecc_first": [goal_payload(index, g) for g in active if g.ecc][:12],
         "attention": [goal_payload(index, g) for g in goals if g.flags or g.impediments][:12],
         "recent": [r.record_id for r in recent],
+        "recent_work": recent_work(index),
+        "current_work": current_work(index),
         "integrity_totals": integrity_totals(index),
     }
 
@@ -618,6 +667,7 @@ def record_payload(index: ResearchIndex, record_id: str,
     payload = {
         "summary": record.summary(index),
         "root_key": record.root_key,
+        "source_url": f"sources/{record_id}.json",
         # tier-2 flag from ui/scan.py: true means `body` came from a real
         # YAML parse, not from the header scan that drives the lists.
         "verified": error is None and parsed is not None,
@@ -631,11 +681,20 @@ def record_payload(index: ResearchIndex, record_id: str,
     if markdown is not None:
         payload["markdown"] = markdown
     if include_raw:
-        # The live server inlines the source; the static build does not.
-        # 116 MB of source text is not worth shipping when the same bytes
-        # are one click away on GitHub at the exact commit that was built.
+        # Compatibility for live clients; snapshots load source_url on demand.
         payload["raw"] = index.raw_text(record_id)
     return payload
+
+
+def source_payload(index: ResearchIndex, record_id: str) -> dict[str, Any] | None:
+    """Source text travels separately, fetched only when its tab is opened."""
+    record = index.records.get(record_id)
+    if record is None:
+        return None
+    # Reading explicitly makes an unreadable source a build/request failure,
+    # rather than publishing an error message as if it were source content.
+    raw = (index.repo / record.path).read_text(encoding="utf-8")
+    return {"id": record_id, "path": record.path, "raw": raw}
 
 
 def search_shards(index: ResearchIndex, excerpt_chars: int = 1200) -> dict[str, dict]:

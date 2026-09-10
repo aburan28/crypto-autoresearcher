@@ -1,0 +1,131 @@
+handoff:
+  id: TASK-20260907-8e0165
+  recorded_at: '2026-09-07'
+  from: coordinator
+  to: executor
+  role: executor
+  question_id: RQ-RELN-61638a
+  hypothesis_id: H-RELN-427bfd
+  experiment_id: EXP-RELN-141a86
+  review_required: true
+  phase: stage0c_pexist_extended_minimality
+  objective: >-
+    Under the same, unchanged, already-approved contract (DEC-20260907-93a502)
+    and the same targeted-minimality method already validated in
+    RUN-RELN-141a86-stage0c-minimality (DEC-20260907-2a3727,
+    DEC-20260907-bc69ee), complete the ONE remaining Stage-0c control:
+    INV-7 p_exist (canonical complexity 11, pack enum_xclass_signed_m2).
+    Levels 1-8 already completed with no match
+    (checkpoint-INV-7_p_exist.json in RUN-RELN-141a86-stage0c-minimality,
+    immutable); this handoff extends that search through level 9 (and, if
+    it completes with time remaining, level 10), estimated at roughly
+    12-14 hours based on the completed levels' growth rate.
+  uncertainty_reduced: >-
+    Whether the checkpointed targeted-minimality enumerator, given a
+    budget matched to the honest time estimate rather than the prior
+    6000-second cap, actually completes levels 9 (and 10) for this
+    specific 6-leaf pack and confirms no match -- clearing the fifth and
+    final Stage-0c recovery control.
+  inputs:
+    - experiments/EXP-RELN-141a86/specification.yaml (frozen contract; unchanged; the ONLY protocol)
+    - ledger/decisions/DEC-20260907-bc69ee.yaml (the decision authorizing this extended attempt)
+    - >-
+      experiments/EXP-RELN-141a86/runs/RUN-RELN-141a86-stage0c-minimality/
+      (immutable -- re-verify candidate-list-hash.txt from
+      RUN-RELN-141a86-stage0a first, as every prior dispatch did; then
+      read checkpoint-INV-7_p_exist.json, worker-result files, and
+      implementation.md to confirm exactly where levels 1-8 left off and
+      resume from there rather than restarting from level 1)
+    - >-
+      experiments/EXP-RELN-141a86/source/grammar_engine_checkpoint.py,
+      target_enumerate_worker_checkpoint.py (the validated, checkpoint-
+      durable enumerator -- proven in the prior run to survive a real
+      SIGKILL; reuse and extend to RESUME from a saved checkpoint rather
+      than only to start fresh, if it does not already support that)
+  constraints:
+    - >-
+      RESUME FROM THE EXISTING LEVEL-1-8 CHECKPOINT. Do not re-enumerate
+      levels already completed and checkpointed in
+      RUN-RELN-141a86-stage0c-minimality; that would waste the ~1800
+      seconds already spent and, more importantly, this handoff exists
+      specifically because that work should not be repeated. If the
+      checkpoint format does not support resuming and you must instead
+      re-run from level 1, that is an acceptable but disclosed deviation
+      -- state clearly why resuming was not possible.
+    - >-
+      RUN THIS AS A DETACHED, DURABLE BACKGROUND PROCESS (setsid/nohup,
+      disowned, stdout/stderr redirected to files, PID recorded) that
+      continues running independently of this task's own turn ending. Do
+      NOT keep this subagent's turn open waiting on it -- start the
+      process, confirm it is alive and has written at least one fresh
+      checkpoint update within the first few minutes, then END YOUR TURN
+      and report what you started. A human or a later task will check on
+      it; you are not expected to wait for 12-14 hours.
+    - >-
+      SET A GENEROUUSLY LONG BUT FINITE hard wall-clock cap on the
+      background job itself (e.g. 20 hours = 72000s) so it cannot run
+      forever unattended if the estimate is badly wrong; the job's own
+      internal monitor should still write memory-timeseries data and
+      per-level checkpoints exactly as the prior run did.
+    - >-
+      DO NOT proceed to Stage 1 under any circumstance in this dispatch,
+      even if you personally observe the job complete before your turn
+      ends. Report only that the job was started (or, if it happens to
+      finish within your turn, report the result, but still do not
+      dispatch Stage 1 yourself).
+    - >-
+      RUN RECORD under
+      experiments/EXP-RELN-141a86/runs/RUN-RELN-141a86-stage0c-pexist-extended/
+      with a real manifest.yaml (top-level key `run:`) reflecting a
+      status of `running` or `in_progress` if you report before
+      completion (this is unusual but honest -- a background job that
+      outlives your own turn is a legitimate manifest state; a later task
+      updates it to `completed_valid` or similar once the job actually
+      finishes). Do NOT touch any of the four prior immutable run
+      directories.
+    - A crash, OOM, or exceeding the 20-hour cap is failed_infrastructure, never a result.
+  write_scope:
+    - experiments/EXP-RELN-141a86/runs/RUN-RELN-141a86-stage0c-pexist-extended/
+    - experiments/EXP-RELN-141a86/source/
+  artifact_paths:
+    - experiments/EXP-RELN-141a86/runs/RUN-RELN-141a86-stage0c-pexist-extended/
+    - experiments/EXP-RELN-141a86/source/
+  archived_by_note: >-
+    The snapshot archive of this run package happens after the job
+    actually completes (or is checked and found still running / dead), on
+    a later Coordinator task, not in this handoff.
+  inference:
+    policy: executor-implementation
+    reasoning_effort: null
+    fallback_allowed: false
+    degraded_allowed: false
+    independent_session_required: false
+  budget:
+    wall_clock_seconds: 72000
+    memory_gb: 16
+    maximum_runs: 2
+  contract_budget_envelope:
+    wall_clock_seconds_per_run: 21600
+    total_cpu_hours: 40
+    maximum_memory_gb: 16
+    maximum_runs: 8
+    maximum_workers: 4
+  budget_envelope_note: >-
+    This handoff's wall_clock_seconds (72000s = 20h) exceeds the
+    contract's per-run advisory figure (21600s); this is authorized by
+    DEC-20260907-bc69ee as a deliberate, disclosed exception for this one
+    control's extended search, consistent with docs/research-budget-policy.md
+    (advisory ceilings, not approval gates) -- not a silent breach.
+  completion_gate:
+    - >-
+      The background job started, alive, and demonstrably checkpointing
+      (at least one fresh level written) before this task's turn ends.
+    - >-
+      If the job happens to finish within this turn: the level-9 (and
+      10, if reached) result, and the combined targeted-minimality verdict
+      for INV-7 p_exist, reported but NOT acted on (no Stage 1 dispatch).
+  review_reservation: >-
+    Results of this task are CLAIM-RELEVANT (review_required: true) once
+    the job completes. Independent validator and red-team review remain
+    owed, per the contract's later_review_requirements, before any
+    resulting 5-of-5 recovery-control state authorizes Stage 1.

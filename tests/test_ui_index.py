@@ -658,11 +658,16 @@ def test_meta_says_which_commit_the_snapshot_is_of(built_site):
     assert "commit" in meta and "repo_url" in meta
 
 
-def test_the_snapshot_does_not_bundle_source_text(built_site):
-    """116 MB of YAML that is one click away on GitHub is not worth shipping."""
+def test_snapshot_loads_source_separately(tiny_repo, built_site):
+    """The Source tab works offline without inflating every record request."""
     payload = _json(built_site / "data" / "records" / "EV-ECDLP-001.json")
     assert "raw" not in payload
     assert payload["body"]["strength"] == "replicated"
+    source = _json(built_site / "data" / payload["source_url"])
+    assert source["id"] == "EV-ECDLP-001"
+    assert source["raw"] == (tiny_repo / source["path"]).read_text()
+    assert source == payloads.source_payload(ResearchIndex(tiny_repo).build(), source["id"])
+
 
 
 def test_links_are_identifiers_not_embedded_summaries(built_site):
@@ -942,7 +947,7 @@ def test_a_knowledge_entry_page_carries_its_body_and_front_matter(built_site):
     assert payload["verified"] is True
     assert payload["body"]["proof_status"] == "derivation"
     assert "## Finding" in payload["markdown"]
-    assert "raw" not in payload                            # source text still not bundled
+    assert "raw" not in payload                            # source text fetched separately
     bare = _json(built_site / "data" / "records" / "KN-FIND-bare01.json")
     assert bare["verified"] is False and bare["parse_error"] == "no front matter"
     assert bare["markdown"].startswith("# A bare finding")
@@ -1083,3 +1088,69 @@ def test_the_build_reports_whether_commit_dates_were_available(built_site):
     experiments = _json(built_site / "data" / "experiments.json")
     assert "timing" in experiments
     assert experiments["timing"]["git"]["available"] == meta["git"]["available"]
+
+
+def test_recent_work_includes_undated_committed_research_but_not_task_traffic(tiny_index):
+    from dataclasses import replace
+    experiment = tiny_index.records['EXP-ECDLP-001']
+    experiment.date = ''
+    tiny_index.git.available = True
+    tiny_index.git.last[experiment.path] = 2000000000
+    task = replace(experiment, record_id='TASK-20260907-aabbcc', kind='TASK', path='task.yaml')
+    tiny_index.records[task.record_id] = task
+    tiny_index.git.last[task.path] = 2100000000
+    rows = payloads.recent_work(tiny_index)
+    assert rows[0]['id'] == experiment.record_id
+    assert rows[0]['date'] == {'at': 2000000000, 'basis': 'committed'}
+    assert all(r['id'] != task.record_id for r in rows)
+    assert not any(r['id'].startswith('KN-LIT-') for r in rows)
+    assert len(payloads.recent_work(tiny_index, limit=2)) == 2
+
+
+def test_recent_work_labels_declared_fallback_and_omits_unknown_dates(tiny_index):
+    tiny_index.git.available = False
+    tiny_index.records['EXP-ECDLP-001'].date = ''
+    rows = payloads.recent_work(tiny_index)
+    assert rows
+    assert all(r['date']['basis'] == 'recorded' for r in rows)
+    assert not any(r['id'] == 'EXP-ECDLP-001' for r in rows)
+    assert {r['category'] for r in rows} >= {'findings', 'evidence', 'decisions'}
+    assert [r['date']['at'] for r in rows] == sorted((r['date']['at'] for r in rows), reverse=True)
+
+
+def test_current_work_explains_objective_and_next_step_and_keeps_ecc_first(tiny_index):
+    tiny_index.git.available = True
+    ecc = next(g for g in tiny_index.goals if g.ecc)
+    ecc.objective = 'Measure whether a new representation lowers the full solve cost.'
+    shard = next(g for g in tiny_index.goals if g.sharded)
+    tiny_index.git.dir_last[shard.path.rsplit('/', 1)[0]] = 2100000000
+    rows = payloads.current_work(tiny_index)
+    assert rows[0]['id'] == ecc.record_id
+    assert rows[0]['objective_preview'] == ecc.objective
+    assert rows[0]['next_action_preview'] == ecc.next_action
+    assert rows[0]['activity']['at'] is None  # active is not a recency claim
+    assert all(r['status'] == 'active' for r in rows)
+    assert next(r for r in rows if r['id'] == shard.record_id)['activity'] == {
+        'at': 2100000000, 'basis': 'committed'}
+
+
+def test_current_work_orders_within_ecc_by_recency_and_handles_empty_index(tiny_index):
+    from dataclasses import replace
+    ecc = next(g for g in tiny_index.goals if g.ecc)
+    newer = replace(ecc, record_id='GOAL-ECDLP-aabbcc', updated_at='2026-09-07')
+    tiny_index.goals.append(newer)
+    assert payloads.current_work(tiny_index, limit=1)[0]['id'] == newer.record_id
+    tiny_index.goals = []
+    tiny_index.records = {}
+    assert payloads.current_work(tiny_index) == []
+    assert payloads.recent_work(tiny_index) == []
+
+
+def test_every_record_has_lossless_separate_source(tiny_repo, built_site):
+    index = ResearchIndex(tiny_repo).build()
+    for rid, record in index.records.items():
+        detail = _json(built_site / "data" / "records" / f"{rid}.json")
+        source = _json(built_site / "data" / detail["source_url"])
+        assert source["path"] == record.path
+        assert source["raw"] == (tiny_repo / record.path).read_text()
+    assert payloads.source_payload(index, "MISSING") is None

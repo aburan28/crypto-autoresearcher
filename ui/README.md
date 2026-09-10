@@ -5,12 +5,12 @@ locally against the working tree:
 
 ```sh
 make ui                       # live, http://127.0.0.1:8787
-make ui-build                 # static, ./site (gitignored, ~125 MB)
+make ui-build                 # static, ./site (gitignored; size reported by the build)
 python3 -m http.server -d site 8080
 ```
 
 Standard library plus PyYAML, which the repository already depends on. No
-`npm`, no bundler, no CDN, no new entry in `pyproject.toml`: this runs in
+runtime npm dependencies, no bundler, no CDN, no new entry in `pyproject.toml`: this runs in
 an offline container, which is where most of this program's sessions
 actually run.
 
@@ -32,7 +32,7 @@ Three differences remain, and they are the ones that cannot be otherwise:
 | | live (`make ui`) | published snapshot |
 | --- | --- | --- |
 | `data/meta.json` `mode` | `live` | `static`, with commit and build time |
-| record source text | inlined from disk | linked to GitHub at the built commit |
+| record source text | loaded on demand from disk | bundled per record, loaded on demand |
 | refresh | `POST api/refresh` re-reads the corpus | rebuilt by CI on the next push |
 
 **The published site is a snapshot and says so.** A banner on every view
@@ -41,18 +41,22 @@ the page against their working tree has to know which commit they are
 looking at; a static page that implied freshness would mislead on exactly
 the point that matters.
 
-Source text is deliberately not bundled: 116 MB of YAML would triple the
-site for bytes that are one click away on GitHub, permalinked to the
-built commit and syntax-highlighted there. Full-text search over record
-bodies is opt-in and loads per-kind excerpt shards on demand — the whole
-set is ~3.8 MB gzipped and two thirds of it is the literature corpus,
-which most searches do not need.
+Every record includes a `source_url` pointing to `data/sources/<id>.json`.
+The Source tab loads that one file on demand and supports copying and downloading
+its text. Reading a finding or searching the index does not fetch source files.
+Both hosts use the same source payload, including Markdown front matter and
+malformed YAML. Source reads that fail stop the build instead of publishing an
+error message as content. Source bytes count toward the Pages size limit.
 
-Knowledge entries are the one exception, and a deliberate one: a markdown
-entry's body *is* the entry, and a finding's page that showed a title and a
-link to GitHub was not a page. Each `data/records/KN-*.json` carries the
-entry's body (~16 MB across ~8,000 entries, fetched one page at a time);
-YAML records still carry only their parsed form.
+Knowledge entry bodies also travel in their record payload so the Entry tab
+can show the full finding immediately. Long entries have a contents outline.
+Record tabs support keyboard arrows, Home/End, and `?tab=source` deep links.
+Loading errors offer retry and a link to the same committed source on GitHub.
+Proof basis appears in plain text alongside metadata: a written derivation is
+not presented as a Lean-verified theorem.
+
+Full-text search loads per-kind excerpt shards on demand; it searches those
+excerpts, rather than downloading the source corpus.
 
 The built `index.html` references `app.js?v=<commit>` and `app.css?v=<commit>`.
 Pages lets a browser keep an asset for ten minutes, and a reloaded page
@@ -90,14 +94,38 @@ because they are navigation, not summary.
 It reads `ledger/`, `experiments/` and `knowledge/` directly. It is not a
 second source of truth and holds nothing of its own.
 
+## On a phone
+
+The desktop shell uses a compact horizontal navigation bar. On small screens,
+the navigation scrolls in one row beneath the brand and controls. The home
+page's current-work cards stack on phones, activity rows put their date above
+the title, and category filters wrap. Search stays at 16px on mobile to avoid
+iOS zoom. Detailed record and experiment tables retain their existing layouts.
+
+Below 560px the record table drops the columns an identifier already carries
+(kind, area) plus date and citation count, keeping identifier, status and
+title, and takes a fixed layout so it fits any width down to a 320px SE
+rather than nearly fitting one. Key/value pairs on detail pages stack.
+
+**Tables stay tables.** A run's status, tier and dates are read against each
+other, and turning each row into a card loses exactly that; the wide ones
+scroll inside their panel, which is what `.scroll-x` is for.
+
 ## The views, in the order a reader asks
 
-- **Overview** — what the program has established, what it is working on,
-  and what is still open, with the program's own loop as a row of counts
-  (questions → proposals → hypotheses → experiments → runs → evidence →
-  decisions → findings). Each count carries the qualifier that keeps it
-  honest: how many hypotheses reached a verdict, how many experiments ever
-  ran, how much evidence points anywhere.
+- **Home** — current research, recent work, and recent findings. Three active
+  goals show their objective and recorded next action, with ECC first and
+  recent updates first within each group. An active goal is not a claim that
+  an experiment is running. Flags and impediments display as “Needs attention”.
+  The recent-work feed filters findings, experiments, ideas, decisions,
+  evidence, and corrections from the latest 60 dated records, showing six
+  at a time. Highlights select the two newest entries per type; All work
+  shows the complete feed in date order. Task traffic and literature imports are excluded. Dates use the
+  last commit touching the record when available (labelled “Committed”);
+  otherwise the declared record date is labelled “Recorded”. Unknown dates
+  are omitted from the feed. Goal recency also includes sharded checkpoints.
+  The research pipeline and links to open questions, areas, and integrity
+  live in an expandable section. All summaries are clipped source text.
 - **Findings** — the promoted findings (`knowledge/findings/`), grouped
   under the research area they are filed in with that area's goals beside
   the heading, each with its proof status, claim tier, the statement
@@ -107,7 +135,7 @@ second source of truth and holds nothing of its own.
   hypotheses that reached a verdict; every evidence record with a
   direction; the obstructions recorded as measurements; and the open
   problems. This is the board for "what did it find?".
-- **Goals** and a goal page with its record trail: every finding, evidence
+- **Research** — the goals board and a goal page with its record trail: every finding, evidence
   record, decision, hypothesis and experiment that cites the goal, grouped.
 - **Experiments**, with run tallies by terminal status, the date each
   contract declares (under the field name that carried it), the date git
@@ -299,7 +327,8 @@ browser does.
 | `data/overview.json` | portfolio summary, ECC-first goals, recent records |
 | `data/goals.json` | the goal board |
 | `data/goals/<id>.json` | one goal: checkpoints, criteria, impediments, bound records |
-| `data/records/<id>.json` | parsed body, link ids in and out, source path; a knowledge entry also carries `markdown` |
+| `data/records/<id>.json` | parsed body, link ids, source URL; a knowledge entry also carries `markdown` |
+| `data/sources/<id>.json` | full UTF-8 source text and its repository path; fetched only from the Source tab |
 | `data/experiments.json` | contracts with run tallies by terminal status |
 | `data/findings.json` | findings with excerpts and attribution, hypothesis verdicts, evidence rows with direction and polarity, obstructions, open problems |
 | `data/integrity.json` | unparseable records, duplicate ids, dangling refs, goal flags |
@@ -327,3 +356,15 @@ ui/
 tests/test_ui_index.py
 .github/workflows/pages.yml
 ```
+
+### Reader regression checks
+
+```sh
+python3 -m pytest tests/test_ui_index.py -q
+npm ci --prefix ui --ignore-scripts
+npm test --prefix ui
+```
+
+jsdom is a development-only dependency for testing lazy source loading,
+project-Pages base paths, safe text rendering, source copy, keyboard tabs,
+deep links, and retry after failed requests. It is not shipped in the site.

@@ -1,6 +1,6 @@
 """Provider-neutral prompt-cache policy and request instrumentation.
 
-The cache layer deliberately lives above the wire transport.  It preserves the
+The cache layer deliberately lives above the wire transport. It preserves the
 existing adapter API while making stable-prefix caching explicit, deterministic,
 and measurable for Anthropic Messages and OpenAI-compatible requests.
 """
@@ -11,7 +11,7 @@ import json
 from dataclasses import dataclass
 from typing import Any, Mapping, Sequence
 
-from .transport import Completion, Message, Tool, build_request, parse_response, post_json
+from .transport import Completion, Message, Tool, build_request
 
 
 @dataclass(frozen=True)
@@ -19,8 +19,8 @@ class PromptCachePolicy:
     """Controls provider-side prompt caching for one request.
 
     ``namespace`` should identify the stable workload (for example a role plus
-    repository snapshot), not an individual run.  Volatile values such as a
-    timestamp or run id must never be included in it.
+    the content hash of its shared policy/tool prefix), not an individual run.
+    Volatile values such as a timestamp or run id must never be included in it.
     """
 
     enabled: bool = True
@@ -114,22 +114,35 @@ def build_cached_request(config, resolution, *, system: str | None,
 
 
 def normalize_usage(wire: str, payload: Mapping[str, Any]) -> dict[str, int]:
-    """Expose cache reads/writes without losing the adapter's common counters."""
+    """Expose cache reads/writes without losing the adapter's common counters.
+
+    Cache counters are retained only when the provider reported them. Missing
+    fields stay absent so aggregators such as ``usage_totals`` do not invent
+    zeroed cache traffic.
+    """
     usage = payload.get("usage") or {}
     if wire == "anthropic_messages":
-        return {
+        normalized = {
             "input_tokens": int(usage.get("input_tokens", 0)),
             "output_tokens": int(usage.get("output_tokens", 0)),
-            "cache_read_input_tokens": int(usage.get("cache_read_input_tokens", 0)),
-            "cache_creation_input_tokens": int(usage.get("cache_creation_input_tokens", 0)),
         }
+        if "cache_read_input_tokens" in usage:
+            normalized["cache_read_input_tokens"] = int(
+                usage["cache_read_input_tokens"])
+        if "cache_creation_input_tokens" in usage:
+            normalized["cache_creation_input_tokens"] = int(
+                usage["cache_creation_input_tokens"])
+        return normalized
     details = usage.get("prompt_tokens_details") or usage.get("input_tokens_details") or {}
-    return {
+    normalized = {
         "input_tokens": int(usage.get("prompt_tokens", usage.get("input_tokens", 0))),
         "output_tokens": int(usage.get("completion_tokens", usage.get("output_tokens", 0))),
-        "cached_tokens": int(details.get("cached_tokens", 0)),
-        "cache_write_tokens": int(details.get("cache_write_tokens", 0)),
     }
+    if "cached_tokens" in details:
+        normalized["cached_tokens"] = int(details["cached_tokens"])
+    if "cache_write_tokens" in details:
+        normalized["cache_write_tokens"] = int(details["cache_write_tokens"])
+    return normalized
 
 
 def attach_cache_usage(completion: Completion, wire: str,
@@ -139,11 +152,19 @@ def attach_cache_usage(completion: Completion, wire: str,
 
 
 def cache_efficiency(usage: Mapping[str, int]) -> float:
-    """Fraction of all input/cache traffic served by cache reads."""
+    """Fraction of provider-accounted input traffic served by cache reads.
+
+    Anthropic reports ``input_tokens`` separately from cache reads/writes, while
+    OpenAI reports ``input_tokens``/``prompt_tokens`` as the total input and puts
+    cache reads in a detail field. The denominator must therefore follow the
+    provider accounting shape instead of subtracting cache reads unconditionally.
+    """
     reads = int(usage.get("cache_read_input_tokens", usage.get("cached_tokens", 0)))
-    writes = int(usage.get("cache_creation_input_tokens", usage.get("cache_write_tokens", 0)))
-    uncached = max(int(usage.get("input_tokens", 0)) - reads, 0)
-    denominator = reads + writes + uncached
+    if "cache_read_input_tokens" in usage or "cache_creation_input_tokens" in usage:
+        writes = int(usage.get("cache_creation_input_tokens", 0))
+        denominator = int(usage.get("input_tokens", 0)) + reads + writes
+    else:
+        denominator = int(usage.get("input_tokens", 0))
     return reads / denominator if denominator else 0.0
 
 

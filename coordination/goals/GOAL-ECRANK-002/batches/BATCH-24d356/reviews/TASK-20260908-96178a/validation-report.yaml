@@ -1,0 +1,525 @@
+# VALIDATION REPORT — TASK-20260908-96178a (joints J2 + J3)
+# Review round: REVIEW-PLAN-BATCH-24d356
+# Role: validator (independent session, review-adversarial, xhigh)
+#
+# Scope: J2_audit_integrity and J3_construction_receipts_and_certificates ONLY.
+# Whole-claim verdicts, hypothesis status, and disposition are Coordinator work.
+# All recomputation is exact (fractions.Fraction / integers / hashlib); scratch
+# scripts live under this task's scratch/ directory. No producer artifact was
+# modified; deliberate mismatch tests were in-memory only. No network.
+
+task_id: TASK-20260908-96178a
+review_plan: REVIEW-PLAN-BATCH-24d356
+experiment_id: EXP-ECRANK-73275e
+joints_owned: [J2_audit_integrity, J3_construction_receipts_and_certificates]
+
+# =====================================================================
+# J2 — audit_integrity
+# =====================================================================
+j2_checks:
+
+  - id: J2.1a
+    check: "|S| and N_a recomputed from the declared synthetic 2-D box"
+    producer_path: experiments/EXP-ECRANK-73275e/runs/RUN-ECRANK-73275e-R2-draw-support/raw-result.json (r2_plants[].S_abs, .N_a; r1_planted_2d)
+    recomputed:
+      S_abs: 1600            # ([-20,20]\{0})^2 = 40*40
+      N_a: 8000              # 5 * |S|
+      E_meets: 5.0           # N_a / |S|
+    recorded: {S_abs: 1600, N_a: 8000, expected_meets: 5.0}
+    result: PASS
+
+  - id: J2.1b
+    check: "in-box ledger for AT-0/1/2 (24 recorded draws) recomputed from R2 reconstructed.rows"
+    producer_path: experiments/EXP-ECRANK-73275e/runs/RUN-ECRANK-73275e-R2-draw-support/raw-result.json (reconstructed.rows[].draws[].heights vs .H)
+    recomputed:
+      n_draws: 24
+      n_in_box: 24
+      in_box_fraction: 1.0
+      out_of_box: []
+      per_draw_in_box_flag_mismatches: []
+    recorded: {n_draws: 24, n_in_box: 24, in_box_fraction: 1.0, out_of_box: []}
+    result: PASS
+
+  - id: J2.1c
+    check: "meet counts for AT-0/1/2 recomputed from per_draw_log (count of meet:true entries; each hit pt == plant)"
+    producer_path: experiments/EXP-ECRANK-73275e/runs/RUN-ECRANK-73275e-R2-draw-support/raw-result.json (r2_plants[].per_draw_log_prefix_and_hits)
+    recomputed:
+      AT_0: {plant: [7, 8],  meets: 3, hit_k: [74, 6187, 6755]}
+      AT_1: {plant: [11, 12], meets: 3, hit_k: [2049, 4869, 6726]}
+      AT_2: {plant: [13, 14], meets: 4, hit_k: [2288, 3970, 6554, 6850]}
+      R1_synthetic_2D: {plant: [1, 2], meets: 5}
+    recorded: {AT_0: 3, AT_1: 3, AT_2: 4, R1_synthetic_2D: 5}
+    result: PASS
+
+  - id: J2.1d
+    check: "audit read committed bytes: R2 recorded_AT (b, d_pattern, b_index, stream) vs predecessor blind_rederivation_inputs_C3[:3] at a20a49b6a"
+    producer_path: experiments/EXP-ECRANK-73275e/runs/RUN-ECRANK-73275e-R2-draw-support/raw-result.json (recorded_AT) vs git show a20a49b6adbcce51893c1221dbd69cdcd486ad9d:experiments/EXP-ECRANK-76a70d/runs/RUN-ECRANK-76a70d-R3-armB/raw-result.json (blind_rederivation_inputs_C3[:3])
+    recomputed:
+      AT_0: {b: [0,1,4,-9,15,11,-4,8], d_pattern: [-546,-330,330,546,-330,-546,330,546], match: true}
+      AT_1: {b: [0,1,-20,-1,12,3,11,-11], match: true}
+      AT_2: {b: [0,1,-12,-3,7,2,12,-17], match: true}
+      R1_recorded_AT_0_vs_pred_0: {b_match: true, d_pattern_match: true}
+      mismatches: []
+    result: PASS
+    note: >
+      The predecessor's committed blind_rederivation_inputs_C3 entries carry only
+      (b, b_index, d_pattern, quantity_statements, stream) — no per-draw records —
+      so the byte-binding check is on the b-tuples and d-patterns, which match
+      exactly. The reconstructed draws are a deterministic function of the same
+      seed (760708) + predecessor engine after the matching b/d_pattern generation,
+      so the draw reconstruction is pinned by the same committed bytes.
+
+  - id: J2.2
+    check: "IV-5 (R1 self-test), IV-7 (R2 determinism), IV-9 (plant distinctness)"
+    producer_path: experiments/EXP-ECRANK-73275e/runs/RUN-ECRANK-73275e-R1-audit-smoke/raw-result.json; .../RUN-ECRANK-73275e-R2-draw-support/raw-result.json
+    recomputed:
+      IV_5_R1_reconstruction_bit_identical_replay: true
+      IV_5_R1_synthetic_2D_meets_observed: 5        # known-answer 2-D case
+      IV_7_R2_reconstruction_bit_identical_replay: true
+      IV_9_plants: [[7,8],[11,12],[13,14]]
+      IV_9_h0: [7, 11, 13]
+      IV_9_distinct_plants: true
+      IV_9_no_shared_h0: true
+    result: PASS
+
+  - id: J2.3
+    check: "binomial consistency of observed meets 3/3/4 vs E=5.0 at N_a=8000, |S|=1600"
+    producer_path: experiments/EXP-ECRANK-73275e/runs/RUN-ECRANK-73275e-R2-draw-support/raw-result.json (r2_plants)
+    recomputed:
+      model: "Binomial(N_a=8000, p=1/1600)"
+      mean: 5.0
+      sd: 2.2354            # sqrt(8000*(1/1600)*(1599/1600)) = sqrt(7995)/40
+      z_3: -0.895
+      z_4: -0.447
+      P_X_eq_3: 0.140365
+      P_X_eq_4: 0.1755
+      P_X_le_3: 0.264938
+    result: PASS
+    note: >
+      3/3/4 are all within ~1 sd of the mean; none is an outlier. Matches the
+      frozen blind report's independent Q2 derivation (mean 5, sd sqrt(7995)/40,
+      P(<=3) ~ 0.2649) exactly. The meets are BELOW the expected 5.0 but the
+      frozen G1 criterion requires meets >= 1 (satisfied); the F1_audit tail
+      trigger is ZERO meets (not met < 5), so no uniformity failure fires.
+
+  - id: J2.4
+    check: "audit (R1/R2) read before any construction count (R3) — timestamp ordering"
+    producer_path: experiments/EXP-ECRANK-73275e/runs/RUN-ECRANK-73275e-{R1,R2,R3}/manifest.yaml (timing.started_at/finished_at)
+    recomputed:
+      R1: {start: 2026-09-07T16:30:07.478387Z, end: 2026-09-07T16:30:07.802672Z}
+      R2: {start: 2026-09-07T16:30:07.805490Z, end: 2026-09-07T16:30:08.119059Z}
+      R3: {start: 2026-09-07T16:30:08.122103Z, end: 2026-09-07T16:30:26.270298Z}
+      R1_start_lt_R2_start_lt_R3_start: true
+      R2_finished_lt_R3_started: true
+    result: PASS
+
+  - id: J2.5
+    check: "attribution wording does not exceed what in-box + meets observations support"
+    producer_path: experiments/EXP-ECRANK-73275e/specification.yaml (success_criterion G1); ledger/evidence/EV-ECRANK-8b35bb.yaml (unresolved_confounds ATTRIBUTION)
+    recomputed:
+      wording: "predecessor zero attributable to square-pattern incidence density at the tested scope"
+      is_spec_G1_attribution: true
+      G1_inputs_satisfied: {in_box_fraction: 1.0, meets_each_ge_1: true}   # 3/3/4
+      meets_below_expected: true            # 3/3/4 < 5.0 (binomial fluctuation, J2.3)
+      exceeds_observations: false
+    result: PASS
+    note: >
+      The wording is the frozen contract's OWN G1 attribution rule ("then the
+      predecessor zero is attributed to square-pattern incidence density at the
+      tested scope"), and its inputs (in-box = 1.0, each planted point met >= 1)
+      are satisfied by the recorded observations. It is an inference (draw
+      geometry and the meet-counting mechanism are ruled out, so density is the
+      residual cause), not a direct density measurement; the "at the tested
+      scope" qualifier is present and appropriate. The predecessor's own record
+      (EV-ECRANK-8b35bb) explicitly flagged this attribution as NOT separable
+      from its record — which is precisely the confound this audit was designed
+      to resolve. The meets being below the expected 5.0 is binomial
+      fluctuation (J2.3), not a uniformity failure. The wording does not exceed
+      the tested scope.
+
+verdict_j2: holds
+verdict_j2_rationale: >
+  Every J2 attack-plan item recomputes exactly: |S|=1600, N_a=8000, in-box
+  24/24 (fraction 1.0), meets 3/3/4 (all hits at pt==plant), recorded_AT
+  byte-matches the predecessor's committed blind_rederivation_inputs_C3 at
+  a20a49b6a, IV-5/IV-7/IV-9 all hold, the observed meets are binomially
+  consistent with E=5.0 (none an outlier), the audit strictly precedes the
+  construction (R2 finished before R3 started), and the attribution wording is
+  the spec's own G1 rule, satisfied at the tested scope. No path/hash/count
+  discrepancy, no out-of-box draw, no miscounted meet, no shared-h0 plant, and
+  no attribution step beyond the tested scope.
+
+# =====================================================================
+# J3 — construction_receipts_and_certificates
+# =====================================================================
+j3_checks:
+
+  - id: J3.1
+    check: "hash-verify the snapshot-bound run package against the archive receipt of TASK-20260907-5058f5"
+    producer_path: coordination/goals/GOAL-ECRANK-002/batches/BATCH-a2bf8b/archives/TASK-20260907-5058f5/snapshot-receipt.json (path_sha256, n_paths=60); binding_mode content_first + commit 03c6e3181b confirmed in coordination/goals/GOAL-ECRANK-002/batches/BATCH-a2bf8b/dispatch_queue.json (TASK-20260907-5058f5 archive block)
+    recomputed:
+      n_paths_declared: 60
+      n_paths_verified: 60
+      worktree_vs_receipt_mismatches: 0
+      snapshot_commit_03c6e3181b_vs_receipt_mismatches: 0
+      worktree_vs_snapshot_commit_byte_differences: 0
+      missing_in_worktree: []
+      missing_in_snapshot_commit: []
+    result: PASS
+    note: >
+      All 60 declared paths (execution-report.yaml + the 8 run directories
+      including R1 attempt-1-precommit-smoke and the R3/R4/R5/R6 checkpoints)
+      recompute to the receipt's path_sha256 both at HEAD (worktree) and at the
+      snapshot commit 03c6e3181b. binding_mode is content_first (content hash),
+      which is exactly what was verified.
+
+  - id: J3.2a
+    check: "r_height convention: r_height == max |numerator| of the r (= g(b)) vector, across all 28 entries"
+    producer_path: experiments/EXP-ECRANK-73275e/runs/RUN-ECRANK-73275e-R3-construct-n6/raw-result.json (found[].r, found[].r_height, found[].instance.r_height)
+    recomputed:
+      n_found: 28
+      entries_where_r_height_ne_max_abs_num_r: 0
+    result: PASS
+    note: >
+      Confirms the convention the frozen blind report flagged (r_height 210 at
+      b_index 579 = max |numerator| of the g(b) vector, not the height of the
+      free coefficient c). Consistent across all 28 entries.
+
+  - id: J3.2b
+    check: "counts_per_H cumulative monotonicity {100:15, 1000:22, 10000:28} from the R3 found[] r_height ledger"
+    producer_path: experiments/EXP-ECRANK-73275e/runs/RUN-ECRANK-73275e-R3-construct-n6/raw-result.json (found[].r_height, counts_per_H)
+    recomputed:
+      counts_per_H: {100: 15, 1000: 22, 10000: 28}
+      cumulative_monotonic: true            # 15 <= 22 <= 28
+      match_recorded: true
+    result: PASS
+
+  - id: J3.2c
+    check: "feasibility fraction 20/10000 = 0.002"
+    producer_path: experiments/EXP-ECRANK-73275e/runs/RUN-ECRANK-73275e-R3-construct-n6/raw-result.json (found[].b_index, feasible_tuples, feasibility_fraction)
+    recomputed:
+      distinct_b_index_with_ge_1_instance: 20
+      feasibility_fraction: 0.002           # 20/10000
+      match_recorded: true
+    result: PASS
+    note: 28 instances arise from 20 distinct b-tuples (8 b-tuples yield 2 instances each).
+
+  - id: J3.2d
+    check: "near_miss_ledger semantics vs near_miss_total=0 with 9980 zero-solution tuples"
+    producer_path: experiments/EXP-ECRANK-73275e/runs/RUN-ECRANK-73275e-R3-construct-n6/raw-result.json (near_miss_ledger, near_miss_total); experiments/EXP-ECRANK-73275e/source/construct.py (construct_arm near_miss logic); experiments/EXP-ECRANK-73275e/specification.yaml (metrics.primary.construct_count)
+    recomputed:
+      near_miss_ledger: []
+      near_miss_total: 0
+      zero_solution_tuples: 9980            # 10000 - 20 feasible
+      impl_semantics: >
+        construct.py appends to near_miss ONLY when a b-tuple has NO kept
+        instance but DOES have a rejected rational-root candidate (reason
+        r_zero / r_height_<h> / build_instance failure). A b-tuple whose
+        n-5 quadratic has NO rational root contributes nothing to near_miss.
+    result: PASS_WITH_FINDING
+    finding: >
+      The ledger is EMPTY (near_miss_total=0) while 9980 b-tuples have 0
+      solutions. Under the implementation's semantics this is consistent:
+      near_miss_total=0 means every zero-solution tuple's quadratic had no
+      rational root (no near-miss candidate to record). But the spec's
+      construct_count metric defines the near-miss ledger as "tuples with 0
+      solutions, recorded with the failing condition" — a literal reading would
+      expect 9980 entries. The implementation records a NARROWER set (only
+      tuples with a rejected rational-root candidate). This is a
+      semantics/labeling gap between the spec's metric wording and the
+      implementation, not a data-integrity failure: the ledger is present,
+      internally consistent, and the primary metrics (counts, feasibility
+      fraction) are correct. Flagged for the Coordinator; it does not break J3.
+
+  - id: J3.3
+    check: "R3/R4 instance-list bit-identity by independent hashing; R4 re-derived vs replayed R3 output"
+    producer_path: experiments/EXP-ECRANK-73275e/runs/RUN-ECRANK-73275e-R3-construct-n6/raw-result.json (found); .../RUN-ECRANK-73275e-R4-construct-n6-replay/raw-result.json (found); experiments/EXP-ECRANK-73275e/source/run_experiment.py (_construct, replay_of)
+    method: >
+      Canonical serialization = json.dumps(found, sort_keys=True,
+      separators=(",",":")); sha256 of the UTF-8 bytes. Also compared the
+      as-serialized (order-sensitive) form.
+    recomputed:
+      sha256_canonical_R3_found: e3c7cf494e289c0af13a127a73a50b4eef5bc443f2a186c1743e6b08690d92c7
+      sha256_canonical_R4_found: e3c7cf494e289c0af13a127a73a50b4eef5bc443f2a186c1743e6b08690d92c7
+      bit_identical_canonical: true
+      bit_identical_order_sensitive: true
+      counts_per_H_equal_after_json: true
+      ops_R3: 9191003
+      ops_R4: 9191003
+      R4_recorded_iv2_instance_list_identical: true
+      R4_recorded_iv2_counts_identical: false     # int-keyed vs str-keyed in-memory artifact (documented in execution-report)
+    replay_independence: >
+      run_experiment.py _construct("R4", 6, 760806, N_B_N6, H6, replay_of="R3")
+      calls construct.construct_arm(E, 6, 760806, ...) — the SAME seed and the
+      SAME code path as R3 — so R4 RE-DERIVES the instance list from the seed
+      (independent re-derivation). It reads R3's raw-result.json ONLY AFTER
+      re-deriving, to set the post-hoc iv2_* comparison flags; R3's found[] is
+      not the source of R4's found[]. The shared code path is expected and
+      appropriate for a determinism check (IV-2/IV-7): independence is in the
+      re-derivation from the frozen seed, not in a second implementation.
+    result: PASS
+
+  - id: J3.4
+    check: "certificate spot-recheck by EXACT recomputation from recorded instance fields (>= 3 of 28; done for all 28 direct + 5 via committed certifier)"
+    producer_path: experiments/EXP-ECRANK-73275e/runs/RUN-ECRANK-73275e-R3-construct-n6/raw-result.json (found[].instance, found[].certificate); experiments/EXP-ECRANK-73275e/source/certify76.py (certify_instance); coset recovered as m0=34, members=(34,35,62,63,98,99,126,127) (the unique coset with V=coset_V whose member class values contain instance 0's class_keys)
+    recomputed_direct_all_28:
+      s_bi_eq_d_i_r_i_sq_failures: 0          # s(b_i) = d_i * g(b_i)^2 for every i, every instance
+      deg_s_in_3_4_and_eq_deg_s_failures: 0   # all deg_s = 4
+      disc_s_nonzero_and_eq_recorded_failures: 0   # recomputed quartic discriminant == recorded disc_s, all 28
+      any_r_i_eq_0_failures: 0                # g(b_i) != 0 for all i
+      class_keys_n_classes_mismatches: 0      # class_keys == sorted(set(d_pattern)), n_classes == len(set(d_pattern))
+      deg_s_distribution: {4: 28}
+      n_classes_distribution: {3: 28}
+      any_4_class_instance: false
+    recomputed_aggregate_via_committed_certifier:
+      instances: [0, 4, 6, 8, 20]             # b_index 579, 870, 2142, 2604, 7363 (mix of aggregate 6 and 2)
+      idx_0_b579:  {recorded_agg: 6, recomputed_agg: 6, nc: 3, ck_match: true, verdict: PASS}
+      idx_4_b870:  {recorded_agg: 2, recomputed_agg: 2, nc: 3, ck_match: true, verdict: PASS}
+      idx_6_b2142: {recorded_agg: 2, recomputed_agg: 2, nc: 3, ck_match: true, verdict: PASS}
+      idx_8_b2604: {recorded_agg: 6, recomputed_agg: 6, nc: 3, ck_match: true, verdict: PASS}
+      idx_20_b7363: {recorded_agg: 6, recomputed_agg: 6, nc: 3, ck_match: true, verdict: PASS}
+      per_class_note: >
+        aggregate-6 instances: all 3 classes certified_Fl=2 (raw sum 6, no leak).
+        aggregate-2 instances: all 3 classes certified_Fl=1 (raw sum 3, minus 1
+        conservative leak deduction for a nonbase class certified < 2 = 2).
+    result: PASS
+    note: >
+      The core forced-point identity s(b_i) = d_i*g(b_i)^2 was verified for ALL
+      28 instances (not just 3), as was deg s, the exact discriminant (recomputed
+      quartic discriminant equals the recorded disc_s for all 28), g(b_i) != 0,
+      and class_keys/n_classes. aggregate_total was recomputed by running the
+      COMMITTED certifier (certify76.certify_instance with the byte-identical
+      exact_certify loader, digest-verified) on 5 instances spanning both
+      aggregate values; all match exactly. No producer verdict field was quoted.
+
+  - id: J3.5a
+    check: "PD-2: R5 counted_ops 100002120 >= 1.0e8, ops_cap_respected false; exhaustion inert in both directions"
+    producer_path: experiments/EXP-ECRANK-73275e/runs/RUN-ECRANK-73275e-R5-construct-n8/raw-result.json (exhaustion, ops, n_b_done, found); experiments/EXP-ECRANK-73275e/specification.yaml (stopping_rules)
+    recomputed:
+      exhaustion: {kind: counted_ops_cap, ops: 100002120, b_index: 666}
+      ops_ge_1e8: true
+      n_b_done: 667                        # of 10000 declared
+      found: 0
+      found_is_complete_scan: false        # stopped at b_index 666
+    adjudication: >
+      The cap breach (100002120 >= 1.0e8) is a BUDGET DEVIATION, correctly
+      recorded as ops_cap_respected=false and exhaustion={counted_ops_cap,
+      b_index 666}. Per the frozen stopping_rules ("exhaustion is inert in both
+      directions ... never a positive or negative mathematical result"), the
+      R5 found=0 is an INCOMPLETE scan (667/10000 b-tuples) and is INERT — it is
+      not a negative mathematical result and must not be scored as one. The
+      execution report records "exhaustion is inert in both directions
+      (stopping_rules)." The cap breach was NOT scored as a result. PASS.
+    result: PASS
+
+  - id: J3.5b
+    check: "PD-3: n=8 integer (a,b) box of width min(H,20) as a scope narrowing on R5's found=0"
+    producer_path: experiments/EXP-ECRANK-73275e/source/construct.py (solve_n8, Bbox=min(int(H),20)); experiments/EXP-ECRANK-73275e/implementation.md (IC-732-3); experiments/EXP-ECRANK-73275e/runs/RUN-ECRANK-73275e-R5-construct-n8/raw-result.json
+    recomputed:
+      enumerated_scope: "integer (a,b) in [-min(H,20), min(H,20)]^2, c solved exactly"
+      full_rational_height_H_lattice_enumerated: false
+      scope_narrowing_on_R5_found_0: true
+      disclosed_in_implementation_md_IC_732_3: true
+      disclosed_in_execution_report_PD_3: true
+      scope_note_present_in_R5_raw: false
+    adjudication: >
+      R5's found=0 is scoped to the integer (a,b) coefficient box
+      [-min(H,20), min(H,20)]^2 (with c solved exactly), NOT the full rational
+      height-H lattice. Non-integer (a,b) are outside the enumerated scope and
+      are not claimed empty. This is a genuine scope narrowing on R5's zero, and
+      it is disclosed in implementation.md (IC-732-3) and the execution report
+      (PD-3). PASS on the adjudication (the zero is correctly scoped, not a
+      full-lattice negative).
+    result: PASS_WITH_FINDING
+    finding: >
+      implementation.md IC-732-3 states the scope note is "Recorded in every R5
+      raw result," but the R5 raw-result.json carries NO scope_note field (the
+      solve_n8 meta.scope_note is only emitted inside near-miss entries, and R5
+      has none). So the specific claim that the note is in the R5 raw is
+      inaccurate; the scope narrowing is nonetheless disclosed in
+      implementation.md and the execution report. Minor documentation
+      discrepancy, not a data-integrity failure.
+
+  - id: J3.5c
+    check: "IV-8: no 4-class instance; explicit untested statement recorded; coverage correctly single-class"
+    producer_path: experiments/EXP-ECRANK-73275e/runs/RUN-ECRANK-73275e-R3-construct-n6/raw-result.json (found[].certificate.n_classes); experiments/EXP-ECRANK-73275e/execution-report.yaml (R3 observations_quoted.iv8_*, control_outcomes_recorded.IV-8)
+    recomputed:
+      any_4_class_instance_R3: false        # all 28 have n_classes = 3
+      n_classes_distribution: {3: 28}
+      iv8_four_class_instance_present: false
+      iv8_untested_statement_present: true
+      iv8_statement_location: "execution-report.yaml (R3 observations_quoted.iv8_untested_statement); NOT in the R3 raw-result.json or R3 manifest"
+      coverage_correctly_single_class: true # "28 instances, all 3-class"
+    adjudication: >
+      The IV-8 clause is satisfied via its second disjunct: no 4-class instance
+      exists, and the explicit statement that the multi-class (4-class) path
+      remains untested is recorded, with the single-class coverage count (28
+      instances, all 3-class). The certification claim is correctly held at the
+      3-class level (not 4-class). PASS on the clause.
+    result: PASS_WITH_FINDING
+    finding: >
+      The explicit untested statement is in the execution-report.yaml (a
+      required run record), not in the R3 raw-result.json or R3 manifest. The
+      execution report's control_outcomes_recorded.IV-8 says "explicit untested
+      statement recorded on R3," which is imprecise — it is recorded in the
+      execution report (which summarizes R3), not in the R3 per-run raw. Under a
+      broad reading of "the run record" (the execution report is a required
+      artifact and a run record) IV-8 is satisfied; under a narrow reading
+      (per-run raw only) the statement is not in the R3 raw. Minor placement
+      issue; the substance (multi-class untested, 3-class coverage) is correct.
+
+  - id: J3.6
+    check: "dirty-tree provenance (git_dirty_at_runs true at 5b83fed02e): is the run package verifiable despite the dirty tree? what is/isn't binding-bound?"
+    producer_path: experiments/EXP-ECRANK-73275e/runs/*/manifest.yaml (code.commit, code.dirty, code.dirty_files, code.source_sha256); coordination/goals/GOAL-ECRANK-002/batches/BATCH-a2bf8b/archives/TASK-20260907-5058f5/snapshot-receipt.json (path_sha256); git (5b83fed02e, 03c6e3181b, worktree)
+    recomputed:
+      run_package_60_files_hash_bound_by_snapshot_receipt: true   # J3.1
+      source_8_files_hash_bound_by_per_run_manifests: true        # all 8 source_sha256 match worktree, identical across all 8 runs
+      source_identical_across_run_commit_worktree_snapshot: true  # 5b83fed02e == worktree == 03c6e3181b for all 8 source files
+      dirty_files_R2: ["?? coordination/goals/GOAL-ECRANK-002/batches/BATCH-a2bf8b/claims/", "?? experiments/EXP-ECRANK-73275e/runs/"]
+      dirty_tree_cause: "untracked run outputs (runs/) + claims/ — NOT source modifications"
+      specification_yaml_bound: "review-plan input_binding sha256 9edd4a9b... (verified at worktree and at 03c6e3181b)"
+      implementation_md_content_hash_bound: false   # git-committed, not in receipt path_sha256 nor manifest source_sha256
+      approval_note_md_content_hash_bound: false    # git-committed, not in receipt path_sha256 nor manifest source_sha256
+    adjudication: >
+      YES — the snapshot receipt's content_first hash binding makes the run
+      package (60 files: execution-report.yaml + all 8 run directories)
+      verifiable despite the dirty tree at run time; all 60 recompute to the
+      receipt. The source (8 files) is ADDITIONALLY content-hash-bound by the
+      per-run manifests' source_sha256 (all match the worktree and are identical
+      across all 8 runs and across the run commit 5b83fed02e / worktree /
+      snapshot commit 03c6e3181b). The dirty tree at run time was caused by
+      UNTRACKED run outputs (runs/) and claims/, not by source modifications —
+      so the source that produced the runs is the committed source at
+      5b83fed02e. WHAT IS binding-bound: the 60-file run package (snapshot
+      receipt) and the 8 source files (per-run manifests). WHAT IS NOT
+      content-hash-bound: implementation.md and approval-note.md (git-committed
+      but not in the receipt's path_sha256 nor the manifests' source_sha256);
+      specification.yaml is bound by the review-plan input_binding. The dirty
+      tree does not undermine verifiability of the run package or the source.
+    result: PASS
+
+verdict_j3: holds
+verdict_j3_rationale: >
+  Every J3 attack-plan item survives independent recomputation: all 60
+  snapshot-bound run-package files hash-verify against the receipt (worktree and
+  snapshot commit); counts_per_H {100:15,1000:22,10000:28} recompute from the
+  r_height ledger and are cumulative-monotonic; feasibility 20/10000=0.002;
+  R3/R4 found[] are bit-identical by independent canonical hashing and R4
+  re-derived (independent) rather than replaying R3's output; the certificate
+  spot-recheck passes for all 28 instances on the direct checks (s(b_i)=d_i*r_i^2,
+  deg s, exact discriminant, g(b_i)!=0, class_keys/n_classes) and aggregate_total
+  recomputes exactly via the committed certifier on 5 instances; PD-2's cap
+  breach is correctly treated as an inert budget deviation (R5 found=0 is an
+  incomplete 667/10000 scan, not a result); PD-3's integer-box scope narrowing
+  is disclosed and correctly scopes R5's zero; IV-8 is satisfied (no 4-class
+  instance, explicit untested statement, 3-class coverage); and the dirty tree
+  does not break verifiability because the run package and source are both
+  content-hash-bound and the dirty files were untracked outputs. The three
+  PASS_WITH_FINDING items (near-miss ledger semantics narrower than a literal
+  spec reading; implementation.md's "Recorded in every R5 raw result" claim
+  inaccurate; IV-8 statement in the execution report rather than the R3 raw) are
+  documentation/semantics clarifications, not data-integrity failures, and do
+  not break the joint.
+
+# =====================================================================
+# Findings (non-breaking; for the Coordinator)
+# =====================================================================
+findings:
+  - id: F-J3-1
+    severity: minor
+    joint: J3
+    what: >
+      near_miss_ledger semantics are narrower than a literal reading of the
+      spec's construct_count metric. The ledger records only b-tuples with a
+      rejected rational-root candidate (near-miss), not all 9980 zero-solution
+      tuples. near_miss_total=0 is consistent with the implementation (no
+      zero-solution tuple had a rational root) but a literal "tuples with 0
+      solutions" reading would expect 9980 entries.
+  - id: F-J3-2
+    severity: minor
+    joint: J3
+    what: >
+      implementation.md IC-732-3 claims the n=8 scope note is "Recorded in every
+      R5 raw result," but the R5 raw-result.json has no scope_note field (it is
+      only emitted in near-miss entries, of which R5 has none). The scope
+      narrowing is disclosed in implementation.md and the execution report
+      (PD-3), so the substance is intact; only the specific "in the R5 raw"
+      claim is inaccurate.
+  - id: F-J3-3
+    severity: minor
+    joint: J3
+    what: >
+      The IV-8 explicit untested statement is in execution-report.yaml, not in
+      the R3 raw-result.json or R3 manifest. The execution report's
+      control_outcomes_recorded.IV-8 says "recorded on R3," which is imprecise.
+      IV-8 is satisfied under a broad reading of "run record" (the execution
+      report is a required run record); the substance (multi-class untested,
+      3-class coverage) is correct.
+  - id: F-J2-1
+    severity: informational
+    joint: J2
+    what: >
+      The observed planted meets (3/3/4) are below the expected 5.0. This is
+      binomial fluctuation (J2.3: none an outlier, P(<=3)~0.265), not a
+      uniformity failure (the F1_audit trigger is ZERO meets). The frozen G1
+      criterion requires meets >= 1 (satisfied), so the M-A attribution holds.
+      Recorded so the Coordinator does not read the below-expected meets as a
+      control failure.
+
+# =====================================================================
+# Review attestation
+# =====================================================================
+review_attestation:
+  task_id: TASK-20260908-96178a
+  joints_owned: [J2_audit_integrity, J3_construction_receipts_and_certificates]
+  sources_read:
+    # Exact, in the order read. Git read-only accesses (git show / cat-file /
+    # ls-tree / log / rev-parse / status) against the named commits are listed
+    # at the end.
+    - ledger/handoffs/TASK-20260908-96178a.yaml
+    - coordination/goals/GOAL-ECRANK-002/batches/BATCH-24d356/review-plan.yaml
+    - experiments/EXP-ECRANK-73275e/execution-report.yaml
+    - coordination/goals/GOAL-ECRANK-002/batches/BATCH-a2bf8b/archives/TASK-20260907-5058f5/snapshot-receipt.json
+    - experiments/EXP-ECRANK-73275e/specification.yaml
+    - experiments/EXP-ECRANK-73275e/implementation.md
+    - experiments/EXP-ECRANK-73275e/runs/RUN-ECRANK-73275e-R1-audit-smoke/raw-result.json
+    - experiments/EXP-ECRANK-73275e/runs/RUN-ECRANK-73275e-R2-draw-support/raw-result.json
+    - experiments/EXP-ECRANK-73275e/source/audit.py
+    - experiments/EXP-ECRANK-73275e/runs/RUN-ECRANK-73275e-R3-construct-n6/raw-result.json
+    - experiments/EXP-ECRANK-73275e/runs/RUN-ECRANK-73275e-R4-construct-n6-replay/raw-result.json
+    - experiments/EXP-ECRANK-73275e/runs/RUN-ECRANK-73275e-R5-construct-n8/raw-result.json
+    - experiments/EXP-ECRANK-73275e/source/construct.py
+    - experiments/EXP-ECRANK-73275e/source/run_experiment.py
+    - experiments/EXP-ECRANK-73275e/runs/RUN-ECRANK-73275e-R2-draw-support/manifest.yaml
+    - experiments/EXP-ECRANK-73275e/source/certify76.py
+    - ledger/evidence/EV-ECRANK-8b35bb.yaml
+    - coordination/goals/GOAL-ECRANK-002/batches/BATCH-a2bf8b/dispatch_queue.json
+    - coordination/goals/GOAL-ECRANK-002/batches/BATCH-24d356/reviews/TASK-20260908-6f37e1/blind-rederivation.yaml   # frozen blind report, permitted by the plan
+    - experiments/EXP-ECRANK-73275e/runs/RUN-ECRANK-73275e-R1-audit-smoke/attempt-1-precommit-smoke/NOTE.txt
+    # read-only git accesses (committed bytes), in order of first use:
+    - "git: HEAD rev-parse / log / status (worktree fa6c1a9383)"
+    - "git: cat-file/log 03c6e3181bc54b67ab3904b5f6187dbe4e6cb3ad (snapshot commit)"
+    - "git: cat-file/log a20a49b6adbcce51893c1221dbd69cdcd486ad9d (predecessor audit source commit)"
+    - "git: cat-file/log 5b83fed02e40d5a2aea939220ff34e2ef4961f6b (run commit)"
+    - "git: show a20a49b6a:experiments/EXP-ECRANK-76a70d/runs/RUN-ECRANK-76a70d-R3-armB/raw-result.json"
+    - "git: show 03c6e3181b:<60 run-package paths> + source/ + specification.yaml (hash verification)"
+    - "git: show 5b83fed02e:experiments/EXP-ECRANK-73275e/source/* (source drift check)"
+    - "git: ls-tree -r 03c6e3181b (snapshot commit tree membership)"
+    - "git: show --stat 03c6e3181b (snapshot commit changed-file set)"
+  read_sibling_reports: false
+  requested_policy: review-adversarial
+  resolved_model: vllm/qwen3.8-27b
+  independent_session: true
+  verdict: holds
+  verdict_note: "Aggregate of the two owned joints (verdict_j2 holds, verdict_j3 holds); per-joint fields remain authoritative. Added in a pre-archive addendum for tools/check_review_independence.py schema conformance; no content change."
+  notes: >
+    Blindness honored: the red-team directory
+    coordination/goals/GOAL-ECRANK-002/batches/BATCH-24d356/reviews/TASK-20260908-b687fd/
+    was NOT read, listed, or grepped at any point. The frozen blind report
+    (TASK-20260908-6f37e1) was read only because the review plan explicitly
+    permits it, and is listed in sources_read. All recomputation used exact
+    arithmetic (fractions.Fraction, integers, hashlib.sha256); no floating point
+    in any verdict-bearing quantity. No producer artifact was modified; all
+    scratch is under this task's scratch/ directory. The resolved model is
+    recorded as the model this session actually runs on (no invented
+    verification).

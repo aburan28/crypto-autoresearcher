@@ -3,14 +3,15 @@ name: crypto-autoresearcher-harness
 description: >-
   Run, resume, or inspect a Crypto Autoresearcher ECDLP research campaign.
   Use when the user asks to run the harness, continue a GOAL-*, inspect
-  research status, execute an approved dispatch task, or start a new
-  evidence-gated research workflow.
-compatibility: Requires a checkout of the Crypto Autoresearcher repository and Python 3.11+.
+  research status, generate ideas, design experiments, execute a dispatch task,
+  or keep the full research harness making progress.
 metadata:
   openai/plugin: crypto-autoresearcher-harness
 ---
 
 # Crypto Autoresearcher Harness
+
+Requires a Crypto Autoresearcher checkout and Python 3.11+.
 
 Budget policy: follow `docs/research-budget-policy.md`. Routine time, CPU,
 run-count and batch estimates are advisory and may be null; do not demand
@@ -100,19 +101,53 @@ mismatch means the configured endpoint belongs to another checkout or process;
 do not use it for this task. The binding prevents accidental cross-checkout
 mixing but is not authentication and does not make peer data authoritative.
 
-## 3. Route the user's request
+## 3. Select a mode and follow its shared procedure
+
+State the mode once. Preserve it across checkpoints and user status questions;
+a later "continue" resumes the recorded scope and next_action.
+
+Apply `AGENTS.md` standing user authorization for ideas and experiments.
+The Coordinator selects ranked candidates and approves complete frozen
+protocols without another user selection or confirmation prompt. Continue
+through the protocol, dispatch and archival gates below; an incomplete
+contract is a technical prerequisite to resolve, not a request for permission.
 
 | User intent | Required behavior |
 | --- | --- |
-| `status`, `doctor`, or a general orientation request | Stay read-only. Run the preflight/status checks and summarize active goals, blockers, and next actions. |
-| `continue` or `resume` with a `GOAL-*` | Reuse only an active goal that matches the request. Render and validate its declared dispatch queue; resume from its recorded `next_action`. |
-| Run a named task or experiment | Verify that the task has an approved handoff, an exclusive write scope, a budget, stopping rules, and all completed dependencies. The Executor records observations only. |
-| Start a new experiment | Require a Coordinator-approved, frozen protocol with controls, metrics, budgets, stopping rules, and artifact paths before implementation begins. |
-| Start a new goal | Do this only when the user explicitly asks for a new campaign. The Coordinator must create the goal and bounded first batch through the repository templates and archival process. |
-| Ask for a conclusion, promotion, closure, or breakthrough claim | Require the independent reviews and promotion gates specified in `AGENTS.md`. A claimed breakthrough, closure, or contradiction requires an independent `review-breakthrough` review at `max`; it may not be degraded. |
+| Status, doctor, orientation | **status**: read-only preflight and status; use goal_portfolio_health.py --no-deepen. Report without claims, records, fetches or dispatch. |
+| Generate ideas / design experiments | **ideas/design**: read [intake](references/intake.md); archive and publish the requested proposals/designs, then stop unless execution was requested. |
+| Run/continue a named GOAL-* | **goal execution**: read [execution](references/execution.md) and [lifecycle](references/lifecycle.md); execute existing work for that exact goal through required approval, review and archival gates. |
+| Run the harness / keep running / run experiments, with no named goal | **execution** (default): read [execution](references/execution.md); drain existing eligible experiments, ECC-first/newest-first, without substituting proposals for runs. |
+| Explicit full portfolio research including ideation | **portfolio**: read [lifecycle](references/lifecycle.md); work ranked active goals, ECC first, including explicitly requested ideation. |
+| Run a named TASK-* or EXP-* | **task execution**: read [execution](references/execution.md); follow lifecycle gates for exactly that task/experiment and required archives/reviews; stop at the requested boundary. |
+| Start a new campaign | Create a goal only on this explicit request, then use goal mode. |
+| Conclusion, promotion, closure or breakthrough | Arrange the Coordinator and independent claim-tier review required by AGENTS.md; never infer approval from the request itself. |
 
-Never silently resume a paused or completed goal. Never turn an empty queue,
-run crash, timeout, or missing backend into a research conclusion.
+In execution mode, `references/execution.md` narrows the shared lifecycle's
+work selection: no automatic idea intake, new goals, portfolio-wide literature
+or closure work. Scoped implementation and prerequisite repair must name the
+existing experiment they unblock. Authority, claims, immutable artifacts,
+independent review and scientific decision gates are unchanged. The process
+supervisor handles trial execution, not Coordinator authority or publication.
+
+A completed batch is a checkpoint in execution/goal/portfolio mode. Continue authorized
+work without asking again; see the lifecycle for terminal and operational exits.
+Do not reopen a terminal goal or silently substitute a different named goal.
+Impeded goals stay active. Empty queues and infrastructure failures are not
+research conclusions.
+
+The old launch-research-harness and coordinate-research-goal commands are
+compatibility aliases for this procedure. Their presence does not create a
+second workflow. Stage skills are implementation references, not additional
+front doors the user must know.
+
+If an expired claim has no inspectable runtime binding, follow
+`docs/isolated-task-recovery.md`: one bounded assessment, then an explicit
+Coordinator-authorized isolated successor if justified. Do not repeatedly ask
+for the same unavailable session identifier or treat unknown runtime state as
+an indefinite veto. Preserve the original claim and artifacts; never fabricate
+a release, termination receipt, or approval. The original queue may remain
+invalid while a separately approved successor queue is validated normally.
 
 ## 4. Execute through the repository's roles and dispatcher
 
@@ -143,17 +178,51 @@ independent review, then a Coordinator-only ledger archive before a state
 transition. Use merges, never rebases, for branches carrying pushed research
 records. Do not manufacture a new task merely to fill capacity.
 
-## 5. Report a bounded, evidence-backed checkpoint
+### Proof-oriented work uses the Lean lane
 
-After a status check or completed batch, report:
+For a new proof-oriented experiment or review, the Coordinator identifies a
+load-bearing lemma or finite certificate suitable for Lean and records a
+formalization task in the proof-search map. If formalization is not yet useful,
+record the exact missing definition or library dependency and a revisit trigger.
+Start with the smallest decision-changing obligation; do not replace the full
+human claim with an easier statement and call the claim proved.
+
+Use `docs/formal-research-lane.md` and the existing `formal/targets/` task schema.
+A formal task remains an Executor task with the normal committed handoff,
+claim, snapshot, independent semantic review and Coordinator decision gates.
+Existing Lean sources can be checked with `autoresearch formal verify
+--task-file <frozen-spec> --artifact-out <new-receipt>`; MathCode is optional
+for verification. Freeze the theorem's assumptions, quantifier order, module,
+qualified name, toolchain and dependency manifest before execution. Pair the
+positive theorem with a known-false or weakened-assumption control.
+
+The verifier must compile the requested module and audit the requested theorem's
+transitive axioms. A successful build of another module, an empty audit, or a
+proof using `sorryAx` is not verification of the target. Archive the Lean source,
+build/audit logs, exact input hashes and semantic-review report. A machine-checked
+statement remains pending semantic review until its correspondence with the
+research claim has been checked independently; existing findings retain their
+recorded proof status. Toolchain failures and unresolved proof obligations are
+not mathematical refutations.
+
+## 5. Make progress visible, then continue within mode
+
+Read [progress](references/progress.md) and use the bundled read-only
+checkpoint.py for verified queue observations. After a status check or
+completed batch, report:
 
 1. The goal/task ID and its actual status.
 2. Commands/checks run and their outcome.
 3. Completed task IDs and verified archive commits, when they exist.
 4. Evidence and decision IDs, with the exact claim boundary.
 5. Any independent review still required.
-6. The single recorded next action, or a precise operational blocker and what
-   would clear it.
+6. What changed since the last checkpoint; owners of current work.
+7. The single recorded next action and responsible role, or a precise
+   operational impediment, its recheck, and what would clear it.
+8. The lane, queue path, branch and PR that another session must resume.
+
+A checkpoint does not end an authorized execution/goal/portfolio loop. Resume the shared
+lifecycle; do not confuse a session ending with a campaign completing.
 
 Do not call an idea, a passing unit test, a snapshot, or a single toy run a
 cryptanalytic advance.

@@ -321,9 +321,9 @@ const split = (v) => (v || '').split(',').filter(Boolean);
 // Chrome
 // ---------------------------------------------------------------------------
 const NAV = [
-  { route: '#/', label: 'Overview' },
+  { route: '#/', label: 'Home' },
   { route: '#/findings', label: 'Findings', count: (s) => s.meta?.findings },
-  { route: '#/goals', label: 'Goals', count: (s) => s.meta?.goals },
+  { route: '#/goals', label: 'Research', count: (s) => s.meta?.goals },
   { route: '#/experiments', label: 'Experiments', count: (s) => s.meta?.experiments },
   { route: '#/records', label: 'Records', count: (s) => s.records.length || null },
   { route: '#/integrity', label: 'Integrity', count: (s) => s.overview
@@ -342,7 +342,7 @@ function renderNav() {
       (item.route === '#/goals' && here.startsWith('#/goal/')) ||
       (item.route === '#/records' && here.startsWith('#/record/'));
     const n = item.count ? item.count(state) : null;
-    nav.append(h('a', { class: 'nav-item', href: item.route, 'aria-current': active },
+    nav.append(h('a', { class: 'nav-item', href: item.route, 'aria-current': active ? 'page' : null },
       h('span', {}, item.label),
       n === null || n === undefined ? null : h('span', { class: 'n' }, n.toLocaleString())));
   }
@@ -375,13 +375,13 @@ function snapshotBanner() {
   const when = m.built_at ? m.built_at.replace('T', ' ').replace('+00:00', ' UTC') : 'unknown';
   return h('div', { class: 'banner info', style: 'margin-bottom:14px' },
     h('div', {},
-      h('b', {}, 'Snapshot, not live. '),
+      h('b', {}, 'Research snapshot · '),
       'Built ', h('span', { class: 'mono' }, when), ' from ',
       m.repo_url && m.commit
         ? h('a', { class: 'mono', href: `${m.repo_url}/commit/${m.commit}`,
                    target: '_blank', rel: 'noreferrer' }, short)
         : h('span', { class: 'mono' }, short || 'an unknown commit'),
-      '. Records committed after that are not here; every source link points at that commit.'));
+      '. Updates appear after the next site build.'));
 }
 
 // ---------------------------------------------------------------------------
@@ -491,24 +491,32 @@ function areaCell(r) {
     r.ecc ? h('span', { class: 'tag acc' }, r.area) : r.area);
 }
 
+// On a phone the record table is ~1,220px wide, so the title -- the column
+// that says what a record IS -- sat off-screen behind kind, area, date and a
+// citation count. Those four are marked secondary and drop out below 560px,
+// which leaves identifier, status and title fitting without a sideways
+// scroll. Nothing is lost that the identifier does not already carry: a
+// record's kind and area are its first two segments.
+const SECONDARY = 'col-secondary';
+
 function recordTable(records, opts = {}) {
   if (!records.length) return h('div', { class: 'empty' }, 'nothing matches');
-  return h('table', {},
+  return h('table', { class: 'record-table' },
     h('thead', {}, h('tr', {},
-      h('th', {}, 'id'), h('th', {}, 'kind'), h('th', {}, 'status'),
-      h('th', {}, 'title'), opts.compact ? null : h('th', {}, 'area'),
-      h('th', {}, 'date'),
-      opts.compact ? null : h('th', { title: 'records citing this one' }, 'in'))),
+      h('th', {}, 'id'), h('th', { class: SECONDARY }, 'kind'), h('th', {}, 'status'),
+      h('th', {}, 'title'), opts.compact ? null : h('th', { class: SECONDARY }, 'area'),
+      h('th', { class: SECONDARY }, 'date'),
+      opts.compact ? null : h('th', { class: SECONDARY, title: 'records citing this one' }, 'in'))),
     h('tbody', {}, records.map((r) => h('tr', {},
       h('td', {}, idLink(r.id)),
-      h('td', { class: 'faint mono', style: 'font-size:11px' }, kindLabel(r)),
+      h('td', { class: `faint mono ${SECONDARY}`, style: 'font-size:11px' }, kindLabel(r)),
       h('td', {}, (r.kind === 'DEC' ? decisionTag(r.status) : statusTag(r.status))
         || h('span', { class: 'faint' }, '—')),
-      h('td', { style: 'max-width:640px' },
+      h('td', { class: 'col-title' },
         h('div', { class: 'clamp2' }, r.title || h('span', { class: 'faint' }, '(no title)'))),
-      opts.compact ? null : h('td', {}, areaCell(r)),
-      h('td', { class: 'mono faint', style: 'white-space:nowrap' }, fmtDate(r.date)),
-      opts.compact ? null : h('td', { class: 'mono faint' }, r.backlinks || '')))));
+      opts.compact ? null : h('td', { class: SECONDARY }, areaCell(r)),
+      h('td', { class: `mono faint ${SECONDARY}`, style: 'white-space:nowrap' }, fmtDate(r.date)),
+      opts.compact ? null : h('td', { class: `mono faint ${SECONDARY}` }, r.backlinks || '')))));
 }
 
 const resolve = (ids) => ids.map((id) => state.byId.get(id)).filter(Boolean);
@@ -544,6 +552,24 @@ function distribution(map, opts = {}) {
   }));
 }
 
+/** True on a phone-width screen. Read at render time: a layout that changes
+ *  under the reader mid-session is worse than one that is merely narrow. */
+const narrowScreen = () => matchMedia('(max-width: 820px)').matches;
+
+/** A panel of filter chips, collapsible.
+ *
+ *  The records browser carries sixty area chips; on a phone that is twenty
+ *  rows of filters standing between the reader and the records they came
+ *  for. So it opens collapsed there and expanded on a wide screen, where the
+ *  chips cost a couple of rows and are worth seeing.
+ */
+function facetPanel(note, gap, children) {
+  return h('details', { class: 'panel facets', open: !narrowScreen() },
+    h('summary', {}, h('span', {}, 'Filters'),
+      note ? h('span', { class: 'faint' }, note) : null),
+    h('div', { class: 'panel-body stack', style: `gap:${gap}px` }, children));
+}
+
 /** A labelled row of toggle chips. `pressed(key)` says which are on. */
 function facetRow(label, items, pressed, onToggle, render) {
   if (!items.length) return null;
@@ -573,6 +599,14 @@ function choiceChips(options, current, onPick) {
 
 const kv = (key, value) => h('div', { style: 'display:contents' },
   h('dt', {}, key), h('dd', {}, value));
+
+/** A phone shows a summary line; a wide screen shows the block open. The
+ *  reader can toggle either. `note` is a short count or hint after the label. */
+function fold(label, body, { cls = 'panel', note = null, open = !narrowScreen() } = {}) {
+  return h('details', { class: `fold ${cls}`, open },
+    h('summary', {}, h('span', {}, label), note ? h('span', { class: 'n' }, note) : null),
+    h('div', { class: 'fold-body' }, body));
+}
 
 // ---------------------------------------------------------------------------
 // Markdown. Knowledge entries are markdown and the entry IS the content, so
@@ -694,9 +728,9 @@ function mdLink(label, href) {
 function mdTable(rows) {
   const cells = (row) => row.trim().replace(/^\||\|$/g, '').split('|').map((c) => c.trim());
   const [head, , ...body] = rows;
-  return h('table', {},
+  return h('div', { class: 'scroll-x' }, h('table', {},
     h('thead', {}, h('tr', {}, cells(head).map((c) => h('th', {}, mdInline(c))))),
-    h('tbody', {}, body.map((r) => h('tr', {}, cells(r).map((c) => h('td', {}, mdInline(c)))))));
+    h('tbody', {}, body.map((r) => h('tr', {}, cells(r).map((c) => h('td', {}, mdInline(c))))))));
 }
 
 // ---------------------------------------------------------------------------
@@ -882,122 +916,127 @@ function pipelineStrip(stages) {
       onclick: (e) => e.stopPropagation() }, s.note) : null)));
 }
 
+function homeSection(title, description, href, label, body) {
+  return h('section', { class: 'home-section' },
+    h('div', { class: 'home-section-head' },
+      h('div', {}, h('h2', {}, title), h('p', {}, description)),
+      h('a', { class: 'text-link', href }, label, ' ↗')),
+    body);
+}
+
+function activityDate(date) {
+  if (!date?.at) return h('span', { class: 'faint' }, 'Update date unavailable');
+  return h('span', {}, date.basis === 'committed' ? 'Committed ' : 'Recorded ',
+    h('time', { datetime: asDate(date.at).toISOString() },
+      asDate(date.at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })));
+}
+
+function currentWorkCard(g) {
+  return h('article', { class: 'work-card' },
+    h('div', { class: 'row work-labels' },
+      tag(g.ecc ? 'Elliptic-curve research' : (g.area || 'Cryptography'), 'acc'),
+      tag(g.impediment_count || g.flags?.length ? 'Needs attention' : 'Active goal',
+        g.impediment_count || g.flags?.length ? 'warn' : 'ok')),
+    h('h3', {}, h('a', { href: `#/goal/${g.id}` }, clip(g.title || g.id, 130))),
+    h('p', { class: 'work-objective' }, clip(g.objective_preview || 'Open this goal to explore its research question and linked work.', 240)),
+    h('div', { class: 'work-next' }, h('span', { class: 'eyebrow' }, 'Next step'),
+      h('p', {}, linkify(clip(g.next_action_preview || 'No next step recorded yet.', 220)))),
+    h('div', { class: 'work-foot' }, activityDate(g.activity),
+      h('a', { href: `#/goal/${g.id}`, 'aria-label': `Explore ${g.title || g.id}` }, 'Explore →')));
+}
+
+function recentWorkFeed(rows) {
+  let category = 'highlights', shown = 6;
+  const list = h('div', { class: 'activity-list', 'aria-live': 'polite' });
+  const more = h('button', { class: 'btn activity-more', onclick: () => { shown += 6; draw(); } }, 'Show more updates');
+  const tabs = h('div', { class: 'activity-filters', role: 'group', 'aria-label': 'Filter recent work' });
+  const labels = [['highlights', 'Highlights'], ['all', 'All work'], ['findings', 'Findings'], ['experiments', 'Experiments'],
+    ['ideas', 'Ideas'], ['decisions', 'Decisions'], ['evidence', 'Evidence'], ['corrections', 'Corrections']];
+  const singular = { findings: 'Finding', experiments: 'Experiment', ideas: 'Idea',
+    decisions: 'Decision', evidence: 'Evidence', corrections: 'Correction' };
+  const draw = () => {
+    // Highlights take the two newest entries per type so decisions cannot
+    // crowd out experiments and ideas. All work retains the complete feed.
+    const seen = new Map();
+    const selected = rows.filter(r => {
+      if (category !== 'highlights') return category === 'all' || r.category === category;
+      const n = seen.get(r.category) || 0;
+      seen.set(r.category, n + 1);
+      return n < 2;
+    });
+    for (const b of tabs.children) b.setAttribute('aria-pressed', b.dataset.category === category);
+    fill(list, selected.length ? selected.slice(0, shown).map(r =>
+      h('article', { class: 'activity-item' },
+        h('div', { class: 'activity-kind' }, tag(singular[r.category] || r.category), activityDate(r.date)),
+        h('div', { class: 'activity-copy' },
+          h('h3', {}, h('a', { href: `#/record/${r.id}` }, clip(r.title ? r.title.replace(/_/g, ' ') : `${singular[r.category] || 'Research'} record`, 190))),
+          h('div', { class: 'row activity-meta' },
+            r.status ? tag(clip(r.status, 70), statusTone(r.status), r.status) : tag('Status unstated'),
+            r.claim_tier ? tag(r.claim_tier, 'warn', 'Recorded claim scope') : null,
+            h('span', { class: 'mono faint' }, r.id))),
+        h('a', { class: 'activity-arrow', href: `#/record/${r.id}`, 'aria-label': `Read ${r.title || r.id}` }, '↗')))
+      : h('div', { class: 'empty' }, 'No dated updates in this category in the latest snapshot.'));
+    more.hidden = selected.length <= shown;
+  };
+  for (const [key, label] of labels) tabs.append(h('button', {
+    class: 'activity-filter', 'data-category': key, 'aria-pressed': key === category,
+    onclick: () => { category = key; shown = 6; draw(); },
+  }, label));
+  draw();
+  return h('div', { class: 'activity-panel' }, tabs, list, more);
+}
+
 async function viewOverview() {
-  setCrumb('overview');
-  const root = fill(view(), loading('building the index…'));
+  setCrumb('Research overview');
+  const root = fill(view(), loading('Reading the latest research…'));
   if (!state.ready) return;
   state.overview ??= await getJSON('overview.json');
   const o = state.overview;
-  const m = state.meta;
-  const count = (key) => (o.counts.find((c) => c.key === key) || {}).count || 0;
-  const evidenceTotal = sum(o.evidence_polarity);
-  const directional = evidenceTotal - (o.evidence_polarity?.neutral || 0);
-
-  const intro = h('section', { class: 'panel' },
-    h('div', { class: 'panel-body stack', style: 'gap:12px' },
-      h('div', {},
-        kicker('state of the program'),
-        h('h2', { style: 'font-size:18px;line-height:1.35;margin-top:3px' },
-          'What the program has established, what it is working on, and what is still open')),
-      h('p', { class: 'lede' },
-        'An autonomous, reproducible cryptanalysis research program centred on the elliptic-curve ',
-        'discrete logarithm problem, with ECC campaigns selected first. This page is read straight off ',
-        'the committed ledger, experiment records and knowledge corpus; it writes nothing and holds no ',
-        'authority — only a Coordinator decision changes research state, and every claim below links to ',
-        'the record that makes it. Start with ', h('a', { href: '#/findings' }, 'findings'),
-        ' for results, ', h('a', { href: '#/goals' }, 'goals'), ' for the campaigns, or ',
-        h('a', { href: '#/records' }, 'records'), ' to browse everything.'),
-      h('div', {}, kicker('the loop, as counts — read left to right'), pipelineStrip(o.pipeline))));
-
-  const f = o.findings || { total: 0, current: 0, latest: [], by_proof_status: {} };
-  const proofNote = Object.entries(f.by_proof_status || {}).map(([k, n]) => `${k} ${n}`).join(' · ');
-  const established = panel('Established so far',
-    h('span', { class: 'faint' },
-      `${f.current} current finding${f.current === 1 ? '' : 's'}`,
-      f.added_last_30_days !== undefined
-        ? ` · ${f.added_last_7_days} added in the last 7 days, ${f.added_last_30_days} in 30` : '',
-      proofNote ? ` · ${proofNote}` : '', ' · ', h('a', { href: '#/findings' }, 'all findings →')),
-    f.latest.length
-      ? h('div', { class: 'panel-body grid',
-          style: 'grid-template-columns:repeat(auto-fill,minmax(330px,1fr))' },
-          f.latest.map(findingCard))
-      : h('div', { class: 'empty' }, 'no finding has been promoted yet'));
-
-  const dirs = o.directions || { total: 0, top: [] };
-  const byArea = panel('By research area',
-    h('span', { class: 'faint' },
-      `the ${dirs.top.length} areas with most established, of ${dirs.total} with records · `,
-      h('a', { href: '#/findings?tab=areas' }, 'all areas →')),
-    dirs.top.length ? h('div', { class: 'scroll-x' }, directionsTable(dirs.top, { compact: true })) : null);
-
-  const verdicts = panel('Hypothesis verdicts',
-    `${sum(o.hypothesis_verdicts)} of ${count('H').toLocaleString()} hypotheses reached one`,
-    h('div', { class: 'panel-body' }, distribution(o.hypothesis_verdicts,
-      { href: (v) => `#/findings?tab=verdicts&verdict=${v}` })));
-  const polarity = panel('Evidence, by what it points at',
-    `${directional} of ${evidenceTotal} evidence records take a direction`,
-    h('div', { class: 'panel-body' }, distribution(o.evidence_polarity,
-      { href: (p) => `#/findings?tab=evidence&polarity=${p}`, tone: (p) => POLARITY_TONE[p] || '' })));
-  const decisions = panel('Decisions, by verdict', 'the Coordinator’s recorded rulings',
-    h('div', { class: 'panel-body' }, distribution(o.decision_verdicts, {
-      href: (d) => d.startsWith('other') || d === '(unstated)'
-        ? '#/records?kind=DEC' : `#/records?kind=DEC&status=${encodeURIComponent(d)}`,
-      tone: decisionTone })));
-
-  const cardGrid = (goals) => h('div', { class: 'panel-body grid',
-    style: 'grid-template-columns:repeat(auto-fill,minmax(300px,1fr))' }, goals.map(goalCard));
-  const eccIds = new Set(o.ecc_first.map((g) => g.id));
-  const attention = o.attention.filter((g) => !eccIds.has(g.id));
-
-  const recentDecisions = resolve(o.recent_decisions || []);
-  const openLatest = o.open_problems?.latest || [];
-  const it = o.integrity_totals;
-
-  fill(root, h('div', { class: 'stack' },
-    snapshotBanner(),
-    intro,
-    established,
-    byArea,
-    h('div', { class: 'grid', style: 'grid-template-columns:repeat(auto-fit,minmax(300px,1fr))' },
-      verdicts, polarity, decisions),
-    panel('Where the work is: ECC first',
-      h('span', { class: 'faint' }, `${o.goals.ecc_active} active ECC goals of ${o.goals.active} active · `,
-        h('a', { href: '#/goals' }, 'all goals →')),
-      o.ecc_first.length ? cardGrid(o.ecc_first.slice(0, 9))
-        : h('div', { class: 'empty' }, 'no active ECC goals')),
-    attention.length ? panel('Wants attention', 'flagged, or carrying a recorded impediment — and not shown above',
-      h('div', { class: 'scroll-x' }, h('table', {},
-        thead(['goal', 'status', 'title', 'why']),
-        h('tbody', {}, attention.map((g) => h('tr', {},
-          td(idLink(g.id)), td(statusTag(g.status)),
-          h('td', { style: 'max-width:560px' }, h('div', { class: 'clamp2' }, g.title)),
-          td(h('div', { class: 'row' },
-            g.flags?.length ? tag(g.flags.join(' · '), 'bad') : null,
-            g.impediment_count ? tag(`${g.impediment_count} impediment${g.impediment_count === 1 ? '' : 's'}`, 'warn') : null)))))))) : null,
-    h('div', { class: 'grid', style: 'grid-template-columns:minmax(0,2fr) minmax(280px,1fr)' },
-      panel('Recent decisions', h('a', { href: '#/records?kind=DEC', class: 'faint' }, 'all decisions →'),
-        h('div', { class: 'scroll-x' }, h('table', {},
-          thead(['id', 'verdict', 'context', 'date']),
-          h('tbody', {}, recentDecisions.map((d) => h('tr', {},
-            td(idLink(d.id)), td(decisionTag(d.status) || h('span', { class: 'faint' }, '—')),
-            h('td', { style: 'max-width:720px' },
-              h('div', { class: 'clamp2' }, d.title || h('span', { class: 'faint' }, '(no context)'))),
-            h('td', { class: 'mono faint', style: 'white-space:nowrap' }, fmtDate(d.date)))))))),
-      panel('Still open', h('a', { href: '#/findings?tab=open', class: 'faint' },
-        `${o.open_problems?.open ?? 0} open problems →`),
-        openLatest.length ? h('div', { class: 'panel-body stack', style: 'gap:10px' },
-          openLatest.map((p) => h('div', {},
-            h('a', { href: `#/record/${p.id}`, style: 'font-weight:600;line-height:1.4' }, p.title),
-            h('div', { class: 'faint mono', style: 'font-size:11px' }, `${p.id} · ${fmtDate(p.added)}`))))
-          : h('div', { class: 'empty' }, 'no open problems recorded'))),
-    h('div', { class: 'row faint', style: 'font-size:12px;justify-content:flex-end' },
-      'integrity: ',
-      h('span', { class: it.unparseable ? 'tag bad' : 'tag ok' },
-        it.unparseable_state === 'complete' ? `${it.unparseable} unparseable` : 'deep scan running'),
-      tag(`${it.dangling_refs} dangling refs`, it.dangling_refs ? 'warn' : 'ok'),
-      tag(`${it.duplicate_ids} duplicate ids`, it.duplicate_ids ? 'warn' : 'ok'),
-      tag(`${it.goal_flags} goal flags`, it.goal_flags ? 'bad' : 'ok'),
-      h('a', { href: '#/integrity' }, 'details →'))));
+  const findings = o.findings || { current: 0, latest: [] };
+  const work = o.current_work || o.ecc_first || [];
+  const metric = (n, label, href) => h('a', { class: 'home-metric', href },
+    h('strong', {}, (n || 0).toLocaleString()), h('span', {}, label), h('span', { 'aria-hidden': 'true' }, '↗'));
+  fill(root, h('div', { class: 'home' },
+    h('section', { class: 'home-hero' },
+      h('div', { class: 'hero-copy' },
+        h('div', { class: 'eyebrow' }, h('span', { class: 'research-dot' }), 'Autonomous cryptography research'),
+        h('h1', {}, 'Research in the open.'),
+        h('p', { class: 'hero-lede' }, 'Exploring the mathematics behind cryptographic security. ',
+          'Follow the questions, the experiments, and what we learn along the way.'),
+        h('div', { class: 'row hero-actions' },
+          h('a', { class: 'button-primary', href: '#/goals' }, 'Explore current research', ' ↗'),
+          h('a', { class: 'text-link', href: '#/findings' }, 'Read the findings →'))),
+      h('div', { class: 'hero-aside' },
+        h('span', { class: 'eyebrow' }, 'Our focus'),
+        h('h2', {}, 'How hard are the problems that keep cryptography secure?'),
+        h('p', {}, 'Elliptic curves come first: we investigate the discrete logarithm problem and related cryptographic questions through reproducible experiments.'))),
+    h('div', { class: 'home-snapshot' }, snapshotBanner()),
+    h('div', { class: 'home-metrics' },
+      metric(o.goals.active, 'active research goals', '#/goals?status=active'),
+      metric(findings.current, 'current findings', '#/findings'),
+      metric(o.experiments.total, 'experiments recorded', '#/experiments')),
+    homeSection('What we’re working on',
+      'Recently updated active goals, with elliptic-curve research first. An active goal may be waiting on a next step.',
+      '#/goals', 'All research',
+      work.length ? h('div', { class: 'work-grid' }, work.slice(0, 3).map(currentWorkCard))
+        : h('div', { class: 'empty' }, 'No active research goals in this snapshot.')),
+    homeSection('Recent work', 'Highlights show the two latest updates per type. Choose All work for the full recent feed.',
+      '#/records', 'Browse all records', recentWorkFeed(o.recent_work || [])),
+    homeSection('Recent findings', 'Recorded findings carry their own scope and proof status. Exploratory results remain labelled.',
+      '#/findings', 'All findings',
+      findings.latest.length ? h('div', { class: 'home-findings' }, findings.latest.slice(0, 3).map(findingCard))
+        : h('div', { class: 'empty' }, 'No findings have been recorded yet.')),
+    h('details', { class: 'home-details' },
+      h('summary', {}, 'Explore the research process'),
+      h('p', { class: 'muted' }, 'Ideas become hypotheses and experiments. Evidence and review inform decisions; a completed run alone does not establish a result.'),
+      pipelineStrip(o.pipeline),
+      h('div', { class: 'row' },
+        h('a', { href: '#/findings?tab=open' }, 'Open questions →'),
+        h('a', { href: '#/findings?tab=areas' }, 'Research areas →'),
+        h('a', { href: '#/integrity' }, 'Data integrity →'))),
+    h('footer', { class: 'home-footer' },
+      h('span', {}, 'Built from the research ledger. Every record links back to its source.'),
+      state.meta?.repo_url ? h('a', { href: state.meta.repo_url, target: '_blank', rel: 'noreferrer' }, 'View on GitHub ↗') : null)));
 }
 
 // ---------------------------------------------------------------------------
@@ -1059,9 +1098,8 @@ async function viewFindings(params) {
       label, ' ', h('span', { class: 'n' }, count(d).toLocaleString()))));
 
   const docs = sourceUrl('docs/claims-and-verification.md');
-  const intro = h('div', { class: 'banner info' }, h('div', {},
+  const intro = fold(h('b', {}, 'What counts as a finding here'), h('div', {},
     h('div', {},
-      h('b', {}, 'What counts as a finding here. '),
       'A result is promoted from an evidence record into ', h('code', {}, 'knowledge/findings/'),
       ' by a Coordinator decision, and carries the proof status and claim tier of the evidence it rests on — never more',
       docs ? [' (', h('a', { href: docs, target: '_blank', rel: 'noreferrer' }, 'claims and verification'), ')'] : null,
@@ -1070,7 +1108,8 @@ async function viewFindings(params) {
       'Proof status: ', proofTag('certificate'), ' an explicit instance re-checked by independent code · ',
       proofTag('derivation'), ' a written, step-checkable argument · ',
       proofTag('empirical_only'), ' replicated observations only. ',
-      'Each card also says what the entry does ', h('b', {}, 'not'), ' claim, in its own words.')));
+      'Each card also says what the entry does ', h('b', {}, 'not'), ' claim, in its own words.')),
+    { cls: 'banner info' });
 
   const body = ({
     findings: findingsTab, areas: directionsTab, verdicts: verdictsTab, evidence: evidenceTab,
@@ -1093,7 +1132,7 @@ function findingsTab(d, params) {
   const summary = h('div', { class: 'faint mono' });
   const byArea = new Map(d.directions.map((r) => [r.area, r]));
   const cardGrid = (items) => h('div', { class: 'grid',
-    style: 'grid-template-columns:repeat(auto-fill,minmax(340px,1fr))' }, items.map(findingCard));
+    style: 'grid-template-columns:repeat(auto-fill,minmax(min(340px,100%),1fr))' }, items.map(findingCard));
 
   /** Findings under the area they are filed in, with the goals of that
    *  area beside the heading — so a reader sees which campaign produced
@@ -1162,7 +1201,7 @@ function findingsTab(d, params) {
   const counts = d.counts;
   const tiers = Object.entries(counts.by_claim_tier).filter(([k]) => k !== '(unstated)');
 
-  const facets = h('section', { class: 'panel' }, h('div', { class: 'panel-body stack', style: 'gap:10px' },
+  const facets = facetPanel('status · proof · tier · area', 10, [
     h('div', { class: 'stack', style: 'gap:6px' }, kicker('status'),
       choiceChips([
         ['current', `current ${counts.current}`],
@@ -1178,7 +1217,7 @@ function findingsTab(d, params) {
     facetRow('area named', [{ key: 'ECC', count: eccCount, title: 'any ECC area' }, ...areas],
       (k) => f.area.has(k), toggle('area'),
       (i) => h('span', {}, i.key === 'ECC' || state.meta.ecc_areas.includes(i.key)
-        ? h('span', { class: 'tag acc', style: 'margin-right:4px' }, 'ECC') : null, `${i.key} ${i.count}`))));
+        ? h('span', { class: 'tag acc', style: 'margin-right:4px' }, 'ECC') : null, `${i.key} ${i.count}`))]);
 
   const search = h('input', { class: 'mono field', placeholder: 'filter findings…', value: f.q,
     oninput: (e) => { f.q = e.target.value; draw(); } });
@@ -1353,14 +1392,14 @@ function evidenceTab(d, params) {
   };
   const ec = d.evidence_counts;
   const top = (map, n) => Object.entries(map).slice(0, n).map(([key, count]) => ({ key, count }));
-  const facets = h('section', { class: 'panel' }, h('div', { class: 'panel-body stack', style: 'gap:10px' },
+  const facets = facetPanel('direction · strength · tier · proof', 10, [
     facetRow('points at', ['supports', 'weakens', 'mixed', 'neutral'].map((key) => ({ key, count: ec.polarity[key] || 0,
       title: key === 'neutral' ? 'says nothing about any hypothesis' : key === 'mixed' ? 'revises, partially corroborates, or cuts both ways' : '' })),
       (k) => f.polarity.has(k), toggle('polarity'),
       (i) => h('span', {}, tag(i.key, POLARITY_TONE[i.key]), ` ${i.count}`)),
     facetRow('strength', top(ec.strength, 10), (k) => f.strength.has(k), toggle('strength')),
     facetRow('claim tier', top(ec.claim_tier, 8), (k) => f.tier.has(k), toggle('tier')),
-    facetRow('proof status', top(ec.proof_status, 6), (k) => f.proof.has(k), toggle('proof'))));
+    facetRow('proof status', top(ec.proof_status, 6), (k) => f.proof.has(k), toggle('proof'))]);
   const search = h('input', { class: 'mono field', placeholder: 'filter evidence…', value: f.q,
     oninput: (e) => { f.q = e.target.value; shown = 100; draw(); } });
   draw();
@@ -1446,7 +1485,7 @@ async function viewGoals() {
 
   const filters = { text: '', only: 'active' };
   const grid = h('div', { class: 'grid',
-    style: 'grid-template-columns:repeat(auto-fill,minmax(310px,1fr))' });
+    style: 'grid-template-columns:repeat(auto-fill,minmax(min(310px,100%),1fr))' });
   const summary = h('div', { class: 'faint mono' });
 
   function draw() {
@@ -1734,7 +1773,7 @@ async function viewRecords(params) {
 
   fill(root, h('div', { class: 'stack' },
     snapshotBanner(),
-    h('section', { class: 'panel' }, h('div', { class: 'panel-body stack', style: 'gap:12px' },
+    facetPanel('kind · knowledge · area · status', 12, [
       facetRow('kind', facets.kinds, (k) => f.kind.has(k), toggle('kind'),
         (i) => `${i.label} ${i.count.toLocaleString()}`),
       // A knowledge entry's family lives in the same column as an area, so
@@ -1745,7 +1784,7 @@ async function viewRecords(params) {
         h('span', {}, i.ecc ? h('span', { class: 'tag acc', style: 'margin-right:4px' }, 'ECC') : null,
           `${i.key} ${i.count}`)),
       facetRow('status', facets.statuses.slice(0, 40), (k) => f.status.has(k), toggle('status'),
-        (i) => `${i.key} ${i.count.toLocaleString()}`))),
+        (i) => `${i.key} ${i.count.toLocaleString()}`)]),
     note,
     h('div', { class: 'spread' },
       h('div', { class: 'row' }, meta, bodiesChip),
@@ -1760,16 +1799,21 @@ async function viewRecords(params) {
 // ---------------------------------------------------------------------------
 // Record detail
 // ---------------------------------------------------------------------------
-async function viewRecord(id) {
+async function viewRecord(id, params = new URLSearchParams()) {
   setCrumb(id);
   const root = fill(view(), loading());
   let body;
   try {
     body = await getJSON(`records/${encodeURIComponent(id)}.json`);
-  } catch {
-    fill(root, h('div', { class: 'banner bad' },
-      h('div', {}, h('b', {}, `${id} is not in the index. `),
-        'It may be a run, a coordination task, or a dangling reference.')));
+  } catch (err) {
+    fill(root, h('div', { class: 'empty stack', role: 'alert' },
+      h('h2', {}, err.status === 404 ? 'Record unavailable' : 'Could not load this record'),
+      h('p', {}, err.status === 404
+        ? `${id} is not included in this snapshot. It may be a run, coordination task, or unresolved reference.`
+        : 'The request failed. Try again to reload the record.'),
+      h('div', { class: 'row' },
+        h('button', { class: 'btn', onclick: () => viewRecord(id, params) }, 'Try again'),
+        h('a', { class: 'btn', href: '#/records?q=' + encodeURIComponent(id) }, 'Search records'))));
     return;
   }
   const s = body.summary;
@@ -1778,11 +1822,20 @@ async function viewRecord(id) {
   const front = isEntry && body.body && typeof body.body === 'object' ? body.body : null;
 
   const panes = {};
-  const paneHost = h('div', { class: 'panel-body' });
-  const tabs = h('div', { class: 'tabs' });
-  function show(key) {
+  const paneHost = h('div', { class: 'panel-body record-pane', role: 'tabpanel', id: 'record-pane', tabindex: '0' });
+  const tabs = h('div', { class: 'tabs', role: 'tablist', 'aria-label': 'Record views' });
+  function show(key, updateUrl = true) {
     fill(paneHost, panes[key] ??= buildPane(key, body, src));
-    for (const t of tabs.children) t.setAttribute('aria-selected', t.dataset.key === key);
+    paneHost.setAttribute('aria-labelledby', `record-tab-${key}`);
+    for (const t of tabs.children) {
+      const active = t.dataset.key === key;
+      t.setAttribute('aria-selected', String(active));
+      t.tabIndex = active ? 0 : -1;
+    }
+    if (updateUrl) {
+      const query = new URLSearchParams({ tab: key });
+      history.replaceState(null, '', `#/record/${encodeURIComponent(id)}?${query}`);
+    }
   }
   const tabList = isEntry
     ? [['entry', 'entry'], ['structured', 'front matter']]
@@ -1790,7 +1843,17 @@ async function viewRecord(id) {
   tabList.push(['source', 'source'],
     ['links', `links (${body.links.out.length}↗ ${body.links.in.length}↙)`]);
   for (const [key, label] of tabList) {
-    tabs.append(h('button', { class: 'tab', 'data-key': key, onclick: () => show(key) }, label));
+    tabs.append(h('button', { class: 'tab', role: 'tab', id: `record-tab-${key}`,
+      'aria-controls': 'record-pane', 'data-key': key, onclick: () => show(key),
+      onkeydown: (event) => {
+        const keys = ['ArrowLeft', 'ArrowRight', 'Home', 'End'];
+        if (!keys.includes(event.key)) return;
+        event.preventDefault();
+        const items = [...tabs.children], at = items.indexOf(event.currentTarget);
+        const next = event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1
+          : (at + (event.key === 'ArrowRight' ? 1 : -1) + items.length) % items.length;
+        show(items[next].dataset.key); items[next].focus();
+      } }, label));
   }
 
   const linkList = (title, ids) => h('section', { class: 'panel' },
@@ -1841,7 +1904,9 @@ async function viewRecord(id) {
             headerTags,
             s.date ? timeEl(s.date, { label: 'declared by the record', dateOnly: true, style: 'date' }) : null),
           parseBadge),
-        s.title ? h('h2', { style: 'font-size:16px;line-height:1.4' }, s.title) : null,
+        s.title ? h('h1', { class: 'record-title' }, s.title) : null,
+        front?.proof_status && PROOF_NOTE[front.proof_status]
+          ? h('p', { class: 'proof-basis' }, h('b', {}, 'Proof basis: '), PROOF_NOTE[front.proof_status], '.') : null,
         isEntry && Array.isArray(front?.tags) && front.tags.length
           ? h('div', { class: 'row', style: 'gap:4px' }, front.tags.slice(0, 12).map((t) => tag(String(t)))) : null,
         h('div', { class: 'row faint mono', style: 'font-size:11px' },
@@ -1858,26 +1923,71 @@ async function viewRecord(id) {
       h('section', { class: 'panel' }, tabs, paneHost),
       h('aside', { class: 'stack' },
         linkList('Cited by', body.links.in), linkList('Cites', body.links.out)))));
-  show(tabList[0][0]);
+  const requested = params.get('tab');
+  show(tabList.some(([key]) => key === requested) ? requested : tabList[0][0], false);
+}
+
+/** Long findings remain readable without losing their original wording. */
+function entryReader(markdown) {
+  const article = renderMarkdown(markdown);
+  const headings = [...article.querySelectorAll('h2,h3,h4')];
+  if (headings.length < 3) return article;
+  const outline = h('details', { class: 'entry-outline' }, h('summary', {}, 'On this page'));
+  const items = h('nav', { 'aria-label': 'Entry sections' });
+  headings.forEach((heading, i) => {
+    heading.id = `entry-section-${i}`;
+    heading.tabIndex = -1;
+    items.append(h('button', { class: 'outline-link', onclick: () => {
+      heading.scrollIntoView({ block: 'start' }); heading.focus({ preventScroll: true });
+    } }, heading.textContent));
+  });
+  outline.append(items);
+  return h('div', { class: 'entry-reader' }, outline, article);
+}
+
+function sourceReader(body, src) {
+  const host = h('div', { class: 'source-reader', 'aria-live': 'polite' }, loading());
+  async function load() {
+    fill(host, loading());
+    try {
+      const source = typeof body.raw === 'string' ? { raw: body.raw, path: body.summary.path }
+        : await getJSON(`sources/${encodeURIComponent(body.summary.id)}.json`, { cached: false });
+      if (typeof source.raw !== 'string') throw new Error('Source text missing');
+      const note = h('span', { class: 'faint', role: 'status' });
+      const copy = h('button', { class: 'btn', onclick: async () => {
+        try { await navigator.clipboard.writeText(source.raw); note.textContent = 'Source copied'; }
+        catch { note.textContent = 'Copy unavailable. Select the text below or download the file.'; }
+      } }, 'Copy source');
+      const download = h('button', { class: 'btn', onclick: () => {
+        const url = URL.createObjectURL(new Blob([source.raw], { type: 'text/plain;charset=utf-8' }));
+        const link = h('a', { href: url, download: body.summary.path.split('/').pop() });
+        document.body.append(link); link.click(); link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      } }, 'Download source');
+      fill(host, h('div', { class: 'source-toolbar row' }, copy, download,
+        src ? h('a', { href: src, target: '_blank', rel: 'noreferrer' }, 'View on GitHub ↗') : null, note),
+        h('pre', { class: 'raw', tabindex: '0', 'aria-label': 'Record source text' }, source.raw));
+    } catch {
+      fill(host, h('div', { class: 'empty stack', role: 'alert' },
+        h('p', {}, 'Source could not be loaded. Retry, or read the same record on GitHub.'),
+        h('div', { class: 'row' }, h('button', { class: 'btn', onclick: load }, 'Retry source'),
+          src ? h('a', { class: 'btn', href: src, target: '_blank', rel: 'noreferrer' }, 'View on GitHub ↗') : null)));
+    }
+  }
+  load();
+  return host;
 }
 
 function buildPane(key, body, src) {
   if (key === 'entry') {
-    if (typeof body.markdown === 'string' && body.markdown.trim()) return renderMarkdown(body.markdown);
+    if (typeof body.markdown === 'string' && body.markdown.trim()) return entryReader(body.markdown);
     return h('div', { class: 'empty stack', style: 'gap:10px' },
       h('div', {}, 'This entry has no body text.'),
       src ? h('a', { class: 'btn', href: src, target: '_blank', rel: 'noreferrer' },
         `open ${body.summary.path} on GitHub ↗`) : null);
   }
   if (key === 'source') {
-    // The live server inlines the file; the published snapshot links it on
-    // GitHub at the built commit rather than shipping 116 MB of YAML.
-    if (typeof body.raw === 'string') return h('pre', { class: 'raw' }, body.raw);
-    return h('div', { class: 'empty stack', style: 'gap:10px' },
-      h('div', {}, 'Source text is not bundled into the published snapshot.'),
-      src ? h('a', { class: 'btn', href: src, target: '_blank', rel: 'noreferrer' },
-        `open ${body.summary.path} on GitHub ↗`)
-        : h('div', { class: 'faint' }, 'and no repository URL was recorded at build time'));
+    return sourceReader(body, src);
   }
   if (key === 'links') {
     return h('div', { class: 'stack' },
@@ -2200,7 +2310,7 @@ async function route() {
       return;
     }
     if (path.startsWith('/goal/')) return await viewGoal(decodeURIComponent(path.slice(6)));
-    if (path.startsWith('/record/')) return await viewRecord(decodeURIComponent(path.slice(8)));
+    if (path.startsWith('/record/')) return await viewRecord(decodeURIComponent(path.slice(8)), params);
     if (path === '/findings') return await viewFindings(params);
     if (path === '/goals') return await viewGoals();
     if (path === '/records') return await viewRecords(params);

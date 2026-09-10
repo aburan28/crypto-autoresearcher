@@ -26,6 +26,7 @@ import shutil
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 import yaml
@@ -37,6 +38,15 @@ import validate_ledger as vl
 REPO = Path(vl.REPO)
 ARTIFACTS = ("command.txt", "environment.json", "stdout.log", "stderr.log",
              "raw-result.json")
+
+# Historical prose-only superseding records (manifest_v2.yaml) were pinned
+# here when they first landed. They have since been retargeted in
+# tools/run_supersession_registry.yaml to structured manifest_integrity_v3
+# records with an explicit supersedes{path,sha256} reverse binding, so they
+# now take the ordinary structured-chain branch below. Keep the map empty
+# rather than deleting the branch: a future prose-only supersession can pin
+# exact bytes here again without rewriting the test.
+PROSE_SUPERSESSION_SHA256: dict[str, str] = {}
 
 
 def manifest_body(**over) -> dict:
@@ -57,6 +67,19 @@ def manifest_body(**over) -> dict:
 
 def sha256_of(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _is_experiment_correction(path: Path, repo_root: Path) -> bool:
+    """True for experiments/<EXP>/corrections/<file> under repo_root."""
+    try:
+        parts = path.resolve().relative_to(repo_root).parts
+    except ValueError:
+        return False
+    return (
+        len(parts) >= 4
+        and parts[0] == "experiments"
+        and parts[2] == "corrections"
+    )
 
 
 class SupersessionFixture(unittest.TestCase):
@@ -96,6 +119,214 @@ class SupersessionFixture(unittest.TestCase):
         return {os.path.abspath(entry["superseded_path"]): entry}
 
 
+class PendingRawResultTests(SupersessionFixture):
+    """An explicit ongoing observation must not fabricate a terminal result."""
+
+    def pending_errors(self, status="running", pending=True, kind="none", **over):
+        (self.run_dir / "raw-result.json").unlink(missing_ok=True)
+        result = {"certificate": {"kind": kind}}
+        if pending is not None:
+            result["raw_result_pending"] = pending
+        path = self.write_manifest(
+            "manifest.yaml", manifest_body(status=status, result=result, **over))
+        ctx = vl.Ctx(set())
+        vl.check_run(str(path), ctx, {})
+        return ctx.errors
+
+    def test_explicit_nonterminal_observations_need_no_final_result(self):
+        for status in ("running", "in_progress"):
+            with self.subTest(status=status):
+                self.assertEqual(self.pending_errors(status=status), [])
+
+    def test_pending_requires_literal_true(self):
+        for pending in (None, False, 1, "true"):
+            with self.subTest(pending=pending):
+                errors = self.pending_errors(pending=pending)
+                self.assertTrue(any("missing artifact 'raw-result.json'" in e
+                                    for e in errors))
+
+    def test_terminal_planned_and_unknown_statuses_still_owe_result(self):
+        for status in ("completed", "completed_valid", "valid", "failed",
+                       "cancelled", "invalid", "planned", "running_later",
+                       ["running"], {"state": "running"}):
+            with self.subTest(status=status):
+                errors = self.pending_errors(status=status)
+                self.assertTrue(any("missing artifact 'raw-result.json'" in e
+                                    for e in errors))
+
+    def test_certificate_claims_still_owe_result(self):
+        for kind in ("discrete_log", "decomposition", None):
+            with self.subTest(kind=kind):
+                errors = self.pending_errors(kind=kind)
+                self.assertTrue(any("missing artifact 'raw-result.json'" in e
+                                    for e in errors))
+
+    def test_other_companions_remain_required(self):
+        for name in ("command.txt", "environment.json", "stdout.log", "stderr.log"):
+            with self.subTest(name=name):
+                path = self.run_dir / name
+                path.unlink()
+                errors = self.pending_errors()
+                self.assertTrue(any(f"missing artifact '{name}'" in e for e in errors))
+                path.write_text("{}\n", encoding="utf-8")
+
+    def test_pending_does_not_excuse_missing_metadata_or_provenance(self):
+        errors = self.pending_errors(
+            environment=None, timing=None, code={"command": "python3 driver.py"})
+        for expected in ("missing required field 'environment'",
+                         "missing required field 'timing'", "run.code.commit missing"):
+            self.assertTrue(any(expected in e for e in errors), errors)
+
+
+class DuplicateProcessIdentityTests(SupersessionFixture):
+    SOURCE = "run:\n  id: RUN-SUP-001\n  process:\n    pid: 1\n  process:\n    pid: 2\n"
+
+    def bound_original(self, text):
+        self.superseded.write_text(text, encoding="utf-8")
+        entry = self.registry()[str(self.superseded)]
+        entry["superseded_id_extraction"] = {
+            "kind": "unique_nested_run_id_duplicate_process",
+            "line_number": 2,
+            "exact_line": "  id: RUN-SUP-001",
+        }
+        return entry
+
+    def test_only_hash_opted_original_can_recover_identity(self):
+        entry = self.bound_original(self.SOURCE)
+        self.assertIsNone(vl._run_id_of(str(self.superseded)))
+        self.assertEqual(vl._run_id_of(str(self.superseded), superseded_entry=entry),
+                         "RUN-SUP-001")
+
+    def test_mutated_or_foreign_original_cannot_use_binding(self):
+        entry = self.bound_original(self.SOURCE)
+        self.superseded.write_text(self.SOURCE + "  note: changed\n", encoding="utf-8")
+        self.assertIsNone(vl._run_id_of(str(self.superseded), superseded_entry=entry))
+        other = self.run_dir / "other.yaml"
+        other.write_text(self.SOURCE, encoding="utf-8")
+        self.assertIsNone(vl._run_id_of(str(other), superseded_entry=entry))
+
+    def test_malformed_extraction_kind_is_refused_without_type_error(self):
+        entry = self.bound_original(self.SOURCE)
+        for kind in ([], {}, True):
+            with self.subTest(kind=kind):
+                entry["superseded_id_extraction"]["kind"] = kind
+                with self.assertRaises(ValueError):
+                    vl._validate_superseded_id_extraction(
+                        entry["superseded_id_extraction"], "RUN-SUP-001")
+                self.assertIsNone(vl._run_id_of(str(self.superseded),
+                                              superseded_entry=entry))
+
+    def test_ambiguous_identity_and_other_duplicate_keys_are_rejected(self):
+        variants = [
+            self.SOURCE + "  id: RUN-OTHER-001\n",
+            self.SOURCE + "  run_id: RUN-OTHER-001\n",
+            self.SOURCE + "run:\n  id: RUN-OTHER-001\n",
+            self.SOURCE + "  note: first\n  note: second\n",
+            self.SOURCE + "  process:\n    pid: 3\n",
+            self.SOURCE + "  code:\n    commit: a\n    commit: b\n",
+        ]
+        for text in variants:
+            with self.subTest(text=text):
+                entry = self.bound_original(text)
+                self.assertIsNone(vl._run_id_of(str(self.superseded),
+                                              superseded_entry=entry))
+
+    def test_aliases_merges_documents_and_nonmapping_process_are_rejected(self):
+        variants = [
+            self.SOURCE + "  first: &x [1]\n  alias: *x\n",
+            self.SOURCE + "  defaults: &x {a: 1}\n  merged: {<<: *x}\n",
+            self.SOURCE + "---\nrun_id: RUN-OTHER-001\n",
+            "run:\n  id: RUN-SUP-001\n  process: one\n  process: two\n",
+        ]
+        for text in variants:
+            with self.subTest(text=text):
+                entry = self.bound_original(text)
+                self.assertIsNone(vl._run_id_of(str(self.superseded),
+                                               superseded_entry=entry))
+
+
+class NullIdSupersessionTests(SupersessionFixture):
+    """A parseable manifest with a null id binds only through the explicit,
+    hash-verified, registry-declared null-id field (TASK-20260909-cb6cc7).
+
+    This is the narrow sibling of the malformed-YAML recovery: it fires for
+    the registered null-id case and does NOT fire for an unregistered
+    parseable null-id manifest, so it does not generalise null-id recovery.
+    """
+
+    def null_id_original(self) -> None:
+        # The RUN-007 defect: well-formed YAML that records id: null.
+        self.superseded.write_text(
+            yaml.safe_dump({"run": manifest_body(id=None)}, sort_keys=False),
+            encoding="utf-8")
+
+    def null_id_entry(self, **over) -> dict:
+        entries = self.registry(superseded_id_null=True,
+                                superseded_id_null_provenance=(
+                                    "recovered from the run directory name"))
+        entry = next(iter(entries.values()))
+        entry.update(over)
+        return entry
+
+    def plain_entry(self, **over) -> dict:
+        entries = self.registry(**over)
+        return next(iter(entries.values()))
+
+    def test_registered_null_id_binds_identity(self) -> None:
+        self.null_id_original()
+        entry = self.null_id_entry()
+        self.assertEqual(
+            vl._run_id_of(str(self.superseded), superseded_entry=entry),
+            "RUN-SUP-001")
+
+    def test_unregistered_null_id_does_not_bind(self) -> None:
+        self.null_id_original()
+        # No registry entry at all: the null id is not recovered.
+        self.assertIsNone(vl._run_id_of(str(self.superseded)))
+        # A registered entry that lacks the explicit null-id field: still not
+        # recovered. This is the no-generalisation guarantee.
+        self.assertIsNone(
+            vl._run_id_of(str(self.superseded),
+                          superseded_entry=self.plain_entry()))
+
+    def test_null_id_requires_provenance(self) -> None:
+        self.null_id_original()
+        for over in ({}, {"superseded_id_null_provenance": ""},
+                     {"superseded_id_null_provenance": "   "},
+                     {"superseded_id_null_provenance": 1}):
+            with self.subTest(over=over):
+                entry = self.plain_entry(superseded_id_null=True)
+                entry.update(over)
+                self.assertIsNone(
+                    vl._run_id_of(str(self.superseded),
+                                  superseded_entry=entry))
+
+    def test_null_id_requires_hash_and_directory(self) -> None:
+        self.null_id_original()
+        # Hash mismatch: the binding is refused.
+        self.assertIsNone(vl._run_id_of(
+            str(self.superseded),
+            superseded_entry=self.null_id_entry(superseded_sha256="a" * 64)))
+        # Wrong run directory: the binding is refused.
+        other_dir = self.run_dir.parent / "RUN-OTHER-001"
+        other_dir.mkdir()
+        other = other_dir / "manifest.yaml"
+        other.write_text(self.superseded.read_text(encoding="utf-8"),
+                         encoding="utf-8")
+        self.assertIsNone(
+            vl._run_id_of(str(other), superseded_entry=self.null_id_entry()))
+
+    def test_null_id_flag_must_be_literal_true(self) -> None:
+        self.null_id_original()
+        for flag in (False, 1, "true", "yes"):
+            with self.subTest(flag=flag):
+                entry = self.plain_entry(superseded_id_null=flag,
+                                         superseded_id_null_provenance="recovered")
+                self.assertIsNone(
+                    vl._run_id_of(str(self.superseded),
+                                  superseded_entry=entry))
+
+
 class NoRegistryEntryTests(SupersessionFixture):
     def test_unregistered_run_is_validated_exactly_as_before(self) -> None:
         """The default path must not change: same errors, same rendering."""
@@ -132,6 +363,51 @@ class NoRegistryEntryTests(SupersessionFixture):
 
 
 class RegisteredSupersessionTests(SupersessionFixture):
+    def malformed_original(self, header="run_id: RUN-SUP-001"):
+        self.superseded.write_text(header + "\ngit:\n  dirty_summary: M runner.py\n?? unescaped\nenvironment:\n  python: '3.12'\n")
+
+    def test_malformed_original_requires_explicit_header_locator(self):
+        self.malformed_original()
+        ctx = vl.Ctx(set())
+        vl.check_run_supersessions(ctx, self.registry())
+        self.assertTrue(ctx.errors)
+        ctx = vl.Ctx(set())
+        vl.check_run_supersessions(ctx, self.registry(superseded_id_line=1))
+        self.assertEqual(ctx.errors, [])
+
+    def test_malformed_header_rejects_ambiguous_or_nonliteral_identity(self):
+        for header in ["run_id: RUN-OTHER-001", "id: RUN-SUP-001",
+                       'run_id: "RUN-SUP-001"',
+                       "run_id: RUN-SUP-001\nrun_id: RUN-SUP-001",
+                       "run_id: RUN-SUP-001\n---\nrun_id: RUN-OTHER-001"]:
+            with self.subTest(header=header):
+                self.malformed_original(header)
+                ctx = vl.Ctx(set())
+                vl.check_run_supersessions(ctx, self.registry(superseded_id_line=1))
+                self.assertTrue(ctx.errors)
+
+    def test_malformed_header_still_requires_hash_and_correct_line(self):
+        self.malformed_original()
+        for override in [{"superseded_sha256": "0" * 64}, {"superseded_id_line": 2}]:
+            with self.subTest(override=override):
+                entries = {"superseded_id_line": 1, **override}
+                ctx = vl.Ctx(set())
+                vl.check_run_supersessions(ctx, self.registry(**entries))
+                self.assertTrue(ctx.errors)
+
+    def test_malformed_replacement_never_uses_original_header_locator(self):
+        self.malformed_original()
+        self.superseding.write_bytes(self.superseded.read_bytes())
+        ctx = vl.Ctx(set())
+        vl.check_run_supersessions(ctx, self.registry(superseded_id_line=1))
+        self.assertTrue(any("superseding" in e for e in ctx.errors))
+
+    def test_header_locator_does_not_reinterpret_parseable_non_run_record(self):
+        self.superseded.write_text('run_id: null\ncomment: "RUN-SUP-001"\n')
+        ctx = vl.Ctx(set())
+        vl.check_run_supersessions(ctx, self.registry(superseded_id_line=1))
+        self.assertTrue(ctx.errors)
+
     def test_flat_archived_manifest_id_is_bound_to_replacement(self) -> None:
         self.superseded.write_text(yaml.safe_dump({
             "run_id": "RUN-SUP-001",
@@ -186,6 +462,83 @@ class RegisteredSupersessionTests(SupersessionFixture):
         vl.check_run(str(other), ctx, supersessions)
         self.assertTrue(any("duplicate ID RUN-SUP-001" in e
                             for e in ctx.errors), ctx.errors)
+
+
+class MalformedFlatIdentityTests(SupersessionFixture):
+    text = (
+        "run_id: RUN-SUP-001\n"
+        "experiment_id: EXP-SUP-001\n"
+        "git:\n"
+        "  commit: abc123\n"
+        "  dirty: true\n"
+        "  dirty_summary: M experiments/runner.py\n"
+        "?? experiments/runs/RUN-SUP-001/\n"
+        "environment:\n"
+        "  python: 3.12.3\n"
+    )
+
+    def malformed(self, text=None):
+        self.superseded.write_text(self.text if text is None else text,
+                                   encoding="utf-8")
+        return self.registry(superseded_id_line=1)
+
+    def test_registered_malformed_porcelain_manifest_is_recoverable(self):
+        registry = self.malformed()
+        original = self.superseded.read_bytes()
+        ctx = vl.Ctx(set())
+        vl.check_run_supersessions(ctx, registry)
+        vl.check_run(str(self.superseded), ctx, registry)
+        self.assertEqual(ctx.errors, [])
+        self.assertEqual(self.superseded.read_bytes(), original)
+        unregistered = vl.Ctx(set())
+        vl.check_run(str(self.superseded), unregistered)
+        self.assertTrue(any("invalid YAML" in e for e in unregistered.errors))
+
+    def test_malformed_original_does_not_excuse_incomplete_replacement(self):
+        registry = self.malformed()
+        body = manifest_body()
+        body.pop("timing")
+        self.write_manifest("manifest_v2.yaml", body)
+        registry = self.registry(superseded_id_line=1)
+        ctx = vl.Ctx(set())
+        vl.check_run_supersessions(ctx, registry)
+        vl.check_run(str(self.superseded), ctx, registry)
+        self.assertTrue(any("missing required field 'timing'" in e
+                            for e in ctx.errors), ctx.errors)
+
+    def test_identity_recovery_keeps_hash_and_identity_guards(self):
+        registry = self.malformed()
+        self.superseded.write_text(self.text.replace("abc123", "def456"))
+        ctx = vl.Ctx(set())
+        vl.check_run_supersessions(ctx, registry)
+        self.assertTrue(any("hash changed" in e for e in ctx.errors))
+        registry = self.malformed(self.text.replace("RUN-SUP-001", "RUN-SUP-002"))
+        ctx = vl.Ctx(set())
+        vl.check_run_supersessions(ctx, registry)
+        self.assertTrue(any("declares run id" in e for e in ctx.errors))
+
+    def test_ambiguous_or_nonleading_identity_is_refused(self):
+        variants = [
+            self.text + "run_id: RUN-SUP-001\n",
+            self.text + "run_id: RUN-SUP-002\n",
+            self.text + "id: RUN-SUP-001\n",
+            self.text + "run:\n  id: RUN-SUP-001\n",
+            self.text + "nested:\n  run_id: RUN-SUP-001\n",
+            self.text.replace("run_id: RUN-SUP-001\n", ""),
+            self.text.replace("run_id: RUN-SUP-001", "run_id: [RUN-SUP-001]"),
+            "notes: |\n  run_id: RUN-SUP-001\n" + self.text.split("\n", 1)[1],
+            self.text.replace("run_id: RUN-SUP-001", "run_id: RUN-SUP-001 # comment"),
+            self.text.replace("?? experiments/runs/RUN-SUP-001/", "run_id: RUN-SUP-002"),
+            self.text + "nested: {run_id: RUN-SUP-002}\n",
+            self.text + "other: &identity {run_id: RUN-SUP-002}\nalias: *identity\n",
+        ]
+        for text in variants:
+            with self.subTest(text=text):
+                registry = self.malformed(text)
+                self.assertIsNone(vl._run_id_of(str(self.superseded)))
+                ctx = vl.Ctx(set())
+                vl.check_run_supersessions(ctx, registry)
+                self.assertTrue(any("declares run id" in e for e in ctx.errors))
 
 
 class SupersessionIntegrityTests(SupersessionFixture):
@@ -321,6 +674,124 @@ class RegistryLoaderTests(unittest.TestCase):
             self.load(document)
 
 
+class MalformedSourceIdentityTests(SupersessionFixture):
+    """A source-only opt-in binds malformed archived bytes, not their validity."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        # Non-porcelain dirty_summary junk: not recoverable by the
+        # mainline porcelain auto-parser, so identity requires the
+        # explicit hash-bound superseded_id_extraction opt-in.
+        self.malformed = (
+            "run_id: RUN-SUP-001\n"
+            "git:\n  dirty_summary: not-a-git-porcelain-row\n"
+            "broken: yaml: {]\n"
+            "environment:\n  python: '3.13'\n")
+        self.superseded.write_text(self.malformed, encoding="utf-8")
+        self.extraction = {
+            "kind": "unique_first_line_run_id_header",
+            "line_number": 1,
+            "exact_line": "run_id: RUN-SUP-001",
+        }
+
+    def opted_registry(self, **over) -> dict[str, dict]:
+        return self.registry(superseded_id_extraction=dict(self.extraction), **over)
+
+    def check(self, entries) -> list[str]:
+        ctx = vl.Ctx(set())
+        vl.check_run_supersessions(ctx, entries)
+        vl.check_run(str(self.superseded), ctx, entries)
+        return ctx.errors
+
+    def test_explicit_hash_bound_source_and_complete_replacement_pass(self) -> None:
+        self.assertEqual(self.check(self.opted_registry()), [])
+        # Identity-only fallback never changes unregistered source validation.
+        ctx = vl.Ctx(set())
+        vl.check_run(str(self.superseded), ctx)
+        self.assertTrue(any("invalid YAML" in e for e in ctx.errors))
+        self.assertIsNone(vl._run_id_of(str(self.superseded)))
+
+    def test_missing_opt_in_is_refused(self) -> None:
+        self.assertTrue(self.check(self.registry()))
+
+    def test_wrong_hash_is_refused(self) -> None:
+        self.assertTrue(self.check(self.opted_registry(superseded_sha256="a" * 64)))
+
+    def test_wrong_header_is_refused(self) -> None:
+        self.superseded.write_text(self.malformed.replace(
+            "run_id: RUN-SUP-001", "run_id: RUN-OTHER-001"), encoding="utf-8")
+        self.assertTrue(self.check(self.opted_registry()))
+
+    def test_wrong_registry_id_is_refused(self) -> None:
+        self.assertTrue(self.check(self.opted_registry(run_id="RUN-OTHER-001")))
+
+    def test_wrong_directory_id_is_refused(self) -> None:
+        other_dir = self.run_dir.parent / "RUN-OTHER-001"
+        other_dir.mkdir()
+        other = other_dir / "manifest.yaml"
+        other.write_text(self.malformed, encoding="utf-8")
+        entries = self.opted_registry(superseded_path=str(other))
+        ctx = vl.Ctx(set())
+        vl.check_run_supersessions(ctx, entries)
+        self.assertTrue(ctx.errors)
+
+    def test_header_must_be_the_first_line(self) -> None:
+        self.superseded.write_text("# comment\n" + self.malformed, encoding="utf-8")
+        self.assertTrue(self.check(self.opted_registry()))
+
+    def test_duplicate_and_conflicting_identity_headers_are_refused(self) -> None:
+        for header in ("run_id: RUN-SUP-001", "run_id: RUN-OTHER-001",
+                       "id: RUN-SUP-001", "run:"):
+            with self.subTest(header=header):
+                self.superseded.write_text(self.malformed + header + "\n",
+                                           encoding="utf-8")
+                self.assertTrue(self.check(self.opted_registry()))
+
+    def test_malformed_replacement_cannot_use_source_binding(self) -> None:
+        self.superseding.write_text(self.malformed, encoding="utf-8")
+        self.assertTrue(self.check(self.opted_registry()))
+
+    def test_missing_replacement_field_still_fails(self) -> None:
+        incomplete = manifest_body()
+        incomplete.pop("timing")
+        self.write_manifest("manifest_v2.yaml", incomplete)
+        self.assertTrue(any("missing required field 'timing'" in e
+                            for e in self.check(self.opted_registry())))
+
+    def test_valid_source_does_not_fall_back_to_header(self) -> None:
+        self.superseded.write_text(
+            "run_id: RUN-SUP-001\nrun:\n  id: RUN-OTHER-001\n", encoding="utf-8")
+        self.assertTrue(any("declares run id 'RUN-OTHER-001'" in e
+                            for e in self.check(self.opted_registry())))
+
+    def test_identity_binding_for_unrelated_source_is_refused(self) -> None:
+        entries = self.opted_registry()
+        entry = next(iter(entries.values()))
+        other = self.run_dir / "another.yaml"
+        other.write_text(self.malformed, encoding="utf-8")
+        self.assertIsNone(vl._run_id_of(str(other), superseded_entry=entry))
+
+
+class ExtractionRegistryLoaderTests(RegistryLoaderTests):
+    def test_explicit_binding_survives_loading(self) -> None:
+        binding = {"kind": "unique_first_line_run_id_header", "line_number": 1,
+                   "exact_line": "run_id: RUN-SUP-001"}
+        entries = self.load(registry_document(superseded_id_extraction=binding))
+        self.assertEqual(next(iter(entries.values()))["superseded_id_extraction"],
+                         binding)
+
+    def test_malformed_binding_is_refused(self) -> None:
+        binding = {"kind": "unique_first_line_run_id_header", "line_number": 1,
+                   "exact_line": "run_id: RUN-SUP-001"}
+        cases = [None, {}, "header", dict(binding, kind="guess"),
+                 dict(binding, line_number=2), dict(binding, line_number=True),
+                 dict(binding, exact_line="run_id: RUN-OTHER-001"),
+                 dict(binding, extra="ignored")]
+        for bad in cases:
+            with self.subTest(binding=bad), self.assertRaises(ValueError):
+                self.load(registry_document(superseded_id_extraction=bad))
+
+
 class TierOfRunTests(unittest.TestCase):
     """field_bits may be a list of cells; the largest cell governs the tier."""
 
@@ -384,6 +855,14 @@ class CommittedRegistryTests(unittest.TestCase):
         entries = vl.load_run_supersessions()
         ctx = vl.Ctx(set())
         vl.check_run_supersessions(ctx, entries)
+        # Match main(): administrative quarantine decisions are validated
+        # before their dependent run records, never mocked as approvals.
+        decision_ids = {entry.get("decision_id") for entry in entries.values()
+                        if entry.get("supersession_kind") == "provenance_quarantine"}
+        for decision_id in decision_ids:
+            vl.check_ledger_record(str(REPO / "ledger" / "decisions" /
+                                       f"{decision_id}.yaml"),
+                                   "coordinator_decision", ctx)
         for key in entries:
             vl.check_run(key, ctx, entries)
         self.assertEqual(ctx.errors, [])
@@ -410,7 +889,33 @@ class CommittedRegistryTests(unittest.TestCase):
             registry_original = Path(entry["superseded_path"]).resolve()
             run_dir = registry_original.parent
             current = Path(entry["superseding_path"]).resolve()
+            # Fourth vocabulary: experiment-level corrections/ next to runs/.
+            # The registry is the binding; the immutable correction may omit
+            # a supersedes block and must not be rewritten to add one.
+            if _is_experiment_correction(current, repo_root):
+                body = yaml.safe_load(
+                    current.read_text(encoding="utf-8"))["run"]
+                self.assertEqual(body.get("id"), entry["run_id"], str(current))
+                self.assertEqual(sha256_of(current),
+                                 entry["superseding_sha256"], str(current))
+                self.assertEqual(sha256_of(registry_original),
+                                 entry["superseded_sha256"],
+                                 str(registry_original))
+                continue
             self.assertEqual(current.parent, run_dir, str(current))
+            if entry["run_id"] in PROSE_SUPERSESSION_SHA256:
+                self.assertEqual(sha256_of(current),
+                                 PROSE_SUPERSESSION_SHA256[entry["run_id"]])
+                self.assertEqual(sha256_of(current), entry["superseding_sha256"])
+                self.assertEqual(sha256_of(registry_original),
+                                 entry["superseded_sha256"])
+                self.assertEqual(vl._run_id_of(str(registry_original)), entry["run_id"])
+                body = yaml.safe_load(current.read_text(encoding="utf-8"))["run"]
+                self.assertEqual(body.get("id"), entry["run_id"])
+                self.assertIn(registry_original.name, body["supersession_note"])
+                self.assertIn("tools/run_supersession_registry.yaml",
+                              body["supersession_note"])
+                continue
             seen: set[str] = set()
             while True:
                 self.assertNotIn(str(current), seen, entry["superseding_path"])
@@ -439,8 +944,16 @@ class CommittedRegistryTests(unittest.TestCase):
                 self.assertEqual(prior.parent, run_dir, str(prior))
                 self.assertTrue(prior.is_file(), str(prior))
                 self.assertEqual(sha256_of(prior), prior_sha256, str(prior))
-                self.assertEqual(vl._run_id_of(str(prior)), entry["run_id"],
-                                 str(prior))
+                prior_id = vl._run_id_of(
+                    str(prior), superseded_entry=entry
+                    if prior == registry_original else None)
+                if (prior_id is None and prior == registry_original
+                        and entry.get("superseded_id_line") is not None):
+                    # Both hashes and the direct original binding were
+                    # checked above; use the production identity check.
+                    prior_id = vl._malformed_run_header_id(
+                        str(prior), entry["superseded_id_line"])
+                self.assertEqual(prior_id, entry["run_id"], str(prior))
                 if prior == registry_original:
                     self.assertEqual(prior_sha256,
                                      entry["superseded_sha256"])
