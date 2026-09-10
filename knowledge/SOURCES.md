@@ -14,24 +14,24 @@ a hash it cannot is an assertion by the session that recorded it.
 
 | Class | Count |
 |---|---|
-| Frozen source packages (`SRC-*`) | 8 |
-| — of those with the artifact committed | 7 |
-| Per-URL retrieval attempts | 2 |
-| — succeeded | 1 |
-| — failed or blocked | 1 |
-| Source artifacts under `inputs/` | 11 |
-| — hash recomputed and matching | 9 |
+| Frozen source packages (`SRC-*`) | 9 |
+| — of those with the artifact committed | 8 |
+| Per-URL retrieval attempts | 8 |
+| — succeeded | 3 |
+| — failed or blocked | 5 |
+| Source artifacts under `inputs/` | 14 |
+| — hash recomputed and matching | 10 |
 | — hash MISMATCH | 0 |
-| — present but carrying no `.sha256` | 1 |
+| — present but carrying no `.sha256` | 3 |
 | — sought and never retrieved | 1 |
 | Seed bibliography entries | 10 |
-| Literature entries (`KN-LIT-*`) | 7868 |
-| — with a resolvable external identifier | 2256 |
-| — with no identifier recorded | 5612 |
+| Literature entries (`KN-LIT-*`) | 7870 |
+| — with a resolvable external identifier | 2257 |
+| — with no identifier recorded | 5613 |
 
-Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1326, doi 150, eprint 744, url 36. Every identifier an entry carries is kept in `sources.json`.
+Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1326, doi 150, eprint 745, url 36. Every identifier an entry carries is kept in `sources.json`.
 
-`citation_verified` distribution: `False` 22, `True` 10, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `metadata` 1, `partial` 5, `read` 7494, `secondary_only` 1, `transcription_of_full_text_at_recorded_sha256` 2, `web` 326.
+`citation_verified` distribution: `False` 23, `True` 10, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `metadata` 1, `partial` 5, `read` 7495, `secondary_only` 1, `transcription_of_full_text_at_recorded_sha256` 2, `web` 326.
 
 ## 1. Frozen source packages
 
@@ -44,6 +44,7 @@ decides whether a later session can re-read what was read here.
 | SRC-BENNETT-WEAKNESS-2023 | The Optimal Choice of Hypothesis Is the Weakest, Not the Shortest | Michael Timothy Bennett | 2023 | `inputs/BENNETT-WEAKNESS-2023` | yes | declared |  |  |
 | SRC-DCP-SIMON-2026 | A Polynomial-Time Quantum Algorithm for the Dihedral Coset Problem [Preliminary Draft] | Daniel R. Simon | 2026 | `inputs/DCP-SIMON-2026` | yes | package_contents |  |  |
 | SRC-KARABINA-PDP-2015 | Point Decomposition Problem in Binary Elliptic Curves | Koray Karabina | 2015 | `inputs/KARABINA-PDP-2015` | yes | declared |  |  |
+| SRC-NS-AGENT-RESOLUTION-2026 | Methodology note on a multiagent resolution of the Navier-Stokes and Euler regularity problems | UNATTRIBUTED IN THE RECEIVED TEXT. The excerpt speaks in an institutional first person ("our internal model") and names Codex and GPT-6 Astra as internal tools, which is consistent with an OpenAI-lineage announcement, but no byline, publisher, URL, or date was supplied. This record does not assert the author. | 2026 | `inputs/NS-AGENT-RESOLUTION-2026` | yes | declared |  | b37b0729e5cad0c1 |
 | SRC-OAI-TEN-PROOFS-2026 | Ten Advances in Mathematics and Theoretical Computer Science | OpenAI | 2026 | `inputs/OAI-TEN-PROOFS-2026` | **no** | declared | https://cdn.openai.com/pdf/ten-proofs-oai.pdf | 64b900d5fae6fe22 |
 | SRC-P13-PANNY-POC | Proof-of-concept implementation of the Wesolowski 2026 p^{1/3+o(1)} attack on OneEnd | Lorenz Panny |  | `inputs/P13-PANNY-POC` | yes | frozen_path | https://yx7.cc/files/p-one-third.py | 4f43780404a7ab5d |
 | SRC-P13-WESOLOWSKI-2026 | The supersingular isogeny problem in time and memory p^{1/3+o(1)} | Benjamin Wesolowski | 2026 | `inputs/P13-WESOLOWSKI-2026` | yes | package_contents |  |  |
@@ -51,6 +52,7 @@ decides whether a later session can re-read what was read here.
 
 Declared reproducibility limitations:
 
+- **SRC-NS-AGENT-RESOLUTION-2026** — Freezing the fragment makes the intake reproducible; it does NOT make the fragment's claims checkable. The mathematical objects the text refers to - the Euler regularity disproof, the Navier-Stokes resolution, the Lean formalization - are not present in this repository, were not supplied, and have no cited location. Nothing in this record is a receipt for any of them.
 - **SRC-OAI-TEN-PROOFS-2026** — The PDF is not committed, so the sha256 above cannot be recomputed from this repository and no later session can re-read the source these summaries were taken from. This record is an assertion about a read that happened, not a checkable receipt for it -- the contrast is SRC-P13-WESOLOWSKI-2026, whose full text is frozen at inputs/P13-WESOLOWSKI-2026/paper_fulltext.md.
 
 ## 2. Per-URL retrieval attempts
@@ -63,6 +65,12 @@ not the same as never having looked.
 |---|---|---|---|---|---|
 | dent-galbraith-hidden.pdf |  | failed |  |  | `inputs/ECTD-TESKE-20260731/sources/dent-galbraith-hidden.pdf` |
 | ellipticnews-2015-04-13-ecdlp-char-two | https://ellipticnews.wordpress.com/2015/04/13/elliptic-curve-discrete-logarithm-problem-in-characteristic-two/ | retrieved | 200 | 2026-09-05T22:45:26Z |  |
+| arxiv-math-0411378v3 | https://arxiv.org/abs/math/0411378 | retrieved | 200 | 2026-09-07T21:05:00Z |  |
+| arxiv-math-0411378v3-pdf | https://arxiv.org/pdf/math/0411378v3 | retrieved | 200 | 2026-09-07T21:05:00Z | `inputs/JMV-0411378-20260907/sources/jmv-math-0411378v3.pdf` |
+| local-artifact |  | local_artifact |  | 2026-09-07T21:07:57Z | `inputs/JMV-0411378-20260907/sources/jmv-math-0411378v3.pdf` |
+| local-artifact |  | local_artifact |  | 2026-09-07T21:07:57Z | `inputs/JMV-0411378-20260907/sources/jmv-math-0411378v3.pdf.sha256` |
+| local-artifact |  | local_artifact |  | 2026-09-07T21:07:57Z | `inputs/JMV-0411378-20260907/sources/jmv-math-0411378v3.txt` |
+| local-artifact |  | local_artifact |  | 2026-09-07T21:07:57Z | `inputs/JMV-0411378-20260907/sources/jmv-math-0411378v3-layout.txt` |
 
 ## 3. Source artifacts under `inputs/`
 
@@ -90,6 +98,9 @@ records that some fetch failed, and says nothing about the file that is here.
 | `inputs/ECTD-TESKE-20260731/sources/jmv-0811.0647.pdf` | 294859 | match | 118c6096f6287f4b |  |
 | `inputs/ECTD-TESKE-20260731/sources/kutas-2019-1290.pdf` | 430504 | match | a7f94571aa03ce34 | yes |
 | `inputs/ECTD-TESKE-20260731/sources/teske-2003-058.pdf` | 287387 | match | 8d889ae0b1b03f77 | yes |
+| `inputs/JMV-0411378-20260907/sources/jmv-math-0411378v3-layout.txt` | 70308 | **present_unhashed** |  |  |
+| `inputs/JMV-0411378-20260907/sources/jmv-math-0411378v3.pdf` | 320392 | match | c80586caaa2e4129 |  |
+| `inputs/JMV-0411378-20260907/sources/jmv-math-0411378v3.txt` | 59315 | **present_unhashed** |  |  |
 | `inputs/KARABINA-PDP-2015/eprint-2015-319-v3.pdf` | 352621 | match | ad23de5bfdb5fada |  |
 | `inputs/KARABINA-PDP-2015/paper_fulltext.md` | 41941 | match | c4fcc7c94ad9fca4 |  |
 
@@ -112,7 +123,7 @@ records that some fetch failed, and says nothing about the file that is here.
 
 ## 5. Literature citations with a resolvable identifier
 
-2256 of 7868 `KN-LIT-*` entries carry an
+2257 of 7870 `KN-LIT-*` entries carry an
 eprint, arXiv, DOI, ISBN or URL identifier.
 
 | ID | Title | Year | Identifier | Verified |
@@ -2338,6 +2349,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-cd29fd | Quantum sieving for code-based cryptanalysis and its limitations for ISD | 2025 | `eprint:2024/1358` | web |
 | KN-LIT-cd9880 | McEliece cryptosystem implementation: theory and practice | 2008 | `doi:10.1007/978-3-540-88403-3_4` | web |
 | KN-LIT-ced593 | On the complexity of some cryptographic problems based on the general decoding problem | 2002 | `doi:10.1109/isit.1998.709047` | web |
+| KN-LIT-d0370b | New Exchanged Boomerang Distinguishers for 5-Round AES | 2025 | `eprint:2025/248` | read |
 | KN-LIT-d15818 | FPGA-based Niederreiter cryptosystem using binary Goppa codes | 2018 | `eprint:2017/1180` | web |
 | KN-LIT-d3ec68 | Preimage Attacks on 3-Pass HAVAL and Step-Reduced MD5 | 2008 | `eprint:2008/183` | read |
 | KN-LIT-d4f467 | Embedded Elliptic Curves and Embedded Families for SNARK-Friendly Elliptic Curves | 2024 | `eprint:2024/1737` | read |
@@ -2376,7 +2388,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 
 ## 6. Literature citations with no recorded identifier
 
-5612 entries name a source this index cannot resolve to a
+5613 entries name a source this index cannot resolve to a
 retrievable location. They are listed, not dropped and not backfilled by
 guesswork (AGENTS.md rule 5): closing a row means finding the identifier
 and editing the entry, after which this table shrinks on its own.
@@ -7987,6 +7999,7 @@ and editing the entry, after which this table shrinks on its own.
 | KN-LIT-93e8d7 | Error-correcting coding for digital communication | 1981 | book | false |
 | KN-LIT-a45b7b | Index Calculus in Class Groups of Plane Curves of Small Degree | 2007 | 11th Workshop on Elliptic Curve Cryptography (ECC 2007), Dublin (talk slides) | read |
 | KN-LIT-a4d0f1 | Elliptic and hyperelliptic curves with weak coverings against Weil descent attack | 2007 | 11th Workshop on Elliptic Curve Cryptography (ECC 2007), Dublin (talk slides) | read |
+| KN-LIT-aa7970 | Methodology note on a multiagent resolution of the Navier-Stokes and Euler regularity problems | 2026 | None. An unattributed ~400-word fragment pasted into a chat session and frozen at inputs/NS-AGENT-RESOLUTION-2026/received_text.md (SRC-NS-AGENT-RESOLUTION-2026). The bytes are re-readable from this repository; the document they came from is not identified and the mathematical artifacts they describe were not supplied. | false |
 | KN-LIT-b875db | Solving the Shortest Vector Problem in 2^{0.7314n+o(n)} Time via Discrete Gaussian Sampling on Superlattices | 2026 | Preprint (unrefereed; no venue, ePrint number, or DOI stated in the supplied text) | full_text_supplied |
 | KN-LIT-b9bba7 | Practical key recovery attacks on two McEliece variants | 2010 | SCC | false |
 | KN-LIT-bbc179 | Blood MERIDIAN: a blockcipher that is not a blockcipher | 2026 | Cryptology ePrint Archive (note dated 2026-08-27); ePrint number inferred from filename, unconfirmed | read |
@@ -8013,6 +8026,7 @@ corpus may hold a true duplicate. Resolving it is a `/curate-knowledge` job.
 | `eprint:2023/1618` | KN-LIT-1117, KN-LIT-132 |
 | `eprint:2024/1193` | KN-LIT-71d1a0, KN-LIT-a4d70e |
 | `eprint:2025/1661` | KN-LIT-d82a53, KN-LIT-e37d4c |
+| `eprint:2025/248` | KN-LIT-1424, KN-LIT-d0370b |
 | `eprint:2025/531` | KN-LIT-6b1fc8, KN-LIT-7ee1a9 |
 | `eprint:2026/1318` | KN-LIT-7670, KN-LIT-7674 |
 | `eprint:2026/366` | KN-LIT-7667, KN-LIT-7c2620 |
