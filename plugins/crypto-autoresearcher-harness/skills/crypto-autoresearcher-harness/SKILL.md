@@ -116,13 +116,21 @@ contract is a technical prerequisite to resolve, not a request for permission.
 | --- | --- |
 | Status, doctor, orientation | **status**: read-only preflight and status; use goal_portfolio_health.py --no-deepen. Report without claims, records, fetches or dispatch. |
 | Generate ideas / design experiments | **ideas/design**: read [intake](references/intake.md); archive and publish the requested proposals/designs, then stop unless execution was requested. |
-| Run/continue a named GOAL-* | **goal**: read [lifecycle](references/lifecycle.md); continue batches for that exact goal through approval, execution, review and archival. |
-| Run the harness / keep running, with no named goal | **portfolio**: read [lifecycle](references/lifecycle.md); work ranked active goals, ECC first, and move to the next when one is terminal or impeded. |
-| Run a named TASK-* or EXP-* | **task**: follow the lifecycle gates for that task and required archives/reviews; stop at that requested boundary. |
+| Run/continue a named GOAL-* | **goal execution**: read [execution](references/execution.md) and [lifecycle](references/lifecycle.md); execute existing work for that exact goal through required approval, review and archival gates. |
+| Run the harness / keep running / run experiments, with no named goal | **execution** (default): read [execution](references/execution.md); drain existing eligible experiments, ECC-first/newest-first, without substituting proposals for runs. |
+| Explicit full portfolio research including ideation | **portfolio**: read [lifecycle](references/lifecycle.md); work ranked active goals, ECC first, including explicitly requested ideation. |
+| Run a named TASK-* or EXP-* | **task execution**: read [execution](references/execution.md); follow lifecycle gates for exactly that task/experiment and required archives/reviews; stop at the requested boundary. |
 | Start a new campaign | Create a goal only on this explicit request, then use goal mode. |
 | Conclusion, promotion, closure or breakthrough | Arrange the Coordinator and independent claim-tier review required by AGENTS.md; never infer approval from the request itself. |
 
-A completed batch is a checkpoint in goal/portfolio mode. Continue authorized
+In execution mode, `references/execution.md` narrows the shared lifecycle's
+work selection: no automatic idea intake, new goals, portfolio-wide literature
+or closure work. Scoped implementation and prerequisite repair must name the
+existing experiment they unblock. Authority, claims, immutable artifacts,
+independent review and scientific decision gates are unchanged. The process
+supervisor handles trial execution, not Coordinator authority or publication.
+
+A completed batch is a checkpoint in execution/goal/portfolio mode. Continue authorized
 work without asking again; see the lifecycle for terminal and operational exits.
 Do not reopen a terminal goal or silently substitute a different named goal.
 Impeded goals stay active. Empty queues and infrastructure failures are not
@@ -213,7 +221,7 @@ completed batch, report:
    operational impediment, its recheck, and what would clear it.
 8. The lane, queue path, branch and PR that another session must resume.
 
-A checkpoint does not end an authorized goal/portfolio loop. Resume the shared
+A checkpoint does not end an authorized execution/goal/portfolio loop. Resume the shared
 lifecycle; do not confuse a session ending with a campaign completing.
 
 Do not call an idea, a passing unit test, a snapshot, or a single toy run a

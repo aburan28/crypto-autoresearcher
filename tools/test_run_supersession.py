@@ -242,7 +242,89 @@ class DuplicateProcessIdentityTests(SupersessionFixture):
             with self.subTest(text=text):
                 entry = self.bound_original(text)
                 self.assertIsNone(vl._run_id_of(str(self.superseded),
-                                              superseded_entry=entry))
+                                               superseded_entry=entry))
+
+
+class NullIdSupersessionTests(SupersessionFixture):
+    """A parseable manifest with a null id binds only through the explicit,
+    hash-verified, registry-declared null-id field (TASK-20260909-cb6cc7).
+
+    This is the narrow sibling of the malformed-YAML recovery: it fires for
+    the registered null-id case and does NOT fire for an unregistered
+    parseable null-id manifest, so it does not generalise null-id recovery.
+    """
+
+    def null_id_original(self) -> None:
+        # The RUN-007 defect: well-formed YAML that records id: null.
+        self.superseded.write_text(
+            yaml.safe_dump({"run": manifest_body(id=None)}, sort_keys=False),
+            encoding="utf-8")
+
+    def null_id_entry(self, **over) -> dict:
+        entries = self.registry(superseded_id_null=True,
+                                superseded_id_null_provenance=(
+                                    "recovered from the run directory name"))
+        entry = next(iter(entries.values()))
+        entry.update(over)
+        return entry
+
+    def plain_entry(self, **over) -> dict:
+        entries = self.registry(**over)
+        return next(iter(entries.values()))
+
+    def test_registered_null_id_binds_identity(self) -> None:
+        self.null_id_original()
+        entry = self.null_id_entry()
+        self.assertEqual(
+            vl._run_id_of(str(self.superseded), superseded_entry=entry),
+            "RUN-SUP-001")
+
+    def test_unregistered_null_id_does_not_bind(self) -> None:
+        self.null_id_original()
+        # No registry entry at all: the null id is not recovered.
+        self.assertIsNone(vl._run_id_of(str(self.superseded)))
+        # A registered entry that lacks the explicit null-id field: still not
+        # recovered. This is the no-generalisation guarantee.
+        self.assertIsNone(
+            vl._run_id_of(str(self.superseded),
+                          superseded_entry=self.plain_entry()))
+
+    def test_null_id_requires_provenance(self) -> None:
+        self.null_id_original()
+        for over in ({}, {"superseded_id_null_provenance": ""},
+                     {"superseded_id_null_provenance": "   "},
+                     {"superseded_id_null_provenance": 1}):
+            with self.subTest(over=over):
+                entry = self.plain_entry(superseded_id_null=True)
+                entry.update(over)
+                self.assertIsNone(
+                    vl._run_id_of(str(self.superseded),
+                                  superseded_entry=entry))
+
+    def test_null_id_requires_hash_and_directory(self) -> None:
+        self.null_id_original()
+        # Hash mismatch: the binding is refused.
+        self.assertIsNone(vl._run_id_of(
+            str(self.superseded),
+            superseded_entry=self.null_id_entry(superseded_sha256="a" * 64)))
+        # Wrong run directory: the binding is refused.
+        other_dir = self.run_dir.parent / "RUN-OTHER-001"
+        other_dir.mkdir()
+        other = other_dir / "manifest.yaml"
+        other.write_text(self.superseded.read_text(encoding="utf-8"),
+                         encoding="utf-8")
+        self.assertIsNone(
+            vl._run_id_of(str(other), superseded_entry=self.null_id_entry()))
+
+    def test_null_id_flag_must_be_literal_true(self) -> None:
+        self.null_id_original()
+        for flag in (False, 1, "true", "yes"):
+            with self.subTest(flag=flag):
+                entry = self.plain_entry(superseded_id_null=flag,
+                                         superseded_id_null_provenance="recovered")
+                self.assertIsNone(
+                    vl._run_id_of(str(self.superseded),
+                                  superseded_entry=entry))
 
 
 class NoRegistryEntryTests(SupersessionFixture):

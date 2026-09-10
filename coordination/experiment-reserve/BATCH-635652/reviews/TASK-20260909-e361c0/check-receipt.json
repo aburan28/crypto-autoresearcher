@@ -1,0 +1,1076 @@
+{
+  "schema": "crypto.autoresearch.binding_independent_review_custody.v1",
+  "task_id": "TASK-20260909-e361c0",
+  "producer_task_id": "TASK-20260909-129bc2",
+  "created_at_UTC": "2026-09-09T18:32:04.256190+00:00",
+  "authority_commit": "b63075b91ac2551abd70525bce72a64844c40ecf",
+  "published_claim_commit": "7f9114194aae018905ccd010f3416b91a1a4e066",
+  "source_snapshot": "7ba5f7ec2ed24876a40ec083ebdc2bef0ef83b25",
+  "source_producer_snapshot": "1c9b23b662dbe890c5b6e40a5a05979e15e079d0",
+  "checker_invocations": 1,
+  "attempts": [
+    {
+      "reservation": {
+        "task_id": "TASK-20260909-e361c0",
+        "attempt": 1,
+        "attempt_dir": "/private/tmp/decoder-binding-review-e361c0-attempt1.g2D5BL",
+        "argv": [
+          "python3",
+          "-B",
+          "/private/tmp/decoder-binding-review-e361c0-attempt1.g2D5BL/checks.py",
+          "--repo",
+          "/Volumes/SSD990/crypto-autoresearcher/.worktrees/coordinator-reserve-admission-20260907",
+          "--claim-commit",
+          "7f9114194aae018905ccd010f3416b91a1a4e066",
+          "--receipt",
+          "/private/tmp/decoder-binding-review-e361c0-attempt1.g2D5BL/inner.json"
+        ],
+        "cwd": "/Volumes/SSD990/crypto-autoresearcher/.worktrees/coordinator-reserve-admission-20260907",
+        "checker_sha256": "c19424fd317b7d94800d3e39a972c1a38294531a2093703ddaf2a927159a2200",
+        "checker_bytes": 43201,
+        "reserved_at_UTC": "2026-09-09T18:29:31.700267+00:00",
+        "watchdog_seconds": 180,
+        "malformed_controls_reserved": 42,
+        "final_suite_capacity_reserved": 42,
+        "scientific_runs": 0,
+        "solver_module_imports": 0
+      },
+      "checker_source": "#!/usr/bin/env python3\n\"\"\"Independent metadata/custody checks for TASK-20260909-e361c0.\n\nThis checker reads and hashes source files but never imports or executes them.\nIts malformed controls are serialized and evaluated one at a time in memory.\n\"\"\"\n\nfrom __future__ import annotations\n\nimport argparse\nimport copy\nimport datetime as dt\nimport hashlib\nimport json\nimport platform\nimport resource\nimport subprocess\nimport sys\nimport time\nfrom pathlib import Path\nfrom typing import Any, Callable\n\nimport yaml\n\n\nTASK = \"TASK-20260909-e361c0\"\nPRODUCER_TASK = \"TASK-20260909-129bc2\"\nEXPERIMENT = \"EXP-ECDLP-709063\"\nAUTHORITY = \"b63075b91ac2551abd70525bce72a64844c40ecf\"\nCLAIM = \"7f9114194aae018905ccd010f3416b91a1a4e066\"\nCORRECTION_SNAPSHOT = \"7ba5f7ec2ed24876a40ec083ebdc2bef0ef83b25\"\nSOURCE_SNAPSHOT = \"1c9b23b662dbe890c5b6e40a5a05979e15e079d0\"\nBASELINE_SNAPSHOT = \"d8f64d928c8f6a28eed97eac70b741ad3232fbd5\"\nREVIEW_DIR = Path(\n    \"coordination/experiment-reserve/BATCH-635652/reviews/TASK-20260909-e361c0\"\n)\nHANDOFF_PATH = Path(\"ledger/handoffs/TASK-20260909-e361c0.yaml\")\nPLAN_PATH = Path(\n    \"coordination/experiment-reserve/BATCH-635652/review-plan-TASK-20260909-e361c0.yaml\"\n)\nCLAIM_PATH = Path(\n    \"coordination/experiment-reserve/BATCH-635652/claims/TASK-20260909-e361c0.1.claim.json\"\n)\nCORRECTION_DIR = Path(\n    \"coordination/experiment-reserve/BATCH-635652/corrections/TASK-20260909-129bc2\"\n)\nORIGINAL_DIR = Path(\n    \"experiments/EXP-ECDLP-709063/implementation/TASK-20260909-d31be5\"\n)\nFAILED_DIR = Path(\n    \"experiments/EXP-ECDLP-709063/implementation/TASK-20260909-85c2fe\"\n)\nBASELINE_DIR = Path(\n    \"experiments/EXP-ECDLP-709063/implementation/TASK-20260908-7771f2\"\n)\nORIGINAL_ARCHIVE = Path(\n    \"coordination/experiment-reserve/BATCH-635652/archives/TASK-20260909-7f5fe3/snapshot.json\"\n)\nREVIEW_ARCHIVE = Path(\n    \"coordination/experiment-reserve/BATCH-635652/archives/TASK-20260909-4607fb/snapshot.json\"\n)\nFAILED_ARCHIVE = Path(\n    \"coordination/experiment-reserve/BATCH-635652/archives/TASK-20260909-ff426d/snapshot.json\"\n)\nCORRECTION_ARCHIVE = Path(\n    \"coordination/experiment-reserve/BATCH-635652/archives/TASK-20260909-c0c0d1/snapshot.json\"\n)\nOLD_REVIEW = Path(\n    \"coordination/experiment-reserve/BATCH-635652/reviews/TASK-20260909-adf4e6/review.yaml\"\n)\nORIGINAL_HANDOFF = Path(\"ledger/handoffs/TASK-20260909-d31be5.yaml\")\nCORRECTION_HANDOFF = Path(\"ledger/handoffs/TASK-20260909-129bc2.yaml\")\nSOURCE_NAMES = (\"table.py\", \"bsgs.py\", \"rho-corrected.py\", \"tests.py\")\nINPUT_CAP = 16 * 1024 * 1024\nCONTROL_CAP = 1 * 1024 * 1024\nCONTROL_SECONDS = 10.0\nAGGREGATE_SECONDS = 1800.0\nRSS_CAP_BYTES = 2 * 1024 * 1024 * 1024\nEXPECTED_INPUT_BYTES = 991_976\nEXPECTED_CONTROL_COUNT = 42\n\n\ndef utc_now() -> str:\n    return dt.datetime.now(dt.timezone.utc).isoformat()\n\n\ndef sha_bytes(data: bytes) -> str:\n    return hashlib.sha256(data).hexdigest()\n\n\ndef sha_path(path: Path) -> str:\n    return sha_bytes(path.read_bytes())\n\n\ndef unique_json_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:\n    out: dict[str, Any] = {}\n    for key, value in pairs:\n        if key in out:\n            raise ValueError(f\"duplicate JSON key: {key}\")\n        out[key] = value\n    return out\n\n\ndef strict_json_bytes(data: bytes) -> Any:\n    return json.loads(data.decode(\"utf-8\"), object_pairs_hook=unique_json_pairs)\n\n\nclass UniqueKeyLoader(yaml.SafeLoader):\n    pass\n\n\ndef unique_yaml_mapping(\n    loader: UniqueKeyLoader, node: yaml.nodes.MappingNode, deep: bool = False\n) -> dict[Any, Any]:\n    loader.flatten_mapping(node)\n    out: dict[Any, Any] = {}\n    for key_node, value_node in node.value:\n        key = loader.construct_object(key_node, deep=deep)\n        if key in out:\n            raise ValueError(f\"duplicate YAML key: {key}\")\n        out[key] = loader.construct_object(value_node, deep=deep)\n    return out\n\n\nUniqueKeyLoader.add_constructor(\n    yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, unique_yaml_mapping\n)\n\n\ndef strict_yaml_bytes(data: bytes) -> Any:\n    return yaml.load(data.decode(\"utf-8\"), Loader=UniqueKeyLoader)\n\n\ndef need(condition: bool, message: str) -> None:\n    if not condition:\n        raise ValueError(message)\n\n\ndef parse_utc(value: str) -> dt.datetime:\n    parsed = dt.datetime.fromisoformat(value.replace(\"Z\", \"+00:00\"))\n    need(parsed.tzinfo is not None, f\"timestamp lacks timezone: {value}\")\n    return parsed\n\n\ndef normalized_rss_bytes(raw: float, unit: str) -> int:\n    if unit == \"bytes\":\n        return int(raw)\n    if unit == \"KiB\":\n        return int(raw * 1024)\n    raise ValueError(f\"unknown RSS unit: {unit}\")\n\n\ndef main() -> int:\n    parser = argparse.ArgumentParser()\n    parser.add_argument(\"--repo\", required=True)\n    parser.add_argument(\"--claim-commit\", required=True)\n    parser.add_argument(\"--receipt\", required=True)\n    args = parser.parse_args()\n\n    repo = Path(args.repo).resolve()\n    target = Path(args.receipt).resolve()\n    if target.exists():\n        raise FileExistsError(f\"refuse existing attempt receipt: {target}\")\n\n    started_at = utc_now()\n    wall_start = time.monotonic()\n    cpu_start = time.process_time()\n    comparisons: list[dict[str, Any]] = []\n    controls: list[dict[str, Any]] = []\n    setup_error: str | None = None\n    total_input_bytes: int | None = None\n\n    def git_bytes(commit: str, path: Path) -> bytes:\n        result = subprocess.run(\n            [\"git\", \"show\", f\"{commit}:{path.as_posix()}\"],\n            cwd=repo,\n            stdout=subprocess.PIPE,\n            stderr=subprocess.PIPE,\n            check=False,\n        )\n        if result.returncode != 0:\n            raise ValueError(\n                f\"git show failed for {commit}:{path}: \"\n                + result.stderr.decode(\"utf-8\", \"replace\")[:1000]\n            )\n        return result.stdout\n\n    def is_ancestor(first: str, second: str) -> bool:\n        return (\n            subprocess.run(\n                [\"git\", \"merge-base\", \"--is-ancestor\", first, second],\n                cwd=repo,\n                stdout=subprocess.PIPE,\n                stderr=subprocess.PIPE,\n                check=False,\n            ).returncode\n            == 0\n        )\n\n    def jload(path: Path) -> Any:\n        return strict_json_bytes((repo / path).read_bytes())\n\n    def yload(path: Path) -> Any:\n        return strict_yaml_bytes((repo / path).read_bytes())\n\n    def compare(name: str, fn: Callable[[], bool], detail: Any = None) -> None:\n        row: dict[str, Any] = {\"name\": name}\n        try:\n            need(fn() is True, \"comparison returned non-true\")\n            row[\"status\"] = \"passed\"\n            if detail is not None:\n                row[\"detail\"] = detail\n        except BaseException as exc:\n            row[\"status\"] = \"failed\"\n            row[\"error\"] = f\"{type(exc).__name__}: {str(exc)[:2000]}\"\n        comparisons.append(row)\n\n    try:\n        need((repo / \"AGENTS.md\").is_file(), \"--repo lacks AGENTS.md\")\n        need(args.claim_commit == CLAIM, \"unexpected claim commit\")\n        claim = strict_json_bytes(git_bytes(CLAIM, CLAIM_PATH))\n        need(Path(claim[\"worktree\"]).resolve() == repo, \"--repo differs from claim\")\n        need(claim[\"task_id\"] == TASK, \"claim task mismatch\")\n        need(claim[\"write_scope\"] == [\n            (REVIEW_DIR / \"review.yaml\").as_posix(),\n            (REVIEW_DIR / \"checks.py\").as_posix(),\n            (REVIEW_DIR / \"check-receipt.json\").as_posix(),\n        ], \"claim write scope mismatch\")\n\n        handoff = yload(HANDOFF_PATH)[\"handoff\"]\n        plan = yload(PLAN_PATH)[\"review_plan\"]\n        need(git_bytes(AUTHORITY, HANDOFF_PATH) == (repo / HANDOFF_PATH).read_bytes(), \"authority handoff drift\")\n        need(git_bytes(AUTHORITY, PLAN_PATH) == (repo / PLAN_PATH).read_bytes(), \"authority plan drift\")\n        need(handoff[\"id\"] == TASK and handoff[\"to\"] == \"validator\", \"handoff identity\")\n        need(handoff[\"review_plan_path\"] == PLAN_PATH.as_posix(), \"review plan path\")\n        need(plan == handoff[\"review_plan\"], \"inline/path review plan mismatch\")\n        need(plan[\"source_snapshot\"] == CORRECTION_SNAPSHOT, \"review source snapshot\")\n        need(\n            plan[\"joints\"] == [{\n                \"joint\": \"binding_supersession_and_unchanged_source_custody\",\n                \"assigned_to\": TASK,\n                \"attack_plan\": plan[\"joints\"][0][\"attack_plan\"],\n                \"breaking_artifact\": plan[\"joints\"][0][\"breaking_artifact\"],\n            }],\n            \"unexpected joint assignment\",\n        )\n        need(is_ancestor(CORRECTION_SNAPSHOT, AUTHORITY), \"snapshot not ancestor of authority\")\n        need(is_ancestor(AUTHORITY, CLAIM), \"authority not ancestor of claim\")\n\n        declared_inputs = handoff[\"inputs\"]\n        bindings = handoff[\"source_bindings\"]\n        need(len(declared_inputs) == len(bindings) == 42, \"review input count\")\n        need(len(set(declared_inputs)) == 42, \"duplicate review input path\")\n        need([row[\"path\"] for row in bindings] == declared_inputs, \"input/binding order mismatch\")\n        input_rows: list[dict[str, Any]] = []\n        total_input_bytes = 0\n        for row in bindings:\n            path = Path(row[\"path\"])\n            expected = row[\"sha256\"]\n            commit = AUTHORITY if path == PLAN_PATH else CORRECTION_SNAPSHOT\n            frozen = git_bytes(commit, path)\n            live = (repo / path).read_bytes()\n            total_input_bytes += len(frozen)\n            input_rows.append({\n                \"path\": path.as_posix(),\n                \"commit\": commit,\n                \"bytes\": len(frozen),\n                \"sha256\": sha_bytes(frozen),\n                \"expected_sha256\": expected,\n                \"frozen_matches\": sha_bytes(frozen) == expected,\n                \"live_matches\": sha_bytes(live) == expected,\n            })\n        compare(\n            \"all_42_declared_inputs_hash_bound\",\n            lambda: all(r[\"frozen_matches\"] and r[\"live_matches\"] for r in input_rows),\n            input_rows,\n        )\n        compare(\n            \"frozen_input_size_cap\",\n            lambda: total_input_bytes == EXPECTED_INPUT_BYTES and total_input_bytes <= INPUT_CAP,\n            {\"input_count\": 42, \"total_bytes\": total_input_bytes, \"cap_bytes\": INPUT_CAP},\n        )\n\n        binding_path = CORRECTION_DIR / \"solver-source-bindings.json\"\n        producer_checker_path = CORRECTION_DIR / \"binding-checks.py\"\n        producer_receipt_path = CORRECTION_DIR / \"check-receipt.json\"\n        producer_report_path = CORRECTION_DIR / \"implementation-report.yaml\"\n        old_binding_path = ORIGINAL_DIR / \"solver-source-bindings.json\"\n        original_receipt_path = ORIGINAL_DIR / \"check-receipt.json\"\n        original_report_path = ORIGINAL_DIR / \"implementation-report.yaml\"\n        binding_raw = (repo / binding_path).read_bytes()\n        binding = strict_json_bytes(binding_raw)\n        old_binding = jload(old_binding_path)\n        correction_handoff = yload(CORRECTION_HANDOFF)[\"handoff\"]\n        original_handoff = yload(ORIGINAL_HANDOFF)[\"handoff\"]\n        original_receipt = jload(original_receipt_path)\n        original_report = yload(original_report_path)[\"execution_report\"]\n        producer_receipt = jload(producer_receipt_path)\n        producer_report = yload(producer_report_path)[\"execution_report\"]\n        old_review = yload(OLD_REVIEW)[\"validation_report\"]\n        original_archive = jload(ORIGINAL_ARCHIVE)\n        review_archive = jload(REVIEW_ARCHIVE)\n        failed_archive = jload(FAILED_ARCHIVE)\n        correction_archive = jload(CORRECTION_ARCHIVE)\n        failed_receipt = jload(FAILED_DIR / \"check-receipt.json\")\n        failed_report = yload(FAILED_DIR / \"implementation-report.yaml\")[\"execution_report\"]\n\n        expected_top = {\n            \"schema\", \"task_id\", \"experiment_id\", \"approval_decision_id\", \"scope\",\n            \"supersedes\", \"current_source\", \"dependency_bindings\",\n            \"historical_scalar_baseline\", \"historical_inherited_assertions\",\n            \"recorded_source_execution\", \"independent_review\", \"failed_predecessor\",\n            \"correction_preflight\", \"scientific_runs\", \"measurement_admitted\",\n            \"source_acceptance\", \"new_metadata_review\",\n        }\n        current_paths = {str(ORIGINAL_DIR / name) for name in SOURCE_NAMES}\n        expected_current = {\n            str(ORIGINAL_DIR / name): sha_path(repo / ORIGINAL_DIR / name)\n            for name in SOURCE_NAMES\n        }\n        old_fields = (\n            \"current_task_source_sha256\",\n            \"source_binding_preflight\",\n            \"validation_limitation\",\n            \"execution_policy\",\n        )\n        correction_frozen = {\n            row[\"path\"]: row[\"sha256\"] for row in correction_handoff[\"source_bindings\"]\n        }\n        original_frozen = {\n            row[\"path\"]: row[\"sha256\"] for row in original_handoff[\"source_bindings\"]\n        }\n\n        def validate_candidate(candidate: dict[str, Any]) -> None:\n            need(set(candidate) == expected_top, \"closed top-level schema\")\n            need(candidate[\"schema\"] == \"crypto.autoresearch.solver_source_bindings.v2\", \"schema\")\n            need(candidate[\"task_id\"] == PRODUCER_TASK, \"producer task\")\n            need(candidate[\"experiment_id\"] == EXPERIMENT, \"experiment\")\n            need(candidate[\"approval_decision_id\"] == \"DEC-20260909-b69851\", \"approval\")\n            need(candidate[\"scientific_runs\"] == 0, \"scientific runs\")\n            need(candidate[\"measurement_admitted\"] is False, \"measurement admission\")\n            need(candidate[\"source_acceptance\"] is False, \"source acceptance\")\n            need(candidate[\"new_metadata_review\"] == \"pending\", \"review status\")\n            supersedes = candidate[\"supersedes\"]\n            need(set(supersedes) == {\"path\", \"sha256\", \"snapshot\", \"replacement_scope\"}, \"supersedes shape\")\n            need(supersedes[\"path\"] == old_binding_path.as_posix(), \"superseded path\")\n            need(supersedes[\"sha256\"] == sha_path(repo / old_binding_path), \"superseded hash\")\n            need(supersedes[\"snapshot\"] == SOURCE_SNAPSHOT, \"superseded snapshot\")\n            need(\"only\" in supersedes[\"replacement_scope\"].lower(), \"replacement scope\")\n            current = candidate[\"current_source\"]\n            need(set(current) == {\"source_task_id\", \"snapshot\", \"path_sha256\", \"coverage_note\"}, \"current source shape\")\n            need(current[\"source_task_id\"] == \"TASK-20260909-d31be5\", \"source task\")\n            need(current[\"snapshot\"] == SOURCE_SNAPSHOT, \"source snapshot\")\n            need(set(current[\"path_sha256\"]) == current_paths, \"current source path set\")\n            need(current[\"path_sha256\"] == expected_current, \"current source digest map\")\n            need(not ({\"current_task_source_sha256\", \"task_source_sha256\"} & set(candidate)), \"competing current map\")\n            hist = candidate[\"historical_inherited_assertions\"]\n            need(hist[\"origin\"] == {\"path\": old_binding_path.as_posix(), \"sha256\": sha_path(repo / old_binding_path)}, \"historical origin\")\n            need(\"not authoritative\" in hist[\"classification\"], \"historical classification\")\n            need(hist[\"values\"] == {key: old_binding[key] for key in old_fields}, \"historical values\")\n            need(candidate[\"historical_scalar_baseline\"] == old_binding[\"source_baseline\"], \"historical baseline\")\n            deps = candidate[\"dependency_bindings\"]\n            need(deps[\"binding_origin\"] == {\"path\": ORIGINAL_HANDOFF.as_posix(), \"sha256\": sha_path(repo / ORIGINAL_HANDOFF)}, \"dependency origin\")\n            need(deps[\"files\"] == old_binding[\"bound_files\"], \"dependency files\")\n            for path, metadata in deps[\"files\"].items():\n                need(original_frozen[path] == metadata[\"sha256\"], f\"dependency handoff hash {path}\")\n                need(sha_path(repo / path) == metadata[\"sha256\"], f\"dependency live hash {path}\")\n            execution = candidate[\"recorded_source_execution\"]\n            need(execution[\"task_id\"] == \"TASK-20260909-d31be5\", \"execution task\")\n            need(execution[\"receipt\"] == {\"path\": original_receipt_path.as_posix(), \"sha256\": sha_path(repo / original_receipt_path)}, \"execution receipt\")\n            need(execution[\"report\"] == {\"path\": original_report_path.as_posix(), \"sha256\": sha_path(repo / original_report_path)}, \"execution report\")\n            need(execution[\"authority_commit\"] == \"e5e63414a66b0f4305b564e29c67d352c60e72d9\", \"execution authority\")\n            need(execution[\"published_claim_commit\"] == \"0bfa7d28db0eb040558259925b596a0c4ebfcf5f\", \"execution claim\")\n            need(execution[\"archived_source_snapshot\"] == SOURCE_SNAPSHOT, \"execution snapshot\")\n            need(execution[\"prior_handoff_declared_inputs\"] == len(original_handoff[\"inputs\"]) == 62, \"execution input count\")\n            need(execution[\"prior_reported_source_bindings_verified\"] == original_report[\"source_bindings_verified\"] == 62, \"execution verified count\")\n            need(execution[\"checks\"] == {\"focused\": 6, \"complete_suite\": 365, \"total\": 371, \"passed\": 371, \"failed\": 0}, \"execution checks\")\n            need(execution[\"inference_as_recorded\"] == original_receipt[\"inference\"], \"execution inference\")\n            need(execution[\"inference_as_recorded\"][\"resolved_model_id\"] is None, \"invented model\")\n            need(execution[\"inference_as_recorded\"][\"model_verified\"] is False, \"invented model verification\")\n            need(execution[\"hard_memory_guard_claim\"] is False, \"invented memory guard\")\n            prior_review = candidate[\"independent_review\"]\n            need(prior_review[\"path\"] == OLD_REVIEW.as_posix(), \"prior review path\")\n            need(prior_review[\"sha256\"] == sha_path(repo / OLD_REVIEW), \"prior review hash\")\n            need(prior_review[\"snapshot\"] == \"c83f873a4978e79fa4722d43135a2cbc13e82336\", \"prior review snapshot\")\n            need(prior_review[\"overall_verdict\"] == old_review[\"verdict\"] == \"failed\", \"prior review verdict\")\n            need(prior_review[\"finding\"] == \"BINDING-CUSTODY-1\", \"prior review finding\")\n            failed = candidate[\"failed_predecessor\"]\n            need(failed == {\"snapshot\": \"2e44076ebdadb9fac6bb21b9a12257e9d7a179cc\", \"first_per_case_receipt\": \"unavailable; not reconstructed\", \"state\": \"failed\"}, \"failed predecessor custody\")\n            preflight = candidate[\"correction_preflight\"]\n            need(preflight[\"handoff_path\"] == CORRECTION_HANDOFF.as_posix(), \"correction handoff path\")\n            need(preflight[\"handoff_sha256\"] == sha_path(repo / CORRECTION_HANDOFF), \"correction handoff hash\")\n            need(preflight[\"declared_input_count\"] == len(correction_handoff[\"inputs\"]) == 27, \"correction declared count\")\n            need(preflight[\"verified_input_count\"] == len(correction_frozen) == 27, \"correction verified count\")\n            need(preflight[\"path_sha256\"] == correction_frozen, \"correction preflight map\")\n            need(preflight[\"authority_commit\"] == \"6bf6ff4ee43e085b4b50ed20e50f112880ac9974\", \"correction authority\")\n            need(preflight[\"published_claim_commit\"] == \"922c21a48c2df8dc3f9e3c57809f64fdebbed010\", \"correction claim\")\n\n        compare(\"canonical_v2_binding_consistency\", lambda: (validate_candidate(binding) is None))\n        compare(\n            \"old_binding_preserved_at_source_snapshot\",\n            lambda: git_bytes(SOURCE_SNAPSHOT, old_binding_path) == (repo / old_binding_path).read_bytes(),\n        )\n        compare(\n            \"single_current_source_map_and_exact_snapshot_bytes\",\n            lambda: all(\n                binding[\"current_source\"][\"path_sha256\"][str(ORIGINAL_DIR / name)]\n                == original_receipt[\"source_sha256\"][name]\n                == sha_bytes(git_bytes(SOURCE_SNAPSHOT, ORIGINAL_DIR / name))\n                == sha_path(repo / ORIGINAL_DIR / name)\n                for name in SOURCE_NAMES\n            ),\n            binding[\"current_source\"][\"path_sha256\"],\n        )\n        compare(\n            \"original_eight_file_archive_unchanged\",\n            lambda: all(\n                sha_path(repo / path) == digest\n                and sha_bytes(git_bytes(SOURCE_SNAPSHOT, Path(path))) == digest\n                for path, digest in original_archive[\"source_path_sha256\"].items()\n            ) and len(original_archive[\"source_path_sha256\"]) == 8,\n        )\n        compare(\n            \"baseline_solver_kernel_bytes_preserved\",\n            lambda: all(\n                (repo / ORIGINAL_DIR / name).read_bytes()\n                == (repo / BASELINE_DIR / name).read_bytes()\n                == git_bytes(BASELINE_SNAPSHOT, BASELINE_DIR / name)\n                for name in (\"bsgs.py\", \"rho-corrected.py\")\n            ),\n        )\n        compare(\n            \"original_371_case_receipt_accounting\",\n            lambda: (\n                original_receipt[\"accounting\"] == {\n                    \"total_fixed_cases\": 371, \"passed\": 371, \"failed\": 0,\n                    \"complete_suites\": 1, \"maximum_cases\": 800, \"remaining_cases\": 429,\n                }\n                and original_receipt[\"smoke\"][\"inner\"][\"count\"] == 6\n                and len(original_receipt[\"smoke\"][\"inner\"][\"cases\"]) == 6\n                and all(row[\"passed\"] is True for row in original_receipt[\"smoke\"][\"inner\"][\"cases\"])\n                and len(original_receipt[\"attempts\"]) == 1\n                and original_receipt[\"attempts\"][0][\"inner\"][\"worker\"][\"executed_case_count\"] == 365\n                and original_receipt[\"attempts\"][0][\"inner\"][\"worker\"][\"passed\"] == 365\n                and original_receipt[\"attempts\"][0][\"inner\"][\"worker\"][\"failed\"] == 0\n                and len(original_receipt[\"attempts\"][0][\"inner\"][\"worker\"][\"cases\"]) == 365\n                and all(row[\"status\"] == \"passed\" for row in original_receipt[\"attempts\"][0][\"inner\"][\"worker\"][\"cases\"])\n                and [row[\"ordinal\"] for row in original_receipt[\"attempts\"][0][\"inner\"][\"worker\"][\"cases\"]] == list(range(1, 366))\n                and original_report[\"checks\"][\"smoke\"] == 6\n                and original_report[\"checks\"][\"full_suite\"] == 365\n                and original_report[\"checks\"][\"total\"] == original_report[\"checks\"][\"passed\"] == 371\n                and original_report[\"checks\"][\"failed\"] == 0\n            ),\n        )\n        compare(\n            \"original_outer_nested_custody_terminal\",\n            lambda: (\n                original_receipt[\"smoke\"][\"outer\"][\"initial_tool_result\"][\"exit_code\"] == 0\n                and original_receipt[\"attempts\"][0][\"outer\"][\"initial_tool_result\"][\"session_id\"] == 77407\n                and original_receipt[\"attempts\"][0][\"outer\"][\"polls\"][-1][\"exit_code\"] == 0\n                and original_receipt[\"attempts\"][0][\"inner\"][\"exit_code\"] == 0\n                and original_receipt[\"attempts\"][0][\"inner\"][\"process_handling\"][\"terminal_observed\"] is True\n                and original_receipt[\"attempts\"][0][\"inner\"][\"process_handling\"][\"full_popen_handle_retained\"] is True\n                and original_receipt[\"attempts\"][0][\"inner\"][\"actual_telemetry\"][\"maximum_workers_used\"] == 1\n                and \"asserts no hard guard enforcement\" in original_receipt[\"attempts\"][0][\"inner\"][\"actual_telemetry\"][\"hard_limit_setup\"]\n            ),\n        )\n        compare(\n            \"failed_predecessor_history_preserved\",\n            lambda: (\n                failed_archive[\"source_task_state\"] == \"failed\"\n                and failed_archive[\"failed_tasks_reclassified_completed\"] is False\n                and failed_receipt[\"execution_attempt_accounting\"][\"attempts\"][0][\"complete_case_records_retained\"] is False\n                and failed_receipt[\"execution_attempt_accounting\"][\"total_case_executions\"] == 718\n                and failed_report[\"fixed_suite\"][\"completion_gate_status\"] == \"NOT_MET\"\n                and binding[\"failed_predecessor\"][\"first_per_case_receipt\"] == \"unavailable; not reconstructed\"\n            ),\n        )\n        compare(\n            \"prior_independent_review_stays_failed\",\n            lambda: (\n                old_review[\"verdict\"] == \"failed\"\n                and old_review[\"owned_joint_verdict\"] == \"breaks\"\n                and old_review[\"breaking_artifacts\"][0][\"id\"] == \"BINDING-CUSTODY-1\"\n                and git_bytes(\"c83f873a4978e79fa4722d43135a2cbc13e82336\", OLD_REVIEW)\n                == (repo / OLD_REVIEW).read_bytes()\n                and review_archive[\"source_path_sha256\"][OLD_REVIEW.as_posix()] == sha_path(repo / OLD_REVIEW)\n            ),\n        )\n        compare(\n            \"producer_correction_snapshot_exact\",\n            lambda: (\n                correction_archive[\"source_task_ids\"] == [PRODUCER_TASK]\n                and len(correction_archive[\"source_path_sha256\"]) == 4\n                and all(\n                    sha_path(repo / path) == digest\n                    and sha_bytes(git_bytes(CORRECTION_SNAPSHOT, Path(path))) == digest\n                    for path, digest in correction_archive[\"source_path_sha256\"].items()\n                )\n            ),\n        )\n        compare(\n            \"historical_current_and_review_counts_are_separate\",\n            lambda: (\n                binding[\"historical_inherited_assertions\"][\"values\"][\"source_binding_preflight\"][\"handoff_declared_input_count\"] == 49\n                and binding[\"recorded_source_execution\"][\"prior_handoff_declared_inputs\"] == 62\n                and binding[\"correction_preflight\"][\"declared_input_count\"] == 27\n                and len(handoff[\"inputs\"]) == 42\n            ),\n            {\"historical_stale\": 49, \"original_execution\": 62, \"correction_preflight\": 27, \"review_preflight\": 42},\n        )\n        compare(\n            \"authority_claim_snapshot_chains\",\n            lambda: all((\n                is_ancestor(\"e5e63414a66b0f4305b564e29c67d352c60e72d9\", \"0bfa7d28db0eb040558259925b596a0c4ebfcf5f\"),\n                is_ancestor(\"0bfa7d28db0eb040558259925b596a0c4ebfcf5f\", SOURCE_SNAPSHOT),\n                is_ancestor(\"6bf6ff4ee43e085b4b50ed20e50f112880ac9974\", \"922c21a48c2df8dc3f9e3c57809f64fdebbed010\"),\n                is_ancestor(\"922c21a48c2df8dc3f9e3c57809f64fdebbed010\", CORRECTION_SNAPSHOT),\n                is_ancestor(SOURCE_SNAPSHOT, \"758abfa92b4c3a37800fa5ce28e37f9df784c74c\"),\n                is_ancestor(\"758abfa92b4c3a37800fa5ce28e37f9df784c74c\", \"b20284d778917d619b175e1cc15139587fa79ae2\"),\n                is_ancestor(\"b20284d778917d619b175e1cc15139587fa79ae2\", \"c83f873a4978e79fa4722d43135a2cbc13e82336\"),\n                is_ancestor(CORRECTION_SNAPSHOT, AUTHORITY),\n                is_ancestor(AUTHORITY, CLAIM),\n            )),\n        )\n        correction_claim_path = Path(\n            \"coordination/experiment-reserve/BATCH-635652/claims/TASK-20260909-129bc2.1.claim.json\"\n        )\n        original_claim_path = Path(\n            \"coordination/experiment-reserve/BATCH-635652/claims/TASK-20260909-d31be5.1.claim.json\"\n        )\n        compare(\n            \"published_claims_bind_expected_worktree\",\n            lambda: all(\n                strict_json_bytes(git_bytes(commit, path))[\"worktree\"] == str(repo)\n                and strict_json_bytes(git_bytes(commit, path))[\"task_id\"] == task\n                for commit, path, task in (\n                    (\"0bfa7d28db0eb040558259925b596a0c4ebfcf5f\", original_claim_path, \"TASK-20260909-d31be5\"),\n                    (\"922c21a48c2df8dc3f9e3c57809f64fdebbed010\", correction_claim_path, PRODUCER_TASK),\n                    (CLAIM, CLAIM_PATH, TASK),\n                )\n            ),\n        )\n        compare(\n            \"producer_61_comparison_receipt_custody\",\n            lambda: (\n                producer_receipt[\"administrative_checker_invocations\"] == 1\n                and producer_receipt[\"administrative_comparisons_in_recorded_checker\"] == 61\n                and producer_receipt[\"passed\"] == 61\n                and producer_receipt[\"failed\"] == 0\n                and len(producer_receipt[\"attempts\"]) == 1\n                and producer_receipt[\"attempts\"][0][\"reservation\"][\"attempt\"] == 1\n                and producer_receipt[\"attempts\"][0][\"reservation\"][\"checker_sha256\"] == sha_path(repo / producer_checker_path)\n                and sha_bytes(producer_receipt[\"attempts\"][0][\"checker_source\"].encode(\"utf-8\")) == sha_path(repo / producer_checker_path)\n                and producer_receipt[\"attempts\"][0][\"inner\"][\"passed\"] == 61\n                and producer_receipt[\"attempts\"][0][\"inner\"][\"failed\"] == 0\n                and len(producer_receipt[\"attempts\"][0][\"inner\"][\"administrative_comparisons\"]) == 61\n                and all(row[\"status\"] == \"passed\" for row in producer_receipt[\"attempts\"][0][\"inner\"][\"administrative_comparisons\"])\n                and producer_receipt[\"attempts\"][0][\"inner\"][\"solver_module_imports\"] == 0\n                and producer_receipt[\"attempts\"][0][\"outer_wrapper\"][\"exit_code\"] == 0\n                and producer_receipt[\"attempts\"][0][\"outer_wrapper\"][\"timed_out\"] is False\n                and producer_receipt[\"attempts\"][0][\"outer_tool_response\"][\"exit_code\"] == 0\n                and strict_json_bytes(producer_receipt[\"attempts\"][0][\"outer_tool_response\"][\"output\"].encode(\"utf-8\"))\n                    == producer_receipt[\"attempts\"][0][\"outer_wrapper\"]\n                and producer_receipt[\"canonical_receipt_created_after_all_attempts\"] is True\n                and producer_receipt[\"no_further_checker_invocation_planned\"] is True\n            ),\n        )\n        compare(\n            \"producer_receipt_time_order_and_metrics\",\n            lambda: (\n                parse_utc(producer_receipt[\"attempts\"][0][\"reservation\"][\"reserved_at_UTC\"])\n                <= parse_utc(producer_receipt[\"attempts\"][0][\"outer_wrapper\"][\"started_at_UTC\"])\n                <= parse_utc(producer_receipt[\"attempts\"][0][\"inner\"][\"started_at_UTC\"])\n                <= parse_utc(producer_receipt[\"attempts\"][0][\"inner\"][\"ended_at_UTC\"])\n                <= parse_utc(producer_receipt[\"attempts\"][0][\"outer_wrapper\"][\"ended_at_UTC\"])\n                and producer_receipt[\"attempts\"][0][\"outer_wrapper\"][\"children_peak_rss_bytes\"] < RSS_CAP_BYTES\n                and producer_receipt[\"attempts\"][0][\"inner\"][\"hard_memory_guard_claim\"] is False\n                and producer_receipt[\"attempts\"][0][\"outer_wrapper\"][\"hard_memory_guard_claim\"] is False\n            ),\n        )\n        compare(\n            \"producer_report_is_nonadmitting_and_hash_bound\",\n            lambda: (\n                producer_report[\"task_id\"] == PRODUCER_TASK\n                and producer_report[\"administrative_checker_invocations\"] == 1\n                and producer_report[\"administrative_comparisons\"] == producer_report[\"passed\"] == 61\n                and producer_report[\"failed\"] == 0\n                and producer_report[\"scientific_runs\"] == 0\n                and producer_report[\"solver_module_imports\"] == 0\n                and producer_report[\"source_acceptance\"] is False\n                and producer_report[\"measurement_admitted\"] is False\n                and producer_report[\"inference\"][\"resolved_model_id\"] is None\n                and producer_report[\"inference\"][\"model_verified\"] is False\n                and producer_report[\"receipt_sha256\"] == sha_path(repo / producer_receipt_path)\n                and producer_report[\"source_bindings\"] == {\n                    binding_path.as_posix(): sha_path(repo / binding_path),\n                    producer_checker_path.as_posix(): sha_path(repo / producer_checker_path),\n                }\n            ),\n        )\n        compare(\n            \"correction_originals_unchanged_after_producer_checks\",\n            lambda: (\n                producer_receipt[\"bound_originals_unchanged_after_checks\"] == correction_frozen\n                and all(sha_path(repo / path) == digest for path, digest in correction_frozen.items())\n            ),\n        )\n\n        validate_candidate(binding)\n\n        def changed(path: tuple[Any, ...], value: Any = None, *, delete: bool = False) -> dict[str, Any]:\n            candidate = copy.deepcopy(binding)\n            cursor: Any = candidate\n            for key in path[:-1]:\n                cursor = cursor[key]\n            if delete:\n                del cursor[path[-1]]\n            else:\n                cursor[path[-1]] = value\n            return candidate\n\n        zero64 = \"0\" * 64\n        controls_spec: list[tuple[str, Callable[[], bytes]]] = [\n            (\"wrong_schema\", lambda: json.dumps(changed((\"schema\",), \"v1\")).encode()),\n            (\"wrong_task\", lambda: json.dumps(changed((\"task_id\",), TASK)).encode()),\n            (\"wrong_experiment\", lambda: json.dumps(changed((\"experiment_id\",), \"EXP-WRONG\")).encode()),\n            (\"wrong_approval\", lambda: json.dumps(changed((\"approval_decision_id\",), \"DEC-20260909-adc75b\")).encode()),\n            (\"promote_source_acceptance\", lambda: json.dumps(changed((\"source_acceptance\",), True)).encode()),\n            (\"promote_measurement\", lambda: json.dumps(changed((\"measurement_admitted\",), True)).encode()),\n            (\"invent_scientific_run\", lambda: json.dumps(changed((\"scientific_runs\",), 1)).encode()),\n            (\"premature_review_pass\", lambda: json.dumps(changed((\"new_metadata_review\",), \"passed\")).encode()),\n            (\"missing_supersedes\", lambda: json.dumps(changed((\"supersedes\",), delete=True)).encode()),\n            (\"wrong_superseded_path\", lambda: json.dumps(changed((\"supersedes\", \"path\"), \"wrong.json\")).encode()),\n            (\"wrong_superseded_hash\", lambda: json.dumps(changed((\"supersedes\", \"sha256\"), zero64)).encode()),\n            (\"wrong_superseded_snapshot\", lambda: json.dumps(changed((\"supersedes\", \"snapshot\"), CORRECTION_SNAPSHOT)).encode()),\n            (\"missing_historical_origin\", lambda: json.dumps(changed((\"historical_inherited_assertions\", \"origin\"), delete=True)).encode()),\n            (\"wrong_historical_origin_hash\", lambda: json.dumps(changed((\"historical_inherited_assertions\", \"origin\", \"sha256\"), zero64)).encode()),\n            (\"missing_current_table\", lambda: json.dumps(changed((\"current_source\", \"path_sha256\", str(ORIGINAL_DIR / \"table.py\")), delete=True)).encode()),\n            (\"wrong_current_table_hash\", lambda: json.dumps(changed((\"current_source\", \"path_sha256\", str(ORIGINAL_DIR / \"table.py\")), zero64)).encode()),\n            (\"extra_current_file\", lambda: json.dumps(changed((\"current_source\", \"path_sha256\", \"extra.py\"), zero64)).encode()),\n            (\"wrong_current_snapshot\", lambda: json.dumps(changed((\"current_source\", \"snapshot\"), CORRECTION_SNAPSHOT)).encode()),\n            (\"wrong_current_task\", lambda: json.dumps(changed((\"current_source\", \"source_task_id\"), FAILED_DIR.name)).encode()),\n            (\"competing_current_task_map\", lambda: json.dumps(changed((\"current_task_source_sha256\",), old_binding[\"current_task_source_sha256\"])).encode()),\n            (\"competing_task_source_map\", lambda: json.dumps(changed((\"task_source_sha256\",), old_binding[\"task_source_sha256\"])).encode()),\n            (\"stale_49_as_review_count\", lambda: json.dumps(changed((\"correction_preflight\", \"declared_input_count\"), 49)).encode()),\n            (\"original_62_as_correction_count\", lambda: json.dumps(changed((\"correction_preflight\", \"declared_input_count\"), 62)).encode()),\n            (\"stale_49_as_original_count\", lambda: json.dumps(changed((\"recorded_source_execution\", \"prior_handoff_declared_inputs\"), 49)).encode()),\n            (\"correction_27_as_original_count\", lambda: json.dumps(changed((\"recorded_source_execution\", \"prior_handoff_declared_inputs\"), 27)).encode()),\n            (\"wrong_correction_verified_count\", lambda: json.dumps(changed((\"correction_preflight\", \"verified_input_count\"), 62)).encode()),\n            (\"wrong_correction_authority\", lambda: json.dumps(changed((\"correction_preflight\", \"authority_commit\"), AUTHORITY)).encode()),\n            (\"wrong_correction_claim\", lambda: json.dumps(changed((\"correction_preflight\", \"published_claim_commit\"), CLAIM)).encode()),\n            (\"wrong_execution_snapshot\", lambda: json.dumps(changed((\"recorded_source_execution\", \"archived_source_snapshot\"), CORRECTION_SNAPSHOT)).encode()),\n            (\"wrong_execution_receipt_hash\", lambda: json.dumps(changed((\"recorded_source_execution\", \"receipt\", \"sha256\"), zero64)).encode()),\n            (\"wrong_execution_report_hash\", lambda: json.dumps(changed((\"recorded_source_execution\", \"report\", \"sha256\"), zero64)).encode()),\n            (\"promote_failed_review\", lambda: json.dumps(changed((\"independent_review\", \"overall_verdict\"), \"passed\")).encode()),\n            (\"remove_failed_review_finding\", lambda: json.dumps(changed((\"independent_review\", \"finding\"), delete=True)).encode()),\n            (\"invent_resolved_model\", lambda: json.dumps(changed((\"recorded_source_execution\", \"inference_as_recorded\", \"resolved_model_id\"), \"gpt-5.6-sol\")).encode()),\n            (\"invent_model_verified\", lambda: json.dumps(changed((\"recorded_source_execution\", \"inference_as_recorded\", \"model_verified\"), True)).encode()),\n            (\"invent_hard_memory_guard\", lambda: json.dumps(changed((\"recorded_source_execution\", \"hard_memory_guard_claim\"), True)).encode()),\n            (\"missing_failed_predecessor\", lambda: json.dumps(changed((\"failed_predecessor\",), delete=True)).encode()),\n            (\"reconstructed_failed_receipt\", lambda: json.dumps(changed((\"failed_predecessor\", \"first_per_case_receipt\"), \"reconstructed.json\")).encode()),\n            (\"wrong_dependency_hash\", lambda: json.dumps(changed((\"dependency_bindings\", \"files\", \"harness/rho.py\", \"sha256\"), zero64)).encode()),\n            (\"duplicate_top_task_id\", lambda: binding_raw.replace(b\"{\", b'{\"task_id\":\"duplicate\",', 1)),\n            (\"duplicate_current_snapshot\", lambda: binding_raw.replace(b'\"current_source\": {', b'\"current_source\": {\"snapshot\":\"duplicate\",', 1)),\n            (\"duplicate_correction_count\", lambda: binding_raw.replace(b'\"correction_preflight\": {', b'\"correction_preflight\": {\"declared_input_count\":49,', 1)),\n        ]\n        need(len(controls_spec) == EXPECTED_CONTROL_COUNT, \"control count definition\")\n        for ordinal, (name, factory) in enumerate(controls_spec, start=1):\n            control_start = time.monotonic()\n            row: dict[str, Any] = {\n                \"ordinal\": ordinal,\n                \"name\": name,\n                \"started_at_UTC\": utc_now(),\n            }\n            data: bytes | None = None\n            candidate: Any = None\n            try:\n                data = factory()\n                row[\"serialized_input_bytes\"] = len(data)\n                need(len(data) <= CONTROL_CAP, \"serialized control exceeds 1 MiB\")\n                candidate = strict_json_bytes(data)\n                validate_candidate(candidate)\n                raise ValueError(\"malformed candidate was accepted\")\n            except BaseException as exc:\n                if str(exc) == \"malformed candidate was accepted\":\n                    row[\"status\"] = \"failed\"\n                    row[\"error\"] = str(exc)\n                else:\n                    row[\"status\"] = \"passed\"\n                    row[\"rejection\"] = f\"{type(exc).__name__}: {str(exc)[:500]}\"\n            finally:\n                elapsed = time.monotonic() - control_start\n                row[\"ended_at_UTC\"] = utc_now()\n                row[\"wall_seconds\"] = elapsed\n                if elapsed > CONTROL_SECONDS:\n                    row[\"status\"] = \"failed\"\n                    row[\"error\"] = f\"control exceeded {CONTROL_SECONDS}s\"\n                controls.append(row)\n                del data\n                del candidate\n\n    except BaseException as exc:\n        setup_error = f\"{type(exc).__name__}: {str(exc)[:4000]}\"\n        comparisons.append({\"name\": \"checker_setup\", \"status\": \"failed\", \"error\": setup_error})\n\n    ru_self = resource.getrusage(resource.RUSAGE_SELF)\n    ru_children = resource.getrusage(resource.RUSAGE_CHILDREN)\n    rss_unit = \"bytes\" if platform.system() == \"Darwin\" else \"KiB\"\n    self_rss_bytes = normalized_rss_bytes(ru_self.ru_maxrss, rss_unit)\n    child_rss_bytes = normalized_rss_bytes(ru_children.ru_maxrss, rss_unit)\n    wall_seconds = time.monotonic() - wall_start\n    self_cpu_seconds = time.process_time() - cpu_start\n    children_cpu_seconds = ru_children.ru_utime + ru_children.ru_stime\n    failed_comparisons = sum(row[\"status\"] != \"passed\" for row in comparisons)\n    failed_controls = sum(row[\"status\"] != \"passed\" for row in controls)\n    resource_ok = (\n        max(self_rss_bytes, child_rss_bytes) <= RSS_CAP_BYTES\n        and wall_seconds <= AGGREGATE_SECONDS\n        and self_cpu_seconds + children_cpu_seconds <= AGGREGATE_SECONDS\n    )\n    if not resource_ok:\n        failed_comparisons += 1\n\n    receipt = {\n        \"schema\": \"crypto.autoresearch.binding_review_checks.v1\",\n        \"task_id\": TASK,\n        \"producer_task_id\": PRODUCER_TASK,\n        \"argv\": sys.argv,\n        \"repo\": str(repo),\n        \"claim_commit\": args.claim_commit,\n        \"started_at_UTC\": started_at,\n        \"ended_at_UTC\": utc_now(),\n        \"input_count\": 42,\n        \"input_total_bytes\": total_input_bytes,\n        \"input_cap_bytes\": INPUT_CAP,\n        \"metadata_source_comparisons\": comparisons,\n        \"metadata_source_comparison_count\": len(comparisons),\n        \"metadata_source_comparisons_passed\": len(comparisons) - failed_comparisons,\n        \"metadata_source_comparisons_failed\": failed_comparisons,\n        \"malformed_control_count\": len(controls),\n        \"malformed_controls\": controls,\n        \"malformed_controls_passed\": len(controls) - failed_controls,\n        \"malformed_controls_failed\": failed_controls,\n        \"maximum_malformed_controls_all_attempts\": 128,\n        \"maximum_controls_per_complete_suite\": 48,\n        \"reserved_final_suite_capacity\": 42,\n        \"per_control_seconds\": CONTROL_SECONDS,\n        \"maximum_serialized_control_bytes\": CONTROL_CAP,\n        \"scientific_runs\": 0,\n        \"solver_module_imports\": 0,\n        \"solver_executions\": 0,\n        \"maximum_workers_used\": 1,\n        \"watchdog_seconds_outer\": 180,\n        \"wall_seconds\": wall_seconds,\n        \"self_cpu_seconds\": self_cpu_seconds,\n        \"children_cpu_seconds\": children_cpu_seconds,\n        \"self_peak_rss_raw\": ru_self.ru_maxrss,\n        \"children_peak_rss_raw\": ru_children.ru_maxrss,\n        \"rss_units\": rss_unit,\n        \"self_peak_rss_bytes\": self_rss_bytes,\n        \"children_peak_rss_bytes\": child_rss_bytes,\n        \"rss_cap_bytes\": RSS_CAP_BYTES,\n        \"resource_bounds_held\": resource_ok,\n        \"hard_memory_guard_claim\": False,\n        \"rlimit_as_attempted\": False,\n        \"setup_error\": setup_error,\n        \"checker_sha256\": sha_path(Path(__file__)),\n        \"receipt_self_hash\": None,\n    }\n    target.parent.mkdir(parents=True, exist_ok=True)\n    with target.open(\"x\", encoding=\"utf-8\") as handle:\n        json.dump(receipt, handle, indent=2)\n        handle.write(\"\\n\")\n    summary = {\n        \"metadata_source_comparisons\": len(comparisons),\n        \"metadata_source_comparisons_failed\": failed_comparisons,\n        \"malformed_controls\": len(controls),\n        \"malformed_controls_failed\": failed_controls,\n        \"resource_bounds_held\": resource_ok,\n        \"receipt\": str(target),\n    }\n    print(json.dumps(summary, sort_keys=True))\n    return 1 if failed_comparisons or failed_controls or not resource_ok else 0\n\n\nif __name__ == \"__main__\":\n    raise SystemExit(main())\n",
+      "checker_source_sha256": "c19424fd317b7d94800d3e39a972c1a38294531a2093703ddaf2a927159a2200",
+      "reservation_sha256": "c2052f7a7476450f3db3fab8253519b467c246ca43e5f40616413c389c89403a",
+      "inner": {
+        "schema": "crypto.autoresearch.binding_review_checks.v1",
+        "task_id": "TASK-20260909-e361c0",
+        "producer_task_id": "TASK-20260909-129bc2",
+        "argv": [
+          "/private/tmp/decoder-binding-review-e361c0-attempt1.g2D5BL/checks.py",
+          "--repo",
+          "/Volumes/SSD990/crypto-autoresearcher/.worktrees/coordinator-reserve-admission-20260907",
+          "--claim-commit",
+          "7f9114194aae018905ccd010f3416b91a1a4e066",
+          "--receipt",
+          "/private/tmp/decoder-binding-review-e361c0-attempt1.g2D5BL/inner.json"
+        ],
+        "repo": "/Volumes/SSD990/crypto-autoresearcher/.worktrees/coordinator-reserve-admission-20260907",
+        "claim_commit": "7f9114194aae018905ccd010f3416b91a1a4e066",
+        "started_at_UTC": "2026-09-09T18:30:00.918859+00:00",
+        "ended_at_UTC": "2026-09-09T18:30:04.522547+00:00",
+        "input_count": 42,
+        "input_total_bytes": 991976,
+        "input_cap_bytes": 16777216,
+        "metadata_source_comparisons": [
+          {
+            "name": "all_42_declared_inputs_hash_bound",
+            "status": "passed",
+            "detail": [
+              {
+                "path": "AGENTS.md",
+                "commit": "7ba5f7ec2ed24876a40ec083ebdc2bef0ef83b25",
+                "bytes": 45837,
+                "sha256": "fa897cb4621084c3990018f4b65df0d2a29838c4f24eccbde4871d969ba05d43",
+                "expected_sha256": "fa897cb4621084c3990018f4b65df0d2a29838c4f24eccbde4871d969ba05d43",
+                "frozen_matches": true,
+                "live_matches": true
+              },
+              {
+                "path": "agents/coordinator.md",
+                "commit": "7ba5f7ec2ed24876a40ec083ebdc2bef0ef83b25",
+                "bytes": 15873,
+                "sha256": "8ae3be687c4f47d42db3e3f72a3c82e8e5654047bec05c89f979aec79969c5fe",
+                "expected_sha256": "8ae3be687c4f47d42db3e3f72a3c82e8e5654047bec05c89f979aec79969c5fe",
+                "frozen_matches": true,
+                "live_matches": true
+              },
+              {
+                "path": "docs/task-lifecycle.md",
+                "commit": "7ba5f7ec2ed24876a40ec083ebdc2bef0ef83b25",
+                "bytes": 7494,
+                "sha256": "936e5f3c604e8c426ed680b283fa28adf0a327ad1051df5d942c0bd0be3fca86",
+                "expected_sha256": "936e5f3c604e8c426ed680b283fa28adf0a327ad1051df5d942c0bd0be3fca86",
+                "frozen_matches": true,
+                "live_matches": true
+              },
+              {
+                "path": "docs/dynamic-subagent-dispatch.md",
+                "commit": "7ba5f7ec2ed24876a40ec083ebdc2bef0ef83b25",
+                "bytes": 8941,
+                "sha256": "12f925eaca2faa414143b1f58e88fe8077f4c1de1ceaa34555c9d45791d03c57",
+                "expected_sha256": "12f925eaca2faa414143b1f58e88fe8077f4c1de1ceaa34555c9d45791d03c57",
+                "frozen_matches": true,
+                "live_matches": true
+              },
+              {
+                "path": "docs/evidence-and-reproducibility.md",
+                "commit": "7ba5f7ec2ed24876a40ec083ebdc2bef0ef83b25",
+                "bytes": 12931,
+                "sha256": "f45eddbf64f99ff977c2c1a23b5c4c8a0931272d2cb2aae559e4cfa3d988cc28",
+                "expected_sha256": "f45eddbf64f99ff977c2c1a23b5c4c8a0931272d2cb2aae559e4cfa3d988cc28",
+                "frozen_matches": true,
+                "live_matches": true
+              },
+              {
+                "path": "ledger/decisions/DEC-20260909-adc75b.yaml",
+                "commit": "7ba5f7ec2ed24876a40ec083ebdc2bef0ef83b25",
+                "bytes": 5088,
+                "sha256": "ccf03dcc1c5aabfea57f6b270ce9c1abe8b47e5ecc74e7d9f3ee810f4ea6b8d6",
+                "expected_sha256": "ccf03dcc1c5aabfea57f6b270ce9c1abe8b47e5ecc74e7d9f3ee810f4ea6b8d6",
+                "frozen_matches": true,
+                "live_matches": true
+              },
+              {
+                "path": "ledger/handoffs/TASK-20260909-d31be5.yaml",
+                "commit": "7ba5f7ec2ed24876a40ec083ebdc2bef0ef83b25",
+                "bytes": 17422,
+                "sha256": "c7f5b045b0a7d9ea4b5b508e179a066879e42b56c4aa0134465f28a2d9ec1850",
+                "expected_sha256": "c7f5b045b0a7d9ea4b5b508e179a066879e42b56c4aa0134465f28a2d9ec1850",
+                "frozen_matches": true,
+                "live_matches": true
+              },
+              {
+                "path": "coordination/experiment-reserve/BATCH-635652/archives/TASK-20260909-7f5fe3/snapshot.json",
+                "commit": "7ba5f7ec2ed24876a40ec083ebdc2bef0ef83b25",
+                "bytes": 2102,
+                "sha256": "4d79a3af612476f91191e6349ed488bf7488e4f29608d92c3ab89a5f3b8c23ca",
+                "expected_sha256": "4d79a3af612476f91191e6349ed488bf7488e4f29608d92c3ab89a5f3b8c23ca",
+                "frozen_matches": true,
+                "live_matches": true
+              },
+              {
+                "path": "coordination/experiment-reserve/BATCH-635652/reviews/TASK-20260909-adf4e6/review.yaml",
+                "commit": "7ba5f7ec2ed24876a40ec083ebdc2bef0ef83b25",
+                "bytes": 25811,
+                "sha256": "2a60c029bcf6762fa5812cd9c0633daa2bd5eeea3abeec837e33d5b087cb789f",
+                "expected_sha256": "2a60c029bcf6762fa5812cd9c0633daa2bd5eeea3abeec837e33d5b087cb789f",
+                "frozen_matches": true,
+                "live_matches": true
+              },
+              {
+                "path": "coordination/experiment-reserve/BATCH-635652/reviews/TASK-20260909-adf4e6/checks.py",
+                "commit": "7ba5f7ec2ed24876a40ec083ebdc2bef0ef83b25",
+                "bytes": 72358,
+                "sha256": "15c21f449b3bc8602f16bc9f28eb6f019537b4e75c13347793f9acbad02ce4cb",
+                "expected_sha256": "15c21f449b3bc8602f16bc9f28eb6f019537b4e75c13347793f9acbad02ce4cb",
+                "frozen_matches": true,
+                "live_matches": true
+              },
+              {
+                "path": "coordination/experiment-reserve/BATCH-635652/reviews/TASK-20260909-adf4e6/check-receipt.json",
+                "commit": "7ba5f7ec2ed24876a40ec083ebdc2bef0ef83b25",
+                "bytes": 188878,
+                "sha256": "ff6957d69c4356830702bf55bbd319818ba95c8671a046774b25eb4081ef1a37",
+                "expected_sha256": "ff6957d69c4356830702bf55bbd319818ba95c8671a046774b25eb4081ef1a37",
+                "frozen_matches": true,
+                "live_matches": true
+              },
+              {
+                "path": "coordination/experiment-reserve/BATCH-635652/archives/TASK-20260909-4607fb/snapshot.json",
+                "commit": "7ba5f7ec2ed24876a40ec083ebdc2bef0ef83b25",
+                "bytes": 1359,
+                "sha256": "e8ccc1f07c75562144156f97b5cf3934b36f57a11315b95e08248e4e022fd278",
+                "expected_sha256": "e8ccc1f07c75562144156f97b5cf3934b36f57a11315b95e08248e4e022fd278",
+                "frozen_matches": true,
+                "live_matches": true
+              },
+              {
+                "path": "ledger/decisions/DEC-20260909-664ee0.yaml",
+                "commit": "7ba5f7ec2ed24876a40ec083ebdc2bef0ef83b25",
+                "bytes": 6086,
+                "sha256": "b33d284cc53628ce70e2650aecd858d6013e5764be07c9f183d28acb085a9784",
+                "expected_sha256": "b33d284cc53628ce70e2650aecd858d6013e5764be07c9f183d28acb085a9784",
+                "frozen_matches": true,
+                "live_matches": true
+              },
+              {
+                "path": "coordination/experiment-reserve/BATCH-635652/archives/TASK-20260909-ff426d/snapshot.json",
+                "commit": "7ba5f7ec2ed24876a40ec083ebdc2bef0ef83b25",
+                "bytes": 2225,
+                "sha256": "60ca426dee778fd23c4ac6db1204a154c8c8fbbe90e6f17e6873baf86d30d5e0",
+                "expected_sha256": "60ca426dee778fd23c4ac6db1204a154c8c8fbbe90e6f17e6873baf86d30d5e0",
+                "frozen_matches": true,
+                "live_matches": true
+              },
+              {
+                "path": "experiments/EXP-ECDLP-709063/implementation/TASK-20260909-d31be5/check-receipt.json",
+                "commit": "7ba5f7ec2ed24876a40ec083ebdc2bef0ef83b25",
+                "bytes": 175778,
+                "sha256": "1d64ba8718764a60e8c4808381433078f6bced67a90ad3afe6370794045076c3",
+                "expected_sha256": "1d64ba8718764a60e8c4808381433078f6bced67a90ad3afe6370794045076c3",
+                "frozen_matches": true,
+                "live_matches": true
+              },
+              {
+                "path": "experiments/EXP-ECDLP-709063/implementation/TASK-20260909-d31be5/README.md",
+                "commit": "7ba5f7ec2ed24876a40ec083ebdc2bef0ef83b25",
+                "bytes": 690,
+                "sha256": "d40fcfdedf646b2e94ccc812ae40a9a70fe4084d92145e37b8bef1e4cd31db87",
+                "expected_sha256": "d40fcfdedf646b2e94ccc812ae40a9a70fe4084d92145e37b8bef1e4cd31db87",
+                "frozen_matches": true,
+                "live_matches": true
+              },
+              {
+                "path": "experiments/EXP-ECDLP-709063/implementation/TASK-20260909-d31be5/solver-source-bindings.json",
+                "commit": "7ba5f7ec2ed24876a40ec083ebdc2bef0ef83b25",
+                "bytes": 4530,
+                "sha256": "e8d237e31ba8955a5ca373dd24b7c14f7a6d3e4b78cd05420cdcaa5125c7a21f",
+                "expected_sha256": "e8d237e31ba8955a5ca373dd24b7c14f7a6d3e4b78cd05420cdcaa5125c7a21f",
+                "frozen_matches": true,
+                "live_matches": true
+              },
+              {
+                "path": "experiments/EXP-ECDLP-709063/implementation/TASK-20260909-d31be5/implementation-report.yaml",
+                "commit": "7ba5f7ec2ed24876a40ec083ebdc2bef0ef83b25",
+                "bytes": 1749,
+                "sha256": "1980dcf010b76cb5dc91e2abcd9141b8b6c4a2149e7da48ba8451ed791a8bff9",
+                "expected_sha256": "1980dcf010b76cb5dc91e2abcd9141b8b6c4a2149e7da48ba8451ed791a8bff9",
+                "frozen_matches": true,
+                "live_matches": true
+              },
+              {
+                "path": "experiments/EXP-ECDLP-709063/implementation/TASK-20260909-d31be5/table.py",
+                "commit": "7ba5f7ec2ed24876a40ec083ebdc2bef0ef83b25",
+                "bytes": 15053,
+                "sha256": "83c39b6b1c7098002987c268c4aafedaed90f66006988f6da524c4392133ea10",
+                "expected_sha256": "83c39b6b1c7098002987c268c4aafedaed90f66006988f6da524c4392133ea10",
+                "frozen_matches": true,
+                "live_matches": true
+              },
+              {
+                "path": "experiments/EXP-ECDLP-709063/implementation/TASK-20260909-d31be5/bsgs.py",
+                "commit": "7ba5f7ec2ed24876a40ec083ebdc2bef0ef83b25",
+                "bytes": 10727,
+                "sha256": "022650498d27b40c45d1d592466c4a8de5e6c7a5820a8098d568b69bf18811b1",
+                "expected_sha256": "022650498d27b40c45d1d592466c4a8de5e6c7a5820a8098d568b69bf18811b1",
+                "frozen_matches": true,
+                "live_matches": true
+              },
+              {
+                "path": "experiments/EXP-ECDLP-709063/implementation/TASK-20260909-d31be5/tests.py",
+                "commit": "7ba5f7ec2ed24876a40ec083ebdc2bef0ef83b25",
+                "bytes": 44076,
+                "sha256": "8f215f8baaf45ad084904018e26f5ad182d01efb33423a80592aba15497d98b3",
+                "expected_sha256": "8f215f8baaf45ad084904018e26f5ad182d01efb33423a80592aba15497d98b3",
+                "frozen_matches": true,
+                "live_matches": true
+              },
+              {
+                "path": "experiments/EXP-ECDLP-709063/implementation/TASK-20260909-d31be5/rho-corrected.py",
+                "commit": "7ba5f7ec2ed24876a40ec083ebdc2bef0ef83b25",
+                "bytes": 4368,
+                "sha256": "0d05b954593d1d6adeb8f0764eb0acda280f938f58cb453f1259fd0e61eaa233",
+                "expected_sha256": "0d05b954593d1d6adeb8f0764eb0acda280f938f58cb453f1259fd0e61eaa233",
+                "frozen_matches": true,
+                "live_matches": true
+              },
+              {
+                "path": "experiments/EXP-ECDLP-709063/implementation/TASK-20260909-85c2fe/solver-source-bindings.json",
+                "commit": "7ba5f7ec2ed24876a40ec083ebdc2bef0ef83b25",
+                "bytes": 4087,
+                "sha256": "9975f731f157dbfd593141f7ab785e4711728286dfde73d53243675e192d3eaa",
+                "expected_sha256": "9975f731f157dbfd593141f7ab785e4711728286dfde73d53243675e192d3eaa",
+                "frozen_matches": true,
+                "live_matches": true
+              },
+              {
+                "path": "experiments/EXP-ECDLP-709063/implementation/TASK-20260909-85c2fe/check-receipt.json",
+                "commit": "7ba5f7ec2ed24876a40ec083ebdc2bef0ef83b25",
+                "bytes": 139818,
+                "sha256": "b2658e0ce5d2a6edaf9fd6f8ec89d167606cc63b4a5809a8e2ab213064681441",
+                "expected_sha256": "b2658e0ce5d2a6edaf9fd6f8ec89d167606cc63b4a5809a8e2ab213064681441",
+                "frozen_matches": true,
+                "live_matches": true
+              },
+              {
+                "path": "experiments/EXP-ECDLP-709063/implementation/TASK-20260909-85c2fe/implementation-report.yaml",
+                "commit": "7ba5f7ec2ed24876a40ec083ebdc2bef0ef83b25",
+                "bytes": 9776,
+                "sha256": "1c4c7616111b889b768bd31395c9e723b2ea9d95cc05656e2cfea67a56c5ca6d",
+                "expected_sha256": "1c4c7616111b889b768bd31395c9e723b2ea9d95cc05656e2cfea67a56c5ca6d",
+                "frozen_matches": true,
+                "live_matches": true
+              },
+              {
+                "path": "ledger/handoffs/TASK-20260909-d20a62.yaml",
+                "commit": "7ba5f7ec2ed24876a40ec083ebdc2bef0ef83b25",
+                "bytes": 11209,
+                "sha256": "8f08688262326a68c6d479749b89c4550175280d90374b1a571072e18e7f34f6",
+                "expected_sha256": "8f08688262326a68c6d479749b89c4550175280d90374b1a571072e18e7f34f6",
+                "frozen_matches": true,
+                "live_matches": true
+              },
+              {
+                "path": "ledger/decisions/DEC-20260909-f7c4cb.yaml",
+                "commit": "7ba5f7ec2ed24876a40ec083ebdc2bef0ef83b25",
+                "bytes": 9110,
+                "sha256": "faa7ca4d10c23253163a823820b4f3f3650cf24ab59f047e1fa2694af414786d",
+                "expected_sha256": "faa7ca4d10c23253163a823820b4f3f3650cf24ab59f047e1fa2694af414786d",
+                "frozen_matches": true,
+                "live_matches": true
+              },
+              {
+                "path": "coordination/experiment-reserve/BATCH-635652/corrections/TASK-20260909-129bc2/solver-source-bindings.json",
+                "commit": "7ba5f7ec2ed24876a40ec083ebdc2bef0ef83b25",
+                "bytes": 11136,
+                "sha256": "aafd78a79ef4b0e0a7918910ace409b7444021ccb7c3ad39bf183784dff01f5a",
+                "expected_sha256": "aafd78a79ef4b0e0a7918910ace409b7444021ccb7c3ad39bf183784dff01f5a",
+                "frozen_matches": true,
+                "live_matches": true
+              },
+              {
+                "path": "coordination/experiment-reserve/BATCH-635652/corrections/TASK-20260909-129bc2/binding-checks.py",
+                "commit": "7ba5f7ec2ed24876a40ec083ebdc2bef0ef83b25",
+                "bytes": 10342,
+                "sha256": "26630b8770663a5b02efa9170f412492b66fcca1d6deb71536d0beb6c04d9976",
+                "expected_sha256": "26630b8770663a5b02efa9170f412492b66fcca1d6deb71536d0beb6c04d9976",
+                "frozen_matches": true,
+                "live_matches": true
+              },
+              {
+                "path": "coordination/experiment-reserve/BATCH-635652/corrections/TASK-20260909-129bc2/check-receipt.json",
+                "commit": "7ba5f7ec2ed24876a40ec083ebdc2bef0ef83b25",
+                "bytes": 28721,
+                "sha256": "ab8afdb64022931f18ba5e0d5c6fbc2595b5f760b1fabc239f3c2e7f8872758f",
+                "expected_sha256": "ab8afdb64022931f18ba5e0d5c6fbc2595b5f760b1fabc239f3c2e7f8872758f",
+                "frozen_matches": true,
+                "live_matches": true
+              },
+              {
+                "path": "coordination/experiment-reserve/BATCH-635652/corrections/TASK-20260909-129bc2/implementation-report.yaml",
+                "commit": "7ba5f7ec2ed24876a40ec083ebdc2bef0ef83b25",
+                "bytes": 2616,
+                "sha256": "b2bbeb8ac630593dd6c54f5bd77a96512bfb50fd5925a5b62aa844a25f0b8550",
+                "expected_sha256": "b2bbeb8ac630593dd6c54f5bd77a96512bfb50fd5925a5b62aa844a25f0b8550",
+                "frozen_matches": true,
+                "live_matches": true
+              },
+              {
+                "path": "coordination/experiment-reserve/BATCH-635652/archives/TASK-20260909-c0c0d1/snapshot.json",
+                "commit": "7ba5f7ec2ed24876a40ec083ebdc2bef0ef83b25",
+                "bytes": 1757,
+                "sha256": "640adec0fa6ce5bf2c8127e6b819b3ac832c30bcdcc2d1171f1f375139d86268",
+                "expected_sha256": "640adec0fa6ce5bf2c8127e6b819b3ac832c30bcdcc2d1171f1f375139d86268",
+                "frozen_matches": true,
+                "live_matches": true
+              },
+              {
+                "path": "ledger/handoffs/TASK-20260909-129bc2.yaml",
+                "commit": "7ba5f7ec2ed24876a40ec083ebdc2bef0ef83b25",
+                "bytes": 12700,
+                "sha256": "863a53bac7c0d7f6ce6b97040d0ccecf33ac7b196c0a2ff9ceed659a89f5aa5f",
+                "expected_sha256": "863a53bac7c0d7f6ce6b97040d0ccecf33ac7b196c0a2ff9ceed659a89f5aa5f",
+                "frozen_matches": true,
+                "live_matches": true
+              },
+              {
+                "path": "ledger/decisions/DEC-20260909-b69851.yaml",
+                "commit": "7ba5f7ec2ed24876a40ec083ebdc2bef0ef83b25",
+                "bytes": 9632,
+                "sha256": "2b42aa8ceb9ffa41945ff592e8ae4484aa11e521d048d36a56f2ce277123fbe8",
+                "expected_sha256": "2b42aa8ceb9ffa41945ff592e8ae4484aa11e521d048d36a56f2ce277123fbe8",
+                "frozen_matches": true,
+                "live_matches": true
+              },
+              {
+                "path": "agents/validator.md",
+                "commit": "7ba5f7ec2ed24876a40ec083ebdc2bef0ef83b25",
+                "bytes": 8438,
+                "sha256": "08f1144225ab702cb5feb206c53d0ca5e5fa71d80a8fa2734a3d851951597122",
+                "expected_sha256": "08f1144225ab702cb5feb206c53d0ca5e5fa71d80a8fa2734a3d851951597122",
+                "frozen_matches": true,
+                "live_matches": true
+              },
+              {
+                "path": "tools/check_review_independence.py",
+                "commit": "7ba5f7ec2ed24876a40ec083ebdc2bef0ef83b25",
+                "bytes": 19482,
+                "sha256": "10815ff7446fec8e881c049fd5ab84f4f8a6c81fc283c6076f1b2f013dc319c5",
+                "expected_sha256": "10815ff7446fec8e881c049fd5ab84f4f8a6c81fc283c6076f1b2f013dc319c5",
+                "frozen_matches": true,
+                "live_matches": true
+              },
+              {
+                "path": "harness/rho.py",
+                "commit": "7ba5f7ec2ed24876a40ec083ebdc2bef0ef83b25",
+                "bytes": 4424,
+                "sha256": "de952371bfa0513b4783e78012f7eddb1098ef2a1fef5bd9adc2b34e2a86bcc0",
+                "expected_sha256": "de952371bfa0513b4783e78012f7eddb1098ef2a1fef5bd9adc2b34e2a86bcc0",
+                "frozen_matches": true,
+                "live_matches": true
+              },
+              {
+                "path": "harness/toycurve.py",
+                "commit": "7ba5f7ec2ed24876a40ec083ebdc2bef0ef83b25",
+                "bytes": 7527,
+                "sha256": "0fdf7b35f1dd53d35161423c28627d26184ba8914cdae6c1003c67b7edfef113",
+                "expected_sha256": "0fdf7b35f1dd53d35161423c28627d26184ba8914cdae6c1003c67b7edfef113",
+                "frozen_matches": true,
+                "live_matches": true
+              },
+              {
+                "path": "harness/walk.py",
+                "commit": "7ba5f7ec2ed24876a40ec083ebdc2bef0ef83b25",
+                "bytes": 12969,
+                "sha256": "304cc46ca7628277d444aef793671acc533f0062831ad1903949806b7b057359",
+                "expected_sha256": "304cc46ca7628277d444aef793671acc533f0062831ad1903949806b7b057359",
+                "frozen_matches": true,
+                "live_matches": true
+              },
+              {
+                "path": "experiments/EXP-ECDLP-709063/implementation/TASK-20260908-7771f2/bsgs.py",
+                "commit": "7ba5f7ec2ed24876a40ec083ebdc2bef0ef83b25",
+                "bytes": 10727,
+                "sha256": "022650498d27b40c45d1d592466c4a8de5e6c7a5820a8098d568b69bf18811b1",
+                "expected_sha256": "022650498d27b40c45d1d592466c4a8de5e6c7a5820a8098d568b69bf18811b1",
+                "frozen_matches": true,
+                "live_matches": true
+              },
+              {
+                "path": "experiments/EXP-ECDLP-709063/implementation/TASK-20260908-7771f2/rho-corrected.py",
+                "commit": "7ba5f7ec2ed24876a40ec083ebdc2bef0ef83b25",
+                "bytes": 4368,
+                "sha256": "0d05b954593d1d6adeb8f0764eb0acda280f938f58cb453f1259fd0e61eaa233",
+                "expected_sha256": "0d05b954593d1d6adeb8f0764eb0acda280f938f58cb453f1259fd0e61eaa233",
+                "frozen_matches": true,
+                "live_matches": true
+              },
+              {
+                "path": "coordination/experiment-reserve/BATCH-635652/review-plan-TASK-20260909-e361c0.yaml",
+                "commit": "b63075b91ac2551abd70525bce72a64844c40ecf",
+                "bytes": 3761,
+                "sha256": "8e3808399794522af39fe56c8f024cda6ce8b1d50bd4e7fda27d24079296e3fb",
+                "expected_sha256": "8e3808399794522af39fe56c8f024cda6ce8b1d50bd4e7fda27d24079296e3fb",
+                "frozen_matches": true,
+                "live_matches": true
+              }
+            ]
+          },
+          {
+            "name": "frozen_input_size_cap",
+            "status": "passed",
+            "detail": {
+              "input_count": 42,
+              "total_bytes": 991976,
+              "cap_bytes": 16777216
+            }
+          },
+          {
+            "name": "canonical_v2_binding_consistency",
+            "status": "passed"
+          },
+          {
+            "name": "old_binding_preserved_at_source_snapshot",
+            "status": "passed"
+          },
+          {
+            "name": "single_current_source_map_and_exact_snapshot_bytes",
+            "status": "passed",
+            "detail": {
+              "experiments/EXP-ECDLP-709063/implementation/TASK-20260909-d31be5/table.py": "83c39b6b1c7098002987c268c4aafedaed90f66006988f6da524c4392133ea10",
+              "experiments/EXP-ECDLP-709063/implementation/TASK-20260909-d31be5/bsgs.py": "022650498d27b40c45d1d592466c4a8de5e6c7a5820a8098d568b69bf18811b1",
+              "experiments/EXP-ECDLP-709063/implementation/TASK-20260909-d31be5/rho-corrected.py": "0d05b954593d1d6adeb8f0764eb0acda280f938f58cb453f1259fd0e61eaa233",
+              "experiments/EXP-ECDLP-709063/implementation/TASK-20260909-d31be5/tests.py": "8f215f8baaf45ad084904018e26f5ad182d01efb33423a80592aba15497d98b3"
+            }
+          },
+          {
+            "name": "original_eight_file_archive_unchanged",
+            "status": "passed"
+          },
+          {
+            "name": "baseline_solver_kernel_bytes_preserved",
+            "status": "passed"
+          },
+          {
+            "name": "original_371_case_receipt_accounting",
+            "status": "passed"
+          },
+          {
+            "name": "original_outer_nested_custody_terminal",
+            "status": "passed"
+          },
+          {
+            "name": "failed_predecessor_history_preserved",
+            "status": "passed"
+          },
+          {
+            "name": "prior_independent_review_stays_failed",
+            "status": "passed"
+          },
+          {
+            "name": "producer_correction_snapshot_exact",
+            "status": "passed"
+          },
+          {
+            "name": "historical_current_and_review_counts_are_separate",
+            "status": "passed",
+            "detail": {
+              "historical_stale": 49,
+              "original_execution": 62,
+              "correction_preflight": 27,
+              "review_preflight": 42
+            }
+          },
+          {
+            "name": "authority_claim_snapshot_chains",
+            "status": "passed"
+          },
+          {
+            "name": "published_claims_bind_expected_worktree",
+            "status": "passed"
+          },
+          {
+            "name": "producer_61_comparison_receipt_custody",
+            "status": "passed"
+          },
+          {
+            "name": "producer_receipt_time_order_and_metrics",
+            "status": "passed"
+          },
+          {
+            "name": "producer_report_is_nonadmitting_and_hash_bound",
+            "status": "passed"
+          },
+          {
+            "name": "correction_originals_unchanged_after_producer_checks",
+            "status": "passed"
+          }
+        ],
+        "metadata_source_comparison_count": 19,
+        "metadata_source_comparisons_passed": 19,
+        "metadata_source_comparisons_failed": 0,
+        "malformed_control_count": 42,
+        "malformed_controls": [
+          {
+            "ordinal": 1,
+            "name": "wrong_schema",
+            "started_at_UTC": "2026-09-09T18:30:04.514086+00:00",
+            "serialized_input_bytes": 10228,
+            "status": "passed",
+            "rejection": "ValueError: schema",
+            "ended_at_UTC": "2026-09-09T18:30:04.514279+00:00",
+            "wall_seconds": 0.00019695796072483063
+          },
+          {
+            "ordinal": 2,
+            "name": "wrong_task",
+            "started_at_UTC": "2026-09-09T18:30:04.514287+00:00",
+            "serialized_input_bytes": 10271,
+            "status": "passed",
+            "rejection": "ValueError: producer task",
+            "ended_at_UTC": "2026-09-09T18:30:04.514406+00:00",
+            "wall_seconds": 0.00011829205323010683
+          },
+          {
+            "ordinal": 3,
+            "name": "wrong_experiment",
+            "started_at_UTC": "2026-09-09T18:30:04.514410+00:00",
+            "serialized_input_bytes": 10264,
+            "status": "passed",
+            "rejection": "ValueError: experiment",
+            "ended_at_UTC": "2026-09-09T18:30:04.514513+00:00",
+            "wall_seconds": 0.00010341696906834841
+          },
+          {
+            "ordinal": 4,
+            "name": "wrong_approval",
+            "started_at_UTC": "2026-09-09T18:30:04.514516+00:00",
+            "serialized_input_bytes": 10271,
+            "status": "passed",
+            "rejection": "ValueError: approval",
+            "ended_at_UTC": "2026-09-09T18:30:04.514615+00:00",
+            "wall_seconds": 9.866699110716581e-05
+          },
+          {
+            "ordinal": 5,
+            "name": "promote_source_acceptance",
+            "started_at_UTC": "2026-09-09T18:30:04.514617+00:00",
+            "serialized_input_bytes": 10270,
+            "status": "passed",
+            "rejection": "ValueError: source acceptance",
+            "ended_at_UTC": "2026-09-09T18:30:04.514713+00:00",
+            "wall_seconds": 9.54590504989028e-05
+          },
+          {
+            "ordinal": 6,
+            "name": "promote_measurement",
+            "started_at_UTC": "2026-09-09T18:30:04.514715+00:00",
+            "serialized_input_bytes": 10270,
+            "status": "passed",
+            "rejection": "ValueError: measurement admission",
+            "ended_at_UTC": "2026-09-09T18:30:04.514810+00:00",
+            "wall_seconds": 9.524996858090162e-05
+          },
+          {
+            "ordinal": 7,
+            "name": "invent_scientific_run",
+            "started_at_UTC": "2026-09-09T18:30:04.514812+00:00",
+            "serialized_input_bytes": 10271,
+            "status": "passed",
+            "rejection": "ValueError: scientific runs",
+            "ended_at_UTC": "2026-09-09T18:30:04.514907+00:00",
+            "wall_seconds": 9.491690434515476e-05
+          },
+          {
+            "ordinal": 8,
+            "name": "premature_review_pass",
+            "started_at_UTC": "2026-09-09T18:30:04.514910+00:00",
+            "serialized_input_bytes": 10270,
+            "status": "passed",
+            "rejection": "ValueError: review status",
+            "ended_at_UTC": "2026-09-09T18:30:04.515004+00:00",
+            "wall_seconds": 9.412504732608795e-05
+          },
+          {
+            "ordinal": 9,
+            "name": "missing_supersedes",
+            "started_at_UTC": "2026-09-09T18:30:04.515006+00:00",
+            "serialized_input_bytes": 9904,
+            "status": "passed",
+            "rejection": "ValueError: closed top-level schema",
+            "ended_at_UTC": "2026-09-09T18:30:04.515102+00:00",
+            "wall_seconds": 9.633402805775404e-05
+          },
+          {
+            "ordinal": 10,
+            "name": "wrong_superseded_path",
+            "started_at_UTC": "2026-09-09T18:30:04.515105+00:00",
+            "serialized_input_bytes": 10189,
+            "status": "passed",
+            "rejection": "ValueError: superseded path",
+            "ended_at_UTC": "2026-09-09T18:30:04.515203+00:00",
+            "wall_seconds": 9.874999523162842e-05
+          },
+          {
+            "ordinal": 11,
+            "name": "wrong_superseded_hash",
+            "started_at_UTC": "2026-09-09T18:30:04.515206+00:00",
+            "serialized_input_bytes": 10271,
+            "status": "passed",
+            "rejection": "ValueError: superseded hash",
+            "ended_at_UTC": "2026-09-09T18:30:04.515329+00:00",
+            "wall_seconds": 0.00012329209130257368
+          },
+          {
+            "ordinal": 12,
+            "name": "wrong_superseded_snapshot",
+            "started_at_UTC": "2026-09-09T18:30:04.515332+00:00",
+            "serialized_input_bytes": 10271,
+            "status": "passed",
+            "rejection": "ValueError: superseded snapshot",
+            "ended_at_UTC": "2026-09-09T18:30:04.515456+00:00",
+            "wall_seconds": 0.00012408301699906588
+          },
+          {
+            "ordinal": 13,
+            "name": "missing_historical_origin",
+            "started_at_UTC": "2026-09-09T18:30:04.515459+00:00",
+            "serialized_input_bytes": 10077,
+            "status": "passed",
+            "rejection": "KeyError: 'origin'",
+            "ended_at_UTC": "2026-09-09T18:30:04.515583+00:00",
+            "wall_seconds": 0.00012449990026652813
+          },
+          {
+            "ordinal": 14,
+            "name": "wrong_historical_origin_hash",
+            "started_at_UTC": "2026-09-09T18:30:04.515586+00:00",
+            "serialized_input_bytes": 10271,
+            "status": "passed",
+            "rejection": "ValueError: historical origin",
+            "ended_at_UTC": "2026-09-09T18:30:04.515726+00:00",
+            "wall_seconds": 0.00014008302241563797
+          },
+          {
+            "ordinal": 15,
+            "name": "missing_current_table",
+            "started_at_UTC": "2026-09-09T18:30:04.515729+00:00",
+            "serialized_input_bytes": 10126,
+            "status": "passed",
+            "rejection": "ValueError: current source path set",
+            "ended_at_UTC": "2026-09-09T18:30:04.515854+00:00",
+            "wall_seconds": 0.0001253330847248435
+          },
+          {
+            "ordinal": 16,
+            "name": "wrong_current_table_hash",
+            "started_at_UTC": "2026-09-09T18:30:04.515857+00:00",
+            "serialized_input_bytes": 10271,
+            "status": "passed",
+            "rejection": "ValueError: current source digest map",
+            "ended_at_UTC": "2026-09-09T18:30:04.515978+00:00",
+            "wall_seconds": 0.0001217089593410492
+          },
+          {
+            "ordinal": 17,
+            "name": "extra_current_file",
+            "started_at_UTC": "2026-09-09T18:30:04.515981+00:00",
+            "serialized_input_bytes": 10351,
+            "status": "passed",
+            "rejection": "ValueError: current source path set",
+            "ended_at_UTC": "2026-09-09T18:30:04.516099+00:00",
+            "wall_seconds": 0.00011741695925593376
+          },
+          {
+            "ordinal": 18,
+            "name": "wrong_current_snapshot",
+            "started_at_UTC": "2026-09-09T18:30:04.516101+00:00",
+            "serialized_input_bytes": 10271,
+            "status": "passed",
+            "rejection": "ValueError: source snapshot",
+            "ended_at_UTC": "2026-09-09T18:30:04.516218+00:00",
+            "wall_seconds": 0.00011645792983472347
+          },
+          {
+            "ordinal": 19,
+            "name": "wrong_current_task",
+            "started_at_UTC": "2026-09-09T18:30:04.516220+00:00",
+            "serialized_input_bytes": 10271,
+            "status": "passed",
+            "rejection": "ValueError: source task",
+            "ended_at_UTC": "2026-09-09T18:30:04.516344+00:00",
+            "wall_seconds": 0.00012416602112352848
+          },
+          {
+            "ordinal": 20,
+            "name": "competing_current_task_map",
+            "started_at_UTC": "2026-09-09T18:30:04.516347+00:00",
+            "serialized_input_bytes": 10630,
+            "status": "passed",
+            "rejection": "ValueError: closed top-level schema",
+            "ended_at_UTC": "2026-09-09T18:30:04.516442+00:00",
+            "wall_seconds": 9.512505494058132e-05
+          },
+          {
+            "ordinal": 21,
+            "name": "competing_task_source_map",
+            "started_at_UTC": "2026-09-09T18:30:04.516444+00:00",
+            "serialized_input_bytes": 10622,
+            "status": "passed",
+            "rejection": "ValueError: closed top-level schema",
+            "ended_at_UTC": "2026-09-09T18:30:04.516539+00:00",
+            "wall_seconds": 9.445904288440943e-05
+          },
+          {
+            "ordinal": 22,
+            "name": "stale_49_as_review_count",
+            "started_at_UTC": "2026-09-09T18:30:04.516541+00:00",
+            "serialized_input_bytes": 10271,
+            "status": "passed",
+            "rejection": "ValueError: correction declared count",
+            "ended_at_UTC": "2026-09-09T18:30:04.516925+00:00",
+            "wall_seconds": 0.00038412504363805056
+          },
+          {
+            "ordinal": 23,
+            "name": "original_62_as_correction_count",
+            "started_at_UTC": "2026-09-09T18:30:04.516928+00:00",
+            "serialized_input_bytes": 10271,
+            "status": "passed",
+            "rejection": "ValueError: correction declared count",
+            "ended_at_UTC": "2026-09-09T18:30:04.517298+00:00",
+            "wall_seconds": 0.0003701669629663229
+          },
+          {
+            "ordinal": 24,
+            "name": "stale_49_as_original_count",
+            "started_at_UTC": "2026-09-09T18:30:04.517301+00:00",
+            "serialized_input_bytes": 10271,
+            "status": "passed",
+            "rejection": "ValueError: execution input count",
+            "ended_at_UTC": "2026-09-09T18:30:04.517619+00:00",
+            "wall_seconds": 0.0003174159210175276
+          },
+          {
+            "ordinal": 25,
+            "name": "correction_27_as_original_count",
+            "started_at_UTC": "2026-09-09T18:30:04.517621+00:00",
+            "serialized_input_bytes": 10271,
+            "status": "passed",
+            "rejection": "ValueError: execution input count",
+            "ended_at_UTC": "2026-09-09T18:30:04.517940+00:00",
+            "wall_seconds": 0.00031883304473012686
+          },
+          {
+            "ordinal": 26,
+            "name": "wrong_correction_verified_count",
+            "started_at_UTC": "2026-09-09T18:30:04.517943+00:00",
+            "serialized_input_bytes": 10271,
+            "status": "passed",
+            "rejection": "ValueError: correction verified count",
+            "ended_at_UTC": "2026-09-09T18:30:04.518319+00:00",
+            "wall_seconds": 0.0003759159008041024
+          },
+          {
+            "ordinal": 27,
+            "name": "wrong_correction_authority",
+            "started_at_UTC": "2026-09-09T18:30:04.518322+00:00",
+            "serialized_input_bytes": 10271,
+            "status": "passed",
+            "rejection": "ValueError: correction authority",
+            "ended_at_UTC": "2026-09-09T18:30:04.518701+00:00",
+            "wall_seconds": 0.00037883396726101637
+          },
+          {
+            "ordinal": 28,
+            "name": "wrong_correction_claim",
+            "started_at_UTC": "2026-09-09T18:30:04.518704+00:00",
+            "serialized_input_bytes": 10271,
+            "status": "passed",
+            "rejection": "ValueError: correction claim",
+            "ended_at_UTC": "2026-09-09T18:30:04.519095+00:00",
+            "wall_seconds": 0.000391624984331429
+          },
+          {
+            "ordinal": 29,
+            "name": "wrong_execution_snapshot",
+            "started_at_UTC": "2026-09-09T18:30:04.519098+00:00",
+            "serialized_input_bytes": 10271,
+            "status": "passed",
+            "rejection": "ValueError: execution snapshot",
+            "ended_at_UTC": "2026-09-09T18:30:04.519426+00:00",
+            "wall_seconds": 0.0003273329930379987
+          },
+          {
+            "ordinal": 30,
+            "name": "wrong_execution_receipt_hash",
+            "started_at_UTC": "2026-09-09T18:30:04.519428+00:00",
+            "serialized_input_bytes": 10271,
+            "status": "passed",
+            "rejection": "ValueError: execution receipt",
+            "ended_at_UTC": "2026-09-09T18:30:04.519728+00:00",
+            "wall_seconds": 0.0002999170683324337
+          },
+          {
+            "ordinal": 31,
+            "name": "wrong_execution_report_hash",
+            "started_at_UTC": "2026-09-09T18:30:04.519731+00:00",
+            "serialized_input_bytes": 10271,
+            "status": "passed",
+            "rejection": "ValueError: execution report",
+            "ended_at_UTC": "2026-09-09T18:30:04.520048+00:00",
+            "wall_seconds": 0.00031679205130785704
+          },
+          {
+            "ordinal": 32,
+            "name": "promote_failed_review",
+            "started_at_UTC": "2026-09-09T18:30:04.520050+00:00",
+            "serialized_input_bytes": 10271,
+            "status": "passed",
+            "rejection": "ValueError: prior review verdict",
+            "ended_at_UTC": "2026-09-09T18:30:04.520398+00:00",
+            "wall_seconds": 0.00034775002859532833
+          },
+          {
+            "ordinal": 33,
+            "name": "remove_failed_review_finding",
+            "started_at_UTC": "2026-09-09T18:30:04.520401+00:00",
+            "serialized_input_bytes": 10239,
+            "status": "passed",
+            "rejection": "KeyError: 'finding'",
+            "ended_at_UTC": "2026-09-09T18:30:04.520756+00:00",
+            "wall_seconds": 0.0003552910638973117
+          },
+          {
+            "ordinal": 34,
+            "name": "invent_resolved_model",
+            "started_at_UTC": "2026-09-09T18:30:04.520759+00:00",
+            "serialized_input_bytes": 10280,
+            "status": "passed",
+            "rejection": "ValueError: execution inference",
+            "ended_at_UTC": "2026-09-09T18:30:04.521117+00:00",
+            "wall_seconds": 0.0003572909627109766
+          },
+          {
+            "ordinal": 35,
+            "name": "invent_model_verified",
+            "started_at_UTC": "2026-09-09T18:30:04.521119+00:00",
+            "serialized_input_bytes": 10270,
+            "status": "passed",
+            "rejection": "ValueError: execution inference",
+            "ended_at_UTC": "2026-09-09T18:30:04.521442+00:00",
+            "wall_seconds": 0.0003225840628147125
+          },
+          {
+            "ordinal": 36,
+            "name": "invent_hard_memory_guard",
+            "started_at_UTC": "2026-09-09T18:30:04.521445+00:00",
+            "serialized_input_bytes": 10270,
+            "status": "passed",
+            "rejection": "ValueError: invented memory guard",
+            "ended_at_UTC": "2026-09-09T18:30:04.521776+00:00",
+            "wall_seconds": 0.0003309589810669422
+          },
+          {
+            "ordinal": 37,
+            "name": "missing_failed_predecessor",
+            "started_at_UTC": "2026-09-09T18:30:04.521779+00:00",
+            "serialized_input_bytes": 10112,
+            "status": "passed",
+            "rejection": "ValueError: closed top-level schema",
+            "ended_at_UTC": "2026-09-09T18:30:04.521873+00:00",
+            "wall_seconds": 9.416695684194565e-05
+          },
+          {
+            "ordinal": 38,
+            "name": "reconstructed_failed_receipt",
+            "started_at_UTC": "2026-09-09T18:30:04.521875+00:00",
+            "serialized_input_bytes": 10259,
+            "status": "passed",
+            "rejection": "ValueError: failed predecessor custody",
+            "ended_at_UTC": "2026-09-09T18:30:04.522237+00:00",
+            "wall_seconds": 0.0003615840105339885
+          },
+          {
+            "ordinal": 39,
+            "name": "wrong_dependency_hash",
+            "started_at_UTC": "2026-09-09T18:30:04.522240+00:00",
+            "serialized_input_bytes": 10271,
+            "status": "passed",
+            "rejection": "ValueError: dependency files",
+            "ended_at_UTC": "2026-09-09T18:30:04.522410+00:00",
+            "wall_seconds": 0.00017033307813107967
+          },
+          {
+            "ordinal": 40,
+            "name": "duplicate_top_task_id",
+            "started_at_UTC": "2026-09-09T18:30:04.522413+00:00",
+            "serialized_input_bytes": 11158,
+            "status": "passed",
+            "rejection": "ValueError: duplicate JSON key: task_id",
+            "ended_at_UTC": "2026-09-09T18:30:04.522447+00:00",
+            "wall_seconds": 3.358302637934685e-05
+          },
+          {
+            "ordinal": 41,
+            "name": "duplicate_current_snapshot",
+            "started_at_UTC": "2026-09-09T18:30:04.522448+00:00",
+            "serialized_input_bytes": 11159,
+            "status": "passed",
+            "rejection": "ValueError: duplicate JSON key: snapshot",
+            "ended_at_UTC": "2026-09-09T18:30:04.522458+00:00",
+            "wall_seconds": 9.833020158112049e-06
+          },
+          {
+            "ordinal": 42,
+            "name": "duplicate_correction_count",
+            "started_at_UTC": "2026-09-09T18:30:04.522459+00:00",
+            "serialized_input_bytes": 11162,
+            "status": "passed",
+            "rejection": "ValueError: duplicate JSON key: declared_input_count",
+            "ended_at_UTC": "2026-09-09T18:30:04.522490+00:00",
+            "wall_seconds": 3.0957977287471294e-05
+          }
+        ],
+        "malformed_controls_passed": 42,
+        "malformed_controls_failed": 0,
+        "maximum_malformed_controls_all_attempts": 128,
+        "maximum_controls_per_complete_suite": 48,
+        "reserved_final_suite_capacity": 42,
+        "per_control_seconds": 10.0,
+        "maximum_serialized_control_bytes": 1048576,
+        "scientific_runs": 0,
+        "solver_module_imports": 0,
+        "solver_executions": 0,
+        "maximum_workers_used": 1,
+        "watchdog_seconds_outer": 180,
+        "wall_seconds": 3.603582707932219,
+        "self_cpu_seconds": 0.182136,
+        "children_cpu_seconds": 2.056664,
+        "self_peak_rss_raw": 30457856,
+        "children_peak_rss_raw": 12386304,
+        "rss_units": "bytes",
+        "self_peak_rss_bytes": 30457856,
+        "children_peak_rss_bytes": 12386304,
+        "rss_cap_bytes": 2147483648,
+        "resource_bounds_held": true,
+        "hard_memory_guard_claim": false,
+        "rlimit_as_attempted": false,
+        "setup_error": null,
+        "checker_sha256": "c19424fd317b7d94800d3e39a972c1a38294531a2093703ddaf2a927159a2200",
+        "receipt_self_hash": null
+      },
+      "inner_sha256": "cca24d0bcff8b9ac475809764da0e881de2ae76b2061cefe4d3f68f33b4540a3",
+      "outer_wrapper": {
+        "argv": [
+          "python3",
+          "-B",
+          "/private/tmp/decoder-binding-review-e361c0-attempt1.g2D5BL/checks.py",
+          "--repo",
+          "/Volumes/SSD990/crypto-autoresearcher/.worktrees/coordinator-reserve-admission-20260907",
+          "--claim-commit",
+          "7f9114194aae018905ccd010f3416b91a1a4e066",
+          "--receipt",
+          "/private/tmp/decoder-binding-review-e361c0-attempt1.g2D5BL/inner.json"
+        ],
+        "cwd": "/Volumes/SSD990/crypto-autoresearcher/.worktrees/coordinator-reserve-admission-20260907",
+        "started_at_UTC": "2026-09-09T18:30:00.828707+00:00",
+        "ended_at_UTC": "2026-09-09T18:30:04.529266+00:00",
+        "wall_seconds": 3.700488750007935,
+        "exit_code": 0,
+        "timed_out": false,
+        "stdout": "{\"malformed_controls\": 42, \"malformed_controls_failed\": 0, \"metadata_source_comparisons\": 19, \"metadata_source_comparisons_failed\": 0, \"receipt\": \"/private/tmp/decoder-binding-review-e361c0-attempt1.g2D5BL/inner.json\", \"resource_bounds_held\": true}\n",
+        "stderr": "",
+        "launch_exception": null,
+        "children_user_cpu_seconds": 1.001648,
+        "children_system_cpu_seconds": 1.301366,
+        "children_peak_rss_raw": 30572544,
+        "rss_units": "bytes",
+        "hard_memory_guard_claim": false,
+        "rlimit_as_attempted": false,
+        "inner_receipt_path": "/private/tmp/decoder-binding-review-e361c0-attempt1.g2D5BL/inner.json"
+      },
+      "outer_wrapper_sha256": "90cdab828e6e693d4561406a7903624b8096fe98f2b507ab3f9873e27a47adfb",
+      "outer_tool_response": {
+        "chunk_id": "1f1002",
+        "wall_time_seconds": 3.676205708,
+        "exit_code": 0,
+        "original_token_count": 310,
+        "output": "{\"argv\": [\"python3\", \"-B\", \"/private/tmp/decoder-binding-review-e361c0-attempt1.g2D5BL/checks.py\", \"--repo\", \"/Volumes/SSD990/crypto-autoresearcher/.worktrees/coordinator-reserve-admission-20260907\", \"--claim-commit\", \"7f9114194aae018905ccd010f3416b91a1a4e066\", \"--receipt\", \"/private/tmp/decoder-binding-review-e361c0-attempt1.g2D5BL/inner.json\"], \"children_peak_rss_raw\": 30572544, \"children_system_cpu_seconds\": 1.301366, \"children_user_cpu_seconds\": 1.001648, \"cwd\": \"/Volumes/SSD990/crypto-autoresearcher/.worktrees/coordinator-reserve-admission-20260907\", \"ended_at_UTC\": \"2026-09-09T18:30:04.529266+00:00\", \"exit_code\": 0, \"hard_memory_guard_claim\": false, \"inner_receipt_path\": \"/private/tmp/decoder-binding-review-e361c0-attempt1.g2D5BL/inner.json\", \"launch_exception\": null, \"rlimit_as_attempted\": false, \"rss_units\": \"bytes\", \"started_at_UTC\": \"2026-09-09T18:30:00.828707+00:00\", \"stderr\": \"\", \"stdout\": \"{\\\"malformed_controls\\\": 42, \\\"malformed_controls_failed\\\": 0, \\\"metadata_source_comparisons\\\": 19, \\\"metadata_source_comparisons_failed\\\": 0, \\\"receipt\\\": \\\"/private/tmp/decoder-binding-review-e361c0-attempt1.g2D5BL/inner.json\\\", \\\"resource_bounds_held\\\": true}\\n\", \"timed_out\": false, \"wall_seconds\": 3.700488750007935}\n"
+      },
+      "outer_session_id": null,
+      "outer_polls": [],
+      "terminal_exit_code": 0,
+      "launch_exception": null
+    }
+  ],
+  "aggregate": {
+    "declared_inputs": 42,
+    "frozen_input_bytes": 991976,
+    "frozen_input_cap_bytes": 16777216,
+    "metadata_source_comparisons": 19,
+    "metadata_source_comparisons_passed": 19,
+    "metadata_source_comparisons_failed": 0,
+    "malformed_controls_executed": 42,
+    "malformed_controls_passed": 42,
+    "malformed_controls_failed": 0,
+    "maximum_malformed_controls_all_attempts": 128,
+    "remaining_malformed_control_capacity": 86,
+    "complete_suite_size": 42,
+    "maximum_complete_suite_size": 48,
+    "final_suite_capacity_preserved": 42,
+    "maximum_workers_used": 1,
+    "scientific_runs": 0,
+    "solver_module_imports": 0,
+    "solver_executions": 0,
+    "maximum_observed_rss_bytes": 30572544,
+    "rss_cap_bytes": 2147483648,
+    "resource_bounds_held": true,
+    "hard_memory_guard_claim": false,
+    "rlimit_as_attempted": false
+  },
+  "final_checker_sha256": "c19424fd317b7d94800d3e39a972c1a38294531a2093703ddaf2a927159a2200",
+  "canonical_receipt_created_after_all_attempts": true,
+  "no_further_checker_invocation_planned": true,
+  "all_attempt_files_exclusive_and_unique": true,
+  "all_outer_and_nested_responses_retained": true,
+  "all_launch_exceptions_retained": true,
+  "missing_or_overwritten_failure_history": false,
+  "scientific_runs": 0,
+  "measurement_admitted": false,
+  "source_acceptance": false,
+  "limitations": [
+    "Administrative metadata and unchanged-source custody only; no solver or scientific execution.",
+    "Observed RSS is diagnostic. No hard memory guard was attempted or claimed.",
+    "The old TASK-20260909-adf4e6 verdict remains failed; this receipt does not rewrite it.",
+    "A reviewed v2 binding remains a source document. Future runners must explicitly select and enforce it."
+  ],
+  "receipt_self_hash": null
+}

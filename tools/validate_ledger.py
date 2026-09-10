@@ -728,6 +728,13 @@ def check_run(path: str, ctx: Ctx, supersessions: dict[str, dict] | None = None)
     rec_id = body.get("id")
     if not rec_id or not RUN_ID.match(str(rec_id)):
         ctx.err(path, f"bad run id {rec_id!r}")
+    # Experiment/run lifetime is not a research conclusion.  A watchdog or
+    # estimate may checkpoint a live run, but it may never manufacture an
+    # `expired` terminal status (which would silently discard an unfinished
+    # experiment).  Use `failed` with an explicit infrastructure reason or
+    # `cancelled` under a Coordinator decision instead.
+    if str(body.get("status", "")).lower() in {"expired", "budget_expired", "time_expired"}:
+        ctx.err(path, "experiment runs may not expire; checkpoint or record an explicit failed/cancelled receipt", force=True)
     for field in RUN_REQUIRED_TOP:
         if body.get(field) in (None, ""):
             ctx.err(path, f"run missing required field '{field}'")
@@ -992,6 +999,21 @@ def load_run_supersessions(path: str | None = None) -> dict[str, dict]:
         id_line = raw.get("superseded_id_line")
         if id_line is not None and (type(id_line) is not int or id_line < 1):
             raise ValueError("run supersession superseded_id_line must be a positive integer")
+        # Narrow null-id binding (TASK-20260909-cb6cc7): an archived manifest
+        # that PARSES with a null run id can only be bound through an explicit
+        # registry declaration with provenance. Both fields are optional; when
+        # present they must be well-formed. Absent on every other entry.
+        id_null = raw.get("superseded_id_null")
+        if id_null is not None and id_null is not True:
+            raise ValueError("run supersession superseded_id_null must be "
+                             "true when present")
+        id_null_provenance = raw.get("superseded_id_null_provenance")
+        if id_null_provenance is not None and (
+                not isinstance(id_null_provenance, str)
+                or not id_null_provenance.strip()):
+            raise ValueError("run supersession "
+                             "superseded_id_null_provenance must be a "
+                             "non-empty string when present")
         key = os.path.abspath(os.path.join(REPO, superseded))
         if key in entries:
             raise ValueError(f"run supersession registry lists {superseded} "
@@ -1007,6 +1029,8 @@ def load_run_supersessions(path: str | None = None) -> dict[str, dict]:
                 os.path.join(REPO, superseding)),
             "superseding_sha256": digests["superseding_sha256"],
             "superseded_id_line": id_line,
+            "superseded_id_null": id_null,
+            "superseded_id_null_provenance": id_null_provenance,
             "supersession_kind": raw.get("supersession_kind"),
             "decision_id": raw.get("decision_id"),
         }
@@ -1375,6 +1399,47 @@ def _flat_run_id_with_malformed_dirty_summary(text: str) -> str | None:
     return rec_id
 
 
+def _null_id_superseded_run_id(path: str, entry: dict | None) -> str | None:
+    """Bind identity for a registered superseded manifest that parses with a null id.
+
+    Narrow sibling of the malformed-YAML recovery (_malformed_superseded_run_id),
+    added by TASK-20260909-cb6cc7 for RUN-ECDLP-e962f6-007, whose archived
+    manifest is well-formed YAML that records `id: null`. It fires ONLY when
+    all of the following hold:
+
+      * the entry is a registered supersession that explicitly declares
+        `superseded_id_null: true` together with a non-empty
+        `superseded_id_null_provenance`;
+      * the file is hash-verified against the entry's `superseded_sha256`;
+      * the file's path matches the entry's `superseded_path`;
+      * the run-directory basename equals the registered run id.
+
+    It does not generalise null-id recovery: a parseable manifest with a null
+    id that is not a registered supersession -- or whose entry lacks the
+    explicit declaration -- still yields None, exactly as before this path
+    existed.
+    """
+    if not entry or entry.get("superseded_id_null") is not True:
+        return None
+    provenance = entry.get("superseded_id_null_provenance")
+    if not isinstance(provenance, str) or not provenance.strip():
+        return None
+    run_id = str(entry.get("run_id") or "")
+    if not RUN_ID.fullmatch(run_id):
+        return None
+    if (os.path.abspath(path) != entry.get("superseded_path")
+            or os.path.basename(os.path.dirname(path)) != run_id):
+        return None
+    try:
+        with open(path, "rb") as handle:
+            content = handle.read()
+    except OSError:
+        return None
+    if hashlib.sha256(content).hexdigest() != entry.get("superseded_sha256"):
+        return None
+    return run_id
+
+
 def _run_id_of(path: str, *, superseded_entry: dict | None = None) -> str | None:
     try:
         with open(path, encoding="utf-8") as handle:
@@ -1415,7 +1480,13 @@ def _run_id_of(path: str, *, superseded_entry: dict | None = None) -> str | None
         rec_id = doc.get("run_id") or doc.get("id")
     else:
         rec_id = None
-    return str(rec_id) if rec_id else None
+    if rec_id:
+        return str(rec_id)
+    # A parseable manifest with a null id has no ordinary identity. The only
+    # recovery is the narrow, hash-verified, registry-declared null-id binding
+    # above; it returns None for every manifest that is not such a registered
+    # supersession, so unregistered behaviour is unchanged.
+    return _null_id_superseded_run_id(path, superseded_entry)
 
 
 def _malformed_run_header_id(path: str, line_number: int) -> str | None:
