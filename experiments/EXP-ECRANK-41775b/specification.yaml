@@ -75,113 +75,114 @@ experiment:
       Control admission first (R1): if the ratio instrument cannot
       reproduce hand-computed known ratios, every ratio reading in this
       experiment is void and the run package stops (stopping rule SR-2).
-    - id: RUN-ECRANK-41775b-R1-calibration
-      arm: T4
-      protocol: >
-        Synthetic known-answer family: K = 200 constructed tuples, each
-        with exactly two admissible roots whose heights are hand-chosen
-        exact rationals -- one root at height in [2, 10^2) and one at
-        height in [10^3, 10^4) (heights set by the family constructor,
-        recorded exactly). Run the SAME counting and decade-ratio
-        instrument (reimplemented from the N2R convention definitions in
-        the bound n2r.py, conventions A and B) over H in {10^2, 10^3,
-        10^4}. Expected by hand: N^A = N^B = {10^2: 200, 10^3: 400,
-        10^4: 400}; decade ratios [2.0, 1.0]; two-decade 2.0. PASS iff
-        every count and ratio equals the hand value exactly (Fractions).
-        A second calibration family with one root per tuple at heights
-        uniform in decades 10^1..10^4 must reproduce its hand-computed
-        per-decade counts exactly. Failure voids all ratio readings
-        (SR-2) and is reported, never re-scored.
-    - id: RUN-ECRANK-41775b-R2-structural-trace
-      arm: T1
-      protocol: >
-        Machine-checked dataflow trace of the bound bytes. (a) Static
-        trace: parse source/construct.py and source-v2/construct_v2.py
-        (ast module, stdlib); report every use site of the H parameter
-        in solve_n6, solve_n8, construct_arm, construct_arm_v2 with its
-        line number and syntactic role; PASS-criterion for the n=6
-        adjudication: in solve_n6, H appears ONLY in the comparison
-        h > H rejection (bound-byte line 86 at the frozen hash) and in
-        no candidate-generation expression (coefficients A,B,C, root
-        extraction, g construction, r evaluation). (b) Dynamic
-        confirmation: invoke solve_n6 on the three frozen b-tuples
-        b_index 649, 1299, 4995 (the blind-re-derivation pairs of
-        EV-ECRANK-d7e05f) with H = 10^4 and H = 10^9; the returned
-        (kept, near, meta) must differ ONLY in the kept/near partition
-        by the height filter -- identical root sets, identical meta
-        (A, B, C, n_rational_roots). (c) solve_n8 trace recorded
-        verbatim, DESCRIPTIVE only (no n=8 adjudication). Outputs:
-        trace report JSON (use sites, line numbers, roles), dynamic
-        diff JSON, verdict ledger lines. A trace showing H in n=6
-        candidate generation is a STOP (SR-3): the structural reading
-        is falsified at P1; record and stop the adjudication arms.
-    - id: RUN-ECRANK-41775b-R3-extended-readmission
-      arm: T2
-      protocol: >
-        Exact extended-height re-admission from the committed R12 raw
-        bytes -- no solver re-run, no new b-tuples, no seed use.
-        Precondition check (P2): every near_miss entry with reason
-        r_height_<h> in the committed near_miss_ledger carries the exact
-        root datum t (string Fraction) sufficient for recomputation;
-        count entries; if ANY entry lacks the datum, record the shortfall
-        exactly and report the band counts as LOWER BOUNDS over the
-        recoverable subset (never imputed). For each recoverable root:
-        recompute r_i = g(b_i) with g = [t, 1] (exact Fractions), h_A =
-        max rat_height(r_i), h_B = rat_height(t) (conventions A/B
-        verbatim from bound n2r.py), then engine.build_instance(xs,
-        dpat, r, 6) and, when kept, the same certificate path as R12
-        (certifier from the bound source-v2). Report: N_6^{A,ext}(H')
-        and N_6^{B,ext}(H') for H' in {10^4, 10^5, 10^6, 10^7} as
-        kept(R12) + re-admitted(h <= H'), exact decade ratios between
-        consecutive bands under both conventions, the saturation ceiling
-        (kept + all recoverable re-admissible roots), and the per-tuple
-        multiplicity histogram (roots per tuple, max multiplicity).
-        n=8 band: read the committed R14 raw bytes; near_miss_total 0
-        and found 0 make the n=8 extended band VACUOUS -- report the
-        zero verbatim, no computation. Ops cap 1.0e6 counted ops
-        (IC-1 convention); wall cap 600 s; exhaustion reported AS
-        exhaustion with band counts as lower bounds (rules 3/5).
-    - id: RUN-ECRANK-41775b-R4-density-derivation
-      arm: T3
-      protocol: >
-        Theoretical density derivation from the committed records, with
-        exact spot checks (stdlib Fractions; no floating point in any
-        checked statement). (a) Exhibit the parameter space of HEUR-1's
-        statement (H-ECRANK-ee6e0e: "expected square-pattern points of
-        height <= H in W'(b) ~ C(b,d) H^(5-n/2)") and of the draw-side
-        random-model justification (H-ECRANK-36d8d7: subspace lattice
-        count times square-class equidistribution; draws from a height-H
-        sub-box of 5 seeded coordinates); state which quantity grows
-        with H and why the exponent has the form 5 - n/2 in that
-        regime; mark every recalled external pointer (Hasse-Minkowski)
-        as recalled-not-verified and show it is not load-bearing.
-        (b) Exhibit the construct arm's parameter count from the bound
-        bytes: g linear (2 coefficients, 1 free parameter t after the
-        monic normalization), one quadratic condition -> Bezout <= 2
-        rational candidates per tuple, 0-dimensional; conclude the
-        formal distinction between the two counted quantities.
-        (c) Reformulate the testable construct-side density quantity
-        (b-box scaling: feasible fraction times multiplicity <= 2 over
-        growing samples) as CANDIDATE heuristic HEUR-1-C -- text only,
-        status proposed, never validated here. (d) PROVES-TOO-MUCH
-        control (P5): apply the structural argument to the draw-side
-        committed data (EXP-ECRANK-76a70d R3-armB; EV-ECRANK-8b35bb F1
-        regime): the draw-side search space grows with H by
-        construction, so the argument must NOT predict saturation there;
-        record the explicit step where the two cases diverge. If the
-        argument predicts draw-side saturation, record DEFECT and void
-        the derivation readings. Outputs: derivation.md (numbered
-        steps, every citation with provenance class), spot-check JSON,
-        control JSON.
-    - id: RUN-ECRANK-41775b-R5-replay
-      arm: determinism
-      protocol: >
-        Fresh-process replay of R1 and R3 (the computational runs):
-        every count, ratio, ceiling, multiplicity, and the calibration
-        verdicts must reproduce bit-for-bit (replay-diff.json empty).
-        R2/R4 artifacts are re-hashed and compared (analysis outputs
-        deterministic by construction; a hash mismatch is a defect
-        record, not a re-run).
+    definitions:
+      - id: RUN-ECRANK-41775b-R1-calibration
+        arm: T4
+        protocol: >
+          Synthetic known-answer family: K = 200 constructed tuples, each
+          with exactly two admissible roots whose heights are hand-chosen
+          exact rationals -- one root at height in [2, 10^2) and one at
+          height in [10^3, 10^4) (heights set by the family constructor,
+          recorded exactly). Run the SAME counting and decade-ratio
+          instrument (reimplemented from the N2R convention definitions in
+          the bound n2r.py, conventions A and B) over H in {10^2, 10^3,
+          10^4}. Expected by hand: N^A = N^B = {10^2: 200, 10^3: 400,
+          10^4: 400}; decade ratios [2.0, 1.0]; two-decade 2.0. PASS iff
+          every count and ratio equals the hand value exactly (Fractions).
+          A second calibration family with one root per tuple at heights
+          uniform in decades 10^1..10^4 must reproduce its hand-computed
+          per-decade counts exactly. Failure voids all ratio readings
+          (SR-2) and is reported, never re-scored.
+      - id: RUN-ECRANK-41775b-R2-structural-trace
+        arm: T1
+        protocol: >
+          Machine-checked dataflow trace of the bound bytes. (a) Static
+          trace: parse source/construct.py and source-v2/construct_v2.py
+          (ast module, stdlib); report every use site of the H parameter
+          in solve_n6, solve_n8, construct_arm, construct_arm_v2 with its
+          line number and syntactic role; PASS-criterion for the n=6
+          adjudication: in solve_n6, H appears ONLY in the comparison
+          h > H rejection (bound-byte line 86 at the frozen hash) and in
+          no candidate-generation expression (coefficients A,B,C, root
+          extraction, g construction, r evaluation). (b) Dynamic
+          confirmation: invoke solve_n6 on the three frozen b-tuples
+          b_index 649, 1299, 4995 (the blind-re-derivation pairs of
+          EV-ECRANK-d7e05f) with H = 10^4 and H = 10^9; the returned
+          (kept, near, meta) must differ ONLY in the kept/near partition
+          by the height filter -- identical root sets, identical meta
+          (A, B, C, n_rational_roots). (c) solve_n8 trace recorded
+          verbatim, DESCRIPTIVE only (no n=8 adjudication). Outputs:
+          trace report JSON (use sites, line numbers, roles), dynamic
+          diff JSON, verdict ledger lines. A trace showing H in n=6
+          candidate generation is a STOP (SR-3): the structural reading
+          is falsified at P1; record and stop the adjudication arms.
+      - id: RUN-ECRANK-41775b-R3-extended-readmission
+        arm: T2
+        protocol: >
+          Exact extended-height re-admission from the committed R12 raw
+          bytes -- no solver re-run, no new b-tuples, no seed use.
+          Precondition check (P2): every near_miss entry with reason
+          r_height_<h> in the committed near_miss_ledger carries the exact
+          root datum t (string Fraction) sufficient for recomputation;
+          count entries; if ANY entry lacks the datum, record the shortfall
+          exactly and report the band counts as LOWER BOUNDS over the
+          recoverable subset (never imputed). For each recoverable root:
+          recompute r_i = g(b_i) with g = [t, 1] (exact Fractions), h_A =
+          max rat_height(r_i), h_B = rat_height(t) (conventions A/B
+          verbatim from bound n2r.py), then engine.build_instance(xs,
+          dpat, r, 6) and, when kept, the same certificate path as R12
+          (certifier from the bound source-v2). Report: N_6^{A,ext}(H')
+          and N_6^{B,ext}(H') for H' in {10^4, 10^5, 10^6, 10^7} as
+          kept(R12) + re-admitted(h <= H'), exact decade ratios between
+          consecutive bands under both conventions, the saturation ceiling
+          (kept + all recoverable re-admissible roots), and the per-tuple
+          multiplicity histogram (roots per tuple, max multiplicity).
+          n=8 band: read the committed R14 raw bytes; near_miss_total 0
+          and found 0 make the n=8 extended band VACUOUS -- report the
+          zero verbatim, no computation. Ops cap 1.0e6 counted ops
+          (IC-1 convention); wall cap 600 s; exhaustion reported AS
+          exhaustion with band counts as lower bounds (rules 3/5).
+      - id: RUN-ECRANK-41775b-R4-density-derivation
+        arm: T3
+        protocol: >
+          Theoretical density derivation from the committed records, with
+          exact spot checks (stdlib Fractions; no floating point in any
+          checked statement). (a) Exhibit the parameter space of HEUR-1's
+          statement (H-ECRANK-ee6e0e: "expected square-pattern points of
+          height <= H in W'(b) ~ C(b,d) H^(5-n/2)") and of the draw-side
+          random-model justification (H-ECRANK-36d8d7: subspace lattice
+          count times square-class equidistribution; draws from a height-H
+          sub-box of 5 seeded coordinates); state which quantity grows
+          with H and why the exponent has the form 5 - n/2 in that
+          regime; mark every recalled external pointer (Hasse-Minkowski)
+          as recalled-not-verified and show it is not load-bearing.
+          (b) Exhibit the construct arm's parameter count from the bound
+          bytes: g linear (2 coefficients, 1 free parameter t after the
+          monic normalization), one quadratic condition -> Bezout <= 2
+          rational candidates per tuple, 0-dimensional; conclude the
+          formal distinction between the two counted quantities.
+          (c) Reformulate the testable construct-side density quantity
+          (b-box scaling: feasible fraction times multiplicity <= 2 over
+          growing samples) as CANDIDATE heuristic HEUR-1-C -- text only,
+          status proposed, never validated here. (d) PROVES-TOO-MUCH
+          control (P5): apply the structural argument to the draw-side
+          committed data (EXP-ECRANK-76a70d R3-armB; EV-ECRANK-8b35bb F1
+          regime): the draw-side search space grows with H by
+          construction, so the argument must NOT predict saturation there;
+          record the explicit step where the two cases diverge. If the
+          argument predicts draw-side saturation, record DEFECT and void
+          the derivation readings. Outputs: derivation.md (numbered
+          steps, every citation with provenance class), spot-check JSON,
+          control JSON.
+      - id: RUN-ECRANK-41775b-R5-replay
+        arm: determinism
+        protocol: >
+          Fresh-process replay of R1 and R3 (the computational runs):
+          every count, ratio, ceiling, multiplicity, and the calibration
+          verdicts must reproduce bit-for-bit (replay-diff.json empty).
+          R2/R4 artifacts are re-hashed and compared (analysis outputs
+          deterministic by construction; a hash mismatch is a defect
+          record, not a re-run).
   controls:
     - id: C1
       control: R1 calibration admission FIRST -- the ratio instrument must reproduce two hand-computed known-answer families exactly before any measured ratio is read; failure voids all ratio readings (SR-2).
