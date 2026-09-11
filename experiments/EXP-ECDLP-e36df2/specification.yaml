@@ -1,0 +1,336 @@
+experiment:
+  id: EXP-ECDLP-e36df2
+  hypothesis_id: H-ECDLP-09125b
+  derived_from_idea: IDEA-20260911-2dd68d
+  instrument_idea: IDEA-20260905-dacf4f
+  question_id: RQ-ECDLP-c1b7b1
+  goal_id: GOAL-ECDLP-001
+  version: 1
+  title: >-
+    Resolution-matched, degeneracy-screened re-test of the Teichmuller
+    non-homomorphic contrast (repairing H-ECDLP-6a9479 claim 3)
+  status: approved
+  objective: >-
+    Make H-ECDLP-6a9479 claim (3) decidable at toy scale by (a) removing the
+    m=1 tautology from the agreement statistic, (b) excluding, via an
+    explicit cross-prime screen, any tested multiple whose x- or
+    y-coordinate is a universal (p-1)-th root of unity (+-1), (c) scaling
+    the per-instance sample size so a 3x-chance systematic effect is
+    statistically resolvable at alpha=0.01, (d) testing two independently
+    realized non-homomorphic contrast sections (s_x, s_y) plus a seeded
+    random null-object control (s_rand), and (e) adding one engineered
+    positive-control curve whose m=2 coincidence the screen must catch.
+    Decides H-ECDLP-09125b (does NOT reopen H-ECDLP-6a9479, which stays
+    `analyzed` with claim (3) `refine`, immutable).
+  inputs:
+    procedure: >-
+      STAGE 0 (FREE, BLOCKING GATE, no new compute beyond a comparison
+      against already-committed data). For the 20 original instances,
+      recompute [m]S mod p^K for m = 2..256 via padic.pmul(m, S_mod_pK, A,
+      N) (the frozen instrument function, imported read-only from
+      experiments/EXP-ECDLP-a26bde/driver/instrument.py / padic.py; never
+      copied-and-modified for this stage) and require EXACT agreement, at
+      every m, with the already-committed reduce_point_mod(exactcurve.mul(
+      A, B, m, S_exact), N, p) values in
+      experiments/EXP-ECDLP-a26bde/runs/RUN-ECDLP-a26bde-001..020/
+      raw-result.json (read-only). This is the numerical confirmation
+      DEC-20260911-74c9dc's next_actions (a) asked for, generalized to a
+      full regression check that the cheaper (pmul-based) computation path
+      is faithful before it is trusted at m beyond 256. STAGE 0 IS
+      BLOCKING: if even one mismatch is found, halt immediately -- do not
+      proceed to Stage 2/3 (see stopping_rules and invalidation_rules).
+      STAGE 1 (new curve, must complete before Stage 2). Freeze the
+      engineered positive-control curve: A=5, B=10, (x0,y0)=(1,4)
+      (4^2=16=1+5+10, on-curve by construction), doubling slope
+      lambda=(3*1+5)/(2*4)=1 exactly, giving 2S^=(-1,-2) exactly over Q.
+      Run the SAME seeded search (adapted from
+      experiments/EXP-ECDLP-a26bde/driver/curves.py's
+      _find_primes_for_curve, same criteria: p in [2^10,2^14), good
+      ordinary reduction, gcd(n,p)=1, #E(F_p) != p) to find 4 reduction
+      primes for this curve, exactly as the original five curves were
+      selected. Record the frozen curve and its 4 primes before any Stage 2
+      compute is spent (required_artifacts).
+      STAGE 2 (the amended ladder, per instance i with prime p_i, over all
+      6 curves x 4 primes = 24 instances: the original 20 plus the new
+      positive control's 4). Compute N_i = ceil(20 * p_i) (mu_0_target=20;
+      power justification below). u_S / u_S_y / u_rand (the m=1 baselines
+      for s_x, s_y, s_rand respectively) are computed ONCE per instance,
+      outside and never re-entering the main loop -- this removes the
+      tautology (H-ECDLP-6a9479's stage23.py computed the m=1 baseline and
+      the m=1 loop iteration via the byte-identical function call on
+      byte-identical arguments; this design never repeats that call inside
+      the counted trials). For m = 2 .. N_i+1 (skipping any m with n | m,
+      as before): compute mS_mod_K via padic.pmul(m, S_mod_K_big, A, N_big)
+      (replacing the original stage23.py's exact-Fraction path for this arm
+      only -- reduction mod p^K commutes with the group law, a standard
+      ring-homomorphism fact, not a heuristic, so [m]S mod p^K needs only
+      O(log2 m) modular point operations regardless of m's magnitude);
+      verify mS_mod_K satisfies the curve equation mod p^K exactly (cheap
+      on-curve sanity check against silent precision underflow at deep
+      ladder depth -- reusing split_point's margin-escalation pattern
+      (40,60,75) on any failure, propagating PrecisionInsufficient if all
+      three margins fail); compute d(mS) via the frozen digit machinery
+      (unchanged, imported read-only); compute s_x(mS), s_y(mS), s_rand(mS)
+      and each one's defect digit against t(mS) (teichmuller_defect_digit-
+      style pattern, unchanged). FLAG m as x-degenerate if x(mS) mod p_i in
+      {1, p_i-1} holds for EVERY one of that curve's tested primes
+      SIMULTANEOUSLY at that m (the cross-prime screen); symmetric
+      y-degenerate flag for s_y using y(mS) mod p_i. Exclude flagged m from
+      the primary statistic; report flagged m and their per-prime pattern
+      separately (required_metrics). DO NOT retain a full per-m raw record
+      for the entire deep ladder (up to ~3.3*10^5 values per instance) --
+      retain only running aggregate counts (n_agree, n_total-after-
+      exclusion per section) plus the small list of flagged/agreeing m
+      (rare events, bounded size) and a chi-square-summary tally of the
+      digit distribution for H1's validation; this bounds memory well below
+      a full-table dump and is a required design property of the new
+      driver, not an optional optimization.
+      STAGE 3 (statistic). For each of s_x, s_y, s_rand: mu_0_i = n_i(after
+      exclusion)/p_i; mu_0 = sum(mu_0_i) over the pooled instance set (20
+      original + 4 positive-control for s_x/s_y/s_rand's main pooled
+      statistic; the positive control's OWN m=2 is excluded by its own
+      x-screen flag before pooling, consistent with (ii) above); k = pooled
+      agreement count; one-sided exact Poisson test of k against mu_0 at
+      alpha=0.01; rho_hat = k/mu_0 with a 95% CI (exact Poisson CI on k,
+      divided by mu_0). Falsify "no systematic linearity" only if BOTH
+      p < 0.01 AND rho_hat's point estimate >= 3 (joint significance-and-
+      effect-size bar, frozen before any data are examined; avoids both a
+      trivial-effect false alarm from huge N and a large-looking noise
+      fluctuation misread as significant). POWER JUSTIFICATION for
+      mu_0_target=20: for a one-sided Poisson test at alpha=0.01
+      distinguishing mu_0=lambda (null, rate ~1/p) from 3*lambda
+      (alternative, rate ~3/p), the normal approximation gives power >=
+      0.90 once lambda >~ 5-6; lambda=20 gives SD(rho_hat)=sqrt(1/20)=0.224
+      under the null (95% CI approx [0.56,1.44], excluding 3) and
+      SD(rho_hat)=sqrt(3/20)=0.387 under a true 3x effect (95% CI approx
+      [2.24,3.76], excluding 1) -- a 3-4x safety margin over the minimum
+      resolvable lambda.
+    mechanism: >-
+      For gcd(n,p)=1 the reduction sequence splits on the prime-to-p part
+      and the homomorphic section is unique (KN-TECH-73630e), so any other
+      section (s_x, s_y, s_rand) is automatically non-homomorphic and its
+      digit is not expected to be linear in m except by chance (rate
+      ~1/p). Q's only roots of unity are +1 and -1, so a Teichmuller-style
+      lift of any coordinate has degeneracy set exactly {+-1}: whenever a
+      tested multiple's relevant coordinate reduces to +-1 (as curve 2's
+      x(2S^)=-1 does, and as the engineered positive control's x(2S^)=-1
+      does by construction), the Teichmuller/Hensel lift reproduces the
+      true global reduction exactly, with zero p-adic correction, at every
+      prime -- an instrument-realization coincidence, not evidence the
+      section is homomorphic. The cross-prime screen detects this cheaply
+      (a purely modular necessary condition, checkable with zero exact-
+      rational cost) without needing exact rational arithmetic to decide
+      "is x(mS^) exactly +-1 over Q" at the scale this design needs (see
+      heuristic H2 in H-ECDLP-09125b). H1 in H-ECDLP-09125b is the null
+      model (digit agreement ~Bernoulli(1/p), independent across m)
+      the Poisson statistic above assumes; s_rand's own measured rate is
+      the built-in tail check on H1 and on the statistic's own
+      implementation.
+    instrument: >-
+      The Executor builds a NEW driver under experiments/EXP-ECDLP-e36df2/
+      driver/. It MUST reuse or adapt (never modify in place)
+      experiments/EXP-ECDLP-a26bde/driver/instrument.py's padic.pmul,
+      split_point, teichmuller_lift_scalar and teichmuller_section --
+      either by importing them read-only from the frozen module, or by
+      copying the exact function bodies into the new driver with a
+      comment naming the source and commit. EXP-ECDLP-a26bde's own driver/,
+      runs/ and specification.yaml are FROZEN artifacts of 22
+      already-official runs (cited by EV-ECDLP-95ec68) and MUST NOT be
+      touched, edited, or have any file added under them by this
+      experiment. New code required beyond reuse: (1) the s_y section
+      (Teichmuller-lift y, Hensel-lift x from the cubic -- a genuinely new,
+      independently coded construction, not a relabelling of
+      teichmuller_section); (2) the s_rand null-object section (seeded
+      pseudorandom-digit x' = x0 + p * PRNG(seed, curve_idx, p, m) mod
+      p^(K-1), y Hensel-lifted from x'); (3) the cross-prime screen; (4)
+      the Poisson/CI statistic and chi-square diagnostics; (5) the
+      positive-control curve's frozen-parameter generation (adapted from
+      driver/curves.py's prime-search criteria, applied to the fixed
+      A=5,B=10,x0=1,y0=4). Python fractions only for the exact Stage 0
+      regression comparison against a26bde's committed values; Stage 2's
+      main ladder uses padic.pmul-based modular arithmetic throughout, per
+      the mechanism above. harness/runner.py for run records, as
+      EXP-ECDLP-a26bde. No numpy.
+  controls:
+    - >-
+      Stage 0's pmul-vs-exact-Fraction regression check on the existing
+      m=1..256 data (free, using already-committed raw-result.json values)
+      as a validity control on the new, cheaper computation path, BLOCKING
+      before Stage 2/3 compute is spent.
+    - >-
+      s_rand: a seeded pseudorandom-digit null-object section per
+      docs/inventor-protocol.md section 3 -- a valid on-curve point
+      reducing correctly to R mod p, with no relationship to the true
+      global lift beyond the first digit and no possible +-1-type
+      degeneracy by construction. Its rho_hat must read as chance (CI
+      contains 1) or the statistic itself is broken.
+    - >-
+      Engineered positive-control curve, run through the IDENTICAL
+      pipeline including the cross-prime screen: discriminates "the
+      corrected instrument is blind to the coincidence too" (screen fails
+      to flag m=2, an instrument defect) from "the corrected instrument
+      correctly excludes only the named degeneracy and honestly reports the
+      remaining multiples" (screen flags m=2 on 4/4 primes, AND the curve's
+      own post-exclusion rho_hat behaves like an ordinary instance). The
+      positive control's non-m=2 multiples are ALSO pooled into the main
+      s_x/s_y/s_rand statistics (dual role: instrument check at m=2, extra
+      statistical power everywhere else).
+    - >-
+      On-curve verification (y^2 == x^3+Ax+B mod p^K) for every pmul-
+      computed mS_mod_K, guarding against silent precision underflow at
+      ladder depths (log2(N_i) up to ~19-20 doublings) well beyond the
+      original 68-value ladder.
+    - >-
+      Reuse of the SAME torsion-section/formal-log machinery (split_point,
+      digit computation) unmodified from instrument.py, so any discrepancy
+      against claim (1)'s already-`support`-ed 1360/1360 exact agreements
+      on the reused prefix is itself a regression signal.
+    - the five original instrument self-checks (already passed and frozen under EXP-ECDLP-a26bde; not re-run here, cited by reference)
+  independent_variables:
+    - curve in {the 5 curves frozen by EXP-ECDLP-a26bde} union {the new engineered positive-control curve}
+    - prime in {4 per curve, 24 total (curve,prime) instances}
+    - m in the amended per-instance ladder (2..N_i+1, N_i=ceil(20*p_i), skipping n | m)
+    - section in {s_x, s_y, s_rand}
+  metrics:
+    primary:
+      - per-instance and pooled rho_hat_x with 95% exact-Poisson CI and one-sided Poisson p-value (alpha=0.01), post m=1 and post cross-prime-exclusion
+      - per-instance and pooled rho_hat_y, identical statistic, independently realized section
+      - per-instance and pooled rho_hat_rand, identical statistic, null-object control
+      - positive-control curve's cross-prime screen flag rate at m=2 (target 4/4)
+    secondary:
+      - count and identity (curve, prime, m) of every cross-prime-flagged degenerate multiple, for both x- and y-screens
+      - Stage 0 regression agreement count (pmul vs exact-Fraction on m=1..256, 20 instances): target exact, 0 mismatches
+      - positive-control curve's post-exclusion rho_hat restricted to that curve alone (its other, non-m=2 multiples)
+      - per-instance chi-square goodness-of-fit statistic for d(s_x(mS)) and d(s_y(mS)) against Uniform(Z/pZ), validating heuristic H1
+      - H2 diagnostic: empirical per-prime frequency of x(mS) mod p_i in {1,p_i-1} on both the existing a26bde data (free) and the new ladder, compared against the ~2/p_i base rate
+      - wall-clock and CPU time per instance, to calibrate the N_i-scaling estimate against measured cost
+      - sensitivity check: the same pooled statistic recomputed at mu_0_target=40 on a subset of instances, confirming the verdict is unchanged (idea confounder #1)
+  heuristic_under_test: [H1, H2]
+  preregistered_prediction:
+    quantity: rho_hat_x, rho_hat_y, rho_hat_rand (pooled agreement-rate ratios) and the positive-control screen flag rate
+    formula: >-
+      rho_hat_x, rho_hat_y, rho_hat_rand each expected near 1 with 95% CI
+      excluding 3 (H-ECDLP-09125b's amended claim 3); positive-control
+      screen flag rate expected 4/4 at m=2.
+    source: >-
+      IDEA-20260911-2dd68d's minimal_test design and power justification;
+      H-ECDLP-09125b's statement and heuristic_assumptions H1/H2;
+      pre-registered before any run of this experiment; never tuned to
+      data.
+  scale_relevance:
+    tier: toy
+    justification: >-
+      Six curves (5 original + 1 engineered), 24 (curve,prime) instances,
+      primes in [2^10,2^14); per-instance ladder depth up to N_i ~
+      20*2^14 ~ 3.3*10^5 (~19 binary doublings), well beyond the original
+      68-value ladder but still toy scale. No transfer to cryptographic
+      scale claimed or implied.
+    correspondence: null
+  tail_checks:
+    - >-
+      Per-instance chi-square goodness-of-fit of the empirical digit
+      distribution of s_x, s_y against Uniform(Z/pZ) over the full
+      (non-excluded) ladder (H1 validation), reported alongside the main
+      statistic.
+    - >-
+      Sensitivity of the pooled verdict to mu_0_target: recompute at
+      mu_0_target=40 on a subset of instances and confirm the verdict
+      (support/falsify/inconclusive) is unchanged.
+    - >-
+      The largest deviation of the empirical cross-prime base rate from
+      ~2/p_i (H2 diagnostic), reported per curve.
+  replication:
+    seeds: [20260905, 20260911]
+    independent_instances: 24
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: null
+    total_cpu_hours: 6
+    maximum_memory_gb: 6
+    maximum_runs: 25
+    maximum_workers: null
+  stopping_rules:
+    - >-
+      STOP IMMEDIATELY after Stage 0 if any pmul-vs-exact-Fraction mismatch
+      is found; do not proceed to Stage 1/2/3. This is a blocking gate, not
+      advisory: no Stage 2/3 compute may be spent before Stage 0 passes
+      with 0 mismatches.
+    - Stop immediately if the positive-control curve fails to be found within a generous seeded search budget (mirrors driver/curves.py's own exhaustion RuntimeError); report as a design/infrastructure defect, not a finding.
+    - Stop at maximum_runs (25) or total_cpu_hours, whichever binds first, once past Stage 0/1's blocking gates -- advisory per docs/research-budget-policy.md; may be extended without repeated user approval per CLAUDE.md "Research budgets: progress first" if genuinely justified, but N_i=ceil(20*p_i) itself is a frozen scientific protocol and may not be reduced to fit a budget.
+  invalidation_rules:
+    - "A timeout, crash, memory exhaustion or dependency failure makes the affected instance failed_infrastructure and is never negative mathematical evidence (AGENTS.md rule 5)."
+    - "A Stage 0 mismatch invalidates the entire experiment before Stage 2/3 begins; report and halt, do not silently patch the driver and continue past it without a Coordinator decision."
+    - "A pmul-computed mS_mod_K that fails the on-curve verification at all three escalated margins (40,60,75) makes that instance's affected m attempted_and_inconclusive for that m only (PrecisionInsufficient propagated), not a silent exclusion or a wrong digit."
+    - "The positive-control screen failing to flag the known m=2 coincidence on any of its 4 primes makes the WHOLE EXPERIMENT's claim-3 reading invalid (instrument defect), independent of what rho_hat_x/rho_hat_y otherwise show."
+    - "s_rand's 95% CI excluding 1.0 makes the whole experiment's claim-3 reading invalid (null-model or implementation defect), independent of what rho_hat_x/rho_hat_y otherwise show."
+  success_criterion: >-
+    DECIDABLE BOTH WAYS, four disjoint outcomes (see H-ECDLP-09125b
+    distinguishable_outcomes for the matching hypothesis-level statement):
+    (1) SUPPORTED: Stage 0 passes (0 mismatches); positive control flagged
+    4/4 at m=2; s_rand's CI contains 1; AND both rho_hat_x's and
+    rho_hat_y's 95% CIs contain 1 and exclude any value >= 3. Reads as "no
+    systematic linearity resolvable at this resolution", closing
+    DEC-20260911-74c9dc's carve-out. (2) FALSIFIED: Stage 0 passes; both
+    controls (positive control, s_rand) pass; AND rho_hat_x's or
+    rho_hat_y's CI has a lower bound >= 3 jointly with one-sided Poisson
+    p < 0.01. Reads as a real, resolvable systematic excess, contradicting
+    the "never systematically" prediction. (3) SPLIT/INCONCLUSIVE: controls
+    pass but rho_hat_x and rho_hat_y disagree in verdict. Reported as an
+    open confound, not resolved by either reading alone; neither support
+    nor falsification. (4) INSTRUMENT INVALIDATION: Stage 0 shows any
+    mismatch, OR the positive-control screen fails to flag its known m=2
+    coincidence on any prime, OR s_rand's CI excludes 1. None of these is a
+    claim-3 verdict; the defect is fixed and the experiment re-run (a new
+    EXP-* under a protocol_amendment if the design itself must change)
+    before any reading of rho_hat_x/rho_hat_y is trusted.
+  falsification_criterion:
+    - "rho_hat_x's or rho_hat_y's 95% CI has a lower bound >= 3, jointly with one-sided Poisson p < 0.01, with both controls (positive control, s_rand) passing: claim (3) as amended is FALSE; re-derivation needed."
+    - "The cross-prime screen fails to flag the engineered positive control's known m=2 coincidence on any of its 4 primes: instrument invalidation, not a claim-3 verdict."
+    - "s_rand's 95% CI excludes 1.0: the chance-level null model or its implementation is broken; instrument invalidation, not a claim-3 verdict."
+    - "Stage 0's regression shows any mismatch: the new computation path is not faithful; halt before Stage 2/3, re-derive before trusting results at m > 256."
+    - "Crashes, timeouts, memory exhaustion at any stage: infrastructure, never negative mathematical evidence (AGENTS.md rule 5)."
+  required_artifacts:
+    - manifest.yaml with command, commit, dirty-tree state, environment and the inference block (per run, as EXP-ECDLP-a26bde's pattern)
+    - >-
+      stage0_regression_transcript.json: per (instance, m in 2..256)
+      comparison of the new pmul-based mS_mod_K against the corresponding
+      already-committed exact-Fraction reduce_point_mod value from
+      EXP-ECDLP-a26bde's raw-result.json, with an explicit match/mismatch
+      count (must be 0 to proceed to Stage 2/3)
+    - >-
+      frozen_positive_control_curve.json: the engineered curve's
+      parameters (A=5, B=10, x0=1, y0=4, lambda=1, 2S^=(-1,-2)) and its 4
+      selected reduction primes with the same fields as
+      EXP-ECDLP-a26bde/frozen_curves_and_primes.json's per-curve entries
+      (p, order, trace, n), generated by the identical seeded search
+      criteria
+    - >-
+      raw-result.json per instance (24 total): instance metadata (curve
+      idx, prime, n, N_i), aggregate n_agree/n_total-after-exclusion and
+      mu_0_i for each of s_x, s_y, s_rand, the census of flagged degenerate
+      m (list of (m, per-prime pattern)) for both x- and y-screens, the
+      chi-square goodness-of-fit statistic for s_x/s_y, and wall-clock/CPU
+      time -- explicitly NOT a full per-m raw table for the entire deep
+      ladder (see inputs.procedure Stage 2's memory-bounding requirement)
+    - >-
+      pooled-summary.json: pooled rho_hat_x/rho_hat_y/rho_hat_rand with
+      95% exact-Poisson CIs and one-sided Poisson p-values; the joint
+      alpha=0.01/effect>=3 verdict for each of s_x and s_y; the positive
+      control's screen flag rate at m=2 and its own restricted rho_hat; the
+      mu_0_target=40 sensitivity-check result
+    - >-
+      design_note.md: documents the s_y and s_rand construction code paths
+      (as independently coded, not relabelled), the cross-prime screen's
+      exact definition, and the H2 empirical base-rate tabulation extending
+      to EXP-ECDLP-a26bde's existing raw data
+  assigned_to: executor
+  approved_by: coordinator
+  approval_gate:
+    - "Coordinator approval required before execution; this contract is frozen upon ledger commit."
+    - "Stage 0 is BLOCKING: zero pmul-vs-exact-Fraction mismatches required on the existing m=1..256 data before any Stage 2/3 compute (the deeper ladder) is spent."
+    - "The positive-control curve and its 4 reduction primes must be generated via the identical seeded driver/curves.py-style procedure and criteria as the original five curves, and frozen (required_artifacts) before Stage 2 begins."
+    - "EXP-ECDLP-a26bde's driver/, runs/, specification.yaml, analysis.md and derivation_note.md are frozen artifacts of 22 already-official runs and MUST NOT be modified, appended to, or reused via in-place edits; the new instrument lives entirely under experiments/EXP-ECDLP-e36df2/driver/, importing read-only or copying-with-attribution the named functions."
+    - "The m=1 baseline for each section is computed exactly once per instance, outside and never re-entering the counted m-loop, removing the tautology named in EV-ECDLP-95ec68/DEC-20260911-74c9dc."
+    - "N_i = ceil(20 * p_i) is a FROZEN scientific sample-size protocol, not a budget figure; it may not be reduced to fit a CPU/time estimate without a versioned protocol_amendment record."
+    - "The joint alpha=0.01 / effect>=3 falsification bar, and the four-way success_criterion/falsification_criterion split above, are frozen before any data are examined and may not be loosened or re-worded after seeing results."
+    - "This experiment cannot change H-ECDLP-6a9479's own status, statement, or status_note (immutable); it can only produce evidence for/against the new, repaired H-ECDLP-09125b."
