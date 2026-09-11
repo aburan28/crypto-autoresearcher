@@ -148,6 +148,7 @@ def load_plan(root: Path, path: Path) -> dict[str, Any]:
                 raise ExecutionError(f"{tid}.{field}: no hash-bound source")
         artifacts = trial.get("artifacts")
         if (not isinstance(artifacts, list) or not artifacts
+                or not all(isinstance(name, str) and name for name in artifacts)
                 or len(set(artifacts)) != len(artifacts)
                 or "manifest.yaml" not in artifacts or "raw-result.json" not in artifacts):
             raise ExecutionError(f"{tid}: require manifest.yaml and raw-result.json artifacts")
@@ -155,6 +156,15 @@ def load_plan(root: Path, path: Path) -> dict[str, Any]:
             safe_path(run_root(root, plan, trial), name)
             if name in GENERATED:
                 raise ExecutionError(f"{tid}: reserved artifact name {name}")
+        allow_empty = trial.get("allow_empty_artifacts", [])
+        if (not isinstance(allow_empty, list)
+                or not all(isinstance(name, str) and name for name in allow_empty)
+                or len(set(allow_empty)) != len(allow_empty)):
+            raise ExecutionError(f"{tid}.allow_empty_artifacts: expected unique artifact names")
+        for name in allow_empty:
+            safe_path(run_root(root, plan, trial), name)
+            if name in GENERATED or name not in artifacts:
+                raise ExecutionError(f"{tid}.allow_empty_artifacts: undeclared or reserved artifact {name}")
         positive(trial.get("memory_mb"), f"{tid}.memory_mb")
         watchdog = trial.get("watchdog_seconds")
         if watchdog is not None:
@@ -387,9 +397,10 @@ def execute_trial(root: Path, path: Path, plan: dict[str, Any], trial: dict[str,
             status = (state if state != "exited" else
                       "output_validated" if check_returncode == 0 else "invalid_output")
         if status == "output_validated":
+            allow_empty = set(trial.get("allow_empty_artifacts", []))
             for name in trial["artifacts"]:
                 file = safe_path(directory, name)
-                if not file.is_file() or file.stat().st_size == 0:
+                if not file.is_file() or (file.stat().st_size == 0 and name not in allow_empty):
                     raise ExecutionError(f"missing/empty required artifact: {name}")
     except KeyboardInterrupt:
         status, interrupted = "interrupted", True

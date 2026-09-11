@@ -7,13 +7,14 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 import json
+import hashlib
 import os
 from pathlib import Path
 import subprocess
 import sys
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
 import experiment_execution as execution
@@ -32,9 +33,19 @@ if kind == "fail":
     sys.exit(4)
 if kind == "sleep":
     time.sleep(30)
+if kind in ("empty", "empty_bad", "empty_manifest"):
+    (p / "counterexamples.jsonl").touch()
+if kind == "nonempty":
+    (p / "counterexamples.jsonl").write_text("{}")
+if kind == "directory":
+    (p / "counterexamples.jsonl").mkdir()
+if kind == "symlink":
+    (p / "counterexamples.jsonl").symlink_to(p / "raw-result.json")
 if kind != "missing":
-    (p / "raw-result.json").write_text(json.dumps({"effect": -1, "bad": kind == "bad"}))
+    (p / "raw-result.json").write_text(json.dumps({"effect": -1, "bad": kind in ("bad", "empty_bad")}))
 (p / "manifest.yaml").write_text("status: observed\\n")
+if kind == "empty_manifest":
+    (p / "manifest.yaml").write_text("")
 print("measured negative observation")
 '''
 DISPATCHER = '''import argparse, json
@@ -186,6 +197,111 @@ class ExecutionTests(unittest.TestCase):
                 report = self.run_plan()
                 self.assertEqual(report["output_validated"], 0)
                 self.assertEqual(execution.read_json(self.directory() / "execution-receipt.json")["status"], "invalid_output")
+
+    def empty_trial(self, index, mode, allowed=True):
+        trial = self.trial(index, mode)
+        trial["artifacts"].append("counterexamples.jsonl")
+        if allowed:
+            trial["allow_empty_artifacts"] = ["counterexamples.jsonl"]
+        return trial
+
+    def test_declared_empty_file_is_hashed_and_nonempty_remains_valid(self):
+        for index, mode in enumerate(("empty", "nonempty"), 21):
+            with self.subTest(mode=mode):
+                self.plan["trials"] = [self.empty_trial(index, mode)]
+                self.write_plan_queue(); self.commit()
+                self.assertTrue(self.run_plan()["measurement_complete"])
+                receipt = execution.read_json(self.directory() / "execution-receipt.json")
+                expected = b"" if mode == "empty" else b"{}"
+                self.assertEqual((self.directory() / "counterexamples.jsonl").read_bytes(), expected)
+                self.assertEqual(receipt["artifact_sha256"]["counterexamples.jsonl"], hashlib.sha256(expected).hexdigest())
+                self.assertEqual(receipt["check_returncode"], 0)
+
+    def test_empty_permission_does_not_bypass_output_or_checker_requirements(self):
+        variants = (("empty", False), ("ok", True), ("empty_bad", True),
+                    ("empty_manifest", True), ("directory", True), ("symlink", True))
+        for index, (mode, allowed) in enumerate(variants, 31):
+            with self.subTest(mode=mode, allowed=allowed):
+                self.plan["trials"] = [self.empty_trial(index, mode, allowed)]
+                self.write_plan_queue(); self.commit()
+                if mode == "symlink":
+                    with self.assertRaisesRegex(execution.ExecutionError, "symlink not allowed"):
+                        self.run_plan()
+                else:
+                    self.assertFalse(self.run_plan()["measurement_complete"])
+                receipt = execution.read_json(self.directory() / "execution-receipt.json")
+                self.assertEqual(receipt["status"], "invalid_output")
+                self.assertEqual(receipt["returncode"], 0)
+                self.assertEqual(receipt["check_returncode"], 1 if mode == "empty_bad" else 0)
+
+    def test_empty_artifact_change_or_deletion_requires_reconciliation(self):
+        for index, mutation in enumerate(("change", "delete"), 41):
+            with self.subTest(mutation=mutation):
+                self.plan["trials"] = [self.empty_trial(index, "empty")]
+                self.write_plan_queue(); self.commit()
+                self.assertTrue(self.run_plan()["measurement_complete"])
+                artifact = self.directory() / "counterexamples.jsonl"
+                receipt = (self.directory() / "execution-receipt.json").read_bytes()
+                if mutation == "change":
+                    artifact.write_text("changed")
+                else:
+                    artifact.unlink()
+                self.assertEqual(self.run_plan()["needs_reconciliation"], 1)
+                self.assertEqual(receipt, (self.directory() / "execution-receipt.json").read_bytes())
+                if mutation == "change":
+                    self.assertEqual(artifact.read_text(), "changed")
+                else:
+                    self.assertFalse(artifact.exists())
+
+    def test_empty_declaration_rejects_invalid_carriers_before_launch(self):
+        values = (None, "counterexamples.jsonl", {}, True, [None], [True], [1],
+                  [{}], [[]], [""], ["counterexamples.jsonl", "counterexamples.jsonl"],
+                  ["absent.jsonl"], ["*"], ["stdout.log"])
+        for value in values:
+            with self.subTest(value=value):
+                trial = self.empty_trial(51, "empty")
+                trial["allow_empty_artifacts"] = value
+                self.plan["trials"] = [trial]
+                self.write_plan_queue()
+                with patch.object(execution.subprocess, "Popen") as launch:
+                    with self.assertRaises(execution.ExecutionError):
+                        self.run_plan()
+                    launch.assert_not_called()
+                self.assertFalse(self.directory().exists())
+
+    def test_empty_declaration_rejects_noncanonical_and_symlink_paths(self):
+        paths = ("/tmp/outside", "../outside", "a/../b", "./a", "a//b", "a/", "a\\b", "a\x00b")
+        for name in paths:
+            with self.subTest(name=name):
+                trial = self.empty_trial(52, "empty")
+                trial["artifacts"].append(name)
+                trial["allow_empty_artifacts"] = [name]
+                self.plan["trials"] = [trial]
+                self.path.write_text(json.dumps(self.plan))
+                with self.assertRaises(execution.ExecutionError):
+                    execution.load_plan(self.root, self.path)
+                self.assertFalse(self.directory().exists())
+        self.plan["trials"] = [self.empty_trial(53, "empty")]
+        self.write_plan_queue()
+        self.directory().mkdir(parents=True)
+        (self.directory() / "counterexamples.jsonl").symlink_to(self.root / "driver.py")
+        with self.assertRaises(execution.ExecutionError):
+            execution.load_plan(self.root, self.path)
+
+    def test_address_space_limit_request_is_unchanged(self):
+        import resource
+        self.directory().mkdir(parents=True)
+        process = Mock(pid=123456, returncode=0)
+        process.poll.return_value = 0
+        def spawn(*args, **kwargs):
+            kwargs["preexec_fn"]()
+            self.assertTrue(kwargs["start_new_session"])
+            self.assertEqual(kwargs["pass_fds"], (0,))
+            return process
+        with patch.object(resource, "setrlimit") as limit, patch.object(execution.subprocess, "Popen", side_effect=spawn), patch.object(execution, "terminate_group") as terminate:
+            self.assertEqual(execution.run_process(["fixture"], self.root, self.directory(), "", self.trial(1), {"expires_at": self.expires}, 0), ("exited", 0))
+            limit.assert_called_once_with(resource.RLIMIT_AS, (256 * 1024 * 1024, 256 * 1024 * 1024))
+            terminate.assert_called_once_with(process)
 
     def test_watchdog_preserves_failure_not_scientific_conclusion(self):
         self.plan["trials"] = [self.trial(1, "sleep")]
