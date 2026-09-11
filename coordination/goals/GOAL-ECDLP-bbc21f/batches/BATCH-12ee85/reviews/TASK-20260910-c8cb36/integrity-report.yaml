@@ -1,0 +1,411 @@
+# ============================================================================
+# J2 INTEGRITY / CONFORMANCE / RECOMPUTATION REPORT
+# Task TASK-20260910-c8cb36 (role: validator, joint J2 of REVIEW-PLAN-BATCH-12ee85)
+# Subject: Stage A'' seal (TASK-20260907-7afa98, BATCH-4433c1) and the Stage B''
+# 200-cell production grid (RUN-ECDLP-6ac801-v3-n20/n24-s01..25).
+# Observations only. No status change. No interpretation of what agreement
+# between the two packages means; that is the composed round's work.
+# ============================================================================
+validation_report:
+  id: VAL-20260911-a7f3e2
+  task_id: TASK-20260910-c8cb36
+  review_plan: REVIEW-PLAN-BATCH-12ee85
+  joint: J2_record_integrity_conformance_and_comparison_recompute
+  run_ids:
+    - RUN-ECDLP-6ac801-v3-n20-s01..s25   # 25 runs, N=2^20
+    - RUN-ECDLP-6ac801-v3-n24-s01..s25   # 25 runs, N=2^24
+    - STAGE-A-SEAL-TASK-20260907-7afa98  # sealed 200-cell blind package (not a run id; bound artifact set)
+
+  # --------------------------------------------------------------------------
+  artifact_checks:
+    - check: stageA_seal_hash_verification
+      method: >-
+        sha256 recomputed over live bytes of all 7 files declared in
+        seal.json (instrument.py, run_full.py, cells.jsonl, summary.json,
+        run.log, reading_attestation.json, joints_and_implementation_notes.json);
+        AND recomputed over the blobs at the seal's origin commit 818b7a142
+        (the commit that introduced exactly these 8 files and nothing else).
+      result: 7/7 match live tree; 7/7 match at origin commit 818b7a142;
+        seal.json at 818b7a142 is byte-identical to the live seal.json.
+        seal.json's own sha256 entry set is self-consistent with the snapshot
+        receipt's path_sha256 for the same 7 paths.
+      verdict: holds
+    - check: stageA_seal_ordering_claim_auditability
+      method: >-
+        The seal statement claims the hash set + UTC stamp were recorded
+        before any non-packet read. Audited from: (a) origin commit 818b7a142
+        timestamp 2026-09-07T21:31:42Z vs sealed_at_utc 2026-09-07T21:31:14Z
+        (seal precedes its own commit by 28s); (b) that commit contains ONLY
+        the 8 Stage A task files; (c) reading_attestation.json's four packet
+        hashes recomputed against the committed packet files -- all 4 match,
+        3 of 3 declaring matches_manifest_declared_hash are consistent with
+        MANIFEST.yaml; (d) run.log searched for read/seal events -- none
+        present.
+      result: >-
+        Corroborated on all four auditable axes. LIMITATION: no
+        transcript/journal of individual file-read events exists inside the
+        package, so the ordering claim is corroborated (hashes, commit
+        contents, timestamps, attestation) but not machine-auditable
+        step-by-step. Recorded as a limitation, not a defect.
+      verdict: holds_with_limitation
+    - check: stageA_snapshot_receipt_verification
+      method: >-
+        Every path_sha256 in
+        archives/TASK-20260907-c3f20c/snapshot_commit_receipt.json recomputed
+        from the committed bytes at BOTH receipt commits named by the plan:
+        d144025225 (receipt created, commit_sha then naming the seal's own
+        producer commit 818b7a142) and ab711b0662 (commit_sha retargeted to
+        the attestation commit 58ea24c713), plus the live tree.
+      result: 8/8 paths match at d144025225; 8/8 match at ab711b0662; 8/8
+        match live. All four commits (d144025225, 58ea24c713, ab711b0662,
+        818b7a142) exist and are ancestors of HEAD.
+      verdict: holds
+    - check: stageA_receipt_commit_sha_semantics
+      observation: >-
+        The live receipt's declared commit_sha 58ea24c713 names an attestation
+        commit whose OWN tree contains an earlier version of this receipt
+        file (the receipt was retargeted by ab711b0662, whose commit message
+        states exactly this: "retarget content_first commit_sha to
+        attestation"). This is the disclosed content_first two-commit pattern
+        (receipt commit_sha_note), not a hash mismatch: both receipt versions
+        bind the same 7 path hashes, and both verify against their own
+        commits. Recorded as an observation so no later reader mistakes the
+        receipt-version drift for tampering.
+      verdict: holds_disclosed_pattern
+    - check: stageB_snapshot_receipt_verification
+      method: >-
+        All 352 path_sha256 entries in
+        BATCH-3c7493/archives/TASK-20260907-c20638/snapshot-receipt.json
+        recomputed from the committed bytes at the snapshot commit
+        9e6396c35e (2 source files + 350 run files across 50 run
+        directories), plus the live tree; receipt bytes at the backfill
+        commit 718af27fae compared to the live receipt; parent chain
+        9e6396c35e -> 1ddd3b649 (the run manifests' commit_executed_against)
+        and 718af27fae -> 9e6396c35e verified.
+      result: 352/352 match at 9e6396c35e; 352/352 match live; receipt bytes
+        at 718af27fae byte-identical to live receipt; parent chain exact.
+      verdict: holds
+    - check: pinned_instrument_verification
+      method: >-
+        The run manifests declare reuse of
+        experiments/EXP-ECDLP-612fb1/source_v2/instrument.py imported by path
+        at pinned commit 22e80f13361a. Live file hashed against the blob at
+        that commit; the cap/T/dp_threshold source lines the v3 amendment
+        quotes verbatim were located in the committed blob.
+      result: live file byte-identical to the pinned commit; CAP_MULT=8,
+        T_OF_NBITS={20:64, 24:256, 30:1024}, cap=int(ceil(CAP_MULT*W)),
+        dp_threshold=floor(2^64/W) all present exactly as the amendment's
+        source_lines record them.
+      verdict: holds
+
+  # --------------------------------------------------------------------------
+  metric_recomputations:
+    - check: margin_identity_on_200_production_cells
+      method: >-
+        margin == exact_top_T_sel_share - static_T_r2_exact_coverage checked
+        (i) on the recorded doubles for all 200 cells and (ii) EXACTLY, in
+        Fraction arithmetic, from raw data: share_top_Tsel recomputed by
+        sorting raw basin_sizes and summing the top T_sel; cov_static
+        recomputed by summing basin sizes over the recorded static_T_r2_dps
+        selection; margin recomputed as the exact rational difference.
+      result: 200/200 exact; 0 failures at 2e-16 tolerance; all recomputed
+        shares/coverages/margins equal the recorded values to the nearest
+        representable double.
+      verdict: holds
+    - check: accounting_identity_on_200_production_cells
+      method: >-
+        sum_d b(d) recomputed as the integer sum of the raw basin_sizes
+        array; identity sum_d b(d) + cycle_mass + capped_mass == N checked in
+        exact integer arithmetic per cell.
+      result: 200/200 exact (zero tolerance); basin_mass_accounting_sum field
+        == N on all 200.
+      verdict: holds
+    - check: residual_fraction_identity
+      result: (cycle_mass + capped_mass)/N == recorded residual_fraction on
+        200/200 cells (Fraction recomputation, <=2e-18).
+      verdict: holds
+    - check: cap_convention_recomputation
+      method: cap = ceil(8*W), W = sqrt(a*N/T) recomputed per cell.
+      result: 200/200 match the recorded cap (256/363/444/512 at 2^20;
+        512/725/887/1024 at 2^24, matching the amendment's
+        exact_values_at_this_contracts_grid table).
+      verdict: holds
+    - check: share_recomputation_top_Tsel_T_T4_T8
+      result: >-
+        All four prefix shares recomputed from raw basin_sizes match the
+        recorded exact_top_*_share fields on 200/200 cells each (Fraction
+        recomputation; recorded values are the nearest doubles). Coverage
+        nesting share_T >= share_Tsel >= share_T4 >= share_T8 holds on
+        200/200.
+      verdict: holds
+    - check: static_selection_recomputation_from_pool
+      method: >-
+        pool_weights == S + 4*W*h verified per cell; the top-T-by-weight
+        selection recomputed from the raw pool arrays and compared with the
+        recorded static_T_r2_dps; tie count at the T-th weight recomputed.
+      result: >-
+        weight formula holds on 200/200 (max abs diff <= 1e-9); tie counts
+        match on 200/200. Pool size == 2T on 200/200. At cells with no tie
+        the recomputed selection set equals the recorded set exactly. TIES AT
+        THE T-TH WEIGHT OCCUR AT THE MAJORITY OF CELLS (n_tied 2..9); at
+        those cells the tie-break RNG stream is not recorded in
+        raw-result.json, so set-equality is not recomputable and the weaker
+        boundary consistency (every selected weight >= T-th weight, every
+        unselected pool weight <= T-th weight) was verified instead --
+        200/200 pass. See limitations.
+      verdict: holds_with_limitation
+    - check: rho_oracle_recomputation
+      result: smallest k with top-k share >= cov_static, reported as k/T,
+        matches recorded rho_oracle on 200/200.
+      verdict: holds
+    - check: margin_T4_margin_T8_identities
+      result: margin_T4 == share_top_T4 - cov_static and margin_T8 ==
+        share_top_T8 - cov_static on 200/200 each; margin nesting
+        margin(T/2) >= margin(T/4) >= margin(T/8) on 200/200.
+      verdict: holds
+    - check: stageA_aggregate_recomputation_from_cells_jsonl
+      method: >-
+        k_25, k_5, mean_margin, max_residual_fraction, and all four null-arm
+        means and nonneg counts recomputed from the sealed 200-line
+        cells.jsonl and compared with Stage A'' summary.json.
+      result: 8/8 (N,a) cells exact agreement on every field; 0 mismatches.
+      verdict: holds
+    - check: stageA_per_cell_identities
+      result: >-
+        margin identity, residual_fraction identity, coverage nesting,
+        T/T_sel/r conformance, rho range, min_basin_size>=1,
+        accounting_identity_holds flag true, capped_walks and cap and
+        cov_static_shuf present -- 200/200 pass. sum_d b(d) itself is not
+        exposed in the sealed record (see limitations).
+      verdict: holds_with_limitation
+    - check: bootstrap_ci_reproduction_from_recorded_seeds
+      method: >-
+        Percentile bootstrap of the mean margin, B=10000, rng
+        numpy.random.default_rng(20260907 + 1000*log2(N) + round(10000*a))
+        constructed fresh per cell, endpoints at the 2.5/97.5 percentiles
+        via numpy percentile method='linear', resampling i.i.d. with
+        replacement over the 25 per-seed margins. Run on the Stage A''
+        cells.jsonl margins and compared against Stage A'' summary.json's
+        recorded ci_lo/ci_hi; the derived seeds were first compared with the
+        recorded bootstrap_seed_used fields.
+      result: >-
+        Seed formula reproduces the recorded bootstrap_seed_used on 8/8
+        cells (20281532/20282157/20282782/20283407 at 2^20;
+        20285532/20286157/20286782/20287407 at 2^24). All 8 recorded CIs
+        reproduce EXACTLY (bit-identical endpoints), including the
+        straddling CI at N=2^20 a=1/8 ([-0.00018343830108642574,
+        +0.008746505737304686]) and the CI-excluding-zero at N=2^24 a=1/8
+        ([+0.004968686401844024, +0.011464009404182431]). Straddle flags
+        reproduce on 8/8. bootstrap_B == 10000 on 8/8. The same procedure
+        was run on the Stage B'' margins and is reported in the observation
+        block below WITHOUT comparison to any Stage A endpoint (that
+        comparison is the composed round's work, not J2's).
+      verdict: holds
+    - check: production_per_Na_aggregates
+      result: >-
+        Recomputed from the 200 production cells (observation only):
+        a=1/16 mean +0.01680/k>=0 24/25 at 2^20 and +0.02019/25/25 at 2^24;
+        a=1/8 +0.00693/17/25 and +0.01023/24/25; a=3/16 -0.00860/8/25 and
+        -0.00543/5/25; a=1/4 -0.02281/2/25 and -0.01850/0/25.
+      verdict: recorded_observation
+
+  # --------------------------------------------------------------------------
+  control_checks:
+    - check: null_oracle_rand_uniform_margin_recomputation
+      method: coverage of the recorded null_uniform_dps T_sel-subset
+        recomputed from raw basin sizes; margin vs cov_static recomputed.
+      result: subset size == T_sel on 200/200; margins match recorded
+        control_i fields on 200/200.
+      verdict: holds
+    - check: null_oracle_rand_sizebiased_margin_recomputation
+      result: subset size == T_sel on 200/200; margins match recorded
+        control_j diagnostic fields on 200/200.
+      verdict: holds
+    - check: null_randsel_margin_recomputation
+      note: >-
+        The v3 contract defines NULL-RANDSEL as a uniformly random T-subset
+        of the r*T POOL (controls item (k)), not a T_sel-subset; an initial
+        J2-side assumption of T_sel draws was corrected against the contract
+        text and the arrays (len == T on 200/200).
+      result: margins recomputed from the recorded null_randsel_pool_dps
+        match the recorded control_k fields on 200/200.
+      verdict: holds
+    - check: null_shuf
+      result: >-
+        The permutation RNG stream is not recorded in raw-result.json, so
+        cov_static_shuf is NOT independently recomputable; verified at
+        identity level only (margin_null_shuf == share_top_Tsel -
+        cov_static_shuf, 200/200) and the field is present on 200/200. See
+        limitations.
+      verdict: holds_with_limitation
+    - check: self_checks_o1_o2_o3_and_exceedance
+      result: o1/o2/o3 recomputed and SATISFIED on 200/200; exceedance flag
+        consistent and false on 200/200; margin_geq_0 flag == (margin >= 0)
+        on 200/200.
+      verdict: holds
+
+  # --------------------------------------------------------------------------
+  params_vs_stage_plan_conformance:
+    verdict: conformant
+    detail:
+      - "N in {2^20, 2^24}: 50/50 runs"
+      - "T = 64 at 2^20 / 256 at 2^24 (frozen T_OF_NBITS): 50/50"
+      - "T_sel = T/2 (32 / 128): 50/50"
+      - "T4 = T/4, T8 = T/8 (control (l)/(m) readings): 50/50"
+      - "r = 2: 50/50"
+      - "a_grid = {1/16, 1/8, 3/16, 1/4} exactly: 50/50"
+      - "seeds 1..25 per scale, walk_key_seed == run seed: 50/50"
+      - "kind = stageBpp_exact_ceiling_v3: 50/50"
+      - "zero online re-selected (RESEL-L) arms, certificate kind none: 50/50 (manifest text + certificate note)"
+      - "any_cell_invalid false on 50/50"
+      - "N = 2^20 arm committed before the 2^24 arm in the snapshot commit's staged path order (n20 runs precede n24 runs)"
+    method_adjudication: >-
+      v3 stage_plan_v3 STAGE B'' specifies "PRODUCTION, exact-basin
+      generation ... Zero online re-selected (RESEL-L) arms -- this is an
+      exact-enumeration measurement only, as in v1", with the control arms
+      (i)-(iv) and the T/4, T/8 readings added on the same exact basin
+      partition. The production instrument is exactly that: full exact-basin
+      enumeration (raw basin_sizes/basin_dps arrays present per cell), the
+      STATIC(T)_{r=2} coverage read exactly from the same partition via the
+      recorded pool, and the four null arms read off the same partition. No
+      online re-selection arm exists in any of the 50 runs. CONTRACT-
+      CONFORMANT on method as well as on parameters.
+    observations_only_adjudication: >-
+      Regex scan of both packages (Stage A'' seal/summary/attestation/notes/
+      run.log/instrument/run_full; Stage B'' run_stageb_v3.py and
+      implementation.md) for interpretation-language patterns
+      (confirm/prove/demonstrate/validate, feasible operating point,
+      hypothesis support/refute/promote, N-extrapolation, crossing
+      confirmed/robust/stable): ZERO hits in either package. Both packages
+      record; neither interprets. The Stage B'' certificate is explicitly
+      kind "none".
+
+  # --------------------------------------------------------------------------
+  observations_no_interpretation:
+    - >-
+      Stage A'' and Stage B'' per-seed margin magnitudes differ at the same
+      (N, a, seed) cells (e.g. N=2^20 a=1/16 s=1: Stage A margin +0.008420
+      vs Stage B +0.019553), as does cov_static (0.099824 vs 0.088691) --
+      recorded as an observation of method/seed-convention difference between
+      an independently keyed blind instrument and the production exact-basin
+      closed form. Whether this constitutes the expected qualitative
+      agreement is NOT adjudicated here; it is the composed round's work.
+    - >-
+      Bootstrap CIs computed by the identical frozen procedure on the Stage
+      B'' margins (observation only, no comparison drawn): a=1/8 at 2^20
+      [+0.00194, +0.01209] (does not straddle zero); a=1/8 at 2^24
+      [+0.00770, +0.01277] (does not straddle); a=1/16 both scales positive
+      and excluding zero; a=3/16 and a=1/4 negative and excluding zero at
+      both scales.
+    - >-
+      Ties at the T-th pool weight occur at 173 of 200 production cells
+      (n_tied between 2 and 9), i.e. the tie-break key stream is exercised
+      pervasively, not vacuously.
+
+  verdict: passed
+  limitations:
+    - >-
+      Tie-break reproducibility: at the 173/200 cells with a tie at the
+      T-th weight, the tie-break RNG stream is not recorded, so the exact
+      STATIC(T) selection SET is not independently recomputable from the
+      recorded arrays; boundary consistency (selected weights >= T-th,
+      unselected <= T-th) was verified instead, and the tie COUNTS
+      themselves match the recorded field on 200/200.
+    - >-
+      NULL-SHUF cov_static_shuf is not independently recomputable (permutation
+      stream not recorded); verified at identity level only.
+    - >-
+      Stage A'' sealed cells.jsonl does not expose per-basin sizes, so
+      sum_d b(d) is not independently recomputable from the seal alone; the
+      accounting identity was verified there as flagged-true plus the
+      residual_fraction identity, and exactly (integer arithmetic, from raw
+      arrays) on all 200 Stage B'' cells.
+    - >-
+      The seal's "declared before any non-packet read" ordering claim is
+      corroborated (origin commit contents + timestamps + packet-hash
+      attestation) but no read-event transcript exists inside the package,
+      so it is not machine-auditable step-by-step.
+    - >-
+      J2 recomputed Stage B'' structural quantities from the recorded raw
+      arrays (basin sizes, DP ids, pool arrays, null arrays). It did NOT
+      re-run the instrument from its seed to regenerate the arrays
+      themselves; that regeneration-level reproduction belongs to a
+      re-execution control, which this round's plan does not assign to J2.
+
+  artifact_paths:
+    - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-12ee85/reviews/TASK-20260910-c8cb36/integrity-report.yaml
+    - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-12ee85/reviews/TASK-20260910-c8cb36/verify_hashes.py
+    - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-12ee85/reviews/TASK-20260910-c8cb36/check_topology.py
+    - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-12ee85/reviews/TASK-20260910-c8cb36/check_seal_origin.py
+    - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-12ee85/reviews/TASK-20260910-c8cb36/recompute_main.py
+    - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-12ee85/reviews/TASK-20260910-c8cb36/recompute_results.json
+    - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-12ee85/reviews/TASK-20260910-c8cb36/residual_checks.py
+    - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-12ee85/reviews/TASK-20260910-c8cb36/residual_checks.json
+    - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-12ee85/reviews/TASK-20260910-c8cb36/final_addons.py
+    - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-12ee85/reviews/TASK-20260910-c8cb36/final_addons.json
+    - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-12ee85/reviews/TASK-20260910-c8cb36/stageA_identities.py
+    - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-12ee85/reviews/TASK-20260910-c8cb36/packet_hashes.py
+    - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-12ee85/reviews/TASK-20260910-c8cb36/inspect_raw.py
+    - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-12ee85/reviews/TASK-20260910-c8cb36/recompute_part1.py
+
+# ============================================================================
+review_attestation:
+  joints_owned:
+    - J2_record_integrity_conformance_and_comparison_recompute
+  attack_summary: >-
+    Hash-verified the Stage A'' seal against its own declarations (live tree
+    AND the seal's origin commit 818b7a142); verified the Stage A'' snapshot
+    receipt against both receipt commits (d144025225, ab711b0662) and the
+    Stage B'' snapshot (9e6396c35e + backfill 718af27fae, 352 paths) against
+    committed bytes; recomputed from raw arrays on all 200 production cells
+    the margin identity (exact rational), the accounting identity (exact
+    integer), residual fraction, cap formula, all prefix shares, cov_static,
+    the pool weight formula and STATIC selection, rho_oracle, all self-checks
+    and null-arm margins; recomputed Stage A'' aggregates and per-cell
+    identities from the sealed cells.jsonl; reproduced all 8 Stage A''
+    bootstrap CIs exactly from the recorded seeds; adjudicated params and
+    method against v3's stage_plan_v3 STAGE B''; scanned both packages for
+    interpretation claims.
+  breaking_artifact_status: >-
+    None of the plan's J2 breaking artifacts was found: no seal/receipt hash
+    mismatch (0 across 7 + 8 + 352 bound paths, live and committed); no
+    failed identity on any of the 200 cells; every CI reproduces exactly
+    from its recorded seed; no parameter or method divergence from v3's
+    stage plan; no interpretation claim found in either observations-only
+    package.
+  sources_read:
+    - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-12ee85/review-plan.yaml
+    - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-12ee85/dispatch_queue.json (search-hit lines only)
+    - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-12ee85/reviews/TASK-20260910-19bd7b/blind-rederivation.yaml (PARTIAL: header, reading_attestation, declared_conventions, first ambiguity records only -- read before this task's constraint text was re-checked; it is the FROZEN J1 report, explicitly permitted as a source for J2; NO content of it was used in any recomputation, all of which derive from raw run data and the v3 contract)
+    - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-4433c1/reviews/TASK-20260907-7afa98/seal.json
+    - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-4433c1/reviews/TASK-20260907-7afa98/summary.json
+    - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-4433c1/reviews/TASK-20260907-7afa98/reading_attestation.json
+    - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-4433c1/reviews/TASK-20260907-7afa98/cells.jsonl (parsed programmatically in full; first lines read directly)
+    - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-4433c1/reviews/TASK-20260907-7afa98/run.log (first 60 lines + full regex search)
+    - coordination/goals/GOAL-ECDLP-bbc21f/batches/BATCH-4433c1/archives/TASK-20260907-c3f20c/snapshot_commit_receipt.json (live + at d144025225)
+    - coordination/experiments/EXP-ECDLP-6ac801/batches/BATCH-3c7493/archives/TASK-20260907-c20638/snapshot-receipt.json (full path_sha256 map)
+    - experiments/EXP-ECDLP-6ac801/specification.v3.yaml (stage_plan_v3, definitions T/T_sel/cap/weight/G3 criterion, controls (i)-(n), interval estimator, blind_rederivation sections)
+    - experiments/EXP-ECDLP-6ac801/amendments/v2_to_v3.yaml (cap_convention source lines, authority_to_change, additivity)
+    - experiments/EXP-ECDLP-6ac801/runs/RUN-ECDLP-6ac801-v3-{n20,n24}-s{01..25}/{raw-result.json, summary.json, manifest.yaml} (all 50 runs, parsed programmatically)
+    - experiments/EXP-ECDLP-6ac801/source/run_stageb_v3.py and implementation.md (programmatic interpretation-language scan only)
+    - experiments/EXP-ECDLP-612fb1/source_v2/instrument.py (at pinned commit 22e80f13361a, cap/T/dp_threshold lines; live hash)
+    - ledger/decisions/DEC-20260910-b268b3.yaml (search-hit lines only)
+    - git history: commits 818b7a142, d144025225, 58ea24c713, ab711b0662, 9e6396c35e, 718af27fae, 1ddd3b649 (show/log/stat and blob extraction of the bound paths)
+  read_sibling_reports:
+    j1_TASK-20260910-19bd7b: >-
+      Partially read (the frozen blind-rederivation.yaml, roughly its first
+      120 lines: header, reading attestation, declared conventions, first
+      ambiguity records). This read is EXPLICITLY PERMITTED by this task's
+      constraints ("You may read the FROZEN J1 report ... as a source") and
+      by the plan's blindness note (J2 may read J1's frozen report after the
+      Coordinator commits it; commit cfa149b7a0 froze it before this session
+      began). No J1 content was used in any J2 recomputation.
+    j3_TASK-20260910-59d885: NOT READ at any point. No file under reviews/TASK-20260910-59d885 was opened, listed-inspected, or searched.
+  blindness_incidents: >-
+    One self-disclosed process note: the partial read of the J1 report
+    occurred during initial directory exploration, before this task's
+    constraint text was re-read. The read was of a permitted source, is
+    disclosed here with its exact extent, and no use was made of it. No
+    prohibited source (the J3 report) was touched.
+  blind_from_respected: true   # J2 holds no blind-from obligations; the J1 list binds J1's phase 1, not J2
+  verdict_on_joints: holds
