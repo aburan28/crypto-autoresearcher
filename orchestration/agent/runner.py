@@ -21,9 +21,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Callable
 
-import yaml
-
-from .. import role_registry
+from .. import role_registry, task_context
 from ..adapter import config as config_module
 from ..adapter import manifest as manifest_module
 from ..adapter import resolver as resolver_module
@@ -32,7 +30,7 @@ from .tools import TaskScope, ToolJournal, build_tools
 
 RUNTIME = "api_direct"
 REPO = role_registry.REPO
-RUNTIME_CORE = "docs/agent-runtime-core.md"
+RUNTIME_CORE = task_context.RUNTIME_CORE
 
 
 class UnsupportedRole(RuntimeError):
@@ -53,6 +51,8 @@ class TaskRun:
     transcript: list[dict[str, Any]] = field(default_factory=list)
     model_disagreements: list[str] = field(default_factory=list)
     wall_seconds: float = 0.0
+    context: dict[str, Any] = field(default_factory=dict)
+    workspace: dict[str, Any] | None = None
 
     @property
     def completed(self) -> bool:
@@ -67,34 +67,32 @@ class TaskRun:
 # --------------------------------------------------------------------------
 def load_task(source: str | Path | dict[str, Any]) -> dict[str, Any]:
     """Accept a ledger handoff record, a dispatch-queue task, or either path."""
-    if isinstance(source, (str, Path)):
-        text = Path(source).read_text(encoding="utf-8")
-        source = (json.loads(text) if str(source).endswith(".json")
-                  else yaml.safe_load(text))
-    if not isinstance(source, dict):
-        raise ValueError("task source must be a mapping")
-    if "handoff" in source and "id" in source:      # dispatch-queue task
-        return source
-    if "handoff" in source:                          # ledger handoff record
-        body = source["handoff"]
-        return {"id": body.get("id"), "role": body.get("to"), "handoff": body}
-    return {"id": source.get("id"), "role": source.get("to"), "handoff": source}
+    return task_context.load_task(source)
 
 
 def task_scope(task: dict[str, Any], *, repo_root: Path,
                api_config: dict[str, Any]) -> TaskScope:
-    handoff = task["handoff"]
-    write_scope = list(task.get("write_scope") or [])
-    if not write_scope:
-        write_scope = sorted({str(Path(p).parent)
-                              for p in (handoff.get("artifact_paths") or [])})
+    task = task_context.prepare_task(task, repo_root=repo_root)
+    limits = api_config.get("retrieval_limits") or {}
+    if not isinstance(limits, dict):
+        raise ValueError("retrieval_limits must be a mapping")
+    permitted_limits = ("max_read_bytes", "max_output_bytes", "max_read_lines",
+                        "max_list_results", "max_search_results", "max_search_files",
+                        "max_search_file_bytes", "max_search_bytes")
+    for key, value in limits.items():
+        minimum = 256 if key == "max_read_bytes" else 1
+        if key not in permitted_limits or isinstance(value, bool) or not isinstance(value, int) or value < minimum:
+            raise ValueError(f"invalid retrieval limit {key}: {value!r}")
     return TaskScope(
         repo_root=repo_root,
         task_id=str(task.get("id") or "TASK-UNKNOWN"),
-        read_scope=tuple(task.get("read_scope") or ()),
-        write_scope=tuple(write_scope),
+        read_scope=tuple(task["read_scope"]),
+        discovery_scope=tuple(p for p in dict.fromkeys(task["context_paths"] + task["write_scope"])
+                              if task_context.within(p, task["read_scope"])),
+        write_scope=tuple(task["write_scope"]),
         allowed_commands=tuple(api_config.get("command_allowlist") or ()),
         command_timeout_seconds=int(api_config.get("command_timeout_seconds", 300)),
+        **limits,
     )
 
 
@@ -156,8 +154,17 @@ def task_brief(task: dict[str, Any], scope: TaskScope, tool_names: list[str]) ->
         block("Completion gate", handoff.get("completion_gate")),
         block("Writable paths (enforced; writes elsewhere are denied)",
               list(scope.write_scope)),
-        block("Readable paths (enforced)",
+        block("Readable paths (file tools)",
               list(scope.read_scope) or ["the whole repository"]),
+        block("Default file discovery roots", list(scope.discovery_scope)),
+        f"Retrieval limits per call: read at most {scope.max_read_lines} lines / "
+        f"{scope.max_read_bytes} bytes; list at most {scope.max_list_results} files; "
+        f"search at most {scope.max_search_results} hits / {scope.max_search_files} files; "
+        f"tool output at most {scope.max_output_bytes} bytes. "
+        "Partial search output is not an exhaustive absence check. Request a "
+        "narrower pattern or a specific file page. A missing dependency outside "
+        "the declared scope needs an updated task projection; do not scan via shell. "
+        "Commands are allow-listed but are not a filesystem read sandbox.",
         block("Tools available", tool_names),
         block("Commands you may run", list(scope.allowed_commands)),
         f"Research estimates (advisory unless a valid stagnation review enforces them): wall_clock_seconds={budget.get('wall_clock_seconds')}, "
@@ -181,10 +188,15 @@ def run_task(source: str | Path | dict[str, Any], *,
              repo_root: Path = REPO,
              checkpoint_path: str | Path | None = None,
              max_steps: int | None = None,
+             extra_context: tuple[str, ...] = (),
+             sparse_worktree: str | Path | None = None,
+             revision: str = "HEAD",
              model_factory: Callable[..., Any] | None = None,
              opener: Callable[..., Any] | None = None,
              clock: Callable[[], float] = time.monotonic) -> TaskRun:
     task = load_task(source)
+    if sparse_worktree is None and revision != "HEAD":
+        raise ValueError("revision selection requires sparse_worktree; current-checkout runs use the current HEAD")
     role = task.get("role")
     if not role:
         raise ValueError("task names no role")
@@ -203,6 +215,22 @@ def run_task(source: str | Path | dict[str, Any], *,
     resolution = resolver_module.resolve_handoff(config, task["handoff"],
                                                  backend=backend)
 
+    from ..task_workspace import load_workspace, prepare_workspace, WorkspaceError
+    workspace = load_workspace(repo_root)
+    source_repo_root = Path(workspace["source_repository"]) if workspace else repo_root
+    task = task_context.prepare_task(task, repo_root=source_repo_root, roles_doc=roles_doc,
+                                     extra_context=extra_context)
+    if workspace:
+        if sparse_worktree is not None:
+            raise WorkspaceError("prepare new workspaces from the full source repository")
+        if (task.get("id") != workspace["task_id"]
+                or task["read_scope"] != workspace["read_scope"]
+                or task["write_scope"] != workspace["write_scope"]):
+            raise WorkspaceError("task identity or scopes do not match the prepared workspace")
+    if sparse_worktree is not None:
+        workspace = prepare_workspace(task, repo_root=repo_root,
+            destination=Path(sparse_worktree), revision=revision)
+        repo_root = Path(workspace["workspace"])
     api_config = roles_doc.get(RUNTIME) or {}
     scope = task_scope(task, repo_root=repo_root, api_config=api_config)
     journal = ToolJournal()
@@ -217,7 +245,9 @@ def run_task(source: str | Path | dict[str, Any], *,
 
     budget = (task["handoff"].get("budget") or {})
     from ..research_budget import agent_wall_limit
-    wall_clock = agent_wall_limit(task["handoff"], repo_root=repo_root)
+    # Policy lookups retain the full repository even when execution files are
+    # sparse. Missing goal/decision files must not change admission or limits.
+    wall_clock = agent_wall_limit(task["handoff"], repo_root=source_repo_root)
     started = clock()
     deadline = started + float(wall_clock) if wall_clock else None
     steps_limit = max_steps or int(api_config.get("max_steps", 40))
@@ -266,6 +296,9 @@ def run_task(source: str | Path | dict[str, Any], *,
         model_disagreements=(model.model_disagreements()
                              if hasattr(model, "model_disagreements") else []),
         wall_seconds=round(clock() - started, 3),
+        context={**task_context.context_manifest(task), "retrieval_limits": {
+            key: value for key, value in asdict(scope).items() if key.startswith("max_")}},
+        workspace=workspace,
     )
 
 
@@ -316,6 +349,8 @@ def write_artifacts(run: TaskRun, out_dir: str | Path, *,
         "files_written": run.files_written,
         "denied_tool_calls": [e for e in run.journal if "denied" in e],
         "model_disagreements": run.model_disagreements,
+        "context": run.context,
+        "workspace": run.workspace,
     }
     written["receipt"] = manifest_module.write_receipt(
         directory / "inference-receipt.json", receipt)
