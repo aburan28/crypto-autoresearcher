@@ -25,13 +25,13 @@ a hash it cannot is an assertion by the session that recorded it.
 | — present but carrying no `.sha256` | 3 |
 | — sought and never retrieved | 1 |
 | Seed bibliography entries | 10 |
-| Literature entries (`KN-LIT-*`) | 7869 |
-| — with a resolvable external identifier | 2256 |
+| Literature entries (`KN-LIT-*`) | 7870 |
+| — with a resolvable external identifier | 2257 |
 | — with no identifier recorded | 5613 |
 
-Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1326, doi 150, eprint 744, url 36. Every identifier an entry carries is kept in `sources.json`.
+Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1326, doi 150, eprint 745, url 36. Every identifier an entry carries is kept in `sources.json`.
 
-`citation_verified` distribution: `False` 23, `True` 10, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `metadata` 1, `partial` 5, `read` 7494, `secondary_only` 1, `transcription_of_full_text_at_recorded_sha256` 2, `web` 326.
+`citation_verified` distribution: `False` 23, `True` 10, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `metadata` 1, `partial` 5, `read` 7495, `secondary_only` 1, `transcription_of_full_text_at_recorded_sha256` 2, `web` 326.
 
 ## 1. Frozen source packages
 
@@ -123,7 +123,7 @@ records that some fetch failed, and says nothing about the file that is here.
 
 ## 5. Literature citations with a resolvable identifier
 
-2256 of 7869 `KN-LIT-*` entries carry an
+2257 of 7870 `KN-LIT-*` entries carry an
 eprint, arXiv, DOI, ISBN or URL identifier.
 
 | ID | Title | Year | Identifier | Verified |
@@ -2349,6 +2349,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-cd29fd | Quantum sieving for code-based cryptanalysis and its limitations for ISD | 2025 | `eprint:2024/1358` | web |
 | KN-LIT-cd9880 | McEliece cryptosystem implementation: theory and practice | 2008 | `doi:10.1007/978-3-540-88403-3_4` | web |
 | KN-LIT-ced593 | On the complexity of some cryptographic problems based on the general decoding problem | 2002 | `doi:10.1109/isit.1998.709047` | web |
+| KN-LIT-d0370b | New Exchanged Boomerang Distinguishers for 5-Round AES | 2025 | `eprint:2025/248` | read |
 | KN-LIT-d15818 | FPGA-based Niederreiter cryptosystem using binary Goppa codes | 2018 | `eprint:2017/1180` | web |
 | KN-LIT-d3ec68 | Preimage Attacks on 3-Pass HAVAL and Step-Reduced MD5 | 2008 | `eprint:2008/183` | read |
 | KN-LIT-d4f467 | Embedded Elliptic Curves and Embedded Families for SNARK-Friendly Elliptic Curves | 2024 | `eprint:2024/1737` | read |
@@ -8025,6 +8026,7 @@ corpus may hold a true duplicate. Resolving it is a `/curate-knowledge` job.
 | `eprint:2023/1618` | KN-LIT-1117, KN-LIT-132 |
 | `eprint:2024/1193` | KN-LIT-71d1a0, KN-LIT-a4d70e |
 | `eprint:2025/1661` | KN-LIT-d82a53, KN-LIT-e37d4c |
+| `eprint:2025/248` | KN-LIT-1424, KN-LIT-d0370b |
 | `eprint:2025/531` | KN-LIT-6b1fc8, KN-LIT-7ee1a9 |
 | `eprint:2026/1318` | KN-LIT-7670, KN-LIT-7674 |
 | `eprint:2026/366` | KN-LIT-7667, KN-LIT-7c2620 |
