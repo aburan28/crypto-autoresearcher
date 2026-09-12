@@ -183,16 +183,7 @@ class EndpointTable:
         equality; never evicts or reseeds silently (spec.rho.table.cap_behavior).
         Growth/eviction beyond max capacity is a checkpoint-and-censor event,
         not performed automatically here -- this method raises if capacity
-        would be exceeded rather than silently discarding data.
-
-        C11 fix: at each probed index that IS occupied, the occupant's stored
-        endpoint (x, y) is compared against the candidate `slot`'s endpoint.
-        On an actual match (the same full canonical affine endpoint, per
-        spec.rho.table's key), this returns (False, occupant) immediately --
-        a genuine repeated-endpoint detection. On a genuine mismatch (a real
-        table-hash collision at a different endpoint), probing continues to
-        the next index, exactly as before. The capacity guard and the
-        resize-refusal behavior are unchanged."""
+        would be exceeded rather than silently discarding data."""
         idx = self._probe_index(key_hash)
         probes = 0
         while idx in self.slots:

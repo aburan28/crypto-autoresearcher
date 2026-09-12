@@ -494,6 +494,112 @@ def planted_expected_factor(m_ref: int, s_ref: int, i_ref: int) -> Tuple[int, in
 
 
 # ---------------------------------------------------------------------------
+# Planted ADD/DOUBLE mirrors (C9; merge-retained alongside planted_sink)
+#
+# Explicit planted callables mirroring point_add / point_double, with each
+# top-level M routed through planted_mul. The composition entry point used
+# by the main-line repair remains scalar_multiply_planted below (optional
+# planted_sink on point_add/point_double via _top_level_mul). These mirrors
+# are retained so revise-fix documentation that names them stays accurate.
+# ---------------------------------------------------------------------------
+
+
+def point_add_planted(p1: JacobianPoint, p2: JacobianPoint, curve: CurveParams,
+                       counters: OperationCounters, sink_state: bytearray) -> JacobianPoint:
+    """Planted mirror of `point_add`: identical identity/rescale/exceptional/
+    common-Z branch structure (including the C6-corrected Y3 formula
+    Y3 = M(j, B-X3) - M(V1, C-B)), with each of the twelve top-level M call
+    sites of a generic full ADD routed through `planted_mul` instead of
+    `FieldElement.mul`. S call sites (`sqr`) and linear ops are unchanged.
+    """
+    p_mod = curve.p
+
+    if p1.is_identity:
+        counters.branch_copy_ops += 1
+        return JacobianPoint(p2.X, p2.Y, p2.Z, is_identity=p2.is_identity)
+    if p2.is_identity:
+        counters.branch_copy_ops += 1
+        return JacobianPoint(p1.X, p1.Y, p1.Z, is_identity=p1.is_identity)
+
+    # rescale_finite: seven M (planted) and two S
+    z1sq = p1.Z.sqr(counters)
+    z2sq = p2.Z.sqr(counters)
+    z1cube = planted_mul(z1sq, p1.Z, counters, sink_state)
+    z2cube = planted_mul(z2sq, p2.Z, counters, sink_state)
+    U1 = planted_mul(p1.X, z2sq, counters, sink_state)
+    V1 = planted_mul(p1.Y, z2cube, counters, sink_state)
+    U2 = planted_mul(p2.X, z1sq, counters, sink_state)
+    V2 = planted_mul(p2.Y, z1cube, counters, sink_state)
+    Z = planted_mul(p1.Z, p2.Z, counters, sink_state)
+
+    if U1.equals(U2):
+        counters.branch_copy_ops += 1
+        if V1.equals(V2):
+            return point_double_planted(p1, curve, counters, sink_state)
+        return identity_point(p_mod)
+
+    h = U2.sub(U1, counters)
+    j = V2.sub(V1, counters)
+    A = h.sqr(counters)
+    B = planted_mul(U1, A, counters, sink_state)
+    C = planted_mul(U2, A, counters, sink_state)
+    D = j.sqr(counters)
+    X3 = D.sub(B, counters).sub(C, counters)
+    BX3 = B.sub(X3, counters)
+    CB = C.sub(B, counters)
+    Y3 = planted_mul(j, BX3, counters, sink_state).sub(
+        planted_mul(V1, CB, counters, sink_state), counters
+    )
+    Z3 = planted_mul(Z, h, counters, sink_state)
+
+    return JacobianPoint(X3, Y3, Z3, is_identity=False)
+
+
+def point_double_planted(pt: JacobianPoint, curve: CurveParams,
+                          counters: OperationCounters, sink_state: bytearray) -> JacobianPoint:
+    """Planted mirror of `point_double`: identical exceptional/polynomial
+    branch structure and both a=0/a=1 specializations, with the single
+    top-level M call site (Y3 = M(W, V-T) - 8*YYYY) routed through
+    `planted_mul` instead of `FieldElement.mul`.
+    """
+    p_mod = curve.p
+    if pt.is_identity:
+        counters.branch_copy_ops += 1
+        return identity_point(p_mod)
+    if pt.Y.is_zero():
+        counters.branch_copy_ops += 1
+        return identity_point(p_mod)
+
+    XX = pt.X.sqr(counters)
+    YY = pt.Y.sqr(counters)
+    YYYY = YY.sqr(counters)
+    ZZ = pt.Z.sqr(counters)
+
+    x_plus_yy = pt.X.add(YY, counters)
+    s1 = x_plus_yy.sqr(counters)
+    s1 = s1.sub(XX, counters).sub(YYYY, counters)
+    V = s1.scale_small(2, counters)
+
+    if curve.a == 0:
+        W = XX.scale_small(3, counters)  # a*ZZ^2 term omitted for a=0
+    elif curve.a == 1:
+        Z4 = ZZ.sqr(counters)
+        W = XX.scale_small(3, counters).add(Z4, counters)
+    else:
+        raise ValueError("only the a=0 and a=1 specializations are frozen by spec")
+
+    T = W.sqr(counters).sub(V.scale_small(2, counters), counters)
+    X3 = T
+    Y3 = planted_mul(W, V.sub(T, counters), counters, sink_state).sub(
+        YYYY.scale_small(8, counters), counters
+    )
+    Z3 = pt.Y.add(pt.Z, counters).sqr(counters).sub(YY, counters).sub(ZZ, counters)
+
+    return JacobianPoint(X3, Y3, Z3, is_identity=False)
+
+
+
+# ---------------------------------------------------------------------------
 # Null-control scalar routine placeholder
 # ---------------------------------------------------------------------------
 
@@ -555,6 +661,8 @@ __all__ = [
     "scalar_multiply_null",
     "planted_mul",
     "planted_expected_factor",
+    "point_add_planted",
+    "point_double_planted",
 ]
 
 # NOTE: this module performs no I/O, spawns no process, and calls none of its
