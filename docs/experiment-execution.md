@@ -93,6 +93,17 @@ can be a complete paired comparison. Dependent trials name earlier trial IDs;
 a failed or unresolved control prevents dependent execution. No adaptive
 search or automatic early-stopping policy is introduced here.
 
+Required artifacts must exist as regular files and are nonempty by default.
+A trial may optionally declare `"allow_empty_artifacts": ["counterexamples.jsonl"]`
+when its frozen protocol gives an empty file a defined meaning. This list must
+contain unique canonical relative paths already named in `artifacts`; reserved
+supervisor paths, wildcard exemptions, and missing files are not allowed.
+Listed files may also be nonempty. The independent `check_argv` still runs and
+must validate the scientific meaning of their contents, including emptiness.
+Empty files receive ordinary SHA-256 bindings, so later modification or deletion
+still requires reconciliation. Adding this field changes the frozen plan hash
+and requires the normal additive approval and claim bindings.
+
 Allocate/check the run IDs before freezing with `tools/allocate_id.py`; IDs
 and artifact paths must already appear in the committed handoff. Bind the
 complete driver/checker source and dependency closure, not just an entrypoint.
