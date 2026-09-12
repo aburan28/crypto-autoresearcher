@@ -201,6 +201,8 @@ REQUIRED_CPU_MAX_BY_JOB = {
 def check_cgroup_admission(
     cgroup_path: Optional[str],
     job_kind: str = "arithmetic",
+    *,
+    job_type: Optional[str] = None,
 ) -> CgroupAdmissionResult:
     """Read back cgroup v2 controls from `cgroup_path` and refuse admission
     if delegation is absent or values do not match the required contract
@@ -211,8 +213,14 @@ def check_cgroup_admission(
 
     job_kind selects the frozen cpu.max quota: arithmetic uses
     100000 100000 (one process); rho uses 300000 100000 (three processes).
-    pids.max must be exactly 3 (DEC-20260908-ffb734 finding (d)).
+    pids.max must be exactly 3 (DEC-20260908-ffb734 finding (d) / C12).
+    `job_type` is accepted as a keyword alias for `job_kind` so revise-fix
+    documentation that used that name remains callable without a second
+    signature; if both are supplied they must agree.
     """
+    if job_type is not None:
+        # Keyword alias for revise-fix docs that named the selector job_type.
+        job_kind = job_type
     if not cgroup_path or not os.path.isdir(cgroup_path):
         return CgroupAdmissionResult(
             admitted=False,
