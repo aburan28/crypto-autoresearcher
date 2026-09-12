@@ -272,6 +272,11 @@ def scientific(value):
             "recorded_at",
             "peak_rss_bytes",
             "verification_wall_seconds",
+            "stop",
+            "status",
+            "checkpoint_n",
+            "cost_coordinate_bit_sizes",
+            "elapsed_seconds",
         }
         return {key: scientific(item) for key, item in value.items() if key not in ignored}
     if isinstance(value, list):

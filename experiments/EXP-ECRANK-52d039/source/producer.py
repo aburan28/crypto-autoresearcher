@@ -35,7 +35,7 @@ MEMORY_BYTES_CAP = 8 * 1024 ** 3
 WALL_STOP_MARGIN_SECONDS = 900
 # Deterministic machine-protection ceiling so R2 and its R3 replay emit
 # the same completed-n ledger. Not a protocol cap; a stop is infrastructure.
-COORDINATE_BIT_GUARD = 500_000
+COORDINATE_BIT_GUARD = 100_000
 
 
 def q(x):
