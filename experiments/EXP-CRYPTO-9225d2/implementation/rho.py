@@ -187,6 +187,10 @@ class EndpointTable:
         idx = self._probe_index(key_hash)
         probes = 0
         while idx in self.slots:
+            occupant = self.slots[idx]
+            # Same affine endpoint (spec.rho.table key): retain earliest slot.
+            if occupant.x == slot.x and occupant.y == slot.y:
+                return False, occupant
             if probes >= self.capacity:
                 raise RuntimeError(
                     "endpoint table full without an explicit resize decision; "
@@ -195,8 +199,6 @@ class EndpointTable:
                 )
             idx = (idx + 1) % self.capacity
             probes += 1
-        if idx in self.slots:
-            return False, self.slots[idx]
         if self.count + 1 > self.capacity // 2 and self.capacity < TABLE_MAX_CAPACITY:
             raise RuntimeError(
                 "table load would exceed one half capacity; a resize "
