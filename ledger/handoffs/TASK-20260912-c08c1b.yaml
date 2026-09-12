@@ -1,0 +1,146 @@
+handoff:
+  id: TASK-20260912-c08c1b
+  from: coordinator
+  to: coordinator
+  objective: >-
+    Reconcile a real merge conflict found while merging origin/main into
+    claude/point-addition-bias-t2dow9 (PR #1126, GitHub's mergeable_state
+    flipped to "dirty" once the PR left draft). A concurrent session, working
+    from the same independent review TASK-20260908-30ce59 but in a different
+    worktree/batch, had already fixed four of the same five REVISE findings
+    (C6, C9, C11, C12) in the same three files this branch's
+    TASK-20260912-2100f6 fixed, and merged to main first as
+    TASK-20260912-f821b2 / TASK-20260912-688e64 / DEC-20260912-34c82d under
+    BATCH-53f590, before either branch could see the other's committed state.
+  uncertainty_reduced: >-
+    Whether the two independently-authored fixes were behaviorally equivalent
+    or in genuine conflict at each conflicting hunk, which merged byte-content
+    is actually correct, and whether git's line-based three-way merge had
+    silently mis-combined anything it did not flag as a textual conflict.
+  inputs:
+    - ledger/handoffs/TASK-20260912-2100f6.yaml
+    - ledger/handoffs/TASK-20260912-8178a2.yaml
+    - coordination/design/BATCH-bb548b/archives/TASK-20260912-8178a2/snapshot.json
+    - ledger/handoffs/TASK-20260912-f821b2.yaml
+    - ledger/handoffs/TASK-20260912-688e64.yaml
+    - coordination/design/BATCH-53f590/archives/TASK-20260912-688e64/snapshot.json
+    - ledger/decisions/DEC-20260912-34c82d.yaml
+    - experiments/EXP-CRYPTO-9225d2/implementation/repair-manifest.yaml
+    - experiments/EXP-CRYPTO-9225d2/implementation/repair-report.yaml
+    - experiments/EXP-CRYPTO-9225d2/implementation/arithmetic.py (both
+      pre-merge versions, then the merged result)
+    - experiments/EXP-CRYPTO-9225d2/implementation/rho.py (both pre-merge
+      versions, then the merged result)
+    - experiments/EXP-CRYPTO-9225d2/implementation/driver.py (both pre-merge
+      versions, then the merged result)
+  constraints:
+    - Resolve via a real `git merge origin/main` commit on the PR branch;
+      never rebase or force-discard either side's already-pushed history.
+    - Decide each conflicting hunk on its actual technical merits, checked
+      against the pre-fix common ancestor, not by mechanically preferring
+      either branch wholesale.
+    - Do not edit or delete TASK-20260912-2100f6.yaml, TASK-20260912-8178a2.yaml,
+      or main's TASK-20260912-f821b2.yaml / TASK-20260912-688e64.yaml /
+      DEC-20260912-34c82d.yaml -- each remains an accurate immutable record of
+      what its own authoring session did and verified at the time, even where
+      this reconciliation's final byte-content differs from what either
+      recorded. This record supersedes only the now-stale path_sha256
+      bindings in TASK-20260912-8178a2's snapshot for the three files that
+      changed again during merge resolution; the other seven bindings in that
+      snapshot are unaffected (main never touched those paths).
+    - scientific_execution_authorized remains false per DEC-20260907-1ccb1a,
+      unaffected by this reconciliation. maximum_runs for this task is 0; no
+      module function was imported or called to perform it.
+  deliverables:
+    - coordination/design/BATCH-bb548b/archives/TASK-20260912-c08c1b/snapshot.json
+  artifact_paths:
+    - coordination/design/BATCH-bb548b/archives/TASK-20260912-c08c1b/snapshot.json
+  archived_by: TASK-20260912-c08c1b
+  inference:
+    policy: coordinator-orchestration-code
+    reasoning_effort: null
+    fallback_allowed: false
+    degraded_allowed: false
+    independent_session_required: false
+  budget:
+    wall_clock_seconds: null
+    memory_gb: 4
+    maximum_runs: 0
+  completion_gate:
+    - >-
+      arithmetic.py had exactly one textual conflict hunk: point_add's
+      corrected Y3/Z3 computation (C6). This branch's fix used plain
+      `.mul()`; main's used `_top_level_mul(..., planted_sink)`, matching how
+      every other top-level M in the same function is already routed.
+      Checked against the pre-fix common ancestor: `_top_level_mul` and the
+      `planted_sink` parameter on `point_add`/`point_double`/`normalize` did
+      NOT exist before either fix -- both were added by main's branch only
+      (confirmed: this branch's pre-merge point_add/point_double took no
+      `planted_sink` parameter at all). Taking this branch's own Y3/Z3 text
+      as-is would have left the corrected lines silently unplanted (an
+      exact-count-identity violation, spec.arithmetic.planted.exact_count_identity)
+      while every sibling M in the same function was planted -- an internal
+      inconsistency, not a stylistic difference. Resolved by taking main's
+      hunk.
+    - >-
+      Outside that one flagged hunk, git's line-based merge silently
+      concatenated two non-overlapping same-purpose additions: this branch's
+      new `point_add_planted`/`point_double_planted`/`scalar_multiply_planted`
+      functions (a from-scratch C9 composition), and main's own, separately
+      designed `scalar_multiply_planted` (which instead threads the existing
+      `planted_sink` parameter through the unmodified `point_add`/
+      `point_double`). Both fully close C9. Because both land under the same
+      function name `scalar_multiply_planted`, the merged file (pre-resolution)
+      defined it TWICE at module scope -- a real latent bug py_compile cannot
+      catch: Python keeps only the later definition, silently shadowing this
+      branch's `point_add_planted`/`point_double_planted`-based one into dead,
+      unreachable code, not a conflict git's line-based diff can see. Resolved
+      by deleting this branch's entire redundant composition (functions and
+      their `__all__` entries) and keeping main's single definition, which is
+      already the officially-merged form and reuses the file's own
+      `_top_level_mul` scaffolding rather than duplicating point_add/
+      point_double's branch structure in parallel. Verified post-resolution:
+      `python3 -m py_compile` clean on all three files; an AST walk of
+      arithmetic.py's module-level function definitions shows no duplicate
+      names (`scalar_multiply_planted` appears exactly once); grep across the
+      whole repository confirms nothing referenced `point_add_planted` or
+      `point_double_planted` as live code (only descriptive prose in
+      preparation-report.yaml/implementation-manifest.yaml/the prior review,
+      each an accurate unedited record of what its own authoring session did
+      or found at the time).
+    - >-
+      driver.py's check_cgroup_admission had two independent C12 designs:
+      this branch's took a required, no-default `job_type` parameter and
+      raised ValueError on an unrecognized value; main's takes `job_kind`
+      defaulting to "arithmetic" and treats an unrecognized value as a graded
+      refusal (an admitted=False CgroupAdmissionResult), consistent with the
+      function's own stated "refuse rather than assume/fabricate" contract.
+      Grepped the whole repository on both pre-merge branches: neither has
+      any call site for check_cgroup_admission beyond its own definition and
+      descriptive text in admission-template.json/preparation-report.yaml
+      (both branches independently document it as "an unexercised interface"
+      -- so no call site anywhere depends on either signature). With no
+      compatibility cost either way, resolved by taking main's design in
+      full: it is already the officially-merged form, is default-compatible
+      with a hypothetical future single-argument caller, and keeps the
+      "never crash, always refuse" posture the function documents for every
+      other admission check in the same body.
+    - >-
+      rho.py's only conflict was a docstring-only addition (an explanatory
+      C11 comment on the fixed probe loop) with zero code difference between
+      branches; kept main's comment text, no functional change either way.
+    - >-
+      Confirmed after resolution that this branch's one contribution NOT
+      present in the concurrent fix -- C8 (scalar_multiply's normalization-
+      ownership documentation) -- survives untouched: `git diff origin/main
+      -- arithmetic.py` shows exactly one hunk post-resolution, the C8
+      docstring paragraph, and nothing else. `git diff origin/main --
+      driver.py` and `-- rho.py` show only this branch's own pre-existing
+      docstring elaborations (no functional diff from main). All five
+      original findings (C6, C8, C9, C11, C12) remain closed in the final
+      merged source, not just the four the concurrent session closed.
+    - >-
+      All three merge-touched files' path_sha256 in this task's snapshot were
+      recomputed via sha256sum against the post-resolution bytes on disk,
+      independent of any producer- or peer-branch-reported value.
+  review_plan: null
