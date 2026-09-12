@@ -1,0 +1,243 @@
+handoff:
+  id: TASK-20260912-2100f6
+  from: coordinator
+  to: executor
+  objective: >-
+    Fix, in place, the five concrete REVISE findings (C6, C8, C9, C11, C12)
+    from the independent implementation review of EXP-CRYPTO-9225d2's
+    zero-run implementation (coordination/design/BATCH-bb548b/reviews/
+    TASK-20260908-30ce59/implementation-review.yaml), without generating any
+    fixture, curve, certificate, or measurement, and without invoking or
+    executing any guarded entry point of driver.py, fixture_generator.py, or
+    rho.py. This is a source-correction and self-check task scoped exactly
+    to the five cited findings; it authorizes none of the 40 scientific jobs.
+  uncertainty_reduced: >-
+    Can the five REVISE-level defects/gaps identified by independent review
+    (a wrong Y3 term, unreachable endpoint-collision detection, an absent
+    planted scalar routine, an incomplete cgroup admission guard, and an
+    undocumented normalization-ownership gap) be corrected by static source
+    edit alone -- preserving every other frozen formula, count, threshold,
+    and host requirement -- with each fix accompanied by a paper/symbolic
+    self-check that does not require executing any module function?
+  inputs:
+    - coordination/design/BATCH-bb548b/reviews/TASK-20260908-30ce59/implementation-review.yaml
+    - experiments/EXP-CRYPTO-9225d2/specification.yaml
+    - ledger/handoffs/TASK-20260907-ecd3a2.yaml
+    - ledger/decisions/DEC-20260907-1ccb1a.yaml
+    - experiments/EXP-CRYPTO-9225d2/implementation/driver.py
+    - experiments/EXP-CRYPTO-9225d2/implementation/arithmetic.py
+    - experiments/EXP-CRYPTO-9225d2/implementation/rho.py
+    - experiments/EXP-CRYPTO-9225d2/implementation/independent_checker.py
+    - experiments/EXP-CRYPTO-9225d2/implementation/count_predictor.py
+    - experiments/EXP-CRYPTO-9225d2/implementation/fixture_generator.py
+    - experiments/EXP-CRYPTO-9225d2/implementation/implementation-manifest.yaml
+    - experiments/EXP-CRYPTO-9225d2/implementation/preparation-report.yaml
+  constraints:
+    - You are not alone. Own only the files listed in write_scope; preserve
+      every other file byte-for-byte, including independent_checker.py,
+      count_predictor.py, fixture_generator.py, schemas.json, and
+      admission-template.json, none of which any REVISE finding touches.
+    - Start only after this handoff and the cited review are committed and
+      archived, with a genuine valid task claim and policy resolution.
+    - Maximum runs is zero. This task does not authorize any of the 40
+      scientific jobs, any fixture/curve/certificate generation, or any real
+      execution of driver.py, fixture_generator.py, or rho.py's guarded
+      entry points (construct_pocklington_certificate,
+      construct_reduced_curve_fixture, run_worker, run_coordinator, main).
+      Static inspection and `python3 -m py_compile` only; do not import a
+      module in a way that calls any of its functions, and do not add a
+      self-test that calls them either.
+    - Scope every edit strictly to the five cited findings below. Do not
+      touch any other formula, count, branch, threshold, host requirement,
+      job/cell/row scope, or guard logic not named in a finding. No
+      unrelated refactor, rename, or reformat of surrounding code.
+    - "C6 (arithmetic.py point_add, critical): the generic-branch Y3
+      computation at the line producing `Y3 = j.mul(CB, counters).sub(
+      V1.mul(C.sub(B, counters), counters), counters)` reuses `C.sub(B,
+      counters)` for both multiplicands. Fix the FIRST product's second
+      multiplicand to `B.sub(X3, counters)` (X3 is already computed one line
+      above), matching specification.yaml's literal
+      arithmetic.addition.common_z_formula: 'Y3=M(j,B-X3)-M(V1,C-B)'. This is
+      a pure formula fix; the M/S tally is unchanged (still exactly 12 M + 4
+      S for a generic full ADD) since the fix only changes which value is
+      subtracted, not the operation count."
+    - "C11 (rho.py EndpointTable.insert_if_absent, critical -- this is the
+      mechanism the entire rho experiment depends on): the current probe
+      loop `while idx in self.slots: ...` only exits once `idx` names an
+      empty slot, making the subsequent `if idx in self.slots: return False,
+      self.slots[idx]` dead code that can never execute, so a genuine
+      repeated endpoint is never detected and is always inserted as a new
+      entry instead. Fix: at each probed index that IS occupied, compare the
+      occupant's stored endpoint (TableSlot.x/y, or an equivalent full
+      canonical-endpoint key) against the endpoint being inserted. On an
+      actual match, return (False, existing_slot) immediately. On a genuine
+      mismatch (a real table-hash collision at a different endpoint),
+      continue probing to the next index. Preserve the existing capacity
+      guard and the existing resize-refusal behavior; change only the
+      match/no-match branch inside the probe loop."
+    - "C9 (arithmetic.py planted variant completeness): no complete
+      `scalar_multiply_planted` (or equivalent point_add_planted /
+      point_double_planted composition) exists; only the low-level
+      `planted_mul` primitive does. Write one, mirroring the existing
+      structure of `scalar_multiply` / `scalar_multiply_null`
+      (arithmetic.py:391-475), threading `planted_mul` into every top-level
+      M call site of a full 256-bit scalar multiplication (i.e. within
+      whatever point_add/point_double machinery the planted routine uses,
+      every field-level M(a,b) call must go through planted_mul rather than
+      FieldElement.mul directly) -- OR, if a direct mirror proves
+      materially more involved than that (for example because point_add/
+      point_double take a bound `counters` object rather than a pluggable
+      multiplication callable, and a clean planted composition would require
+      a broader refactor than this fix task's scope permits), do not force
+      it: instead explicitly amend preparation-report.yaml's existing gap
+      note for this item to state plainly that the planted scalar routine
+      remains unimplemented as a named, disclosed limitation, and report
+      your reasoning for choosing that branch in your completion report.
+      Either branch is an acceptable resolution of C9; do not silently do
+      neither."
+    - "C12 (driver.py check_cgroup_admission): cpu.max is read into
+      cpu_max_readback but never compared against the spec's required value,
+      and the pids.max check only rejects values ABOVE 3 (accepting 1 or 2,
+      which cannot run three concurrent single-threaded processes). Fix:
+      add a job-type or process-count parameter to check_cgroup_admission so
+      it can select between the spec's two required cpu.max strings --
+      '300000 100000' for a rho job and '100000 100000' for an arithmetic
+      job (spec: runtime.contract) -- and add a refusal branch comparing the
+      cpu.max readback against the selected required string, with a
+      refusal_reason distinct from the existing ones. Change the pids.max
+      check from `pids_max is None or pids_max > REQUIRED_PIDS_MAX` to
+      require `pids_max == REQUIRED_PIDS_MAX` exactly (refuse admission on
+      any value other than exactly 3, not only values above 3). Do not
+      change any other admission field's check (memory.max, memory.swap.max,
+      path-existence) and do not weaken any existing refusal condition."
+    - "C8 (arithmetic.py scalar_multiply, minor): scalar_multiply does not
+      call normalize() internally, though spec.arithmetic.scalar_algorithm
+      assigns 'Normalize the final R once' to this same routine's own
+      definition. Resolve by EITHER (a) adding an explicit normalize() call
+      inside scalar_multiply before it returns, updating its return type and
+      docstring accordingly and checking/updating every existing call site's
+      expectations, OR (b) leaving the Jacobian-point return as-is and
+      instead adding an explicit statement -- in both scalar_multiply's own
+      docstring and in implementation-manifest.yaml/the artifact_contract --
+      that normalization is a deliberate caller responsibility, not part of
+      this routine's own charged-count contract. Either branch is
+      acceptable; choose and justify the choice in your completion report,
+      consistent with the same latitude given for C9."
+    - Do not weaken, relax, or remove any existing formula, count, branch,
+      threshold, or host/admission requirement anywhere in these files while
+      making the above fixes. No fallback, degradation, or Bedrock use of
+      any kind.
+    - Never claim host/boot/cgroup/measurement data that has not been
+      observed; this task observes none, same as TASK-20260907-ecd3a2.
+    - >-
+      For each of the five findings, leave a self-check trail proving the
+      fix without executing any function from these modules: e.g., for C6, a
+      symbolic/textual re-derivation showing the corrected line's terms now
+      match specification.yaml's literal common_z_formula text token for
+      token; for C11, a paper walk-through of a synthetic repeated-key
+      scenario (a chosen key_hash and a matching endpoint inserted twice)
+      showing the corrected control flow now reaches the `return False,
+      existing_slot` branch on the second insert; for C9, either the
+      completed routine's structural mirror to scalar_multiply/
+      scalar_multiply_null (or the amended gap note, if that branch is
+      taken); for C12, a table of the exact cpu.max/pids.max readback values
+      that would now be accepted vs. refused under the corrected logic; for
+      C8, the docstring/contract text itself (whichever branch is chosen).
+      Record all five self-checks in preparation-report.yaml under a new,
+      clearly labeled section (e.g. `revise_fix_verification`), each keyed
+      by its finding ID (C6, C8, C9, C11, C12). If proving any one fix
+      without execution is genuinely not possible, say so explicitly in that
+      finding's entry instead of fabricating a paper check that does not
+      actually establish the claim -- and flag this back to the campaign as
+      a finding in its own right rather than silently weakening the check.
+    - Record the actual model identifier only if exposed, with verification
+      status. No fallback, degradation, or Bedrock.
+    - This fix task never authorizes any of the 40 scientific jobs. Later
+      execution still needs its own independently reviewed executable/
+      checker re-review, realized certificates, physical-host admission, an
+      exact locked plan, a genuine execution claim, and archive ownership.
+  deliverables:
+    - experiments/EXP-CRYPTO-9225d2/implementation/arithmetic.py
+    - experiments/EXP-CRYPTO-9225d2/implementation/rho.py
+    - experiments/EXP-CRYPTO-9225d2/implementation/driver.py
+    - experiments/EXP-CRYPTO-9225d2/implementation/implementation-manifest.yaml
+    - experiments/EXP-CRYPTO-9225d2/implementation/preparation-report.yaml
+  artifact_paths:
+    - experiments/EXP-CRYPTO-9225d2/implementation/arithmetic.py
+    - experiments/EXP-CRYPTO-9225d2/implementation/rho.py
+    - experiments/EXP-CRYPTO-9225d2/implementation/driver.py
+    - experiments/EXP-CRYPTO-9225d2/implementation/implementation-manifest.yaml
+    - experiments/EXP-CRYPTO-9225d2/implementation/preparation-report.yaml
+  write_scope:
+    - experiments/EXP-CRYPTO-9225d2/implementation/arithmetic.py
+    - experiments/EXP-CRYPTO-9225d2/implementation/rho.py
+    - experiments/EXP-CRYPTO-9225d2/implementation/driver.py
+    - experiments/EXP-CRYPTO-9225d2/implementation/implementation-manifest.yaml
+    - experiments/EXP-CRYPTO-9225d2/implementation/preparation-report.yaml
+  artifact_contract:
+    arithmetic.py: >-
+      point_add's generic-branch Y3 line corrected per C6 (formula fix only,
+      M/S counts unchanged); a complete planted scalar routine added per C9
+      OR the gap explicitly left to preparation-report.yaml per the
+      alternative branch; scalar_multiply's normalize-ownership resolved
+      per C8 by either adding the call or documenting caller responsibility.
+      No other formula, count, or branch in this file changes.
+    rho.py: >-
+      EndpointTable.insert_if_absent corrected per C11 so that an occupied
+      probed slot is compared by actual endpoint content against the
+      candidate, returning (False, existing_slot) on a genuine match and
+      continuing to probe only on a genuine mismatch. Capacity-guard and
+      resize-refusal behavior unchanged. No other rho formula, branch, or
+      threshold in this file changes.
+    driver.py: >-
+      check_cgroup_admission extended per C12 with a job-type/process-count
+      parameter selecting between the spec's two required cpu.max strings,
+      a new refusal branch on cpu.max mismatch, and an exact-equality
+      pids_max == 3 check replacing the prior upper-bound-only check. No
+      other admission field's check changes.
+    implementation-manifest.yaml: >-
+      Updated source hashes for every file actually edited; an explicit
+      note that findings C6, C8, C9, C11, C12 from
+      coordination/design/BATCH-bb548b/reviews/TASK-20260908-30ce59/
+      implementation-review.yaml were addressed in this task, naming which
+      branch was chosen for C8 and C9; any newly disclosed limitation
+      (including an explicit statement if a self-check could not be
+      produced without execution for some finding).
+    preparation-report.yaml: >-
+      Updated to reflect the five fixes; a new `revise_fix_verification`
+      section recording each finding's paper/symbolic self-check (or an
+      explicit statement that no non-executing self-check was possible, for
+      any finding where that is genuinely true); the C9 gap note either
+      removed (if the planted routine was completed) or explicitly amended
+      (if not); the no-scientific-run attestation and guarded-function list
+      carried forward unchanged and re-confirmed still accurate.
+  archived_by: null
+  inference:
+    policy: executor-implementation
+    reasoning_effort: null
+    fallback_allowed: false
+    degraded_allowed: false
+    independent_session_required: false
+  budget:
+    wall_clock_seconds: null
+    total_cpu_hours: null
+    memory_gb: 8
+    maximum_workers: 1
+    maximum_runs: 0
+  completion_gate:
+    - All five findings (C6, C8, C9, C11, C12) are addressed exactly as
+      scoped above, each with a non-executing self-check recorded in
+      preparation-report.yaml under revise_fix_verification, or an explicit
+      statement that no such self-check was possible for that finding.
+    - No formula, count, threshold, or host/admission requirement outside
+      the five findings' exact scope changed; only arithmetic.py, rho.py,
+      driver.py, implementation-manifest.yaml, and preparation-report.yaml
+      were touched.
+    - implementation-manifest.yaml carries updated hashes for every edited
+      file and names this task and the five findings it addressed.
+    - No fixture, curve, certificate, or measurement was generated; no
+      guarded entry point of driver.py, fixture_generator.py, or rho.py was
+      executed; `python3 -m py_compile` clean on every edited .py file.
+    - Parent-controlled archive binds exact bytes and any remaining
+      limitation before a later scientific plan or re-review is considered.
+  review_plan: null
