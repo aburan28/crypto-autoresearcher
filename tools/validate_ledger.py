@@ -1704,7 +1704,7 @@ def check_knowledge_entries(ctx: Ctx) -> None:
                     ctx.err(path, "internal finding requires internal_refs")
                 else:
                     for ref in refs:
-                        if ref not in ctx.ids:
+                        if ref not in ctx.ids and ref not in ctx.knowledge:
                             ctx.err(path, f"internal finding references unknown "
                                           f"record '{ref}'")
                 if frontmatter.get("proof_status") not in PROOF_STATUSES:
