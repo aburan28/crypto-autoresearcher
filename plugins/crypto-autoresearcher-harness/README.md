@@ -1,41 +1,48 @@
 # Crypto Autoresearcher Harness plugin
 
-This package exposes one portable, evidence-gated front door for the
-repository's ECDLP research harness. It does **not** package a new scheduler,
-copy the role instructions, or alter the research ledger. The checkout remains
-the authority for roles, model-policy resolution, dispatch, reviews, archival,
-and state transitions.
+This package exposes one execution skill named **run**. It launches existing
+experiment programs, shows progress, retains outputs, and reports results.
+Protocol preparation, repository audits, publication, and scientific review
+are separate tasks. The runner's built-in checks remain active.
 
 ## Host adapters
 
-| Host | Adapter | How it is discovered |
+| Host | Adapter | Discovery |
 | --- | --- | --- |
-| Codex | `.agents/skills/crypto-autoresearcher-harness/` | Repository discovery; installation is optional. |
-| Claude Code | `.claude/skills/crypto-autoresearcher-harness/` | Repository discovery; plugin installation is optional. |
-| OpenCode | `.agents/skills/crypto-autoresearcher-harness/` | OpenCode discovers the project-local agent-compatible skill automatically. |
+| Codex | `.agents/skills/run/` | Repository discovery; installation is optional. |
+| Claude Code | `.claude/skills/run/` | Repository discovery; installation is optional. |
+| OpenCode | `.agents/skills/run/` | Project-local skill discovery. |
 
-The OpenCode integration is intentionally an Agent Skill rather than an
-in-process V2 plugin. The harness needs shared operating instructions, not
-event hooks, and OpenCode's V2 plugin API is explicitly beta. Its generated
-`.opencode/agent/` bindings stay authoritative for role permissions.
+## Run experiments
 
-## One entry point, explicit scope
+Invoke `$run` in Codex/OpenCode or `/run` in Claude Code:
 
-In a repository task, invoke `$crypto-autoresearcher-harness` with your request:
+```text
+$run
+$run EXP-...
+$run GOAL-...
+```
 
-- `status`: read-only diagnosis.
-- `generate ideas and design experiments for <question>`: published proposals
-  and designs, without silently running them.
-- `run GOAL-...`: continue that goal through successive batches.
-- `keep the full harness running`: continue across the ranked active portfolio.
+A named experiment or goal limits execution to that scope. Existing command-based
+experiments use their documented launchers; they do not need migration to a new
+trial-plan format. A refused launch is reported once, with its concrete reason.
+An unqualified run can continue other runnable work.
 
-The canonical skill and its shared references live under
-`skills/crypto-autoresearcher-harness/`. The repository adapter and the legacy
-Claude `launch-research-harness` / `coordinate-research-goal` aliases are
-generated delegates. Stage skills remain available as implementation references.
-There is one authored lifecycle; old command names continue to work.
+The canonical skill is [`skills/run/SKILL.md`](skills/run/SKILL.md).
+The old `crypto-autoresearcher-harness`, `run-experiment`,
+`launch-research-harness`, and `coordinate-research-goal` execution skills are
+retired. Their broader coordination material is retained as
+[`WORKFLOW.md`](skills/crypto-autoresearcher-harness/WORKFLOW.md), outside skill
+discovery, for explicitly requested coordination work.
 
-After editing adapter generation, run:
+The run skill does not add preflight, whole-ledger/schema/protocol validation,
+portfolio-health sweeps, branch synchronization, protocol authoring, PR creation,
+or an independent-review cycle. It reports actual outputs and failures; a
+scientific claim still needs the separate evidence-review process.
+
+## Maintaining the package
+
+These are developer checks, not steps in the run skill:
 
 ```sh
 python3 plugins/crypto-autoresearcher-harness/scripts/entrypoints.py --repo . --write
@@ -43,40 +50,18 @@ python3 plugins/crypto-autoresearcher-harness/scripts/entrypoints.py --repo . --
 python3 -m unittest discover -s plugins/crypto-autoresearcher-harness/tests -v
 ```
 
-Preflight and CI check adapter drift. They do not prove that a model will always
-select the skill implicitly; the explicit invocation removes that ambiguity.
-For a fresh-session acceptance check, ask for status and verify no research
-writes, then use a disposable approved fixture queue to check the lifecycle
-through producer, snapshot, independent review and ledger archive. Do not use a
-live campaign as an installation smoke test.
+The generator writes the two host adapters. Its check reports any retired
+execution skill that reappears, without deleting local files. Preflight remains
+available as an explicit maintenance diagnostic.
 
-### Duplicate discovery
+A repository adapter and an installed plugin can both be discovered. Prefer the
+repository adapter while developing here. Inspect additional known roots with
+`entrypoints.py --repo . --check --skill-root <installed-skill-root>`.
+This is a filesystem inventory, not the host's enabled-skill list. An installed
+plugin cache is a separate copy and is not refreshed by editing this checkout.
 
-A repository adapter and an installed plugin may both appear in a host's skill
-selector. Keep one enabled source for this checkout. Prefer the repository
-adapter when developing here; use the plugin for portable installation. Inspect
-additional known skill directories without editing host configuration:
-
-```sh
-python3 plugins/crypto-autoresearcher-harness/scripts/entrypoints.py --repo . \
-  --check --skill-root /absolute/path/to/installed/plugin/skills
-```
-
-This reports filesystem candidates, not whether the host enabled them. Check
-the host selector and disable the redundant source there or in its skill
-configuration. The repository never uninstalls a plugin or edits user settings.
-An already installed cache does not update merely because this PR changes the
-checkout; refresh that installation if it is the source you keep enabled.
-
-### Progress you can compare
-
-`scripts/checkpoint.py` runs the existing dispatcher with archive verification
-and claim refs and emits a read-only JSON observation. Supply `--previous` to
-compare two observations of the same queue. It reports ready tasks, owners,
-deferred reasons, verified archives and new completed/failed tasks; unchanged
-observations say so. Pair this with the committed goal/lane next_action and PR.
-It grants no authority and is not a scheduler. See
-`skills/crypto-autoresearcher-harness/references/progress.md`.
+The optional `scripts/checkpoint.py` is a maintenance view of queue state;
+experiment progress comes directly from the running program and its outputs.
 
 ## Local peer check-in service
 
@@ -172,7 +157,7 @@ claude mcp add --scope project --transport http \
 ### OpenCode
 
 No npm package is needed. Start OpenCode in the repository checkout; it finds
-the project-local `.agents/skills/crypto-autoresearcher-harness/` adapter and
+the project-local `.agents/skills/run/` adapter and
 then loads the canonical shared skill from this package. The existing
 `opencode.json` and generated `.opencode/agent/` files continue to control
 models and permissions. To connect the optional local peer service, merge the

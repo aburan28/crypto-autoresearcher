@@ -1,15 +1,9 @@
----
-name: crypto-autoresearcher-harness
-description: >-
-  Run, resume, or inspect a Crypto Autoresearcher ECDLP research campaign.
-  Use when the user asks to run the harness, continue a GOAL-*, inspect
-  research status, generate ideas, design experiments, execute a dispatch task,
-  or keep the full research harness making progress.
-metadata:
-  openai/plugin: crypto-autoresearcher-harness
----
+# Research coordination reference
 
-# Crypto Autoresearcher Harness
+This document is for explicitly requested research coordination, design, and
+review work. It is not a discoverable skill. The sole public execution skill is
+[`run`](../run/SKILL.md). A run request follows that skill directly and does not
+load this coordination lifecycle or its preflight/validation procedure.
 
 Requires a Crypto Autoresearcher checkout and Python 3.11+.
 
@@ -116,19 +110,16 @@ contract is a technical prerequisite to resolve, not a request for permission.
 | --- | --- |
 | Status, doctor, orientation | **status**: read-only preflight and status; use goal_portfolio_health.py --no-deepen. Report without claims, records, fetches or dispatch. |
 | Generate ideas / design experiments | **ideas/design**: read [intake](references/intake.md); archive and publish the requested proposals/designs, then stop unless execution was requested. |
-| Run/continue a named GOAL-* | **goal execution**: read [execution](references/execution.md) and [lifecycle](references/lifecycle.md); execute existing work for that exact goal through required approval, review and archival gates. |
-| Run the harness / keep running / run experiments, with no named goal | **execution** (default): read [execution](references/execution.md); drain existing eligible experiments, ECC-first/newest-first, without substituting proposals for runs. |
+| Run/continue a named GOAL-* | Use [`run`](../run/SKILL.md) directly for the named scope; do not apply this coordination lifecycle. |
+| Run the harness / keep running / run experiments, with no named goal | Use [`run`](../run/SKILL.md) directly; do not apply this coordination lifecycle. |
 | Explicit full portfolio research including ideation | **portfolio**: read [lifecycle](references/lifecycle.md); work ranked active goals, ECC first, including explicitly requested ideation. |
-| Run a named TASK-* or EXP-* | **task execution**: read [execution](references/execution.md); follow lifecycle gates for exactly that task/experiment and required archives/reviews; stop at the requested boundary. |
+| Run a named TASK-* or EXP-* | Use [`run`](../run/SKILL.md) directly and retain the named stopping boundary. |
 | Start a new campaign | Create a goal only on this explicit request, then use goal mode. |
 | Conclusion, promotion, closure or breakthrough | Arrange the Coordinator and independent claim-tier review required by AGENTS.md; never infer approval from the request itself. |
 
-In execution mode, `references/execution.md` narrows the shared lifecycle's
-work selection: no automatic idea intake, new goals, portfolio-wide literature
-or closure work. Scoped implementation and prerequisite repair must name the
-existing experiment they unblock. Authority, claims, immutable artifacts,
-independent review and scientific decision gates are unchanged. The process
-supervisor handles trial execution, not Coordinator authority or publication.
+The `run` skill is execution-only. Protocol preparation, maintenance, publication,
+and claim review are separate tasks. The remaining lifecycle applies to explicitly
+requested coordination work; it adds no prerequisites to a plain run request.
 
 A completed batch is a checkpoint in execution/goal/portfolio mode. Continue authorized
 work without asking again; see the lifecycle for terminal and operational exits.
@@ -136,10 +127,9 @@ Do not reopen a terminal goal or silently substitute a different named goal.
 Impeded goals stay active. Empty queues and infrastructure failures are not
 research conclusions.
 
-The old launch-research-harness and coordinate-research-goal commands are
-compatibility aliases for this procedure. Their presence does not create a
-second workflow. Stage skills are implementation references, not additional
-front doors the user must know.
+The old launch-research-harness and coordinate-research-goal skills are retired.
+Their coordination references remain here for explicitly requested work. Use
+`run` for experiment execution.
 
 If an expired claim has no inspectable runtime binding, follow
 `docs/isolated-task-recovery.md`: one bounded assessment, then an explicit

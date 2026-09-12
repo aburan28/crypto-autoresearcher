@@ -1,9 +1,17 @@
 # Execution-first experiments
 
-Unqualified **run the harness**, **keep running**, and **run experiments** use
-execution mode in the canonical `crypto-autoresearcher-harness` skill. Existing
-experiments are the backlog. Idea intake, portfolio ideation and scientific
-conclusions are explicit modes, not substitutes for running that backlog.
+Unqualified **run**, **run the harness**, **keep running**, and **run experiments**
+use the single [`run`](../plugins/crypto-autoresearcher-harness/skills/run/SKILL.md)
+skill. It executes existing programs and reports their outputs without an
+agent-led protocol/schema-validation phase. Existing command-based experiments
+keep their documented launchers; adopting the trial-plan format is not a run
+prerequisite.
+
+This document describes the process adapter and preparation of new trial plans.
+Read those preparation details only when preparing or maintaining that adapter,
+not as a checklist before every run. The runner retains its built-in checks.
+The separate Coordinator archive/review workflow is needed before a scientific
+state transition, not before returning execution results to the user.
 
 ## Boundary and responsibilities
 

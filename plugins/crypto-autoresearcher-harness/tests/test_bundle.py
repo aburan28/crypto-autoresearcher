@@ -77,14 +77,14 @@ class PluginBundleTests(unittest.TestCase):
         )
 
     def test_repository_adapter_delegates_to_canonical_skill(self) -> None:
-        canonical = PLUGIN / "skills" / NAME / "SKILL.md"
-        adapter = REPO / ".agents" / "skills" / NAME / "SKILL.md"
+        canonical = PLUGIN / "skills" / "run" / "SKILL.md"
+        adapter = REPO / ".agents" / "skills" / "run" / "SKILL.md"
         self.assertTrue(canonical.is_file())
         self.assertTrue(adapter.is_file())
         body = adapter.read_text(encoding="utf-8")
         self.assertIn(
             "plugins/crypto-autoresearcher-harness/skills/"
-            "crypto-autoresearcher-harness/SKILL.md",
+            "run/SKILL.md",
             body,
         )
         self.assertIn("Codex and OpenCode", body)
