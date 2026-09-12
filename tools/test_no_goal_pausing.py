@@ -144,13 +144,25 @@ class TheRuleDoesNotRelaxAnythingTests(unittest.TestCase):
         self.assertRegex(body, r"rank\s+ahead\s+of\s+doing\s+nothing")
 
     def test_harness_skill_does_not_instruct_pausing(self):
-        skill = (ROOT / ".claude" / "skills" / "launch-research-harness"
-                 / "SKILL.md").read_text()
+        # launch-research-harness was retired; /run is the execution skill and
+        # the coordination lifecycle lives under the plugin workflow/refs.
+        paths = [
+            ROOT / ".claude" / "skills" / "run" / "SKILL.md",
+            ROOT / "plugins" / "crypto-autoresearcher-harness" / "skills"
+            / "crypto-autoresearcher-harness" / "WORKFLOW.md",
+            ROOT / "plugins" / "crypto-autoresearcher-harness" / "skills"
+            / "crypto-autoresearcher-harness" / "references" / "lifecycle.md",
+        ]
         # Any surviving mention must be part of the prohibition, never an
         # instruction to do it.
-        for m in re.finditer(r"^.*\bmark\b[^\n]*`paused`.*$", skill,
-                             re.MULTILINE | re.IGNORECASE):
-            self.fail(f"harness skill still instructs pausing: {m.group(0)!r}")
+        for path in paths:
+            skill = path.read_text()
+            for m in re.finditer(r"^.*\bmark\b[^\n]*`paused`.*$", skill,
+                                 re.MULTILINE | re.IGNORECASE):
+                self.fail(
+                    f"harness skill still instructs pausing in {path}: "
+                    f"{m.group(0)!r}"
+                )
 
 
 if __name__ == "__main__":
