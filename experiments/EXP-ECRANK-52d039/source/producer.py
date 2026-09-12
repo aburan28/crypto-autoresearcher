@@ -346,7 +346,7 @@ def add_point(E, P, Q):
         if den == 0:
             return O
         lam = (3 * x1 * x1 + 2 * a2 * x1 + a4 - a1 * y1) / den
-        nu = (-x1**3 + a4 * x1 + 2 * a6) / den
+        nu = (-x1**3 + a4 * x1 + 2 * a6 - a3 * y1) / den
     else:
         lam = (y2 - y1) / (x2 - x1)
         nu = (y1 * x2 - y2 * x1) / (x2 - x1)
@@ -558,7 +558,10 @@ def _float_log_height(P):
     if P is O:
         return 0.0
     x, _ = P
-    return math.log(max(1.0, float(abs(x.numerator)))) - math.log(float(x.denominator)) if x.numerator.bit_length() < 1024 else (abs(x.numerator).bit_length()-x.denominator.bit_length())*math.log(2.0)
+    H = max(1, abs(x.numerator), x.denominator)
+    if H.bit_length() < 1024:
+        return math.log(float(H))
+    return H.bit_length() * math.log(2.0)
 
 
 def candidate_checks():
@@ -600,7 +603,7 @@ def run_r2():
             break
         h1=height_interval(p); h2=height_interval(p2); h3=height_interval(p3)
         i1=canon_interval(interval_from_strings(h1["interval"]),Cq,n)
-        i2=canon_interval(interval_from_strings(h2["interval"]),Cq,n+1)
+        i2=canon_interval(interval_from_strings(h2["interval"]),Cq,n)
         i3=canon_interval(interval_from_strings(h3["interval"]),Cq,n)
         pair=isub_s(isub_s(i3,i1),i2)
         pair=(pair[0]/2,pair[1]/2)
@@ -608,6 +611,7 @@ def run_r2():
         two_ldl=ldl_2(i1,i2,pair)
         two={"object":"O2","n":n,"verdict":"INDEPENDENT" if two_ldl["positive"] else "UNRESOLVED","witness_complete":two_ldl["positive"],"pivot_lower_bounds":two_ldl["pivot_lower_bounds"],"pivot_upper_bounds":two_ldl.get("pivot_upper_bounds",[]),"enclosures":{"lambda_P":[qs(i1[0]),qs(i1[1])],"lambda_2P":[qs(i2[0]),qs(i2[1])],"pairing":[qs(pair[0]),qs(pair[1])]},"ldl":two_ldl,"verifier_agreement":None}
         records.extend([one,two])
+        last_p, last_p2, last_p3 = p, p2, p3
         if n<60:
             p=add_point(E,p,p); p2=add_point(E,p2,p2); p3=add_point(E,p3,p3)
     # Comparison-only floating values at the last completed n.  No verdict
@@ -615,10 +619,11 @@ def run_r2():
     if records:
         nlast=records[-1]["n"]
         try:
-            float_self=_float_log_height(p)
-            float_a=_float_log_height(p)
-            float_b=_float_log_height(p2)
-            float_c=_float_log_height(p3)
+            scale=float(4**nlast)
+            float_self=_float_log_height(last_p)/scale
+            float_a=_float_log_height(last_p)/scale
+            float_b=_float_log_height(last_p2)/scale
+            float_c=(_float_log_height(last_p3)/scale-float_a-float_b)/2.0
             float_det=float_a*float_b-float_c*float_c
         except (OverflowError, ValueError):
             float_self=float_a=float_b=float_c=float_det=None
