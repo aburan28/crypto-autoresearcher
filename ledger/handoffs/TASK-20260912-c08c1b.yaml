@@ -190,28 +190,53 @@ handoff:
       docstring in the same hunk: it claimed "if both are supplied they must
       agree," but the actual code silently prefers `job_type` with no
       agreement check or raise; corrected the docstring to say `job_type`
-      wins, matching the real behavior. (c) rho.py: no round-2 conflict.
+      wins, matching the real behavior. (c) rho.py: no textual round-2
+      conflict, but not a clean carry-through either -- git's 3-way merge
+      silently DROPPED this branch's own original C11 explanatory paragraph
+      in EndpointTable.insert_if_absent's docstring (present since this
+      branch's pre-round-1 tip 35030a4ca, confirmed by direct inspection):
+      the Cursor Agent's branch tip had removed it, round 1's commit hadn't
+      touched those exact lines further, so the 3-way merge took the changed
+      side with no conflict raised. Neither of their commit messages lists
+      this paragraph among what was deliberately retained or dropped, unlike
+      their explicit call-outs for C8/point_add_planted/job_type -- so unlike
+      those, this was not a reasoned choice to accept, and this task's own
+      constraint (accept only genuine, reasoned judgment calls; decide
+      everything else on its merits) means restoring pre-existing,
+      unsuperseded documentation is correct rather than deferential.
+      Restored verbatim in a follow-up commit (ab355d5fc) after diffing the
+      final round-2 result against origin/main and noticing the unexplained
+      loss; confirmed identical to the original text via `git show` on the
+      pre-round-1 tip. A stray extra blank line left over from resolving
+      arithmetic.py's round-2 markers was tidied in the same commit.
     - >-
       Verification actually performed (see the corrected constraints bullet
       above for why this exceeded this task's own originally-stated
       no-execution constraint). Imported the final, twice-merged
-      arithmetic.py and: (1) ran `scalar_multiply` + `normalize` against 200
-      random scalars on the real secp256k1 curve and compared every result
-      against an independently-written, from-scratch pure-Python affine-
-      coordinate double-and-add reference (naive modular-inverse formulas,
-      no shared code with arithmetic.py) -- 0 mismatches, confirming the C6
-      fix (taken from main in round 1) is not merely internally consistent
-      but arithmetically correct; (2) ran `scalar_multiply_planted` against
-      50 random scalars and confirmed both value-agreement with
-      `scalar_multiply` and the exact count identity M_planted == 2 *
-      M_reference on every trial -- 0 failures; (3) ran the round-2-restored
-      `point_add_planted` against 50 random point pairs (each itself a
-      `scalar_multiply`-derived point) and confirmed exact value agreement
-      with `point_add` -- 0 failures, which also substantiates that keeping
-      `point_add_planted`/`point_double_planted` in round 2 (rather than
-      re-deleting them) left genuinely correct, not merely harmless, code
-      behind. `python3 -m py_compile` clean on all three files after both
-      rounds; an AST walk of arithmetic.py's module-level function
+      arithmetic.py/rho.py and: (1) ran `scalar_multiply` + `normalize`
+      against 300 random scalars total (200 immediately after round 2, a
+      further 100 after the rho.py restoration commit) on the real secp256k1
+      curve and compared every result against an independently-written,
+      from-scratch pure-Python affine-coordinate double-and-add reference
+      (naive modular-inverse formulas, no shared code with arithmetic.py) --
+      0 mismatches across all 300, confirming the C6 fix (taken from main in
+      round 1) is not merely internally consistent but arithmetically
+      correct; (2) ran `scalar_multiply_planted` against 50 random scalars
+      and confirmed both value-agreement with `scalar_multiply` and the
+      exact count identity M_planted == 2 * M_reference on every trial -- 0
+      failures; (3) ran the round-2-restored `point_add_planted` against 50
+      random point pairs (each itself a `scalar_multiply`-derived point) and
+      confirmed exact value agreement with `point_add` -- 0 failures, which
+      also substantiates that keeping `point_add_planted`/
+      `point_double_planted` in round 2 (rather than re-deleting them) left
+      genuinely correct, not merely harmless, code behind; (4) directly
+      exercised the twice-merged `EndpointTable.insert_if_absent` with two
+      inserts sharing one key_hash and one (x, y) endpoint but different
+      other fields -- the second insert correctly returned (False, the first
+      slot), confirming the C11 fix in its exact final byte-content, not
+      just in the pre-restoration text this task read. `python3 -m
+      py_compile` clean on all three files after every round; an AST walk of
+      arithmetic.py's module-level function
       definitions shows no duplicate names after either round; `__all__`
       matches exactly the set of defined names with nothing missing or
       stale; grep across the whole repository confirms no other file calls
