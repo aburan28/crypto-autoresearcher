@@ -192,13 +192,16 @@ class CgroupAdmissionResult:
 
 REQUIRED_MEMORY_MAX_BYTES = 8 * (2 ** 30)
 REQUIRED_PIDS_MAX = 3
-REQUIRED_CPU_MAX_BY_JOB_TYPE = {
-    "rho": "300000 100000",
+REQUIRED_CPU_MAX_BY_JOB = {
     "arithmetic": "100000 100000",
+    "rho": "300000 100000",
 }
 
 
-def check_cgroup_admission(cgroup_path: Optional[str], job_type: str) -> CgroupAdmissionResult:
+def check_cgroup_admission(
+    cgroup_path: Optional[str],
+    job_kind: str = "arithmetic",
+) -> CgroupAdmissionResult:
     """Read back cgroup v2 controls from `cgroup_path` and refuse admission
     if delegation is absent or values do not match the required contract
     (spec.runtime.contract). Does NOT create, delegate, or assume a cgroup
@@ -206,19 +209,10 @@ def check_cgroup_admission(cgroup_path: Optional[str], job_type: str) -> CgroupA
     never a fabricated pass. Not invoked against a real cgroup in this
     task -- this task performs no scientific admission.
 
-    `job_type` (C12 fix) selects which of the spec's two required cpu.max
-    strings applies -- "rho" requires "300000 100000", "arithmetic" requires
-    "100000 100000" (spec.runtime.contract) -- and must be one of those two
-    literal strings; any other value is a programming error, not a refusal
-    outcome, and raises ValueError immediately.
+    job_kind selects the frozen cpu.max quota: arithmetic uses
+    100000 100000 (one process); rho uses 300000 100000 (three processes).
+    pids.max must be exactly 3 (DEC-20260908-ffb734 finding (d)).
     """
-    if job_type not in REQUIRED_CPU_MAX_BY_JOB_TYPE:
-        raise ValueError(
-            "job_type must be 'rho' or 'arithmetic' to select the required "
-            "cpu.max string (spec.runtime.contract)"
-        )
-    required_cpu_max = REQUIRED_CPU_MAX_BY_JOB_TYPE[job_type]
-
     if not cgroup_path or not os.path.isdir(cgroup_path):
         return CgroupAdmissionResult(
             admitted=False,
@@ -276,16 +270,30 @@ def check_cgroup_admission(cgroup_path: Optional[str], job_type: str) -> CgroupA
             admitted=False, memory_max_bytes_readback=mem_max,
             memory_swap_max_readback=swap_max, pids_max_readback=pids_max,
             cpu_max_readback=cpu_max,
-            refusal_reason=f"pids.max readback {pids_max} != required exactly {REQUIRED_PIDS_MAX}",
+            refusal_reason=(
+                f"pids.max readback {pids_max} != required exactly "
+                f"{REQUIRED_PIDS_MAX}"
+            ),
         )
-    if cpu_max != required_cpu_max:
+    required_cpu = REQUIRED_CPU_MAX_BY_JOB.get(job_kind)
+    if required_cpu is None:
         return CgroupAdmissionResult(
             admitted=False, memory_max_bytes_readback=mem_max,
             memory_swap_max_readback=swap_max, pids_max_readback=pids_max,
             cpu_max_readback=cpu_max,
             refusal_reason=(
-                f"cpu.max readback {cpu_max!r} != required {required_cpu_max!r} "
-                f"for job_type={job_type!r}"
+                f"job_kind {job_kind!r} is not one of "
+                f"{sorted(REQUIRED_CPU_MAX_BY_JOB)}"
+            ),
+        )
+    if cpu_max != required_cpu:
+        return CgroupAdmissionResult(
+            admitted=False, memory_max_bytes_readback=mem_max,
+            memory_swap_max_readback=swap_max, pids_max_readback=pids_max,
+            cpu_max_readback=cpu_max,
+            refusal_reason=(
+                f"cpu.max readback {cpu_max!r} != required {required_cpu!r} "
+                f"for job_kind={job_kind}"
             ),
         )
 

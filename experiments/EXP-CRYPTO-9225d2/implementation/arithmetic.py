@@ -254,8 +254,20 @@ def affine_to_jacobian(x: int, y: int, p: int) -> JacobianPoint:
 # ---------------------------------------------------------------------------
 
 
+def _top_level_mul(left: FieldElement, right: FieldElement,
+                   counters: OperationCounters,
+                   planted_sink: Optional[bytearray] = None) -> FieldElement:
+    """Dispatch one top-level M. The planted sink, when present, uses
+    planted_mul (two API M evaluations + integrity sink). S and I never
+    enter this helper."""
+    if planted_sink is None:
+        return left.mul(right, counters)
+    return planted_mul(left, right, counters, planted_sink)
+
+
 def point_add(p1: JacobianPoint, p2: JacobianPoint, curve: CurveParams,
-              counters: OperationCounters) -> JacobianPoint:
+              counters: OperationCounters,
+              planted_sink: Optional[bytearray] = None) -> JacobianPoint:
     """Full ADD with rescale-to-common-Z, exactly per specification.
 
     identity: return the other point after validating its tag; count the
@@ -280,19 +292,19 @@ def point_add(p1: JacobianPoint, p2: JacobianPoint, curve: CurveParams,
     # rescale_finite: seven M and two S
     z1sq = p1.Z.sqr(counters)
     z2sq = p2.Z.sqr(counters)
-    z1cube = z1sq.mul(p1.Z, counters)
-    z2cube = z2sq.mul(p2.Z, counters)
-    U1 = p1.X.mul(z2sq, counters)
-    V1 = p1.Y.mul(z2cube, counters)
-    U2 = p2.X.mul(z1sq, counters)
-    V2 = p2.Y.mul(z1cube, counters)
-    Z = p1.Z.mul(p2.Z, counters)
+    z1cube = _top_level_mul(z1sq, p1.Z, counters, planted_sink)
+    z2cube = _top_level_mul(z2sq, p2.Z, counters, planted_sink)
+    U1 = _top_level_mul(p1.X, z2sq, counters, planted_sink)
+    V1 = _top_level_mul(p1.Y, z2cube, counters, planted_sink)
+    U2 = _top_level_mul(p2.X, z1sq, counters, planted_sink)
+    V2 = _top_level_mul(p2.Y, z1cube, counters, planted_sink)
+    Z = _top_level_mul(p1.Z, p2.Z, counters, planted_sink)
 
     if U1.equals(U2):
         counters.branch_copy_ops += 1
         if V1.equals(V2):
             # DOUBLE the original first point, retaining the rescale cost above.
-            return point_double(p1, curve, counters)
+            return point_double(p1, curve, counters, planted_sink=planted_sink)
         # equal-U opposite-V (including both-zero handled by equality branch
         # above, whose doubling returns O): return identity.
         return identity_point(p_mod)
@@ -302,14 +314,17 @@ def point_add(p1: JacobianPoint, p2: JacobianPoint, curve: CurveParams,
     h = U2.sub(U1, counters)
     j = V2.sub(V1, counters)
     A = h.sqr(counters)
-    B = U1.mul(A, counters)
-    C = U2.mul(A, counters)
+    B = _top_level_mul(U1, A, counters, planted_sink)
+    C = _top_level_mul(U2, A, counters, planted_sink)
     D = j.sqr(counters)
     X3 = D.sub(B, counters).sub(C, counters)
+    # Y3=M(j,B-X3)-M(V1,C-B) -- DEC-20260908-ffb734 finding (a) / C6
     BX3 = B.sub(X3, counters)
     CB = C.sub(B, counters)
-    Y3 = j.mul(BX3, counters).sub(V1.mul(CB, counters), counters)
-    Z3 = Z.mul(h, counters)
+    Y3 = _top_level_mul(j, BX3, counters, planted_sink).sub(
+        _top_level_mul(V1, CB, counters, planted_sink), counters
+    )
+    Z3 = _top_level_mul(Z, h, counters, planted_sink)
 
     return JacobianPoint(X3, Y3, Z3, is_identity=False)
 
@@ -320,7 +335,8 @@ def point_add(p1: JacobianPoint, p2: JacobianPoint, curve: CurveParams,
 
 
 def point_double(pt: JacobianPoint, curve: CurveParams,
-                  counters: OperationCounters) -> JacobianPoint:
+                  counters: OperationCounters,
+                  planted_sink: Optional[bytearray] = None) -> JacobianPoint:
     """Doubling with the two frozen specializations:
 
     a=0 (secp256k1): omit only ZZ^2, retaining ZZ for Z3 -> one M, seven S.
@@ -355,7 +371,9 @@ def point_double(pt: JacobianPoint, curve: CurveParams,
 
     T = W.sqr(counters).sub(V.scale_small(2, counters), counters)
     X3 = T
-    Y3 = W.mul(V.sub(T, counters), counters).sub(YYYY.scale_small(8, counters), counters)
+    Y3 = _top_level_mul(W, V.sub(T, counters), counters, planted_sink).sub(
+        YYYY.scale_small(8, counters), counters
+    )
     Z3 = pt.Y.add(pt.Z, counters).sqr(counters).sub(YY, counters).sub(ZZ, counters)
 
     return JacobianPoint(X3, Y3, Z3, is_identity=False)
@@ -367,7 +385,8 @@ def point_double(pt: JacobianPoint, curve: CurveParams,
 
 
 def normalize(pt: JacobianPoint, curve: CurveParams,
-              counters: OperationCounters) -> Tuple[Optional[int], Optional[int]]:
+              counters: OperationCounters,
+              planted_sink: Optional[bytearray] = None) -> Tuple[Optional[int], Optional[int]]:
     """Return canonical affine (x, y), or (None, None) for the identity.
 
     Charges exactly 3 M, 1 S, 1 I for a finite point; identity has no
@@ -378,9 +397,9 @@ def normalize(pt: JacobianPoint, curve: CurveParams,
         return None, None
     zi = pt.Z.inv(counters)
     z2 = zi.sqr(counters)
-    z3 = z2.mul(zi, counters)
-    x = pt.X.mul(z2, counters)
-    y = pt.Y.mul(z3, counters)
+    z3 = _top_level_mul(z2, zi, counters, planted_sink)
+    x = _top_level_mul(pt.X, z2, counters, planted_sink)
+    y = _top_level_mul(pt.Y, z3, counters, planted_sink)
     return x.value, y.value
 
 
@@ -396,22 +415,6 @@ def scalar_multiply(k: int, gx: int, gy: int, curve: CurveParams,
     Uses exactly 256 bits regardless of the scalar's actual bit length
     (leading zero bits still perform DOUBLE(O) branch/copy work, per the
     frozen 'exactly 256 bits, most significant first' instruction).
-
-    Normalization is a DELIBERATE CALLER RESPONSIBILITY, not part of this
-    routine's own charged-count contract (C8 resolution, branch b): this
-    function returns the raw, unnormalized Jacobian point `R`. Although
-    spec.arithmetic.scalar_algorithm's prose sentence "Normalize the final R
-    once" appears in the same paragraph as this algorithm's description, that
-    final 3M+1S+1I normalization charge is intentionally NOT folded into
-    scalar_multiply's own M/S/I tally here. A caller that needs canonical
-    affine coordinates (or the normalization charge counted against a
-    specific cell) must call `normalize(R, curve, counters)` explicitly on
-    the returned point, using the same `counters` object if the normalization
-    cost is to be attributed to this same job/cell. See
-    implementation-manifest.yaml's revise_fixes_20260912.summary.C8 for the
-    corresponding manifest-level statement of this choice. `scalar_multiply_null` and
-    `scalar_multiply_planted` inherit this same caller-responsibility
-    contract, for consistency across all three routine variants.
     """
     R = identity_point(curve.p)
     base = affine_to_jacobian(gx, gy, curve.p)
@@ -475,147 +478,33 @@ def planted_expected_factor(m_ref: int, s_ref: int, i_ref: int) -> Tuple[int, in
 
 
 # ---------------------------------------------------------------------------
-# Planted scalar-multiplication composition (C9 completion, branch a)
-#
-# These three functions mirror point_add / point_double / scalar_multiply
-# structurally, term for term and branch for branch, with the sole change
-# that every top-level M(a,b) call site is routed through `planted_mul`
-# (which itself performs two separate M evaluations, a comparison, and an
-# ordered SHA-256 integrity-sink update) instead of calling
-# `FieldElement.mul` directly. S and I call sites are unchanged, per
-# spec.arithmetic.planted.definition's "do not duplicate operations inside S
-# or I." This realizes M_planted = 2*M_reference, S_planted = S_reference,
-# I_planted = I_reference for the same input/branch trace
-# (spec.arithmetic.planted.exact_count_identity), at the level of a full
-# 256-bit scalar multiplication, not only the low-level primitive above.
+# Null-control scalar routine placeholder
 # ---------------------------------------------------------------------------
-
-
-def point_add_planted(p1: JacobianPoint, p2: JacobianPoint, curve: CurveParams,
-                       counters: OperationCounters, sink_state: bytearray) -> JacobianPoint:
-    """Planted mirror of `point_add`: identical identity/rescale/exceptional/
-    common-Z branch structure (including the C6-corrected Y3 formula
-    Y3 = M(j, B-X3) - M(V1, C-B)), with each of the twelve top-level M call
-    sites of a generic full ADD routed through `planted_mul` instead of
-    `FieldElement.mul`. S call sites (`sqr`) and linear ops are unchanged.
-    """
-    p_mod = curve.p
-
-    if p1.is_identity:
-        counters.branch_copy_ops += 1
-        return JacobianPoint(p2.X, p2.Y, p2.Z, is_identity=p2.is_identity)
-    if p2.is_identity:
-        counters.branch_copy_ops += 1
-        return JacobianPoint(p1.X, p1.Y, p1.Z, is_identity=p1.is_identity)
-
-    # rescale_finite: seven M (planted) and two S
-    z1sq = p1.Z.sqr(counters)
-    z2sq = p2.Z.sqr(counters)
-    z1cube = planted_mul(z1sq, p1.Z, counters, sink_state)
-    z2cube = planted_mul(z2sq, p2.Z, counters, sink_state)
-    U1 = planted_mul(p1.X, z2sq, counters, sink_state)
-    V1 = planted_mul(p1.Y, z2cube, counters, sink_state)
-    U2 = planted_mul(p2.X, z1sq, counters, sink_state)
-    V2 = planted_mul(p2.Y, z1cube, counters, sink_state)
-    Z = planted_mul(p1.Z, p2.Z, counters, sink_state)
-
-    if U1.equals(U2):
-        counters.branch_copy_ops += 1
-        if V1.equals(V2):
-            return point_double_planted(p1, curve, counters, sink_state)
-        return identity_point(p_mod)
-
-    h = U2.sub(U1, counters)
-    j = V2.sub(V1, counters)
-    A = h.sqr(counters)
-    B = planted_mul(U1, A, counters, sink_state)
-    C = planted_mul(U2, A, counters, sink_state)
-    D = j.sqr(counters)
-    X3 = D.sub(B, counters).sub(C, counters)
-    BX3 = B.sub(X3, counters)
-    CB = C.sub(B, counters)
-    Y3 = planted_mul(j, BX3, counters, sink_state).sub(
-        planted_mul(V1, CB, counters, sink_state), counters
-    )
-    Z3 = planted_mul(Z, h, counters, sink_state)
-
-    return JacobianPoint(X3, Y3, Z3, is_identity=False)
-
-
-def point_double_planted(pt: JacobianPoint, curve: CurveParams,
-                          counters: OperationCounters, sink_state: bytearray) -> JacobianPoint:
-    """Planted mirror of `point_double`: identical exceptional/polynomial
-    branch structure and both a=0/a=1 specializations, with the single
-    top-level M call site (Y3 = M(W, V-T) - 8*YYYY) routed through
-    `planted_mul` instead of `FieldElement.mul`.
-    """
-    p_mod = curve.p
-    if pt.is_identity:
-        counters.branch_copy_ops += 1
-        return identity_point(p_mod)
-    if pt.Y.is_zero():
-        counters.branch_copy_ops += 1
-        return identity_point(p_mod)
-
-    XX = pt.X.sqr(counters)
-    YY = pt.Y.sqr(counters)
-    YYYY = YY.sqr(counters)
-    ZZ = pt.Z.sqr(counters)
-
-    x_plus_yy = pt.X.add(YY, counters)
-    s1 = x_plus_yy.sqr(counters)
-    s1 = s1.sub(XX, counters).sub(YYYY, counters)
-    V = s1.scale_small(2, counters)
-
-    if curve.a == 0:
-        W = XX.scale_small(3, counters)  # a*ZZ^2 term omitted for a=0
-    elif curve.a == 1:
-        Z4 = ZZ.sqr(counters)
-        W = XX.scale_small(3, counters).add(Z4, counters)
-    else:
-        raise ValueError("only the a=0 and a=1 specializations are frozen by spec")
-
-    T = W.sqr(counters).sub(V.scale_small(2, counters), counters)
-    X3 = T
-    Y3 = planted_mul(W, V.sub(T, counters), counters, sink_state).sub(
-        YYYY.scale_small(8, counters), counters
-    )
-    Z3 = pt.Y.add(pt.Z, counters).sqr(counters).sub(YY, counters).sub(ZZ, counters)
-
-    return JacobianPoint(X3, Y3, Z3, is_identity=False)
 
 
 def scalar_multiply_planted(k: int, gx: int, gy: int, curve: CurveParams,
-                             counters: OperationCounters, sink_state: bytearray) -> JacobianPoint:
-    """Planted composition mirroring `scalar_multiply`/`scalar_multiply_null`'s
-    structure (C9 completion): identical 256-bit MSB-first double-and-add
-    control flow, threading `planted_mul` into every top-level M call site of
-    the full scalar multiplication via `point_add_planted`/
-    `point_double_planted`, giving M_planted = 2*M_reference for the same
-    input/branch trace (spec.arithmetic.planted.exact_count_identity). The
-    caller supplies `sink_state`, the ordered SHA-256 integrity-sink buffer
-    (spec.arithmetic.planted.definition), so sink evolution can be bound to
-    an entire scalar multiplication (or a whole job) rather than reset per
-    call.
+                             counters: OperationCounters,
+                             sink_state: Optional[bytearray] = None) -> JacobianPoint:
+    """Complete planted scalar routine (DEC-20260908-ffb734 finding (c)).
 
-    Like `scalar_multiply`, this function returns the raw unnormalized
-    Jacobian point `R`; normalization is a deliberate caller responsibility
-    (C8 resolution, branch b -- see `scalar_multiply`'s docstring), not part
-    of this routine's own charged-count contract.
+    Same 256-bit MSB-first double-and-add as scalar_multiply, but every
+    top-level M in ADD/DOUBLE/normalization-capable helpers goes through
+    planted_mul. S and I are not duplicated. The caller supplies or
+    receives the integrity sink; a fresh empty sink is created when omitted.
+    This function does not add a final normalize() -- that remains the
+    same caller-composition gap C8 recorded on scalar_multiply -- so the
+    planted and reference callables stay structurally paired.
     """
+    if sink_state is None:
+        sink_state = bytearray()
     R = identity_point(curve.p)
     base = affine_to_jacobian(gx, gy, curve.p)
     for i in range(255, -1, -1):
-        R = point_double_planted(R, curve, counters, sink_state)
+        R = point_double(R, curve, counters, planted_sink=sink_state)
         bit = (k >> i) & 1
         if bit == 1:
-            R = point_add_planted(R, base, curve, counters, sink_state)
+            R = point_add(R, base, curve, counters, planted_sink=sink_state)
     return R
-
-
-# ---------------------------------------------------------------------------
-# Null-control scalar routine placeholder
-# ---------------------------------------------------------------------------
 
 
 def scalar_multiply_null(k: int, gx: int, gy: int, curve: CurveParams,
@@ -646,12 +535,10 @@ __all__ = [
     "point_double",
     "normalize",
     "scalar_multiply",
+    "scalar_multiply_planted",
     "scalar_multiply_null",
     "planted_mul",
     "planted_expected_factor",
-    "point_add_planted",
-    "point_double_planted",
-    "scalar_multiply_planted",
 ]
 
 # NOTE: this module performs no I/O, spawns no process, and calls none of its

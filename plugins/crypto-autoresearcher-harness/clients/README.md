@@ -9,18 +9,21 @@ python3 -m orchestration.campaign.mcp_server --repo /absolute/path/to/crypto-aut
 ```
 
 It listens at `http://127.0.0.1:8765/mcp` by default. The server stores only
-derived check-ins and controller-lease observations; it cannot dispatch work,
-write a ledger record, or change research state.
+derived check-ins, session updates and controller-lease observations; it cannot
+dispatch work, write a ledger record, or change research state.
 
-Before an agent calls one of the peer tools, it must compute its own checkout
-binding and pass the resulting `workspace_id` as `expected_workspace_id`:
+Before calling a peer tool, compute the local binding. Use `repository_id` as
+`expected_repository_id` for the six session/update tools, and `workspace_id`
+as `expected_workspace_id` for the four older goal-scoped tools:
 
 ```sh
 autoresearch campaign workspace --repo /absolute/path/to/crypto-autoresearcher
 ```
 
-The daemon rejects a mismatch before reading or writing its SQLite state. This
-prevents accidental cross-checkout routing; it is not an identity mechanism.
+The daemon rejects a mismatch before reading or writing its SQLite state.
+Linked worktrees share the new session board, but retain distinct identities
+for the old goal tools. See [the session workflow](../../../docs/peer-coordination.md).
+These bindings prevent accidental routing errors; they are not authentication.
 
 | Host | Snippet | Installation |
 | --- | --- | --- |
@@ -38,4 +41,6 @@ advisory data, not authentication.
 For example, start a second checkout on port `8766` and configure its chosen
 server name with `http://127.0.0.1:8766/mcp`. An IPv6 loopback daemon uses a
 bracketed URL such as `http://[::1]:8765/mcp`. Never reuse one static client
-entry for multiple checkouts.
+entry for unrelated repositories. Linked worktrees may share the new session
+tools through their common `repository_id`; the old goal tools remain bound to
+the daemon's original checkout.
