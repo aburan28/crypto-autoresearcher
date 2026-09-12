@@ -11,12 +11,13 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import platform
+import signal
 import sys
 import time
 from fractions import Fraction
 from pathlib import Path
-import signal
 
 
 class BudgetExpired(Exception):
@@ -31,7 +32,10 @@ EXP = "EXP-ECRANK-52d039"
 # counted-op or bit-size stop rule; a stop here is infrastructure only.
 WALL_SECONDS_CAP = 3600
 MEMORY_BYTES_CAP = 8 * 1024 ** 3
-WALL_STOP_MARGIN_SECONDS = 90
+WALL_STOP_MARGIN_SECONDS = 900
+# Deterministic machine-protection ceiling so R2 and its R3 replay emit
+# the same completed-n ledger. Not a protocol cap; a stop is infrastructure.
+COORDINATE_BIT_GUARD = 500_000
 
 
 def q(x):
@@ -628,6 +632,19 @@ def run_r2():
             status="failed_infrastructure"
             stop=infra
             break
+        max_bits = max(v["max"] for v in sizes.values())
+        if max_bits > COORDINATE_BIT_GUARD:
+            status="failed_infrastructure"
+            stop={
+                "class": "resource_exhaustion",
+                "reason": "deterministic coordinate-bit machine-protection guard",
+                "guard_bits": COORDINATE_BIT_GUARD,
+                "n": n,
+                "elapsed_seconds": time.monotonic()-started,
+                "peak_rss_bytes": _peak_rss_bytes(),
+                "coordinate_bit_sizes": sizes,
+            }
+            break
         h1=height_interval(p); h2=height_interval(p2); h3=height_interval(p3)
         i1=canon_interval(interval_from_strings(h1["interval"]),Cq,n)
         i2=canon_interval(interval_from_strings(h2["interval"]),Cq,n)
@@ -639,6 +656,37 @@ def run_r2():
         two={"object":"O2","n":n,"verdict":"INDEPENDENT" if two_ldl["positive"] else "UNRESOLVED","witness_complete":two_ldl["positive"],"pivot_lower_bounds":two_ldl["pivot_lower_bounds"],"pivot_upper_bounds":two_ldl.get("pivot_upper_bounds",[]),"enclosures":{"lambda_P":[qs(i1[0]),qs(i1[1])],"lambda_2P":[qs(i2[0]),qs(i2[1])],"pairing":[qs(pair[0]),qs(pair[1])]},"ldl":two_ldl,"verifier_agreement":None}
         records.extend([one,two])
         last_p, last_p2, last_p3 = p, p2, p3
+        ckpt = os.environ.get("EXP_ECRANK_52D039_R2_CHECKPOINT")
+        if ckpt:
+            Path(ckpt).parent.mkdir(parents=True, exist_ok=True)
+            Path(ckpt).write_text(
+                json.dumps(
+                    {
+                        "stage": "R2",
+                        "status": "failed_infrastructure",
+                        "checkpoint_n": n,
+                        "selected_curve_index": selected["index"],
+                        "curve": enc(E),
+                        "point_P": enc(P),
+                        "C_E": C,
+                        "C_E_derivation": selected["checks"]["C_E"],
+                        "candidates": enc(cand),
+                        "verdict_ledger": records,
+                        "n_cert_O1": next((x["n"] for x in records if x["object"]=="O1" and x["verdict"]=="INDEPENDENT"), None),
+                        "stop": {
+                            "class": "resource_exhaustion",
+                            "reason": "checkpoint after completed n; final status set at process end",
+                            "n": n,
+                        },
+                        "cost_coordinate_bit_sizes": cost_bits,
+                        "implementation": "producer",
+                        "n_max": 60,
+                    },
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ),
+                encoding="utf-8",
+            )
         infra = _infrastructure_stop(started, sizes=sizes, n=n)
         if infra is not None:
             status="failed_infrastructure"

@@ -149,24 +149,49 @@ def source_sha256():
     return out
 
 
+def _as_text(value):
+    if value is None:
+        return ""
+    if isinstance(value, bytes):
+        return value.decode("utf-8", errors="replace")
+    return str(value)
+
+
 def invoke(stage):
     command = [sys.executable, str(PRODUCER), stage]
     started_mono = time.monotonic()
     started_unix = time.time()
     started_at = utc_now()
+    env = os.environ.copy()
+    if stage == "r2":
+        env["EXP_ECRANK_52D039_R2_CHECKPOINT"] = str(
+            EXP / "runs" / RUN_IDS["r2"] / "producer-checkpoint.json"
+        )
+    # Runner timeout sits above the producer SIGALRM so a completed-n dump can finish.
     try:
         result = subprocess.run(
-            command, cwd=ROOT, text=True, capture_output=True, check=False, timeout=3600
+            command,
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+            timeout=3900,
+            env=env,
         )
         timed_out = False
+        stdout = _as_text(result.stdout)
+        stderr = _as_text(result.stderr)
+        returncode = result.returncode
     except subprocess.TimeoutExpired as exc:
-        result = subprocess.CompletedProcess(command, 124, exc.stdout or "", exc.stderr or "")
+        stdout = _as_text(exc.stdout)
+        stderr = _as_text(exc.stderr)
+        returncode = 124
         timed_out = True
     return {
         "command": command,
-        "stdout": result.stdout or "",
-        "stderr": result.stderr or "",
-        "returncode": result.returncode,
+        "stdout": stdout,
+        "stderr": stderr,
+        "returncode": returncode,
         "timed_out": timed_out,
         "wall_seconds_monotonic": time.monotonic() - started_mono,
         "wall_seconds_timestamp_span": time.time() - started_unix,
@@ -183,7 +208,22 @@ def run_producer_and_verifier(stage):
     try:
         produced = json.loads(producer["stdout"])
     except (TypeError, json.JSONDecodeError) as exc:
-        parse_error = f"producer JSON parse failed: {exc}"
+        ckpt = EXP / "runs" / RUN_IDS.get(stage, "") / "producer-checkpoint.json"
+        if ckpt.is_file():
+            try:
+                produced = json.loads(ckpt.read_text(encoding="utf-8"))
+                produced.setdefault("status", "failed_infrastructure")
+                produced.setdefault(
+                    "stop",
+                    {
+                        "class": "resource_exhaustion",
+                        "reason": "recovered producer checkpoint after timeout/parse failure",
+                    },
+                )
+            except (TypeError, json.JSONDecodeError):
+                parse_error = f"producer JSON parse failed: {exc}"
+        else:
+            parse_error = f"producer JSON parse failed: {exc}"
     verify = {
         "agreement": False,
         "errors": [parse_error or "producer returned no JSON"],
@@ -690,15 +730,38 @@ def write_execution_report(r1, r2, r3, m1, m2, m3):
     write_yaml(TASK_DIR / "executor-report.yaml", report)
 
 
+def _load_raw(stage):
+    path = EXP / "runs" / RUN_IDS[stage] / "raw-result.json"
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _load_manifest(stage):
+    path = EXP / "runs" / RUN_IDS[stage] / "manifest.yaml"
+    try:
+        import yaml
+        return yaml.safe_load(path.read_text(encoding="utf-8"))
+    except ImportError:
+        return json.loads(path.read_text(encoding="utf-8"))
+
+
 def main():
-    if len(sys.argv) != 2 or sys.argv[1] not in {"all", "r1", "r2", "r3"}:
-        raise SystemExit("usage: run_experiment.py all|r1|r2|r3")
+    if len(sys.argv) != 2 or sys.argv[1] not in {"all", "r1", "r2", "r3", "report"}:
+        raise SystemExit("usage: run_experiment.py all|r1|r2|r3|report")
     if sys.argv[1] == "r1":
         run_stage("r1")
     elif sys.argv[1] == "r2":
         run_stage("r2")
     elif sys.argv[1] == "r3":
         run_replay()
+    elif sys.argv[1] == "report":
+        write_execution_report(
+            _load_raw("r1"),
+            _load_raw("r2"),
+            _load_raw("r3"),
+            _load_manifest("r1"),
+            _load_manifest("r2"),
+            _load_manifest("r3"),
+        )
     else:
         r1, m1 = run_stage("r1")
         r2, m2 = run_stage("r2")
