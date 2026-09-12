@@ -598,7 +598,6 @@ def point_double_planted(pt: JacobianPoint, curve: CurveParams,
     return JacobianPoint(X3, Y3, Z3, is_identity=False)
 
 
-
 # ---------------------------------------------------------------------------
 # Null-control scalar routine placeholder
 # ---------------------------------------------------------------------------
