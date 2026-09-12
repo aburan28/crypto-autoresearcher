@@ -197,6 +197,7 @@ class EndpointTable:
         probes = 0
         while idx in self.slots:
             occupant = self.slots[idx]
+            # Same affine endpoint (spec.rho.table key): retain earliest slot.
             if occupant.x == slot.x and occupant.y == slot.y:
                 return False, occupant
             if probes >= self.capacity:
