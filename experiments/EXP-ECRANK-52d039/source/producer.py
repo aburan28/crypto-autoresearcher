@@ -16,6 +16,11 @@ import sys
 import time
 from fractions import Fraction
 from pathlib import Path
+import signal
+
+
+class BudgetExpired(Exception):
+    """Frozen wall-clock cap reached; emit completed records only."""
 
 if hasattr(sys, "set_int_max_str_digits"):
     sys.set_int_max_str_digits(0)
@@ -460,6 +465,20 @@ def _infrastructure_stop(started_mono, sizes=None, n=None):
     return None
 
 
+def _arm_wall_alarm():
+    def _handle(signum, frame):
+        raise BudgetExpired("SIGALRM: frozen wall-clock cap")
+
+    if hasattr(signal, "SIGALRM"):
+        signal.signal(signal.SIGALRM, _handle)
+        signal.alarm(max(1, WALL_SECONDS_CAP - WALL_STOP_MARGIN_SECONDS))
+
+
+def _disarm_wall_alarm():
+    if hasattr(signal, "SIGALRM"):
+        signal.alarm(0)
+
+
 def _log_interval_pos(r, bits=96):
     """Exact rational enclosure of ln(r), using atanh series and scaling."""
     r = q(r)
@@ -590,9 +609,16 @@ def run_r2():
     p=P; p2=add_point(E,P,P); p3=add_point(E,p2,P)
     status="completed_valid"
     stop=None
-    for n in range(61):
+    _arm_wall_alarm()
+    try:
+      for n in range(61):
         sizes={"P":_bit_size(p),"2P":_bit_size(p2),"3P":_bit_size(p3)}
         cost_bits.append({"n": n, "chains": sizes})
+        print(
+            f"R2 progress n={n} bits={sizes} elapsed={time.monotonic()-started:.1f}s rss={_peak_rss_bytes()}",
+            file=sys.stderr,
+            flush=True,
+        )
         infra = _infrastructure_stop(started, sizes=sizes, n=n)
         if infra is not None:
             status="failed_infrastructure"
@@ -608,8 +634,25 @@ def run_r2():
         two_ldl=ldl_2(i1,i2,pair)
         two={"object":"O2","n":n,"verdict":"INDEPENDENT" if two_ldl["positive"] else "UNRESOLVED","witness_complete":two_ldl["positive"],"pivot_lower_bounds":two_ldl["pivot_lower_bounds"],"pivot_upper_bounds":two_ldl.get("pivot_upper_bounds",[]),"enclosures":{"lambda_P":[qs(i1[0]),qs(i1[1])],"lambda_2P":[qs(i2[0]),qs(i2[1])],"pairing":[qs(pair[0]),qs(pair[1])]},"ldl":two_ldl,"verifier_agreement":None}
         records.extend([one,two])
+        infra = _infrastructure_stop(started, sizes=sizes, n=n)
+        if infra is not None:
+            status="failed_infrastructure"
+            stop=infra
+            break
         if n<60:
             p=add_point(E,p,p); p2=add_point(E,p2,p2); p3=add_point(E,p3,p3)
+    except BudgetExpired:
+        status="failed_infrastructure"
+        stop={
+            "class": "resource_exhaustion",
+            "reason": "SIGALRM: wall-clock budget approaching frozen 3600 s cap",
+            "n": records[-1]["n"] if records else None,
+            "elapsed_seconds": time.monotonic()-started,
+            "peak_rss_bytes": _peak_rss_bytes(),
+            "coordinate_bit_sizes": cost_bits[-1]["chains"] if cost_bits else None,
+        }
+    finally:
+        _disarm_wall_alarm()
     # Comparison-only floating values at the last completed n.  No verdict
     # reads these values.
     if records:
