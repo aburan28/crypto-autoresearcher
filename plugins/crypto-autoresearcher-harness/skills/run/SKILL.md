@@ -34,12 +34,12 @@ For `$run GOAL-...`, select only that goal's experiments:
 python3 tools/newest_experiments.py --goal <GOAL-ID> --limit 0 --json
 ```
 
-Keep the goal filter throughout execution and in the result summary. If an older
-experiment has no `goal_id` in its specification, follow the named goal's existing
-experiment/queue pointers to its documented launcher; do not scan other goals or
-infer membership from an identifier prefix. An empty or impeded goal-scoped list
-never falls back to the whole portfolio. Report the selected goal, attempted
-experiments, completed/failed trials, output paths, and any remaining impediment.
+`--goal` keeps experiments whose specification `goal_id` matches and older
+experiments the named goal already points to (goal/checkpoint `experiment_ids`
+and dispatch-queue `experiment_id`). Do not scan other goals or infer membership
+from an identifier prefix. An empty or impeded goal-scoped list never falls back
+to the whole portfolio. Report the selected goal, attempted experiments,
+completed/failed trials, output paths, and any remaining impediment.
 
 ## Execute
 

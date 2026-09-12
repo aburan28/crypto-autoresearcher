@@ -23,6 +23,8 @@ import ecc_priority  # noqa: E402
 from experiment_execution import coverage  # noqa: E402
 
 _EXP_ID_RE = re.compile(r"EXP-[A-Za-z0-9]+-(?:[0-9a-fA-F]{6}|\d{3})")
+_POINTER_KEYS = frozenset({"experiment_id", "experiment_ids", "active_experiment_ids"})
+_QUEUE_KEYS = frozenset({"dispatch_queue", "dispatch_queue_path"})
 
 
 def _load(path: Path) -> dict[str, Any] | None:
@@ -73,6 +75,104 @@ def _superseded_ids(specs: list[tuple[Path, dict[str, Any]]]) -> set[str]:
     return superseded
 
 
+def _read_mapping(path: Path) -> dict[str, Any] | None:
+    try:
+        text = path.read_text(encoding="utf-8")
+        doc = json.loads(text) if path.suffix == ".json" else yaml.safe_load(text)
+        return doc if isinstance(doc, dict) else None
+    except (OSError, ValueError, yaml.YAMLError, json.JSONDecodeError):
+        return None
+
+
+def _repo_file(repo: Path, raw: object) -> Path | None:
+    if not isinstance(raw, str) or not raw:
+        return None
+    path = Path(raw)
+    candidate = path if path.is_absolute() else repo / path
+    try:
+        resolved = candidate.resolve()
+        resolved.relative_to(repo)
+    except (OSError, ValueError):
+        return None
+    return resolved if resolved.is_file() else None
+
+
+def _collect_pointer_ids(value: Any, dest: set[str], *, keyed: bool = False) -> None:
+    if isinstance(value, str):
+        if keyed:
+            dest.update(_EXP_ID_RE.findall(value))
+        return
+    if isinstance(value, (list, tuple)):
+        for item in value:
+            _collect_pointer_ids(item, dest, keyed=keyed)
+        return
+    if isinstance(value, dict):
+        for key, item in value.items():
+            _collect_pointer_ids(item, dest, keyed=keyed or key in _POINTER_KEYS)
+
+
+def _collect_queue_paths(value: Any, dest: set[Path], repo: Path) -> None:
+    if isinstance(value, dict):
+        for key, item in value.items():
+            if key in _QUEUE_KEYS:
+                path = _repo_file(repo, item)
+                if path is not None:
+                    dest.add(path)
+            else:
+                _collect_queue_paths(item, dest, repo)
+        return
+    if isinstance(value, (list, tuple)):
+        for item in value:
+            _collect_queue_paths(item, dest, repo)
+
+
+def _goal_dir_name(goal: str) -> str | None:
+    if not goal or "/" in goal or "\\" in goal or goal in {".", ".."}:
+        return None
+    return goal
+
+
+def _goal_pointer_ids(repo: Path, goal: str) -> set[str]:
+    """Experiment IDs the named goal already points at (not identifier-prefix inference)."""
+    name = _goal_dir_name(goal)
+    if name is None:
+        return set()
+    ids: set[str] = set()
+    queues: set[Path] = set()
+    for path in (repo / "ledger" / "goals" / f"{name}.yaml",
+                 repo / "ledger" / "goals" / name / "goal.yaml"):
+        doc = _read_mapping(path)
+        if doc:
+            _collect_pointer_ids(doc, ids)
+            _collect_queue_paths(doc, queues, repo)
+    ckpt_dir = repo / "ledger" / "goals" / name / "checkpoints"
+    if ckpt_dir.is_dir():
+        for path in sorted(ckpt_dir.glob("*.yaml")):
+            doc = _read_mapping(path)
+            if doc:
+                _collect_pointer_ids(doc, ids)
+                _collect_queue_paths(doc, queues, repo)
+    owned = repo / "coordination" / "goals" / name
+    if owned.is_dir():
+        queues.update(owned.rglob("dispatch_queue.json"))
+    for path in queues:
+        doc = _read_mapping(path)
+        if not doc or doc.get("goal_id") not in (None, goal):
+            continue
+        _collect_pointer_ids(doc, ids)
+    return ids
+
+
+def _in_goal_scope(exp: dict[str, Any], goal: str, pointer_ids: set[str],
+                   exp_id: str) -> bool:
+    assigned = exp.get("goal_id")
+    if assigned == goal:
+        return True
+    if assigned not in (None, ""):
+        return False
+    return exp_id in pointer_ids
+
+
 def newest_runnable(repo: Path = REPO, *, include_blocked: bool = False,
                     goal: str | None = None, experiment_ids: set[str] | None = None) -> list[dict[str, Any]]:
     repo = repo.resolve()
@@ -80,6 +180,7 @@ def newest_runnable(repo: Path = REPO, *, include_blocked: bool = False,
     specs = [(spec, exp) for spec in sorted((repo / "experiments").glob("EXP-*/specification.yaml"))
              if (exp := _load(spec)) is not None]
     superseded = _superseded_ids(specs)
+    pointer_ids = _goal_pointer_ids(repo, goal) if goal is not None else set()
     rows: list[dict[str, Any]] = []
     for spec, exp in specs:
         exp_id = str(exp.get("id") or spec.parent.name)
@@ -87,7 +188,7 @@ def newest_runnable(repo: Path = REPO, *, include_blocked: bool = False,
                 or exp.get("frozen") is not True or exp.get("execution_authorized") is False
                 or exp_id in superseded):
             continue
-        if goal is not None and exp.get("goal_id") != goal:
+        if goal is not None and not _in_goal_scope(exp, goal, pointer_ids, exp_id):
             continue
         if experiment_ids is not None and exp_id not in experiment_ids:
             continue

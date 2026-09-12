@@ -102,6 +102,52 @@ def test_goal_filter_excludes_other_goals_and_unassigned_experiments(tmp_path):
     assert mod.newest_runnable(tmp_path, goal="GOAL-ECDLP-dd4444") == []
 
 
+def test_goal_filter_includes_pointer_bound_experiments(tmp_path):
+    (tmp_path / "orchestration").mkdir()
+    (tmp_path / "orchestration/research-priority.yaml").write_text(
+        "ecc_areas: [ECDLP]\n")
+    _write_exp(tmp_path, "EXP-ECDLP-cc0001", designed_at="2026-09-01")
+    _write_exp(tmp_path, "EXP-ECDLP-cc0002", designed_at="2026-09-02")
+    _write_exp(tmp_path, "EXP-ECDLP-cc0003", designed_at="2026-09-03")
+    _write_exp(tmp_path, "EXP-ECDLP-cc0004", designed_at="2026-09-04")
+    _write_exp(tmp_path, "EXP-ECDLP-dd0001", designed_at="2026-09-05",
+               goal_id="GOAL-ECDLP-bb2222")
+    _write_exp(tmp_path, "EXP-ECDLP-aa1111", designed_at="2026-09-06",
+               goal_id="GOAL-ECDLP-aa1111")
+
+    goal_dir = tmp_path / "ledger" / "goals" / "GOAL-ECDLP-aa1111"
+    (goal_dir / "checkpoints").mkdir(parents=True)
+    (goal_dir / "goal.yaml").write_text(yaml.safe_dump({
+        "research_goal": {
+            "id": "GOAL-ECDLP-aa1111",
+            "status": "active",
+            "active_experiment_ids": ["EXP-ECDLP-cc0003"],
+            "dispatch_queue_path": (
+                "coordination/goals/GOAL-ECDLP-aa1111/batches/BATCH-1/"
+                "dispatch_queue.json"),
+        }
+    }))
+    (goal_dir / "checkpoints" / "BATCH-1.yaml").write_text(yaml.safe_dump({
+        "batch_checkpoint": {
+            "goal_id": "GOAL-ECDLP-aa1111",
+            "experiment_ids": ["EXP-ECDLP-cc0001", "EXP-ECDLP-dd0001"],
+        }
+    }))
+    queue_dir = (tmp_path / "coordination" / "goals" / "GOAL-ECDLP-aa1111"
+                 / "batches" / "BATCH-1")
+    queue_dir.mkdir(parents=True)
+    (queue_dir / "dispatch_queue.json").write_text(json.dumps({
+        "goal_id": "GOAL-ECDLP-aa1111",
+        "experiment_id": "EXP-ECDLP-cc0002",
+    }))
+
+    rows = mod.newest_runnable(tmp_path, goal="GOAL-ECDLP-aa1111")
+    assert [row["id"] for row in rows] == [
+        "EXP-ECDLP-aa1111", "EXP-ECDLP-cc0003", "EXP-ECDLP-cc0002",
+        "EXP-ECDLP-cc0001"]
+    assert mod.newest_runnable(tmp_path, goal="GOAL-ECDLP-dd4444") == []
+
+
 def test_cli_keeps_goal_scope_for_all_selected_rows_and_blockers(tmp_path, monkeypatch, capsys):
     (tmp_path / "orchestration").mkdir()
     (tmp_path / "orchestration/research-priority.yaml").write_text(
