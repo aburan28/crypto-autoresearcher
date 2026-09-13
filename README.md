@@ -53,9 +53,9 @@ agents/executor.md                     Execution, artifact, and failure semantic
 agents/validator.md                    Independent receipt and control validation
 agents/red-team.md                     Interpretation and cost-model falsification
 .claude/agents/                        Operational subagent definitions (Claude Code)
-.claude/skills/                        Lifecycle skills: /propose-ideas, /design-experiment,
-                                       /run, /review-evidence, /research-status,
-                                       /curate-knowledge
+.claude/skills/                        Lifecycle skills: /coordinate, /propose-ideas,
+                                       /design-experiment, /run, /review-evidence,
+                                       /research-status, /curate-knowledge
 orchestration/roles.yaml               Role authority and tool surface, runtime-neutral
 orchestration/model-policies.yaml      What each role needs from a model (no vendors)
 orchestration/providers.yaml           Backends, wire protocols, and runtimes

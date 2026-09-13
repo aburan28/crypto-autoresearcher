@@ -1,9 +1,11 @@
 # Research coordination reference
 
-This document is for explicitly requested research coordination, design, and
-review work. It is not a discoverable skill. The sole public execution skill is
-[`run`](../run/SKILL.md). A run request follows that skill directly and does not
-load this coordination lifecycle or its preflight/validation procedure.
+This document is the detailed coordination procedure. The discoverable
+Coordinator front door is [`.claude/skills/coordinate/SKILL.md`](../../../../.claude/skills/coordinate/SKILL.md)
+(`/coordinate`). This file is not itself a skill. The sole public execution
+skill is [`run`](../run/SKILL.md). A run request follows that skill directly
+and does not load this coordination lifecycle or its preflight/validation
+procedure.
 
 Requires a Crypto Autoresearcher checkout and Python 3.11+.
 
@@ -110,16 +112,18 @@ contract is a technical prerequisite to resolve, not a request for permission.
 | --- | --- |
 | Status, doctor, orientation | **status**: read-only preflight and status; use goal_portfolio_health.py --no-deepen. Report without claims, records, fetches or dispatch. |
 | Generate ideas / design experiments | **ideas/design**: read [intake](references/intake.md); archive and publish the requested proposals/designs, then stop unless execution was requested. |
-| Run/continue a named GOAL-* | Use [`run`](../run/SKILL.md) directly for the named scope; do not apply this coordination lifecycle. |
+| Run/continue a named GOAL-* **as execution** | Use [`run`](../run/SKILL.md) directly for the named scope; do not apply this coordination lifecycle. |
+| `/coordinate GOAL-*`, resume a named goal without running trials | **goal**: read [lifecycle](references/lifecycle.md); Coordinator work only on that `GOAL-*`. |
 | Run the harness / keep running / run experiments, with no named goal | Use [`run`](../run/SKILL.md) directly; do not apply this coordination lifecycle. |
-| Explicit full portfolio research including ideation | **portfolio**: read [lifecycle](references/lifecycle.md); work ranked active goals, ECC first, including explicitly requested ideation. |
+| `/coordinate`, launch coordinator, or explicit portfolio including ideation | **portfolio**: read [lifecycle](references/lifecycle.md); work ranked active goals, ECC first, including explicitly requested ideation. |
 | Run a named TASK-* or EXP-* | Use [`run`](../run/SKILL.md) directly and retain the named stopping boundary. |
 | Start a new campaign | Create a goal only on this explicit request, then use goal mode. |
 | Conclusion, promotion, closure or breakthrough | Arrange the Coordinator and independent claim-tier review required by AGENTS.md; never infer approval from the request itself. |
 
 The `run` skill is execution-only. Protocol preparation, maintenance, publication,
-and claim review are separate tasks. The remaining lifecycle applies to explicitly
-requested coordination work; it adds no prerequisites to a plain run request.
+and claim review are separate tasks. `/coordinate` is the discoverable front
+door for that remaining lifecycle; it adds no prerequisites to a plain run
+request.
 
 A completed batch is a checkpoint in execution/goal/portfolio mode. Continue authorized
 work without asking again; see the lifecycle for terminal and operational exits.
@@ -128,8 +132,8 @@ Impeded goals stay active. Empty queues and infrastructure failures are not
 research conclusions.
 
 The old launch-research-harness and coordinate-research-goal skills are retired.
-Their coordination references remain here for explicitly requested work. Use
-`run` for experiment execution.
+Use `/coordinate` for Coordinator work and `run` for experiment execution.
+Do not recreate those retired adapter paths.
 
 If an expired claim has no inspectable runtime binding, follow
 `docs/isolated-task-recovery.md`: one bounded assessment, then an explicit
