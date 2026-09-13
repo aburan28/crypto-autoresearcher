@@ -1,0 +1,442 @@
+hypothesis:
+  id: H-SEMBIN-c5b2e0
+  question_id: RQ-SEMBIN-ade131
+  statement: >-
+    Semaev 2015 eq. (11), P(n,m,t,k) = 1 - exp(-2^{tk-n}/t!), OVERSTATES the
+    probability that a uniformly random point R admits a decomposition found by the
+    chained system of eq. (5), and the overstatement is systematic rather than
+    noise: the measured ratio realized_yield / P(n,m,t,k) is strictly below 1 across
+    the enumeration window and decreases as t grows. The direction is forced by the
+    paper's own derivation, which bounds P(solve eq. 5) ABOVE by P(n,m,t,k) and then
+    assumes equality; since this probability sits in the DENOMINATOR of stage-1
+    relation-collection cost in eqs. (15)-(17), the assumption biases the paper's
+    stage-1 cost DOWNWARD, and the concrete Table 3 figures with it. The measured
+    ratio is the same object as the 2^m-type discrepancy H-RELN-96e3ba already
+    reports at m = 2 against the HEUR-SEMAEV-2015-4.3 reference curve, and that
+    discrepancy is a property of eq. (11) rather than of the toy prime-field
+    instrument that found it.
+  mechanism: >-
+    eq. (11) is a symmetric-random-map heuristic. It treats
+    (x_1,...,x_t) -> S_{t+1}(x_1,...,x_t,z) as a uniformly random map from the
+    t-element multisets of V into F_q, counts K ~ |V|^t / t! classes, and computes
+    the probability that at least one class hits zero as 1 - (1-1/q)^K. Three
+    mechanisms make the realized yield fall short of that, all of them structural
+    and none of them an implementation defect.
+    First, the t! divisor is a symmetry correction applied as though every orbit had
+    full size t!. Orbits with repeated coordinates are smaller, so |V|^t / t!
+    undercounts classes in a way that partially offsets, but the multiset count is
+    C(|V|+t-1, t) rather than |V|^t / t!, and the two differ by a factor that grows
+    with t at fixed |V|. This is a pure counting discrepancy, computable exactly, and
+    it is the most likely source of an m- or t-dependent ratio of the shape
+    H-RELN-96e3ba reports.
+    Second, the summation polynomial's zero set is not a uniformly random fibre. A
+    zero of S_{t+1} is a genuine decomposition only when the corresponding y-values
+    lie in F_q; Lemma 2 handles the case where some y_i fall in F_{q^2} \ F_q by
+    observing that the partial sum is then a point of order exactly 2, so s = 0 or
+    s >= 2. Those solutions exist and are counted by the algebraic system while not
+    being usable relations. A random-map model has no analogue of them, so it
+    predicts yield the construction does not deliver.
+    Third, and this is the load-bearing one, the paper's own inequality chain is
+      P(solve one of the first t-1 systems) >= P(n,m,t,k) >= P(solve eq. 5),
+    after which Section 4.3 assumes P(solve eq. 5) ~ P(n,m,t,k). The right-hand
+    inequality says P(n,m,t,k) is an UPPER bound on what eq. (5) delivers. Stage-1
+    cost in eq. (15) is proportional to the number of R values that must be tried
+    before a relation is found, i.e. to 1 / P(solve eq. 5). Substituting a larger
+    number for the true probability therefore makes the cost estimate smaller. This
+    is a one-sided error with a known sign, and it is not disclosed as such in the
+    paper.
+    The chained-versus-single question is separable and must be separated. eq. (5) is
+    Lemma-2-equivalent to eq. (4) only when the lower-t systems are unsatisfiable, so
+    a yield measured through the chain and a yield measured through the single
+    polynomial can differ. Counting BOTH on the same instances is what distinguishes
+    "eq. (11) is the wrong law" from "eq. (11) is the right law for eq. (4) and the
+    chain loses solutions", and no record in this program distinguishes them today.
+  assumptions:
+    - >-
+      Wherever |V|^t is small enough, the decomposition count for a given R is
+      obtained by EXHAUSTIVE ENUMERATION over V^t rather than by sampling or by
+      solving. At small tk - n the yield is small and its sampling variance is
+      comparable to the effect being measured, so a sampled estimate is the cheapest
+      way to manufacture a discrepancy that is not there.
+      Enumeration also removes the solver from the measurement entirely, so no
+      Groebner behaviour and no degree assumption enters this hypothesis at all.
+    - >-
+      The window tk - n in [-6, +6] is where 1 - exp(-2^{tk-n}/t!) is neither
+      saturated near 1 nor negligible near 0, hence where a multiplicative
+      discrepancy is visible. Outside it the model and any competitor agree to within
+      the measurement's resolution.
+    - >-
+      H-RELN-96e3ba's reported 2^m-type discrepancy is against the same formula. This
+      is now checkable rather than assumed: the freezing session confirmed the
+      HEUR-SEMAEV-2015-4.3 curve reproduces every theoretical-probability cell of
+      Tables 1-2 to four decimals (KN-LIT-fa346d, "Re-checked here").
+    - >-
+      Nothing in this hypothesis depends on Assumption 1, Assumption 2, or any degree
+      bound. It is a counting statement about the same construction.
+  proof_search_map:
+    bottleneck: >-
+      The unmeasured step between a random-map heuristic and the relation yield the
+      construction actually delivers. Every concrete cost figure in the paper passes
+      through it, and this program has been citing the heuristic as a reference curve
+      in frozen protocols without it.
+    baseline_embedding:
+      parameter_slice: >-
+        The paper's own probability cells at n = 13, m = t = 4, k = 4 (0.2834),
+        n = 19, m = 3, t = 3, k = 7 (0.4865), n = 40, m = t = 2, k = 20 (0.3934) and
+        n = 12, m = t = 6, k = 2 (0.0013), from tables.yaml. These fix that this
+        program evaluates eq. (11) correctly.
+      reproduction_check: >-
+        Recomputed 1 - exp(-2^{tk-n}/t!) matches all four printed values to four
+        decimals -- already performed in the freezing session and recorded in
+        inputs/SEMAEV-2015-310/tables.yaml derived_checks. It is a check on this
+        program's arithmetic and is explicitly NOT evidence that eq. (11) is right,
+        since the paper's probability column is the model's own output rather than
+        data.
+    observation_collision:
+      observable: >-
+        Realized decomposition count for a fixed R over V^t.
+      distinct_preimage_search: >-
+        Search for (n, m, t, k) cells where the chained count and the single-
+        polynomial count AGREE while the Lemma-2 side condition fails, and cells
+        where they DISAGREE while it holds. Both would be informative in opposite
+        directions: the first says the chain does not lose the solutions the
+        condition is supposed to protect, the second says something other than the
+        condition separates them. Record the per-R counts, not just their mean, so
+        the collision is visible in the distribution rather than only in the average.
+    constructive_transforms:
+      - transform: observable_fiber
+        proposed_object: >-
+          The exact per-R decomposition count, enumerated, in place of a
+          success/failure indicator.
+        predicted_gain: >-
+          Turns a Bernoulli measurement whose variance swamps the effect into an
+          exact count, so the ratio to eq. (11) carries an error bar dominated by the
+          number of R draws rather than by per-R noise.
+      - transform: specialization_pack
+        proposed_object: >-
+          The exact multiset count C(|V|+t-1, t) alongside |V|^t / t!, as two
+          candidate class counts in the same formula.
+        predicted_gain: >-
+          If the measured ratio is reproduced by swapping the class count alone, the
+          discrepancy is a counting artifact with a closed-form correction rather
+          than a defect of the random-map model, which is a far more useful and more
+          disclosable result.
+    quantifier_order: >-
+      For all cells in the declared window, the measured ratio
+      realized_yield / P(n,m,t,k) is < 1 at the stated confidence. There EXISTS a
+      monotone decrease in that ratio as t increases at fixed tk - n. No claim is
+      made for all (n, m, t, k), and no claim is made about the ratio's value at
+      n = 409 or 571, where the enumeration is impossible by construction and only
+      the SIGN of the bias transfers -- and that only because the sign follows from
+      the paper's own inequality rather than from any measurement here.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        An exact measured ratio with error bars over the enumeration window
+        (n <= 24, tk - n in [-6, +6]), plus a derivation-level statement of the
+        bias's sign that holds wherever the paper's inequality chain holds. NOT a
+        corrected yield law for cryptographic parameters, and not a corrected Table 3.
+      nearby_object_control: >-
+        A directly realized symmetric random map from V^t to F_q -- the object
+        eq. (11) actually models -- with the identical counting pipeline applied to
+        it. Its measured ratio must be 1 within error. If the pipeline reports a
+        ratio below 1 for the true random map, the deficit is an artifact of the
+        counting code and every curve-derived cell is void. This is the control that
+        separates the model's shape from the curve's behaviour.
+    proof_obligations:
+      - claim: >-
+          The enumeration counts exactly the decompositions of R as a sum of t points
+          with x-coordinates in V, with the y in F_{q^2} \ F_q cases identified and
+          reported separately rather than silently included or excluded.
+        responsibility: correctness
+      - claim: >-
+          1 - exp(-2^{tk-n}/t!) reproduces the paper's four printed probability
+          decimals at the four named cells.
+        responsibility: baseline
+      - claim: >-
+          The realized-map control returns ratio 1 within error under the same
+          pipeline.
+        responsibility: feasibility
+      - claim: >-
+          Stage-1 cost in eq. (15) is monotone decreasing in the probability
+          substituted, so an upper bound on the probability yields a lower bound on
+          cost.
+        responsibility: runtime
+      - claim: >-
+          The ratio is claimed only over the enumerated window; the sign of the bias
+          is claimed wherever the paper's own inequality chain holds and nowhere else.
+        responsibility: scope
+  rerandomization: null
+  asymptotic_claim: null
+  heuristic_assumptions:
+    - id: HEUR-003
+      formal_statement: >-
+        For fixed t and R uniform on E(F_{2^n}), the number of decompositions of R
+        over V^t is Poisson-distributed with mean 2^{tk-n} * c(t), where c(t) is a
+        correction factor depending only on t and equal to 1 when eq. (11) is exact.
+        The claim of this hypothesis is c(t) < 1 with c decreasing in t.
+      random_model_justification: >-
+        eq. (11) is itself the statement that the count is Poisson with mean
+        2^{tk-n}/t!: 1 - exp(-lambda) is the probability a Poisson variable with mean
+        lambda is nonzero. Writing the correction as a multiplicative c(t) keeps the
+        Poisson shape -- which is the part of the model that rests on the standard
+        occupancy limit for a random map with many classes and one target value -- and
+        localizes the disagreement into the class count, where the t! versus
+        C(|V|+t-1,t) discrepancy and the Lemma-2 exclusions both live. That
+        localization is the reason to state it this way rather than as an unstructured
+        deviation.
+      supporting_results:
+        - >-
+          eq. (11) and its derivation from K ~ |V|^t / t! classes, and the inequality
+          chain around it (KN-LIT-fa346d Key claims; inputs/SEMAEV-2015-310/
+          paper_fulltext.md Section 4.3, eq. 11; provenance kb).
+        - >-
+          H-RELN-96e3ba's reported 2^m-type discrepancy against this curve at m = 2
+          (provenance internal), which is a measured deviation of roughly the shape
+          c(t) < 1 predicts, obtained on a different instrument.
+        - >-
+          The classical Poisson limit for occupancy problems. Recalled pointer, not
+          opened by any agent here, supporting nothing (AGENTS.md rule 9).
+      validation_experiment_ids:
+        - EXP-SEMBIN-354a75
+      falsification_condition: >-
+        The enumerated per-R count distribution fails a Poisson goodness-of-fit at
+        the declared level in cells where the realized-random-map control passes it,
+        OR the fitted c(t) is >= 1 at the stated confidence, OR c(t) increases in t.
+        Any of these refutes HEUR-003 as stated.
+    - id: HEUR-004
+      formal_statement: >-
+        The measured ratio for the chained system eq. (5) equals the measured ratio
+        for the single polynomial eq. (4) at the same (n, m, t, k), i.e. the chaining
+        does not itself lose decompositions.
+      random_model_justification: >-
+        Lemma 2 asserts the two systems are equivalent conditional on the lower-t
+        systems being unsatisfiable, so under the model in which that side condition
+        holds for all but a vanishing fraction of R, the two counts coincide. This is
+        stated as a heuristic rather than inherited from Lemma 2 because the paper
+        does not measure how often the side condition fails.
+      supporting_results:
+        - >-
+          Lemma 2 and its treatment of the y_i in F_{q^2}\F_q case
+          (inputs/SEMAEV-2015-310/paper_fulltext.md; provenance kb).
+      validation_experiment_ids:
+        - EXP-SEMBIN-354a75
+      falsification_condition: >-
+        Chained and single counts differ on more than the fraction of R for which the
+        Lemma-2 side condition is observed to fail. That would mean the chain loses
+        solutions for a reason the lemma does not name, and would relocate the
+        discrepancy from eq. (11) to eq. (5) -- changing which of this program's
+        conclusions follow.
+  structural_ingredients:
+    - description: >-
+        eq. (11) and the Section 4.3 symmetric-random-map derivation, including the
+        inequality chain P(first t-1) >= P(n,m,t,k) >= P(solve eq. 5) and the
+        subsequent equality assumption.
+      citation: inputs/SEMAEV-2015-310/paper_fulltext.md Section 4.3, eq. (11)
+      provenance: kb
+      verified_by: TASK-20260913-8702c8
+      role: the law under test and the source of the bias direction
+    - description: >-
+        Lemma 2's conditional equivalence of eq. (5) with eq. (4), and its order-2
+        argument for y_i outside F_q.
+      citation: inputs/SEMAEV-2015-310/paper_fulltext.md Lemma 2
+      provenance: kb
+      verified_by: TASK-20260913-8702c8
+      role: the reason chained and single yields can differ, and how
+    - description: >-
+        The two-stage cost balance eqs. (15)-(17), in which the probability appears
+        in the denominator of stage-1 cost.
+      citation: inputs/SEMAEV-2015-310/paper_fulltext.md eqs. (15)-(17)
+      provenance: kb
+      verified_by: TASK-20260913-8702c8
+      role: what the bias propagates into
+    - description: >-
+        H-RELN-96e3ba's 2^m-type discrepancy against the HEUR-SEMAEV-2015-4.3 curve
+        at m = 2, and the frozen EXP-RELN-164ad3 specification that names the curve.
+      citation: ledger/hypotheses/H-RELN-96e3ba.yaml; experiments/EXP-RELN-164ad3/specification.yaml
+      provenance: internal
+      verified_by: TASK-20260913-8702c8
+      role: >-
+        the pre-existing signal this hypothesis explains, and the frozen protocol
+        whose comparator status is at stake
+  reduction_chain:
+    core_problem: >-
+      The correctness and bias direction of the relation-yield law for chained-S_3
+      point decomposition.
+    corollaries:
+      - problem: >-
+          Whether Semaev's stage-1 cost in eqs. (15)-(17), and hence Table 3 and the
+          Section 4.5.2 crossover, are underestimates.
+        reduction_ref: >-
+          Direct substitution: cost is monotone in 1/P, so the sign transfers by
+          derivation. The MAGNITUDE does not transfer from the enumeration window and
+          is not claimed.
+        asymptotics_preserved: >-
+          'no: a constant or t-dependent factor in P moves the crossover n and leaves
+          the 2^{c sqrt(n ln n)} exponent alone'
+      - problem: >-
+          Whether HEUR-SEMAEV-2015-4.3 remains a sound reference comparator in the
+          frozen GOAL-RELN-001 and GOAL-ICEX-001 protocols.
+        reduction_ref: >-
+          Direct: the comparator IS eq. (11). If it is biased, an additive amendment
+          is required; the frozen specification is immutable and is not edited.
+        asymptotics_preserved: not_applicable
+  predictions:
+    - metric: yield_ratio_to_eq11
+      direction: lower
+      minimum_effect: >-
+        Measured realized_yield / P(n,m,t,k) below 1 by at least 20% in the cells
+        with t >= 3 and tk - n in [-2, +2], with a 95% interval excluding 1. A ratio
+        indistinguishable from 1 across the window refutes the hypothesis.
+    - metric: ratio_trend_in_t
+      direction: lower
+      minimum_effect: >-
+        Monotone decrease in the ratio as t goes 2 -> 3 -> 4 at matched tk - n, with
+        the t = 4 ratio below the t = 2 ratio by at least a factor of 2. This is the
+        signature that distinguishes a class-count error from unstructured deviation.
+    - metric: multiset_correction_explains_ratio
+      direction: different
+      minimum_effect: >-
+        Replacing |V|^t / t! by the exact multiset count C(|V|+t-1, t) moves the
+        ratio toward 1 by a measurable amount. Full closure of the gap means the
+        discrepancy is a counting artifact with a closed-form fix; partial closure
+        localizes the residual to the Lemma-2 exclusions.
+    - metric: realized_random_map_control
+      direction: different
+      minimum_effect: >-
+        Ratio 1 within a 95% interval for the directly realized symmetric random map
+        under the identical pipeline. A control ratio below 1 voids every
+        curve-derived cell as a counting-code artifact.
+    - metric: chained_vs_single_agreement
+      direction: different
+      minimum_effect: >-
+        Chained and single counts agree per R except on the measured fraction where
+        the Lemma-2 side condition fails, that fraction reported explicitly. A larger
+        disagreement refutes HEUR-004 and relocates the finding to eq. (5).
+    - metric: relnn_discrepancy_reconciled
+      direction: different
+      minimum_effect: >-
+        The measured ratio at m = t = 2 is consistent with, or explicitly
+        inconsistent with, H-RELN-96e3ba's reported 2^m-type discrepancy. Either
+        outcome resolves that open thread; leaving it unaddressed does not.
+  test_boundary:
+    instances:
+      - >-
+        E/F_{2^n}: Y^2 + XY = X^3 + A X^2 + B, B = 1 and random B, with V both the
+        low-degree polynomial subspace and a random k-dimensional F_2-subspace
+      - >-
+        chained eq. (5) enumeration and single eq. (4) enumeration on the same R
+        draws, as matched presentations
+      - >-
+        a directly realized symmetric random map from V^t to F_q, as the null object
+        eq. (11) models
+    parameters:
+      window: 'tk - n in [-6, +6]'
+      cells:
+        - {n: 13, m: 4, t: 4, k: 4}
+        - {n: 15, m: 5, t: 3, k: 3}
+        - {n: 17, m: 3, t: 3, k: 6}
+        - {n: 19, m: 3, t: 3, k: 7}
+        - {n: 21, m: 3, t: 3, k: 7}
+        - {n: 12, m: 6, t: 6, k: 2}
+        - {n: 20, m: 2, t: 2, k: 10}
+        - {n: 22, m: 2, t: 2, k: 11}
+        - {n: 24, m: 2, t: 2, k: 12}
+      random_R_draws_per_cell: 2000
+      counting: exhaustive over V^t; no sampling within a cell
+      subspace_variants: [low_degree_polynomial, random_k_dimensional]
+    implementation: >-
+      Direct enumeration in F_{2^n} arithmetic; no Groebner engine and no solver, so
+      no degree assumption enters. Per-R counts retained in full rather than
+      aggregated, so the distribution is available for the Poisson fit and the
+      per-R chained-versus-single comparison.
+    budget:
+      wall_clock_seconds_per_cell: 3600
+      maximum_memory_gb: 4
+      maximum_runs: 200
+      enforcement: advisory
+  falsification_conditions:
+    - >-
+      Measured ratio indistinguishable from 1 across the window at the declared
+      confidence. eq. (11) is then the right law at these parameters and the
+      hypothesis is refuted.
+    - >-
+      Measured ratio ABOVE 1. This would contradict the paper's own inequality chain
+      and indicates an error in the enumeration or in the reading of the derivation;
+      it is a procedure defect to be diagnosed before any claim, not a finding.
+    - >-
+      The realized-random-map control returns a ratio below 1, voiding the pipeline.
+    - >-
+      Per-R counts fail a Poisson fit in cells where the control passes it, refuting
+      HEUR-003's shape.
+    - >-
+      Chained and single counts differ beyond the measured Lemma-2 failure fraction,
+      refuting HEUR-004 and relocating the discrepancy from eq. (11) to eq. (5).
+    - >-
+      The ratio's trend in t is flat or increasing, refuting the class-count
+      explanation while possibly leaving the ratio < 1 finding intact. Report both
+      separately.
+  interpretation_limits:
+    - >-
+      A yield result says nothing about Assumption 1 or Assumption 2. eq. (11) is a
+      probability model; those are degree bounds. The two are independent claims and
+      neither supports nor refutes the other.
+    - >-
+      The MAGNITUDE of the ratio is claimed only over the enumerated window, n <= 24.
+      Only the SIGN of the bias transfers to cryptographic parameters, and it
+      transfers by the paper's own inequality rather than by measurement here.
+    - >-
+      A ratio below 1 makes Semaev's stage-1 cost an underestimate. It does not
+      overturn the asymptotic bound 2^{c sqrt(n ln n)}, which a constant or
+      t-dependent factor in P cannot move; it moves the concrete crossover n. Saying
+      otherwise would overclaim in exactly the direction the target-result profile's
+      cost-honesty clause forbids.
+    - >-
+      If HEUR-SEMAEV-2015-4.3 proves to be a biased comparator, the frozen
+      EXP-RELN-164ad3 specification and H-RELN-96e3ba are immutable. The remedy is a
+      new record and an additive amendment, never an edit.
+    - >-
+      Reproducing the paper's printed probability cells checks this program's
+      arithmetic and is not evidence that eq. (11) is right; that column is the
+      model's own output, not an observation.
+    - >-
+      No claim about the security of any deployed curve, in either direction.
+  status: approved
+  status_history:
+    - status: proposed
+      at: '2026-09-13'
+      by: coordinator
+    - status: specified
+      at: '2026-09-13'
+      by: coordinator
+      ref: DEC-20260913-ebd639
+      note: >-
+        Frozen contract EXP-SEMBIN-354a75 approved. Execution NOT authorized yet.
+        It inherits no degree assumption -- it counts rather than solves, so
+        EXP-SEMBIN-c2c312 does not gate it -- but it needs an implementation and
+        an enumeration window genuinely small enough to be exhaustive.
+    - status: approved
+      at: '2026-09-13'
+      by: coordinator
+      ref: DEC-20260913-1a9c83
+      note: >-
+        Execution authorized as RUN-SEMBIN-1b9afe under TASK-20260913-4df669.
+        The ranking reason changed between the two decisions and the change is
+        the point: DEC-20260913-ebd639 ranked this second because it needs an
+        implementation, while DEC-20260913-1a9c83 ranks it FIRST because both
+        completed derivations turned out to rest on eq. (11) being realized
+        yield rather than a bound on it, and RUN-SEMBIN-aa5161 records in its own
+        preregistered-outcome block that its t = m result inverts if eq. (11)
+        overstates yield more at t = m than at t < m. The measurement stopped
+        being the next item on a list and became the input that decides what the
+        other two results are worth.
+        Approval still asserts protocol completeness only. This hypothesis
+        predicts a ratio strictly below 1 decreasing in t, and the contract's
+        success criterion is satisfied equally by a ratio indistinguishable from
+        1, which would REFUTE this hypothesis and vindicate eq. (11).
+  validation_experiment_ids:
+    - EXP-SEMBIN-354a75
+  execution_authorized_by: DEC-20260913-1a9c83
+  execution_run_id: RUN-SEMBIN-1b9afe
+  specified_by: DEC-20260913-ebd639
+  proposed_by: coordinator
+  added: '2026-09-13'
