@@ -14,24 +14,24 @@ a hash it cannot is an assertion by the session that recorded it.
 
 | Class | Count |
 |---|---|
-| Frozen source packages (`SRC-*`) | 11 |
-| — of those with the artifact committed | 10 |
-| Per-URL retrieval attempts | 13 |
-| — succeeded | 5 |
+| Frozen source packages (`SRC-*`) | 12 |
+| — of those with the artifact committed | 11 |
+| Per-URL retrieval attempts | 19 |
+| — succeeded | 11 |
 | — failed or blocked | 8 |
-| Source artifacts under `inputs/` | 16 |
-| — hash recomputed and matching | 12 |
+| Source artifacts under `inputs/` | 22 |
+| — hash recomputed and matching | 18 |
 | — hash MISMATCH | 0 |
 | — present but carrying no `.sha256` | 3 |
 | — sought and never retrieved | 1 |
 | Seed bibliography entries | 10 |
-| Literature entries (`KN-LIT-*`) | 7871 |
-| — with a resolvable external identifier | 2258 |
+| Literature entries (`KN-LIT-*`) | 7872 |
+| — with a resolvable external identifier | 2259 |
 | — with no identifier recorded | 5613 |
 
-Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1326, doi 150, eprint 746, url 36. Every identifier an entry carries is kept in `sources.json`.
+Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1326, doi 150, eprint 747, url 36. Every identifier an entry carries is kept in `sources.json`.
 
-`citation_verified` distribution: `False` 23, `True` 10, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `metadata` 1, `partial` 5, `read` 7496, `secondary_only` 1, `transcription_of_full_text_at_recorded_sha256` 2, `web` 326.
+`citation_verified` distribution: `False` 23, `True` 10, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `metadata` 1, `partial` 5, `read` 7497, `secondary_only` 1, `transcription_of_full_text_at_recorded_sha256` 2, `web` 326.
 
 ## 1. Frozen source packages
 
@@ -44,6 +44,7 @@ decides whether a later session can re-read what was read here.
 | SRC-BENNETT-WEAKNESS-2023 | The Optimal Choice of Hypothesis Is the Weakest, Not the Shortest | Michael Timothy Bennett | 2023 | `inputs/BENNETT-WEAKNESS-2023` | yes | declared |  |  |
 | SRC-DCP-SIMON-2026 | A Polynomial-Time Quantum Algorithm for the Dihedral Coset Problem [Preliminary Draft] | Daniel R. Simon | 2026 | `inputs/DCP-SIMON-2026` | yes | package_contents |  |  |
 | SRC-KARABINA-PDP-2015 | Point Decomposition Problem in Binary Elliptic Curves | Koray Karabina | 2015 | `inputs/KARABINA-PDP-2015` | yes | declared |  |  |
+| SRC-NAGAO-2015-984 | Complexity of ECDLP under the First Fall Degree Assumption | Koh-ichi Nagao | 2015 | `inputs/NAGAO-2015-984` | yes | frozen_path |  |  |
 | SRC-NS-AGENT-RESOLUTION-2026 | Methodology note on a multiagent resolution of the Navier-Stokes and Euler regularity problems | UNATTRIBUTED IN THE RECEIVED TEXT. The excerpt speaks in an institutional first person ("our internal model") and names Codex and GPT-6 Astra as internal tools, which is consistent with an OpenAI-lineage announcement, but no byline, publisher, URL, or date was supplied. This record does not assert the author. | 2026 | `inputs/NS-AGENT-RESOLUTION-2026` | yes | declared |  | b37b0729e5cad0c1 |
 | SRC-OAI-TEN-PROOFS-2026 | Ten Advances in Mathematics and Theoretical Computer Science | OpenAI | 2026 | `inputs/OAI-TEN-PROOFS-2026` | **no** | declared | https://cdn.openai.com/pdf/ten-proofs-oai.pdf | 64b900d5fae6fe22 |
 | SRC-P13-PANNY-POC | Proof-of-concept implementation of the Wesolowski 2026 p^{1/3+o(1)} attack on OneEnd | Lorenz Panny |  | `inputs/P13-PANNY-POC` | yes | frozen_path | https://yx7.cc/files/p-one-third.py | 4f43780404a7ab5d |
@@ -73,6 +74,12 @@ not the same as never having looked.
 | local-artifact |  | local_artifact |  | 2026-09-07T21:07:57Z | `inputs/JMV-0411378-20260907/sources/jmv-math-0411378v3.pdf.sha256` |
 | local-artifact |  | local_artifact |  | 2026-09-07T21:07:57Z | `inputs/JMV-0411378-20260907/sources/jmv-math-0411378v3.txt` |
 | local-artifact |  | local_artifact |  | 2026-09-07T21:07:57Z | `inputs/JMV-0411378-20260907/sources/jmv-math-0411378v3-layout.txt` |
+| eprint-2013-548-landing | https://eprint.iacr.org/2013/548 | retrieved | 200 | 2026-09-13T19:02:41Z |  |
+| eprint-2013-548-pdf | https://eprint.iacr.org/2013/548.pdf | retrieved | 200 | 2026-09-13T19:02:41Z | `inputs/NAGAO-2013-548/eprint-2013-548.pdf` |
+| eprint-2013-549-landing | https://eprint.iacr.org/2013/549 | retrieved | 200 | 2026-09-13T19:02:41Z |  |
+| eprint-2013-549-pdf | https://eprint.iacr.org/2013/549.pdf | retrieved | 200 | 2026-09-13T19:02:41Z | `inputs/NAGAO-2013-549/eprint-2013-549.pdf` |
+| eprint-2015-984-landing | https://eprint.iacr.org/2015/984 | retrieved | 200 | 2026-09-13T17:35:20Z |  |
+| eprint-2015-984-pdf | https://eprint.iacr.org/2015/984.pdf | retrieved | 200 | 2026-09-13T17:35:03Z | `inputs/NAGAO-2015-984/eprint-2015-984.pdf` |
 | eprint-2015-310-landing | https://eprint.iacr.org/2015/310 | retrieved | 200 | 2026-09-13T12:51:14Z |  |
 | eprint-2015-310-pdf | https://eprint.iacr.org/2015/310.pdf | retrieved | 200 | 2026-09-13T12:50:53Z | `inputs/SEMAEV-2015-310/eprint-2015-310.pdf` |
 | local-artifact |  | local_artifact |  | 2026-09-13T12:52:00Z | `inputs/SEMAEV-2015-310/eprint-2015-310.pdf` |
@@ -110,6 +117,12 @@ records that some fetch failed, and says nothing about the file that is here.
 | `inputs/JMV-0411378-20260907/sources/jmv-math-0411378v3.txt` | 59315 | **present_unhashed** |  |  |
 | `inputs/KARABINA-PDP-2015/eprint-2015-319-v3.pdf` | 352621 | match | ad23de5bfdb5fada |  |
 | `inputs/KARABINA-PDP-2015/paper_fulltext.md` | 41941 | match | c4fcc7c94ad9fca4 |  |
+| `inputs/NAGAO-2013-548/eprint-2013-548.pdf` | 167931 | match | 9406f2f7f01ae933 |  |
+| `inputs/NAGAO-2013-548/paper_fulltext.md` | 18123 | match | dd67fd774762f05a |  |
+| `inputs/NAGAO-2013-549/eprint-2013-549.pdf` | 141803 | match | 5971667527aad7af |  |
+| `inputs/NAGAO-2013-549/paper_fulltext.md` | 30634 | match | 86599e106cc7e869 |  |
+| `inputs/NAGAO-2015-984/eprint-2015-984.pdf` | 223325 | match | e6af06ae2701df9f |  |
+| `inputs/NAGAO-2015-984/paper_fulltext.md` | 23350 | match | 337fae555450162e |  |
 | `inputs/SEMAEV-2015-310/eprint-2015-310.pdf` | 271506 | match | d6636436e2e9254d |  |
 | `inputs/SEMAEV-2015-310/paper_fulltext.md` | 38979 | match | 3b3bea4c24c6265e |  |
 
@@ -132,7 +145,7 @@ records that some fetch failed, and says nothing about the file that is here.
 
 ## 5. Literature citations with a resolvable identifier
 
-2258 of 7871 `KN-LIT-*` entries carry an
+2259 of 7872 `KN-LIT-*` entries carry an
 eprint, arXiv, DOI, ISBN or URL identifier.
 
 | ID | Title | Year | Identifier | Verified |
@@ -1913,6 +1926,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-717 | TOTALLY INVARIANT DIVISORS OF INT-AMPLIFIED ENDOMORPHISMS OF NORMAL PROJECTIVE VARIETIES | 2019 | `arxiv:1905.05362` | read |
 | KN-LIT-718 | TOWARDS HILBERT’S TENTH PROBLEM FOR RINGS OF INTEGERS | 2019 | `arxiv:1909.01434` | read |
 | KN-LIT-719 | TPM-FAIL: TPM meets Timing and Lattice Attacks | 2019 | `arxiv:1911.05673` | read |
+| KN-LIT-71b758 | Complexity of ECDLP under the First Fall Degree Assumption (Draft) | 2015 | `eprint:2015/984` | read |
 | KN-LIT-71d1a0 | The syzygy distinguisher | 2025 | `eprint:2024/1193` | web |
 | KN-LIT-71fb0b | Weak keys in McEliece public-key cryptosystem | 2001 | `doi:10.1109/18.915687` | web |
 | KN-LIT-720 | TRIANGULATIONS OF NON-ARCHIMEDEAN CURVES | 2019 | `arxiv:1911.04407` | read |
@@ -8034,6 +8048,7 @@ corpus may hold a true duplicate. Resolving it is a `/curate-knowledge` job.
 | `eprint:2010/331` | KN-LIT-13a01d, KN-LIT-3c9f21 |
 | `eprint:2015/310` | KN-LIT-009, KN-LIT-fa346d |
 | `eprint:2015/573` | KN-LIT-475, KN-LIT-7607 |
+| `eprint:2015/984` | KN-LIT-456, KN-LIT-71b758 |
 | `eprint:2023/1618` | KN-LIT-1117, KN-LIT-132 |
 | `eprint:2024/1193` | KN-LIT-71d1a0, KN-LIT-a4d70e |
 | `eprint:2025/1661` | KN-LIT-d82a53, KN-LIT-e37d4c |
