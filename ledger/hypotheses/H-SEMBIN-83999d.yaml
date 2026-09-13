@@ -1,0 +1,474 @@
+hypothesis:
+  id: H-SEMBIN-83999d
+  question_id: RQ-SEMBIN-fa2e3f
+  statement: >-
+    Semaev's "performs better than Pollard's" is a TIME-ONLY comparison between an
+    algorithm whose memory grows exponentially in n and one whose memory is
+    negligible, and once memory is charged on both sides against van Oorschot-Wiener
+    PARALLEL rho with distinguished points -- the correct comparator, since it is the
+    memory-tunable form of the baseline -- the crossover moves upward by enough to
+    matter at the FIPS parameters. Concretely, at the paper's own optimal m the
+    chained-S_3 method must hold 2^31 relations at n = 310, 2^38 at n = 409 and 2^48
+    at n = 571, and its per-decomposition F4 working set is a degree-<=4 Macaulay
+    space of 2^41.2 / 2^43.4 / 2^45.9 monomials in N = (m-2)n + km variables; a dense
+    row echelon form of the n = 571 space is 2^91.8 bits, which independently recovers
+    the 2^91 figure Galbraith reports for exactly these parameters against Semaev's
+    own sparse 2^70. The predicted consequence is NOT that the method loses: it is
+    that under any cost metric charging memory at a rate comparable to time, the
+    n = 409 curves leave the affected scope while n = 571 stays inside it under
+    Semaev's sparse-storage reading and leaves it under the dense reading, so the
+    paper's four-curve claim is metric-dependent in a way the paper does not disclose.
+  mechanism: >-
+    The comparison has three memory terms, two of which the paper never states, and
+    the reason the omission changes the answer is that all three grow with n while the
+    comparator's does not.
+    First, the linear-algebra store. Stage 2 solves a sparse system over a factor base
+    of size |V| = 2^k with k = ceil(n/m), so it holds Theta(2^k) relations. At the
+    paper's optimal m -- which recomputation from its own Table 3 formula
+    m! 2^{n/m} n^{12} confirms as m = 10, 11, 12 at n = 310, 409, 571 -- that is
+    2^31, 2^38, 2^48 relations. The paper's stage-2 TIME is 2^{k omega'} with
+    omega' = 2, so the memory is the square root of the time it already charges, and
+    is therefore not hidden by accident: it is the natural companion quantity to a
+    term the paper does state.
+    Second, the F4 working set per decomposition. Each decomposition solves a Boolean
+    system in N = (m-2)n + km variables at degree <= 4, so its Macaulay space has
+    sum_{d<=4} C(N,d) monomials: N = 2790, 4099, 6286 giving 2^41.2, 2^43.4, 2^45.9
+    columns at n = 310, 409, 571. A dense row echelon form over F_2 costs the square
+    of that in bits -- 2^91.8 at n = 571 -- and this is where Galbraith's figure comes
+    from. Semaev's reply in the same thread asserts sparse storage at 2^70, which is a
+    claim about the structure of the Macaulay matrix rather than about its size, and it
+    is the strongest form of his position: the honest costing evaluates BOTH.
+    Third, the comparator's memory, which is where the naive version of this argument
+    goes wrong. Textbook Pollard rho has O(1) memory but does not parallelize with
+    linear speedup, so comparing an exponential-memory algorithm against it
+    overstates the case. Van Oorschot-Wiener parallel rho with distinguished points is
+    the right baseline: with P processors and a distinguished-point store of size W it
+    achieves time about 2^{n/2}/P with a tunable W, so the baseline itself occupies a
+    time-memory curve rather than a point. The comparison is therefore between two
+    curves, and the question is whether they cross inside the FIPS range under a
+    stated metric -- not whether one point beats another.
+    That is what makes the result metric-dependent rather than a refutation. Under a
+    pure time metric, Semaev's own numbers stand and the freezing session's
+    recomputation puts the crossover at n = 302, consistent with his stated n > 310 and
+    slightly more conservative. Under a metric charging memory at the same rate as
+    time -- the AT or time-memory-product conventions used for sieving comparisons --
+    an algorithm needing 2^48 words of store pays for it, and the crossover moves.
+    Reporting which conventions move the n = 409 verdict, and by how much, is the
+    deliverable; asserting a single corrected crossover would be substituting one
+    undisclosed metric choice for another.
+    A fourth item is a genuine finding of the freezing arithmetic rather than a
+    modelling choice, and it belongs here because it is a cost the paper does not
+    charge. Table 3's stage-1 column reproduces from m! 2^{n/m} n^{12} with k treated
+    as the real number n/m, not as ceil(n/m). Charging the ceiling changes stage 1
+    wherever m does not divide n, and it is the ceiling -- not n/m -- that determines
+    the 2^k relation store. So the paper's time column and its implied memory are
+    computed from two different values of k.
+  assumptions:
+    - >-
+      The time model is Semaev's own, unchanged, so that the memory axis is the only
+      thing added. Stage 1 = m! 2^{n/m} n^{4 omega} at omega = 3 and stage 2
+      = 2^{2n/m}, which the freezing session verified reproduces all 36 Table 3 cells
+      to within 0.7% (inputs/SEMAEV-2015-310/tables.yaml derived_checks).
+    - >-
+      The comparator is van Oorschot-Wiener parallel rho with distinguished points,
+      costed on its own time-memory curve rather than as a single point. Comparing
+      against textbook rho would overstate the memory asymmetry and is the main way
+      this argument can be made to look stronger than it is.
+    - >-
+      Every figure here is derivation from published formulas. No relation is
+      computed, no curve is instantiated, no Groebner basis is run, and no claim is
+      made that any of these memory requirements has been realized or measured.
+    - >-
+      This hypothesis inherits Assumption 1 for the stage-1 exponent 4 * omega and
+      eq. (11) for the yield. Both are declared below rather than absorbed: if the
+      degree is 5 or 6 rather than 4, the Macaulay space widens and every memory
+      figure here is an UNDERESTIMATE, which strengthens the direction of the claim
+      while invalidating its numbers.
+    - >-
+      Semaev's sparse-storage reply (2^70 bits) is a blog-comment claim with no
+      published artifact, exactly as Galbraith's 2^91 is. Both are recalled pointers
+      under AGENTS.md rule 9; the 2^91.8 figure used here is re-derived from the
+      frozen text and does not rest on the thread.
+  proof_search_map:
+    bottleneck: >-
+      The absent memory column. Every concrete comparison in Section 4.5.2 and Table 3
+      is time against time, and the four-curve conclusion is read off it as though the
+      two algorithms were commensurable on one axis.
+    baseline_embedding:
+      parameter_slice: >-
+        The paper's own Table 3 at its own optimal m, under a pure time metric. The
+        costing must reproduce Semaev's stated crossover n > 310 -- and the freezing
+        session's n = 302 from minimizing the same formula -- when the memory charge is
+        set to zero. That is the exact old-method boundary: memory weight zero must
+        recover the published answer.
+      reproduction_check: >-
+        All 36 Table 3 cells to within 0.7%; argmin over m returning 10, 11, 12 at
+        n = 310, 409, 571; crossover at n = 302 under the paper's un-ceiled k. All four
+        already computed in the freezing session and re-derived independently here,
+        with the discrepancy between un-ceiled and ceiled k recorded rather than
+        smoothed.
+    observation_collision:
+      observable: >-
+        The crossover n, as a function of the cost metric's memory weight.
+      distinct_preimage_search: >-
+        Search for metric pairs that give the SAME crossover n for different reasons --
+        one because the memory charge is small, another because the memory charge is
+        large but the comparator's own store is charged at the same rate. If such a
+        pair exists, the crossover alone is the wrong observable and the deliverable
+        must be the full curve pair rather than a scalar. This matters because a single
+        "corrected crossover" is precisely the kind of number that would be quoted out
+        of its metric.
+    constructive_transforms:
+      - transform: observable_fiber
+        proposed_object: >-
+          The time-memory curve of each algorithm, in place of a single cost.
+        predicted_gain: >-
+          Makes the comparison well-posed. Both algorithms occupy curves -- Semaev's
+          through m, van Oorschot-Wiener's through the distinguished-point store -- and
+          a curve-to-curve comparison has an answer where a point-to-point one has a
+          metric choice disguised as a fact.
+      - transform: specialization_pack
+        proposed_object: >-
+          Dense and sparse readings of the stage-2 and Macaulay stores as two explicit
+          variants, rather than one assumed convention.
+        predicted_gain: >-
+          Brackets the answer between Galbraith's 2^91.8 and Semaev's 2^70 instead of
+          adjudicating a dispute this program cannot settle from the frozen text.
+    quantifier_order: >-
+      For every cost metric in the declared set, there EXISTS a crossover n0(metric)
+      at which the chained-S_3 cost curve drops below the van Oorschot-Wiener curve.
+      For all metrics charging memory at a rate at least equal to time, n0 > 409. It
+      is NOT claimed that n0 > 571 for all such metrics, and it is NOT claimed that any
+      particular metric is the right one -- the deliverable is the map from metric to
+      n0, with the FIPS verdicts read off it.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        A COST table: time and memory for both algorithms at n = 233, 283, 310, 409,
+        571, on their own time-memory curves, under an enumerated set of metrics, with
+        every optimistic assumption flagged on both sides and with the affected and
+        safe scopes stated per metric. This is a costing of two heuristic models
+        against each other. It is NOT a measurement, NOT an implementation, and NOT
+        evidence that any parameter is or is not attackable.
+      nearby_object_control: >-
+        Apply the identical costing machinery to a comparison whose answer is already
+        settled and public: index calculus against rho for PRIME-field ECDLP, where
+        the established position is that index calculus does not win at cryptographic
+        sizes (this program's KN-OPEN-001). If the machinery reports index calculus
+        winning there, it is charging memory or parallelism wrongly and every SEMBIN
+        row is void. Second control: set the memory weight to zero and confirm the
+        published n > 310 is recovered exactly.
+    proof_obligations:
+      - claim: >-
+          Stage 1 = m! 2^{n/m} n^{12} and stage 2 = 2^{2n/m} reproduce Table 3's 36
+          cells to 0.7%, and argmin over m gives 10, 11, 12 at n = 310, 409, 571.
+        responsibility: baseline
+      - claim: >-
+          k = ceil(n/m) gives 31, 38, 48 at n = 310, 409, 571, hence Theta(2^k)
+          relations, while Table 3's time column is computed from the un-ceiled n/m.
+        responsibility: size
+      - claim: >-
+          N = (m-2)n + km equals 2790, 4099, 6286 and sum_{d<=4} C(N,d) equals
+          2^41.2, 2^43.4, 2^45.9 at those parameters, with 2^91.8 bits for a dense
+          square at n = 571.
+        responsibility: memory
+      - claim: >-
+          Van Oorschot-Wiener parallel rho is costed on its own time-memory curve with
+          its distinguished-point store charged, not as a zero-memory point.
+        responsibility: baseline
+      - claim: >-
+          The prime-field control does not report index calculus winning.
+        responsibility: correctness
+      - claim: >-
+          Zero memory weight recovers the published crossover.
+        responsibility: correctness
+      - claim: >-
+          Every verdict is scoped to its metric, and no statement is made about the
+          security of any deployed curve.
+        responsibility: scope
+  rerandomization: null
+  asymptotic_claim:
+    problem: ECDLP on E(F_{2^n}), n prime, chained-S_3 index calculus versus parallel rho
+    prior_best: >-
+      2^{n/2} time and negligible memory for van Oorschot-Wiener parallel rho;
+      2^{1.6986 sqrt(n ln n)} time and UNSTATED memory for Semaev 2015 under
+      Assumption 1
+    time_exponent: >-
+      unchanged at c sqrt(n ln n), c = 2/(2 ln 2)^{1/2}; this hypothesis claims no
+      time-exponent movement whatever
+    memory_exponent: >-
+      the quantity this hypothesis supplies and the paper omits: stage-2 store
+      Theta(2^{ceil(n/m)}), which at the optimal m ~ sqrt(2 ln2 n / ln n) is
+      2^{Theta(sqrt(n ln n))} -- the SAME exponential shape as the time bound, so the
+      algorithm is not a low-memory method in any regime where it beats rho
+    hidden_cofactor: >-
+      the stage-1 n^{4 omega} factor, n^{12} at omega = 3, which is 2^{109.9} at
+      n = 571 against a stage-2 term of 2^{95.2}; and the ceiling in k, which Table 3's
+      time column does not charge while the relation store does
+    claim_kind: cofactor_improvement
+  heuristic_assumptions:
+    - id: HEUR-007
+      formal_statement: >-
+        The stage-2 relation store is Theta(2^k) machine words with k = ceil(n/m), and
+        no representation reduces it below Theta(2^k) while preserving the 2^{2n/m}
+        stage-2 time the paper charges.
+      random_model_justification: >-
+        The factor base has 2^k elements and stage 2 must express the target as a
+        combination of them, so a store of fewer than 2^k words cannot even index the
+        basis. The heuristic content is the second clause -- that no compression trades
+        below it at equal time -- which is the standard sparse-linear-algebra
+        space-time position and is stated so it can be attacked rather than assumed.
+      supporting_results:
+        - >-
+          The paper's own stage-2 time 2^{k omega'} with omega' = 2 makes the store the
+          square root of a term it already charges (inputs/SEMAEV-2015-310/
+          paper_fulltext.md eqs. (15)-(17); provenance kb).
+        - >-
+          Wiedemann- and Lanczos-class sparse solvers trade time for space over a
+          bounded range. Recalled pointer, unopened here, supporting nothing
+          (AGENTS.md rule 9); a real time-memory tradeoff for stage 2 would refute the
+          second clause and is the most valuable single attack on this hypothesis.
+      validation_experiment_ids:
+        - EXP-SEMBIN-f4a17b
+      falsification_condition: >-
+        A stage-2 algorithm at time <= 2^{2n/m} with store o(2^k), cited to a real
+        source an agent here has read. That would remove the memory asymmetry and the
+        hypothesis fails at its core.
+    - id: HEUR-008
+      formal_statement: >-
+        The per-decomposition F4 working set is at least the number of degree-<=4
+        monomials in N = (m-2)n + km Boolean variables, sum_{d<=4} C(N,d), and the
+        dense and sparse readings bracket the realized requirement.
+      random_model_justification: >-
+        Under Assumption 1 the computation stays at degree <= 4, so the Macaulay space
+        it works in has that many columns; a solver cannot use fewer columns than the
+        degree bound admits without exploiting structure. The bracket is stated
+        because the frozen text does not settle which reading holds, and the dispute
+        between Galbraith's 2^91.8 and Semaev's 2^70 is exactly this bracket.
+      supporting_results:
+        - >-
+          Assumption 1's degree bound of 4 and the variable count n(t-2) + kt at t = m
+          (KN-LIT-fa346d; inputs/SEMAEV-2015-310/paper_fulltext.md Sections 4.4-4.5;
+          provenance kb).
+        - >-
+          The 2^91.8-bit dense figure re-derived from the frozen parameters in the
+          freezing session, independently recovering Galbraith's 2^91
+          (inputs/SEMAEV-2015-310/tables.yaml derived_checks.stage2_memory;
+          provenance kb).
+      validation_experiment_ids:
+        - EXP-SEMBIN-f4a17b
+      falsification_condition: >-
+        A construction keeping the working set asymptotically below sum_{d<=4} C(N,d)
+        at the same degree bound. Also refuted in the other direction if
+        H-SEMBIN-2d7708 shows the degree is 5 or 6 at these parameters, in which case
+        the bracket's floor is wrong and too LOW.
+  structural_ingredients:
+    - description: >-
+        Table 3, eqs. (15)-(17), and the Section 4.5.2 four-curve conclusion, all
+        time-only, together with the absence of any memory column in the paper's
+        asymptotic analysis.
+      citation: inputs/SEMAEV-2015-310/paper_fulltext.md Table 3, eqs. (15)-(17), Section 4.5.2
+      provenance: kb
+      verified_by: TASK-20260913-8702c8
+      role: the omission this hypothesis supplies
+    - description: >-
+        The re-derived memory figures: 2^31 / 2^38 / 2^48 relations, Macaulay widths
+        2^41.2 / 2^43.4 / 2^45.9, dense square 2^91.8 bits at n = 571, recovering
+        Galbraith's 2^91 against Semaev's sparse 2^70.
+      citation: inputs/SEMAEV-2015-310/tables.yaml derived_checks.stage2_memory
+      provenance: kb
+      verified_by: TASK-20260913-8702c8
+      role: the quantities the cost table is built from
+    - description: >-
+        Galbraith's 2^91-bit figure and Semaev's 2^70 sparse reply, from the
+        ellipticnews thread three days after the frozen revision.
+      citation: KN-LIT-e77232
+      provenance: recalled
+      verified_by: null
+      role: >-
+        the bracket's two endpoints as third-party claims; the 2^91.8 used here is
+        re-derived and does not rest on them
+    - description: >-
+        Van Oorschot-Wiener parallel collision search with distinguished points: the
+        memory-tunable parallel form of rho, and the correct comparator for a
+        memory-charged comparison.
+      citation: >-
+        van Oorschot and Wiener, "Parallel collision search with cryptanalytic
+        applications", J. Cryptology 1999
+      provenance: recalled
+      verified_by: null
+      role: >-
+        the baseline's time-memory curve; a recalled pointer, so the costing records
+        the formulas it uses and flags that no agent here has opened the source
+    - description: >-
+        KN-OPEN-86e7e1, this program's record that no memory-charged crossover has been
+        computed by anyone, in the paper or since.
+      citation: knowledge/open-problems/KN-OPEN-86e7e1.md
+      provenance: internal
+      verified_by: TASK-20260913-8702c8
+      role: the open problem this hypothesis is the first attempt on
+    - description: >-
+        KN-OPEN-001, this program's standing question on whether index calculus beats
+        rho for prime-field ECDLP, used here as the costing machinery's control.
+      citation: knowledge/open-problems/KN-OPEN-001.md
+      provenance: internal
+      verified_by: TASK-20260913-8702c8
+      role: nearby-object control with a settled public answer
+  reduction_chain:
+    core_problem: >-
+      The memory-charged crossover between chained-S_3 index calculus and parallel rho
+      over F_{2^n}.
+    corollaries:
+      - problem: >-
+          Whether the Section 4.5.2 four-curve claim is metric-dependent, and which
+          FIPS parameters change verdict under which metric.
+        reduction_ref: >-
+          Direct: the verdicts are read off the cost table per metric. This is about the
+          MODEL's conclusion under a stated metric and not about any curve's security.
+        asymptotics_preserved: >-
+          'yes: the time exponent is untouched; what changes is which n the concrete
+          comparison favours'
+      - problem: >-
+          Whether an enlarged factor base (k above the diagonal) is affordable, which
+          couples to H-SEMBIN-2d7708's degree boundary.
+        reduction_ref: >-
+          Direct: raising k raises the 2^k store, so the memory axis prices the same
+          lever the degree axis prices, and the two must be read together.
+        asymptotics_preserved: not_applicable
+  predictions:
+    - metric: table3_reproduction_at_zero_memory_weight
+      direction: different
+      minimum_effect: >-
+        All 36 Table 3 cells within 0.7%, argmin m of 10, 11, 12 at n = 310, 409, 571,
+        and crossover at n = 302 under the paper's un-ceiled k. Failure is a procedure
+        defect and stops the costing.
+    - metric: relation_store_log2
+      direction: different
+      minimum_effect: >-
+        Exactly 31, 38, 48 at n = 310, 409, 571 at the paper's optimal m. These are
+        integers from k = ceil(n/m) and must match exactly, not approximately.
+    - metric: macaulay_width_log2
+      direction: different
+      minimum_effect: >-
+        41.2, 43.4, 45.9 at N = 2790, 4099, 6286, to within 0.1 in the exponent, with
+        2 * 45.9 = 91.8 bits for the dense square at n = 571.
+    - metric: crossover_shift_under_equal_weight_metric
+      direction: higher
+      minimum_effect: >-
+        Under a metric charging memory at the same rate as time, crossover n0 > 409,
+        so the n = 409 curves leave the affected scope. A shift leaving n0 <= 409
+        refutes the hypothesis's stated consequence while leaving the memory figures
+        intact.
+    - metric: fips_verdict_map
+      direction: different
+      minimum_effect: >-
+        A verdict per (metric, n) cell over n = 233, 283, 409, 571 and the enumerated
+        metrics, with the dense and sparse readings bracketed separately. A single
+        crossover number reported without its metric is a failed deliverable
+        regardless of its value.
+    - metric: ceiling_discrepancy
+      direction: different
+      minimum_effect: >-
+        The divergence in bits between Table 3's un-ceiled stage 1 and the same formula
+        with k = ceil(n/m), reported per n. Nonzero wherever m does not divide n, and
+        it is a cost the published table does not charge.
+    - metric: prime_field_control
+      direction: different
+      minimum_effect: >-
+        The costing machinery must NOT report index calculus beating rho for
+        prime-field ECDLP at cryptographic sizes. If it does, the machinery is
+        mischarging memory or parallelism and every SEMBIN row is void.
+  test_boundary:
+    instances:
+      - >-
+        Semaev's own time model, unchanged: stage 1 = m! 2^{n/m} n^{4 omega},
+        stage 2 = 2^{2n/m}, plus the memory terms derived here
+      - >-
+        van Oorschot-Wiener parallel rho with distinguished points, on its own
+        time-memory curve
+      - >-
+        the same machinery applied to prime-field index calculus versus rho, as the
+        nearby-object control with a settled answer
+    parameters:
+      n_values: [233, 283, 310, 409, 571]
+      n_dense_sweep: 'every integer n in [250, 650] for the crossover curve'
+      m_range: 'every integer m in [2, 30], argmin computed rather than asserted'
+      omega_variants: [2.376, 2.807, 3.0]
+      omega_prime_variants: [2.0, 3.0]
+      degree_bound_variants: [4, 5, 6]
+      storage_readings: [dense_row_echelon, semaev_sparse]
+      k_readings: [unceiled_n_over_m_as_in_table3, ceil_n_over_m]
+      cost_metrics:
+        - time_only_zero_memory_weight
+        - time_memory_product
+        - area_time_AT
+        - equal_rate_max_of_time_and_memory
+      vow_parameters:
+        processors: [1, 2^20, 2^40]
+        distinguished_point_store_log2: [30, 40, 48, 60]
+    implementation: >-
+      Arbitrary-precision arithmetic only -- Python integers and mpmath. No curve, no
+      factor base, no Groebner engine, no field arithmetic. Pure derivation from
+      published formulas; this is the cheapest deliverable in either SEMBIN goal
+      alongside EXP-SEMBIN-81dc96.
+    budget:
+      wall_clock_seconds_per_run: 900
+      maximum_memory_gb: 2
+      maximum_runs: 20
+      enforcement: advisory
+  falsification_conditions:
+    - >-
+      Under every enumerated metric the crossover stays at n0 <= 409. The memory
+      asymmetry is then real but concretely irrelevant at the FIPS parameters, which
+      refutes the hypothesis's stated consequence and is a result worth recording as
+      such.
+    - >-
+      A stage-2 algorithm at the paper's time with store o(2^k), cited to a source an
+      agent here has read. HEUR-007 fails and the asymmetry largely disappears.
+    - >-
+      A working-set construction asymptotically below sum_{d<=4} C(N,d) at degree 4.
+      HEUR-008's floor fails.
+    - >-
+      The zero-memory-weight control fails to recover the published crossover, or the
+      prime-field control reports index calculus winning. Either voids the machinery
+      and no row may be quoted.
+    - >-
+      The relation store or Macaulay width figures fail to reproduce exactly. Procedure
+      defect; no claim is made.
+    - >-
+      The crossover turns out to depend on the vOW store parameter more strongly than
+      on the metric choice. The deliverable is then a two-parameter surface, not a
+      metric-indexed crossover, and the hypothesis's framing is wrong even if its
+      direction is right.
+  interpretation_limits:
+    - >-
+      A memory figure is not a refutation. This hypothesis produces a COST TABLE under
+      stated metrics; it does not establish that Semaev's algorithm fails, and the
+      time exponent 2^{1.6986 sqrt(n ln n)} is untouched by everything here.
+    - >-
+      Every verdict is scoped to its metric, and the metric choice is a modelling
+      decision this program does not claim to settle. Quoting a corrected crossover
+      without its metric would substitute one undisclosed convention for another,
+      which is the exact defect being reported in the paper.
+    - >-
+      Charging memory against textbook rho rather than van Oorschot-Wiener parallel rho
+      would overstate the asymmetry. If the costing is ever reported against textbook
+      rho, the number is wrong in this hypothesis's own favour and must be withdrawn.
+    - >-
+      This inherits Assumption 1 and eq. (11). If the degree is 5 or 6 rather than 4
+      (H-SEMBIN-2d7708) the Macaulay space widens and these memory figures are
+      UNDERESTIMATES -- strengthening the direction while invalidating the numbers.
+      If eq. (11) is biased (H-SEMBIN-c5b2e0) stage-1 cost rises and the time side
+      moves too.
+    - >-
+      Galbraith's 2^91 and Semaev's 2^70 are blog-comment claims. The 2^91.8 used here
+      is re-derived from the frozen text; the bracket between the two readings is
+      reported as a bracket because this program cannot settle it from the paper.
+    - >-
+      NO CLAIM ABOUT THE SECURITY OF ANY DEPLOYED CURVE, IN EITHER DIRECTION. The FIPS
+      binary curves appear as values of n in a cost table. A metric under which n = 409
+      leaves the affected scope is not a statement that those curves are safe, and a
+      metric under which it does not is not a statement that they are broken; both are
+      statements about two heuristic cost models.
+  status: proposed
+  proposed_by: coordinator
+  added: '2026-09-13'

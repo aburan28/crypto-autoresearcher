@@ -1,0 +1,385 @@
+hypothesis:
+  id: H-SEMBIN-2d7708
+  question_id: RQ-SEMBIN-fa2e3f
+  statement: >-
+    Semaev's Assumption 1 (d_F4 <= 4 for the chained-S_3 Boolean system, for every
+    2 <= t <= m) is FALSE off the diagonal k = ceil(n/m), and the failure is
+    detectable by a degree-4 Macaulay rank certificate far cheaper than a Groebner
+    completion. Specifically: at fixed (n, m, t) the degree-4 Macaulay block of the
+    chained system is rank-deficient by a quantity that decreases as k rises above
+    ceil(n/m), and there is a threshold k*(n, m, t) = ceil(n/m) + delta with delta
+    small -- predicted 1 or 2 -- above which the degree-4 block no longer determines
+    the solution and a degree-5 step becomes necessary. On the diagonal itself the
+    assumption survives every cell this program can reach, so the boundary is a
+    surface in k at fixed (n, m, t) and NOT a threshold in n at fixed k = ceil(n/m).
+  mechanism: >-
+    The paper states the phenomenon and does not measure it. End of Section 4.5.1:
+    "the maximal degree(regularity degree) generally exceeds 4 when k > ceil(n/m)
+    though the first fall degree is still 4." That sentence is an admission that the
+    paper's own construction exhibits a regime where d_F4 > d_ff -- exactly the gap
+    Assumption 1 assumes away -- and it locates that regime by the single parameter
+    k.
+    The counting mechanism explains why k is the right parameter and why the effect
+    should be sharp. Weil descent of the chained system at chain length t gives
+    n(t-1) Boolean equations in n(t-2) + kt variables. The system is overdetermined
+    when n(t-1) > n(t-2) + kt, i.e. when n > kt, which on the diagonal k = ceil(n/m)
+    at t = m is n > m*ceil(n/m) >= n: the diagonal sits exactly at the boundary of
+    overdetermination, with the ceiling supplying the small slack. Raising k above
+    ceil(n/m) adds t variables per unit of k while adding no equations, so the system
+    moves from marginally overdetermined to underdetermined. A degree-4 Macaulay
+    block that determines the solution in the overdetermined regime stops doing so
+    once the variable count wins, and the first degree at which the solution is
+    determined rises. The first fall degree is unaffected because it is a property of
+    which degree-4 syzygies EXIST, and the syzygies responsible for the fall to
+    degree 4 come from the S_3 structure and the field equations, both of which are
+    present at every k.
+    That makes the failure certifiable without completing a Groebner basis. The
+    question "is the degree-4 block sufficient" is a rank question about one explicit
+    matrix: build all products of the n(t-1) cubic generators and the field equations
+    by monomials up to total degree 4, count independent rows against the count of
+    degree-<=4 monomials in n(t-2) + kt Boolean variables, and read the deficiency.
+    A deficiency that vanishes -- or a rank that falls short of what is needed to
+    determine the solution space -- is a certificate that degree 4 does not suffice,
+    obtained at the cost of one rank computation over F_2 rather than a full F4 run.
+    This is also why the m = 2 window is the right first target on the diagonal
+    side. Semaev's Table 2 reports d_F4 = 4 at n = 40, m = t = 2, k = 20, which is
+    exactly on the diagonal. Kosters' unreproduced pointer in the KN-LIT-e77232
+    thread reports step degree 5 at n = 45, m = t = 2 at 126 GB. Those two cells are
+    five apart in n on the same diagonal. If both stand, either the diagonal boundary
+    exists in n after all -- refuting the second clause of this hypothesis -- or
+    Kosters' cell differs from Semaev's in the subspace, the field-equation
+    convention, or the degree definition, which is precisely what H-SEMBIN-112e2e's
+    map is for. This hypothesis predicts the latter, and predicts the diagonal
+    survives to the largest n a certificate can reach.
+  assumptions:
+    - >-
+      H-SEMBIN-112e2e has been executed first, so the degree statistic reported here
+      is commensurable with Semaev's d_F4. Without that map a measured degree 5 is
+      equally explicable as a definitional difference, and this hypothesis is not
+      testable. EXP-SEMBIN-7e1371 declares the dependency for this reason.
+    - >-
+      A degree-4 Macaulay rank deficiency, computed over F_2 with the field equations
+      included as explicit generators, is a sound certificate that degree 4 does or
+      does not determine the solution space. This is a claim about the construction,
+      not about an engine, and is discharged by the proof obligation below rather
+      than assumed.
+    - >-
+      The dominant cost is the rank computation on a matrix whose column count is the
+      number of degree-<=4 monomials in N = n(t-2) + kt Boolean variables, which is
+      C(N,4) + C(N,3) + C(N,2) + N + 1. Cells are chosen so this fits in 8 GB with
+      m4ri-style bit-packed elimination; cells that do not fit are declared unreached
+      rather than estimated.
+    - >-
+      Kosters' two figures are blog-comment data with no published artifact
+      (KN-LIT-e77232). They motivate the m = 2 window and support nothing
+      (AGENTS.md rule 9).
+  proof_search_map:
+    bottleneck: >-
+      Replacing "run F4 and see what degree it reaches" -- which costs 111-126 GB at
+      the cells that matter, per KN-LIT-e77232 -- with a fixed-degree rank certificate
+      that answers the same yes/no question inside this program's 8-16 GB. Every
+      statement about Assumption 1's boundary is gated on that substitution.
+    baseline_embedding:
+      parameter_slice: >-
+        The diagonal cells the paper publishes: n = 17, m = t = 3, k = 6 and
+        n = 40, m = t = 2, k = 20, both reported at d_F4 = 4 (KN-LIT-fa346d
+        Tables 1-2). The certificate must return "degree 4 suffices" at both, or it
+        is not measuring what F4 measured.
+      reproduction_check: >-
+        Degree-4 rank certificate returns sufficient at both published cells, and the
+        commensurable F4 trace from EXP-SEMBIN-c2c312 returns 4 at n = 17. Frozen
+        fixture stores the matrix dimensions, the rank, the deficiency, and the
+        sha256 of the generated system.
+    observation_collision:
+      observable: >-
+        Rank deficiency of the degree-4 Macaulay block, as a function of
+        (n, m, t, k).
+      distinct_preimage_search: >-
+        Search for (n, m, t, k) pairs with equal deficiency but opposite
+        sufficiency verdicts. The deficiency is a scalar summary of a matrix and
+        could easily be equal for a system where degree 4 determines the solution and
+        one where it does not; if such a pair exists, the deficiency alone is the
+        wrong observable and the certificate must report the solution-space dimension
+        rather than the rank gap. This is the search that decides whether the cheap
+        statistic is the right one.
+    constructive_transforms:
+      - transform: boundary_lift
+        proposed_object: >-
+          k as a free parameter above ceil(n/m), rather than pinned to the diagonal
+          as the paper pins it.
+        predicted_gain: >-
+          Turns a single asserted assumption into a measurable surface with an
+          interior boundary, testable at n <= 21 where computation is cheap, instead
+          of only by extrapolation to n = 409.
+      - transform: representation_reduction
+        proposed_object: >-
+          The degree-4 Macaulay block alone, in place of the full F4 trace.
+        predicted_gain: >-
+          Reduces the memory-dominant step from an unbounded-degree Groebner
+          computation to one fixed-size F_2 rank computation, which is what brings
+          the measurement inside machine reach at all.
+    quantifier_order: >-
+      For each (n, m, t) in the declared set, there EXISTS a threshold
+      k* = ceil(n/m) + delta with delta in {1, 2} such that for all k < k* the
+      degree-4 block determines the solution space and for all k in [k*, k_max] it
+      does not, where k_max is the largest k whose certificate fits the memory cap.
+      The existential is over k for each fixed (n, m, t); it is NOT a claim of a
+      uniform delta across all (n, m, t), and it is NOT a claim about any n outside
+      the declared set. Separately: for all cells on the diagonal k = ceil(n/m) in
+      the declared set, the degree-4 block suffices.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        A per-(n, m, t) threshold in k, and a diagonal-survives statement, over the
+        finitely many cells whose degree-4 certificate fits 8 GB -- which for
+        t = m = 2 reaches into the n in [40, 45] window and for t = 3 does not
+        reach past roughly n = 21. NOT a claim that Assumption 1 holds or fails at
+        n = 409 or 571, and not a claim about d_F4's asymptotics, which is
+        Assumption 2's territory.
+      nearby_object_control: >-
+        The SINGLE summation polynomial system of eq. (4) at the same (n, m, t, k),
+        whose algebraic degree is 2^{t-1} rather than 3. Its degree-4 block should
+        be insufficient at every cell, including the diagonal ones where the chained
+        system's suffices. A certificate that reports "degree 4 suffices" for eq. (4)
+        at t >= 3 is detecting the shape of the Macaulay construction rather than the
+        chained structure, and invalidates the instrument. Second nearby object: a
+        matched-shape random dense Boolean system, on which sufficiency should fail
+        at every k.
+    proof_obligations:
+      - claim: >-
+          A degree-4 Macaulay rank deficiency over F_2, with field equations as
+          explicit generators, certifies whether degree 4 determines the solution
+          space of the chained system.
+        responsibility: correctness
+      - claim: >-
+          The certificate returns sufficient at the two published diagonal cells
+          where the paper reports d_F4 = 4.
+        responsibility: baseline
+      - claim: >-
+          n(t-1) equations in n(t-2) + kt variables, and the overdetermination
+          boundary n > kt, are correctly derived from eq. (5) at the declared
+          parameters.
+        responsibility: size
+      - claim: >-
+          The certificate is insufficient for eq. (4) at t >= 3 and for the
+          matched-random control at every k.
+        responsibility: strictness
+      - claim: >-
+          Column count C(N,4)+C(N,3)+C(N,2)+N+1 at each declared cell fits the 8 GB
+          cap under bit-packed elimination, and cells that do not are declared
+          unreached.
+        responsibility: memory
+      - claim: >-
+          Every result is scoped to Assumption 1 and says nothing about Assumption 2
+          or about n outside the measured set.
+        responsibility: scope
+  rerandomization: null
+  asymptotic_claim: null
+  heuristic_assumptions:
+    - id: HEUR-002
+      formal_statement: >-
+        For the chained-S_3 system at fixed (n, m, t), the degree-4 Macaulay block's
+        rank deficiency is monotone non-increasing in k over k in
+        [ceil(n/m), k_max], so a single threshold k* separates sufficient from
+        insufficient and the surface has no interior holes.
+      random_model_justification: >-
+        Each unit increase in k adds t new variables and no new equations, so the
+        column count of the degree-4 block grows while the row count grows only
+        through products of the same generator set by more monomials. Under the model
+        in which those additional rows are in general position subject to the
+        structural syzygies the S_3 form imposes -- the same genericity assumption
+        Bardet-Faugere-Salvy semi-regularity theory makes for generic systems -- the
+        deficiency cannot recover once lost. Stated so it can be falsified: a
+        non-monotone deficiency profile would mean the boundary is not a threshold
+        and the surface must be mapped cell by cell.
+      supporting_results:
+        - >-
+          The paper's own Section 4.5.1 sentence that regularity degree "generally
+          exceeds 4 when k > ceil(n/m)" -- the word "generally" is consistent with a
+          threshold and inconsistent with nothing (KN-LIT-fa346d; provenance kb).
+        - >-
+          Bardet-Faugere-Salvy on the degree of regularity of semi-regular
+          overdetermined systems. Recalled pointer, unopened by any agent here, and
+          it supports nothing in this record (AGENTS.md rule 9). It is also known
+          not to apply directly: the chained system is provably not semi-regular,
+          since its first fall degree is 4 at every t.
+      validation_experiment_ids:
+        - EXP-SEMBIN-7e1371
+      falsification_condition: >-
+        A non-monotone deficiency profile in k at any fixed (n, m, t): degree 4
+        insufficient at some k and sufficient again at some larger k in the measured
+        range. That refutes HEUR-002 and means "the boundary" is not a threshold.
+  structural_ingredients:
+    - description: >-
+        The paper's own statement that regularity degree generally exceeds 4 when
+        k > ceil(n/m) while first fall degree stays 4 -- the regime in which the
+        paper exhibits d_F4 > d_ff by its own report.
+      citation: inputs/SEMAEV-2015-310/paper_fulltext.md, end of Section 4.5.1
+      provenance: kb
+      verified_by: TASK-20260913-8702c8
+      role: the stated boundary this hypothesis makes quantitative
+    - description: >-
+        Semaev's Table 2 diagonal cell n = 40, m = t = 2, k = 20 at d_F4 = 4, the
+        largest published cell and the calibration target for the m = 2 window.
+      citation: inputs/SEMAEV-2015-310/tables.yaml
+      provenance: kb
+      verified_by: TASK-20260913-8702c8
+      role: baseline cell on the diagonal side
+    - description: >-
+        Kosters' reported step degree 5 at n = 45, m = t = 2 (126 GB) and at
+        n = 25, m = t = 3 (unfinished at 111 GB), from the ellipticnews comment
+        thread three days after the frozen revision.
+      citation: KN-LIT-e77232
+      provenance: recalled
+      verified_by: null
+      role: >-
+        motivates the m = 2 window between n = 40 and n = 45; supports no conclusion
+    - description: >-
+        Macaulay matrix rank as a certificate of the degree at which a polynomial
+        system's solution space is determined, and GOAL-DREG-001's existing
+        block-m4ri implementation of it over F_2.
+      citation: ledger/goals/GOAL-DREG-001.yaml
+      provenance: internal
+      verified_by: TASK-20260913-8702c8
+      role: the instrument that makes the measurement affordable
+  reduction_chain:
+    core_problem: >-
+      The validity boundary of Assumption 1 as a surface in (n, m, t, k).
+    corollaries:
+      - problem: >-
+          Whether Semaev's concrete Table 3 estimates, and hence the FIPS statement
+          in Section 4.5.2, rest on an assumption that holds at the parameters they
+          use.
+        reduction_ref: >-
+          NOT a reduction. The measured surface reaches n <= 21 off-diagonal and the
+          m = 2 window on-diagonal; Table 3 uses n = 409, 571 at m = 11, 12. The
+          connection is an extrapolation this record explicitly does not make, and it
+          is listed here to name the gap rather than to claim it is crossed.
+        asymptotics_preserved: 'no: no transfer to cryptographic n is claimed'
+      - problem: >-
+          Whether the factor base may be enlarged beyond the diagonal to raise
+          relation yield, a lever GOAL-ICLIFT-001 works on factor-base geometry.
+        reduction_ref: >-
+          Direct: k > ceil(n/m) IS the enlarged factor base, so a threshold in k
+          prices that lever in degree.
+        asymptotics_preserved: not_applicable
+  predictions:
+    - metric: diagonal_sufficiency
+      direction: different
+      minimum_effect: >-
+        Degree-4 certificate returns sufficient at every measured diagonal cell
+        k = ceil(n/m), including n = 17, m = t = 3, k = 6 and the m = 2 cells up to
+        the largest n reached. A diagonal failure at n <= 40 refutes the second
+        clause of the statement.
+    - metric: off_diagonal_threshold_delta
+      direction: different
+      minimum_effect: >-
+        For each (n, m, t) in the declared set, a threshold delta = k* - ceil(n/m)
+        in {1, 2}. A measured delta >= 3 leaves the direction of the claim intact
+        but refutes its stated sharpness and must be reported as such.
+    - metric: deficiency_monotonicity
+      direction: lower
+      minimum_effect: >-
+        Rank deficiency non-increasing in k across every measured profile, with no
+        recovery. One recovery refutes HEUR-002.
+    - metric: nearby_object_control
+      direction: different
+      minimum_effect: >-
+        Degree-4 certificate insufficient for the eq. (4) single-polynomial system at
+        t >= 3 and for the matched-shape random Boolean system at every k, including
+        cells where the chained system's certificate is sufficient. Failure of this
+        control invalidates the instrument.
+    - metric: m2_window_resolution
+      direction: different
+      minimum_effect: >-
+        A sufficiency verdict at each of n = 40, 41, 42, 43, 44, 45 at m = t = 2,
+        k = ceil(n/2), or an explicit unreached declaration with the measured column
+        count and the memory it needed.
+  test_boundary:
+    instances:
+      - >-
+        chained S_3 Boolean systems from KN-LIT-fa346d eq. (5), curve
+        Y^2 + XY = X^3 + A X^2 + B with B = 1 and random B
+      - >-
+        single summation polynomial systems from eq. (4) at matched (n, m, t, k), as
+        the nearby-object control
+      - >-
+        matched-shape random dense Boolean systems, as the null object
+    parameters:
+      diagonal_baseline_cells:
+        - {n: 17, m: 3, t: 3, k: 6}
+        - {n: 40, m: 2, t: 2, k: 20}
+      m2_window:
+        - {n: 40, m: 2, t: 2, k: 20}
+        - {n: 41, m: 2, t: 2, k: 21}
+        - {n: 42, m: 2, t: 2, k: 21}
+        - {n: 43, m: 2, t: 2, k: 22}
+        - {n: 44, m: 2, t: 2, k: 22}
+        - {n: 45, m: 2, t: 2, k: 23}
+      off_diagonal_sweeps:
+        - {n: 17, m: 3, t: 3, k_range: [6, 7, 8, 9]}
+        - {n: 19, m: 3, t: 3, k_range: [7, 8, 9, 10]}
+        - {n: 21, m: 3, t: 3, k_range: [7, 8, 9, 10]}
+        - {n: 13, m: 4, t: 4, k_range: [4, 5, 6]}
+        - {n: 12, m: 6, t: 6, k_range: [2, 3, 4]}
+      subspace_variants: [low_degree_polynomial, random_k_dimensional]
+      draws_per_cell: 10
+    implementation: >-
+      Degree-4 Macaulay block construction over F_2 with field equations as explicit
+      generators, rank by bit-packed Gaussian elimination (m4ri-class), reusing
+      GOAL-DREG-001's instrument. No MAGMA. Groebner completion is attempted only
+      where a certificate is ambiguous AND the cell fits the cap.
+    budget:
+      wall_clock_seconds_per_cell: 5400
+      maximum_memory_gb: 8
+      maximum_runs: 700
+      enforcement: advisory
+  falsification_conditions:
+    - >-
+      A diagonal cell k = ceil(n/m) at n <= 40 where the degree-4 certificate is
+      insufficient. This refutes the hypothesis's second clause and would mean the
+      diagonal boundary exists in n, which is the stronger claim against Semaev and
+      must be reported as such rather than as a confirmation.
+    - >-
+      No threshold in k up to k_max at any measured (n, m, t): degree 4 sufficient
+      at every k the certificate reaches. This refutes the first clause and would
+      mean the paper's own Section 4.5.1 sentence is not reproduced by this
+      instrument, which points at the instrument or at the degree definition.
+    - >-
+      A non-monotone deficiency profile in k, refuting HEUR-002.
+    - >-
+      The nearby-object control fails: degree 4 reported sufficient for eq. (4) at
+      t >= 3, or for the matched-random null. The instrument is then measuring the
+      Macaulay construction's shape and every cell is void.
+    - >-
+      The degree-4 rank certificate and a completed Groebner run disagree on
+      sufficiency at any cell where both are affordable. The certificate's soundness
+      claim is then refuted and the whole route fails, which is a result about the
+      method and not about Semaev.
+  interpretation_limits:
+    - >-
+      Scoped to Assumption 1 alone. Assumption 2 (d_F4 = o(sqrt(n/ln n)), Section
+      4.6) is a different claim; under it the asymptotic bound 2^{c sqrt(n ln n)}
+      stands while the Table 3 concrete estimates and the FIPS statement do not
+      generally survive. Nothing here refutes or supports Assumption 2, and a
+      result about Assumption 1 must never be reported as refuting "Semaev 2015".
+    - >-
+      Off-diagonal failure is not a defect of the paper. The paper asserts
+      Assumption 1 on the diagonal and reports the off-diagonal failure itself. What
+      is new here is the quantity: where the boundary is, how sharp it is, and hence
+      how much of a lever an enlarged factor base can be.
+    - >-
+      No transfer to n = 409, 571. The measured surface reaches n <= 21 off-diagonal
+      and n <= 45 at m = 2; the paper's conclusion needs a 27-fold extrapolation in
+      n and 2-fold in m beyond even the published cells, and this record narrows
+      nothing about that gap.
+    - >-
+      A memory or wall-clock stop is an impediment with a recheck, never negative
+      mathematical evidence (AGENTS.md rule 5). Kosters' cells needed 111-126 GB;
+      cells this program cannot reach are declared unreached with their measured
+      column count, which is itself the useful datum.
+    - >-
+      No claim about the security of any deployed curve, in either direction. The
+      FIPS binary curves do not appear in this hypothesis's parameter set at all.
+  status: proposed
+  proposed_by: coordinator
+  added: '2026-09-13'
