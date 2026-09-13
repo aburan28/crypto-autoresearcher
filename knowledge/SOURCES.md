@@ -14,24 +14,24 @@ a hash it cannot is an assertion by the session that recorded it.
 
 | Class | Count |
 |---|---|
-| Frozen source packages (`SRC-*`) | 11 |
-| — of those with the artifact committed | 10 |
-| Per-URL retrieval attempts | 13 |
-| — succeeded | 5 |
-| — failed or blocked | 8 |
-| Source artifacts under `inputs/` | 16 |
-| — hash recomputed and matching | 12 |
+| Frozen source packages (`SRC-*`) | 10 |
+| — of those with the artifact committed | 9 |
+| Per-URL retrieval attempts | 8 |
+| — succeeded | 3 |
+| — failed or blocked | 5 |
+| Source artifacts under `inputs/` | 14 |
+| — hash recomputed and matching | 10 |
 | — hash MISMATCH | 0 |
 | — present but carrying no `.sha256` | 3 |
 | — sought and never retrieved | 1 |
 | Seed bibliography entries | 10 |
-| Literature entries (`KN-LIT-*`) | 7871 |
-| — with a resolvable external identifier | 2258 |
+| Literature entries (`KN-LIT-*`) | 7870 |
+| — with a resolvable external identifier | 2257 |
 | — with no identifier recorded | 5613 |
 
-Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1326, doi 150, eprint 746, url 36. Every identifier an entry carries is kept in `sources.json`.
+Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1326, doi 150, eprint 745, url 36. Every identifier an entry carries is kept in `sources.json`.
 
-`citation_verified` distribution: `False` 23, `True` 10, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `metadata` 1, `partial` 5, `read` 7496, `secondary_only` 1, `transcription_of_full_text_at_recorded_sha256` 2, `web` 326.
+`citation_verified` distribution: `False` 23, `True` 10, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `metadata` 1, `partial` 5, `read` 7495, `secondary_only` 1, `transcription_of_full_text_at_recorded_sha256` 2, `web` 326.
 
 ## 1. Frozen source packages
 
@@ -49,7 +49,6 @@ decides whether a later session can re-read what was read here.
 | SRC-P13-PANNY-POC | Proof-of-concept implementation of the Wesolowski 2026 p^{1/3+o(1)} attack on OneEnd | Lorenz Panny |  | `inputs/P13-PANNY-POC` | yes | frozen_path | https://yx7.cc/files/p-one-third.py | 4f43780404a7ab5d |
 | SRC-P13-WESOLOWSKI-2026 | The supersingular isogeny problem in time and memory p^{1/3+o(1)} | Benjamin Wesolowski | 2026 | `inputs/P13-WESOLOWSKI-2026` | yes | package_contents |  |  |
 | SRC-SATIC-TRIMOSKA-2019 | A SAT-Based Approach for Index Calculus on Binary Elliptic Curves |  | 2019 | `inputs/SATIC-TRIMOSKA-2019` | yes | package_contents |  |  |
-| SRC-SEMAEV-2015-310 | New algorithm for the discrete logarithm problem on elliptic curves | Igor Semaev | 2015 | `inputs/SEMAEV-2015-310` | yes | declared |  |  |
 | SRC-SHA2-LI-39STEPS-2026 | Pushing Collision Attacks on SHA-2 to 39 Steps |  | 2026 | `inputs/SHA2-LI-39STEPS-2026` | yes | package_contents |  |  |
 
 Declared reproducibility limitations:
@@ -73,11 +72,6 @@ not the same as never having looked.
 | local-artifact |  | local_artifact |  | 2026-09-07T21:07:57Z | `inputs/JMV-0411378-20260907/sources/jmv-math-0411378v3.pdf.sha256` |
 | local-artifact |  | local_artifact |  | 2026-09-07T21:07:57Z | `inputs/JMV-0411378-20260907/sources/jmv-math-0411378v3.txt` |
 | local-artifact |  | local_artifact |  | 2026-09-07T21:07:57Z | `inputs/JMV-0411378-20260907/sources/jmv-math-0411378v3-layout.txt` |
-| eprint-2015-310-landing | https://eprint.iacr.org/2015/310 | retrieved | 200 | 2026-09-13T12:51:14Z |  |
-| eprint-2015-310-pdf | https://eprint.iacr.org/2015/310.pdf | retrieved | 200 | 2026-09-13T12:50:53Z | `inputs/SEMAEV-2015-310/eprint-2015-310.pdf` |
-| local-artifact |  | local_artifact |  | 2026-09-13T12:52:00Z | `inputs/SEMAEV-2015-310/eprint-2015-310.pdf` |
-| local-artifact |  | local_artifact |  | 2026-09-13T12:52:00Z | `inputs/SEMAEV-2015-310/paper_fulltext.md` |
-| local-artifact |  | local_artifact |  | 2026-09-13T12:52:00Z | `inputs/SEMAEV-2015-310/tables.yaml` |
 
 ## 3. Source artifacts under `inputs/`
 
@@ -110,8 +104,6 @@ records that some fetch failed, and says nothing about the file that is here.
 | `inputs/JMV-0411378-20260907/sources/jmv-math-0411378v3.txt` | 59315 | **present_unhashed** |  |  |
 | `inputs/KARABINA-PDP-2015/eprint-2015-319-v3.pdf` | 352621 | match | ad23de5bfdb5fada |  |
 | `inputs/KARABINA-PDP-2015/paper_fulltext.md` | 41941 | match | c4fcc7c94ad9fca4 |  |
-| `inputs/SEMAEV-2015-310/eprint-2015-310.pdf` | 271506 | match | d6636436e2e9254d |  |
-| `inputs/SEMAEV-2015-310/paper_fulltext.md` | 38979 | match | 3b3bea4c24c6265e |  |
 
 ## 4. Seed bibliography
 
@@ -132,7 +124,7 @@ records that some fetch failed, and says nothing about the file that is here.
 
 ## 5. Literature citations with a resolvable identifier
 
-2258 of 7871 `KN-LIT-*` entries carry an
+2257 of 7870 `KN-LIT-*` entries carry an
 eprint, arXiv, DOI, ISBN or URL identifier.
 
 | ID | Title | Year | Identifier | Verified |
@@ -2388,7 +2380,6 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-f51628 | Sieving method for SDP with the zero window: an improvement in low memory environments | 2024 | `doi:10.1007/978-981-97-7737-2_9` | web |
 | KN-LIT-f6de4b | Bombieri–Weil bound (additive / Artin–Schreier case) — attempted verification of hypothesis (H1') | 1966 | `url:encyclopediaofmath.org/wiki/bombieri-weil_bound` | secondary_only |
 | KN-LIT-f7d7dd | Improved quantum information set decoding | 2018 | `arxiv:1808.00714v1` | web |
-| KN-LIT-fa346d | New algorithm for the discrete logarithm problem on elliptic curves | 2015 | `eprint:2015/310` | read |
 | KN-LIT-fa9bc8 | Analysis of information set decoding for a sub-linear error weight | 2016 | `doi:10.1007/978-3-319-29360-8_10` | web |
 | KN-LIT-fab214 | Punctured syndrome decoding problem: Efficient side-channel attacks against Classic McEliece | 2023 | `eprint:2023/308` | web |
 | KN-LIT-fb3102 | A statistical decoding algorithm for general linear block codes | 2001 | `doi:10.1007/3-540-45325-3_1` | web |
@@ -8032,7 +8023,6 @@ corpus may hold a true duplicate. Resolving it is a `/curate-knowledge` job.
 | `arxiv:1711.04062` | KN-LIT-560, KN-LIT-7632 |
 | `arxiv:2304.14757` | KN-LIT-4c8135, KN-LIT-c41d8b |
 | `eprint:2010/331` | KN-LIT-13a01d, KN-LIT-3c9f21 |
-| `eprint:2015/310` | KN-LIT-009, KN-LIT-fa346d |
 | `eprint:2015/573` | KN-LIT-475, KN-LIT-7607 |
 | `eprint:2023/1618` | KN-LIT-1117, KN-LIT-132 |
 | `eprint:2024/1193` | KN-LIT-71d1a0, KN-LIT-a4d70e |
