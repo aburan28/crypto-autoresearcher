@@ -34,10 +34,10 @@ output is a record with a gradable downstream outcome:
 | `run` | run records under `experiments/EXP-*/` | → `EV-*` → `DEC-*` |
 | `review-evidence` | `EV-*` + `DEC-*` | (terminal — score its own `strength`/`knowledge_promotion` choices against later corrections, if any) |
 
-For anything else in `.claude/skills/` (`deep-research`, `research-status`,
-`curate-knowledge`, `agent-bus`) there is no single graded output record to chain
-from — refuse, and tell the user this prototype only covers the four skills
-above.
+For anything else in `.claude/skills/` (`coordinate`, `deep-research`,
+`research-status`, `curate-knowledge`, `agent-bus`) there is no single graded
+output record to chain from — refuse, and tell the user this prototype only
+covers the four skills above.
 
 ## Steps
 

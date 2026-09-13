@@ -148,6 +148,7 @@ class TheRuleDoesNotRelaxAnythingTests(unittest.TestCase):
         # the coordination lifecycle lives under the plugin workflow/refs.
         paths = [
             ROOT / ".claude" / "skills" / "run" / "SKILL.md",
+            ROOT / ".claude" / "skills" / "coordinate" / "SKILL.md",
             ROOT / "plugins" / "crypto-autoresearcher-harness" / "skills"
             / "crypto-autoresearcher-harness" / "WORKFLOW.md",
             ROOT / "plugins" / "crypto-autoresearcher-harness" / "skills"

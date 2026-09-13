@@ -31,9 +31,11 @@ An unqualified run can continue other runnable work.
 The canonical skill is [`skills/run/SKILL.md`](skills/run/SKILL.md).
 The old `crypto-autoresearcher-harness`, `run-experiment`,
 `launch-research-harness`, and `coordinate-research-goal` execution skills are
-retired. Their broader coordination material is retained as
-[`WORKFLOW.md`](skills/crypto-autoresearcher-harness/WORKFLOW.md), outside skill
-discovery, for explicitly requested coordination work.
+retired. Coordinator work uses the repository skill
+[`.claude/skills/coordinate/SKILL.md`](../../.claude/skills/coordinate/SKILL.md)
+(`/coordinate`). That skill is not packaged here; this plugin remains `run`
+only. The coordination procedure it follows is
+[`WORKFLOW.md`](skills/crypto-autoresearcher-harness/WORKFLOW.md).
 
 The run skill does not add preflight, whole-ledger/schema/protocol validation,
 portfolio-health sweeps, branch synchronization, protocol authoring, PR creation,
@@ -134,7 +136,8 @@ codex plugin add crypto-autoresearcher-harness@crypto-autoresearcher
 ```
 
 Start a new Codex task in the checkout and ask, for example: “show the current
-Crypto Autoresearcher research status” or “resume GOAL-ECDLP-001.”
+Crypto Autoresearcher research status” or “$run GOAL-ECDLP-001.” Coordinator
+work (rank, approve, archive) uses `$coordinate`, not this plugin.
 
 ### Claude Code
 

@@ -48,6 +48,15 @@ and output-correctness checks; report a refused launch rather than bypassing it.
 Retain raw outputs and failed attempts. Results remain observations until the
 separate archive/review process supports a scientific state transition.
 
+The public **coordination** skill is `coordinate`
+(`.claude/skills/coordinate/SKILL.md`, Codex/OpenCode adapter
+`.agents/skills/coordinate/`). It ranks, designs, approves, reviews, archives,
+and publishes. It never launches scientific trials. Use it for portfolio
+coordination, launching the Coordinator, or resuming a `GOAL-*` without
+running it. Named-goal execution remains `run`. Old harness skill names
+(`crypto-autoresearcher-harness`, `launch-research-harness`,
+`coordinate-research-goal`) stay retired; do not recreate those adapters.
+
 ## Roles
 
 - **Coordinator** owns priorities, task decomposition, state transitions, and synthesis.

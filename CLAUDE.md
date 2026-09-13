@@ -48,7 +48,15 @@ Code specifically.
   phase, preparation workflow, PR, or review cycle. Use the existing launcher;
   its built-in ownership, resource, and output checks still apply. This routing
   supersedes older lifecycle directions for plain run requests.
+- **Public coordination entry point**: `/coordinate` ranks work, opens
+  batches, approves complete protocols, dispatches non-execution tasks,
+  archives, and publishes. It never launches scientific trials. Canonical
+  source: `.claude/skills/coordinate/SKILL.md` (Codex/OpenCode adapter:
+  `.agents/skills/coordinate/`). Use for `/coordinate`, launch coordinator,
+  portfolio, or resume a `GOAL-*` without running it. Named-goal execution
+  remains `/run GOAL-...`.
 - **Stage references** (`.claude/skills/`), used by the shared lifecycle:
+  - `/coordinate` — Coordinator front door (rank, approve, dispatch, archive, PR)
   - `/propose-ideas` — ideation for a research question
   - `/design-experiment` — hypothesis + frozen protocol; approval is a separate Coordinator decision
   - `/review-evidence` — validation, evidence strength, official decision
@@ -368,6 +376,7 @@ them disagree.
 ## Typical loop
 
 ```text
+/coordinate            # rank, approve, dispatch, archive; does not run trials
 /research-status
   → /propose-ideas RQ-...
   → /design-experiment IDEA-...
