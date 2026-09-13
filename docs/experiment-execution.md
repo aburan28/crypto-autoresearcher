@@ -11,7 +11,9 @@ This document describes the process adapter and preparation of new trial plans.
 Read those preparation details only when preparing or maintaining that adapter,
 not as a checklist before every run. The runner retains its built-in checks.
 The separate Coordinator archive/review workflow is needed before a scientific
-state transition, not before returning execution results to the user.
+state transition, not before returning execution results to the user. That
+Coordinator work uses [`/coordinate`](../.claude/skills/coordinate/SKILL.md);
+it is not part of `/run`.
 
 ## Boundary and responsibilities
 
