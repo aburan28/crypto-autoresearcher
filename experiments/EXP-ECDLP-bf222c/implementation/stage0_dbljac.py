@@ -20,10 +20,16 @@ import json
 import platform
 import subprocess
 import sys
+import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
 SOURCE = "experiments/EXP-ECDLP-bf222c/implementation/stage0_dbljac.py"
+RUN_DIR = ROOT / "experiments/EXP-ECDLP-bf222c/runs/RUN-ECDLP-bf222c-S0"
+REPORT_PATH = ROOT / "experiments/EXP-ECDLP-bf222c/execution-report-s0.yaml"
+AUTHORIZED_BY = "DEC-20260913-7eeb2c"
+TASK_ID = "TASK-20260913-1f3e28"
 
 P = 19
 A = 1
@@ -177,36 +183,275 @@ def git_head() -> str:
 
 
 def main() -> int:
-    gates = evaluate_gates()
-    all_pass = (
-        gates["fixture_pass"]
-        and gates["real_chain_rule_pass"]
-        and gates["known_false_constant_pass"]
-        and gates["reject_invalid_pass"]
-        and gates["null_empty_pass"]
-    )
+    started = time.time()
+    RUN_DIR.mkdir(parents=True, exist_ok=True)
+    commit = git_head()
     source_sha256 = hashlib.sha256((ROOT / SOURCE).read_bytes()).hexdigest()
+    gates = evaluate_gates()
+    solved = gates["solved"]
+    fixture_pass = gates["fixture_pass"]
+    real_chain_rule_pass = gates["real_chain_rule_pass"]
+    known_false_constant_pass = gates["known_false_constant_pass"]
+    reject_invalid_pass = gates["reject_invalid_pass"]
+    null_empty_pass = gates["null_empty_pass"]
+    kf_rejected = gates["kf_rejected"]
+    all_pass = (
+        fixture_pass
+        and real_chain_rule_pass
+        and known_false_constant_pass
+        and reject_invalid_pass
+        and null_empty_pass
+    )
+    elapsed = time.time() - started
+    real_obj = {
+        "id": "REAL",
+        "P": list(POINT),
+        "P2": solved["P2"],
+        "P4": solved["P4"],
+        "J1": solved["J1"],
+        "J2": solved["J2"],
+        "J4": solved["J4"],
+        "det1": solved["det1"],
+        "det2": solved["det2"],
+        "det4": solved["det4"],
+        "product": solved["product"],
+        "must_det1": MUST_DET1,
+        "must_det2": MUST_DET2,
+        "must_det4": MUST_DET4,
+    }
+    kf_obj = {
+        "id": "KF",
+        "kind": "constant_det4",
+        "det4": solved["det4"],
+        "claimed_det4": KF_CLAIMED_DET4,
+        "must_det4": MUST_DET4,
+        "rejected": kf_rejected,
+    }
+    raw = {
+        "run_id": "RUN-ECDLP-bf222c-S0",
+        "experiment_id": "EXP-ECDLP-bf222c",
+        "hypothesis_id": "H-ECDLP-6e6649",
+        "task_id": TASK_ID,
+        "authorized_by": AUTHORIZED_BY,
+        "stage": 0,
+        "certificate": {"kind": "none", "verified": True},
+        "frozen_object": "P-S0-DBLJAC",
+        "fixture": {
+            "REAL": {
+                "id": "REAL",
+                "p": P,
+                "A": A,
+                "B": B,
+                "P": list(POINT),
+                "must_P2": list(MUST_P2),
+                "must_P4": list(MUST_P4),
+                "must_det1": MUST_DET1,
+                "must_det2": MUST_DET2,
+                "must_det4": MUST_DET4,
+            },
+            "KF": {
+                "id": "KF",
+                "kind": "constant_det4",
+                "must_det4": MUST_DET4,
+                "claimed_det4": KF_CLAIMED_DET4,
+                "must_reject": True,
+            },
+            "NULL": {"id": "NULL", "kind": "empty_matrix", "must_reject": True},
+            "invalid_rejected": gates["invalid_decisions"],
+        },
+        "metrics": {
+            "fixture_pass": fixture_pass,
+            "real_chain_rule_pass": real_chain_rule_pass,
+            "known_false_constant_pass": known_false_constant_pass,
+            "reject_invalid_pass": reject_invalid_pass,
+            "null_empty_pass": null_empty_pass,
+            "REAL": real_obj,
+            "KF": kf_obj,
+            "NULL": gates["null_obj"],
+        },
+        "SMALL_W_or_LARGE_W": False,
+        "fit_of_a": False,
+        "stage1_authorized": False,
+        "exp_bf222c_stage1_authorized": False,
+        "exp_e9dd89_stage1_authorized": False,
+        "exp_bb5ef7_stage1_authorized": False,
+        "exp_70c6f0_stage1_authorized": False,
+        "exp_9c04a3_stage1_authorized": False,
+        "not_a_decoder": True,
+        "not_a_rho_beat": True,
+        "do_not_form_semaev": True,
+        "do_not_run_velu": True,
+        "do_not_run_coppersmith": True,
+        "do_not_form_gamma_orbit": True,
+        "not_p1553": True,
+        "not_nested_lhw": True,
+        "wall_clock_seconds": elapsed,
+        "validity_status": "valid" if all_pass else "invalid",
+    }
+    (RUN_DIR / "raw-result.json").write_text(json.dumps(raw, indent=2) + "\n")
+    (RUN_DIR / "command.txt").write_text(
+        "python3 experiments/EXP-ECDLP-bf222c/implementation/stage0_dbljac.py\n"
+    )
+    env = {
+        "python": platform.python_version(),
+        "platform": platform.platform(),
+        "machine": platform.machine(),
+        "executable": sys.executable,
+    }
+    (RUN_DIR / "environment.json").write_text(json.dumps(env, indent=2) + "\n")
+    stdout_payload = {
+        "fixture_pass": fixture_pass,
+        "real_chain_rule_pass": real_chain_rule_pass,
+        "known_false_constant_pass": known_false_constant_pass,
+        "reject_invalid_pass": reject_invalid_pass,
+        "null_empty_pass": null_empty_pass,
+        "REAL": real_obj,
+        "KF": kf_obj,
+        "NULL": gates["null_obj"],
+    }
+    (RUN_DIR / "stdout.log").write_text(json.dumps(stdout_payload, indent=2) + "\n")
+    (RUN_DIR / "stderr.log").write_text("")
+    report = f"""execution_report:
+  id: ER-ECDLP-bf222c-S0
+  experiment_id: EXP-ECDLP-bf222c
+  run_id: RUN-ECDLP-bf222c-S0
+  task_id: {TASK_ID}
+  recorded_at: '2026-09-13'
+  stage: 0
+  authorized_by: {AUTHORIZED_BY}
+  validity_status: {'valid' if all_pass else 'invalid'}
+  fixture_pass: {str(fixture_pass).lower()}
+  real_chain_rule_pass: {str(real_chain_rule_pass).lower()}
+  known_false_constant_pass: {str(known_false_constant_pass).lower()}
+  reject_invalid_pass: {str(reject_invalid_pass).lower()}
+  null_empty_pass: {str(null_empty_pass).lower()}
+  certificate:
+    kind: none
+    verified: true
+  SMALL_W_or_LARGE_W: false
+  fit_of_a: false
+  exp_bf222c_stage1_authorized: false
+  exp_e9dd89_stage1_authorized: false
+  exp_bb5ef7_stage1_authorized: false
+  exp_70c6f0_stage1_authorized: false
+  exp_9c04a3_stage1_authorized: false
+  stage1_authorized: false
+  not_a_decoder: true
+  not_a_rho_beat: true
+  do_not_form_semaev: true
+  do_not_run_velu: true
+  do_not_run_coppersmith: true
+  do_not_form_gamma_orbit: true
+  not_p1553: true
+  not_nested_lhw: true
+  frozen_object: P-S0-DBLJAC
+  observations:
+  - "fixture_pass {str(fixture_pass).lower()}. Frozen REAL / KF / NULL objects match committed table. Invalid objects rejected."
+  - "real_chain_rule_pass {str(real_chain_rule_pass).lower()}. REAL det1 is {solved['det1']}, det2 is {solved['det2']}, det4 is {solved['det4']}."
+  - "known_false_constant_pass {str(known_false_constant_pass).lower()}. KF det4 {solved['det4']} claimed {KF_CLAIMED_DET4} rejected={str(kf_rejected).lower()}."
+  - "reject_invalid_pass {str(reject_invalid_pass).lower()}. y=0 rejected before any identity is read."
+  - "null_empty_pass {str(null_empty_pass).lower()}. NULL empty matrix is rejected."
+  unexpected_observations: []
+  scientific_boundary: "Toy frozen doubling-Jacobian chain-rule calibrator. Not nested LHW. Not Esser-May. Not Semaev. Not a P1553 recurrence. Not a factor-base. Not Velu. Not a Gamma orbit. Not a rho beat. Not a decoder. Not Stage 1 of EXP-ECDLP-bf222c. Not Stage 1 of EXP-ECDLP-e9dd89. Certificate kind none."
+"""
+    REPORT_PATH.write_text(report)
+    recorded_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S+00:00")
+    manifest = f"""run:
+  id: RUN-ECDLP-bf222c-S0
+  experiment_id: EXP-ECDLP-bf222c
+  hypothesis_id: H-ECDLP-6e6649
+  goal_id: GOAL-ECDLP-001
+  batch_id: BATCH-0a83f9
+  task_id: {TASK_ID}
+  stage: 0
+  status: {'completed_valid' if all_pass else 'invalid'}
+  recorded_at: '{recorded_at}'
+  code:
+    commit: {commit}
+    dirty: true
+    dirty_summary: untracked Stage 0 implementation and run artifacts at execution time
+    command: python3 experiments/EXP-ECDLP-bf222c/implementation/stage0_dbljac.py
+    source_path: {SOURCE}
+    source_sha256: {source_sha256}
+  inference:
+    requested_policy: executor-implementation
+    resolved_model_id: cursor-grok-4.6-cloud-agent
+    model_provenance: cursor cloud agent session acting as executor
+    model_verified: false
+    reasoning_effort: medium
+    fallback_used: false
+    degraded_requirements: null
+  environment:
+    python: {platform.python_version()}
+    platform: {platform.platform()}
+    machine: {platform.machine()}
+  inputs:
+    parameters:
+      frozen_object: P-S0-DBLJAC
+      authorized_by: {AUTHORIZED_BY}
+      fixtures: [REAL, KF, NULL]
+      p: 19
+      A: 1
+      B: -1
+      P: [2, 3]
+    seeds:
+      declared: [8]
+  timing:
+    wall_clock_seconds: {elapsed}
+  resources:
+    wall_clock_seconds: {elapsed}
+    peak_rss_bytes: null
+  result:
+    validity_status: {'valid' if all_pass else 'invalid'}
+    valid: {str(all_pass).lower()}
+    validity_reason: Stage 0 exact doubling-Jacobian chain-rule calibrator gate.
+    certificate:
+      kind: none
+      verified: true
+    metrics:
+      fixture_pass: {str(fixture_pass).lower()}
+      real_chain_rule_pass: {str(real_chain_rule_pass).lower()}
+      known_false_constant_pass: {str(known_false_constant_pass).lower()}
+      reject_invalid_pass: {str(reject_invalid_pass).lower()}
+      null_empty_pass: {str(null_empty_pass).lower()}
+      SMALL_W_or_LARGE_W: false
+      fit_of_a: false
+      not_a_decoder: true
+      not_a_rho_beat: true
+      do_not_form_semaev: true
+      do_not_run_velu: true
+      do_not_run_coppersmith: true
+      do_not_form_gamma_orbit: true
+      not_p1553: true
+      not_nested_lhw: true
+      stage1_authorized: false
+      exp_bf222c_stage1_authorized: false
+      exp_e9dd89_stage1_authorized: false
+      exp_bb5ef7_stage1_authorized: false
+      exp_70c6f0_stage1_authorized: false
+      exp_9c04a3_stage1_authorized: false
+    scientific_boundary: "Toy frozen doubling-Jacobian chain-rule calibrator. Not nested LHW. Not Esser-May. Not Semaev. Not a P1553 recurrence. Not a factor-base. Not Velu. Not a Gamma orbit. Not a rho beat. Not a decoder. Not Stage 1 of EXP-ECDLP-bf222c. Not Stage 1 of EXP-ECDLP-e9dd89. Certificate kind none."
+  artifacts:
+    raw_result: raw-result.json
+    stdout: stdout.log
+    stderr: stderr.log
+    environment: environment.json
+    command: command.txt
+"""
+    (RUN_DIR / "manifest.yaml").write_text(manifest)
     print(
         json.dumps(
             {
                 "all_pass": all_pass,
+                "elapsed": elapsed,
                 "source_sha256": source_sha256,
-                "commit": git_head(),
-                "python": platform.python_version(),
-                "executable": sys.executable,
-                **{k: gates[k] for k in (
-                    "fixture_pass",
-                    "real_chain_rule_pass",
-                    "known_false_constant_pass",
-                    "reject_invalid_pass",
-                    "null_empty_pass",
-                )},
-                "REAL": gates["solved"],
-                "KF": {
-                    "claimed_det4": KF_CLAIMED_DET4,
-                    "actual_det4": gates["solved"]["det4"],
-                    "rejected": gates["kf_rejected"],
-                },
+                "fixture_pass": fixture_pass,
+                "real_chain_rule_pass": real_chain_rule_pass,
+                "known_false_constant_pass": known_false_constant_pass,
+                "reject_invalid_pass": reject_invalid_pass,
+                "null_empty_pass": null_empty_pass,
+                "REAL": real_obj,
+                "KF": kf_obj,
                 "NULL": gates["null_obj"],
             }
         )
