@@ -11,11 +11,17 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import platform
+import signal
 import sys
 import time
 from fractions import Fraction
 from pathlib import Path
+
+
+class BudgetExpired(Exception):
+    """Frozen wall-clock cap reached; emit completed records only."""
 
 if hasattr(sys, "set_int_max_str_digits"):
     sys.set_int_max_str_digits(0)
@@ -26,7 +32,10 @@ EXP = "EXP-ECRANK-52d039"
 # counted-op or bit-size stop rule; a stop here is infrastructure only.
 WALL_SECONDS_CAP = 3600
 MEMORY_BYTES_CAP = 8 * 1024 ** 3
-WALL_STOP_MARGIN_SECONDS = 90
+WALL_STOP_MARGIN_SECONDS = 900
+# Deterministic machine-protection ceiling so R2 and its R3 replay emit
+# the same completed-n ledger. Not a protocol cap; a stop is infrastructure.
+COORDINATE_BIT_GUARD = 100_000
 
 
 def q(x):
@@ -346,7 +355,7 @@ def add_point(E, P, Q):
         if den == 0:
             return O
         lam = (3 * x1 * x1 + 2 * a2 * x1 + a4 - a1 * y1) / den
-        nu = (-x1**3 + a4 * x1 + 2 * a6) / den
+        nu = (-x1**3 + a4 * x1 + 2 * a6 - a3 * y1) / den
     else:
         lam = (y2 - y1) / (x2 - x1)
         nu = (y1 * x2 - y2 * x1) / (x2 - x1)
@@ -460,6 +469,20 @@ def _infrastructure_stop(started_mono, sizes=None, n=None):
     return None
 
 
+def _arm_wall_alarm():
+    def _handle(signum, frame):
+        raise BudgetExpired("SIGALRM: frozen wall-clock cap")
+
+    if hasattr(signal, "SIGALRM"):
+        signal.signal(signal.SIGALRM, _handle)
+        signal.alarm(max(1, WALL_SECONDS_CAP - WALL_STOP_MARGIN_SECONDS))
+
+
+def _disarm_wall_alarm():
+    if hasattr(signal, "SIGALRM"):
+        signal.alarm(0)
+
+
 def _log_interval_pos(r, bits=96):
     """Exact rational enclosure of ln(r), using atanh series and scaling."""
     r = q(r)
@@ -558,7 +581,10 @@ def _float_log_height(P):
     if P is O:
         return 0.0
     x, _ = P
-    return math.log(max(1.0, float(abs(x.numerator)))) - math.log(float(x.denominator)) if x.numerator.bit_length() < 1024 else (abs(x.numerator).bit_length()-x.denominator.bit_length())*math.log(2.0)
+    H = max(1, abs(x.numerator), x.denominator)
+    if H.bit_length() < 1024:
+        return math.log(float(H))
+    return H.bit_length() * math.log(2.0)
 
 
 def candidate_checks():
@@ -588,19 +614,40 @@ def run_r2():
     records=[]
     cost_bits=[]
     p=P; p2=add_point(E,P,P); p3=add_point(E,p2,P)
+    last_p, last_p2, last_p3 = p, p2, p3
     status="completed_valid"
     stop=None
-    for n in range(61):
+    _arm_wall_alarm()
+    try:
+      for n in range(61):
         sizes={"P":_bit_size(p),"2P":_bit_size(p2),"3P":_bit_size(p3)}
         cost_bits.append({"n": n, "chains": sizes})
+        print(
+            f"R2 progress n={n} bits={sizes} elapsed={time.monotonic()-started:.1f}s rss={_peak_rss_bytes()}",
+            file=sys.stderr,
+            flush=True,
+        )
         infra = _infrastructure_stop(started, sizes=sizes, n=n)
         if infra is not None:
             status="failed_infrastructure"
             stop=infra
             break
+        max_bits = max(v["max"] for v in sizes.values())
+        if max_bits > COORDINATE_BIT_GUARD:
+            status="failed_infrastructure"
+            stop={
+                "class": "resource_exhaustion",
+                "reason": "deterministic coordinate-bit machine-protection guard",
+                "guard_bits": COORDINATE_BIT_GUARD,
+                "n": n,
+                "elapsed_seconds": time.monotonic()-started,
+                "peak_rss_bytes": _peak_rss_bytes(),
+                "coordinate_bit_sizes": sizes,
+            }
+            break
         h1=height_interval(p); h2=height_interval(p2); h3=height_interval(p3)
         i1=canon_interval(interval_from_strings(h1["interval"]),Cq,n)
-        i2=canon_interval(interval_from_strings(h2["interval"]),Cq,n+1)
+        i2=canon_interval(interval_from_strings(h2["interval"]),Cq,n)
         i3=canon_interval(interval_from_strings(h3["interval"]),Cq,n)
         pair=isub_s(isub_s(i3,i1),i2)
         pair=(pair[0]/2,pair[1]/2)
@@ -608,17 +655,67 @@ def run_r2():
         two_ldl=ldl_2(i1,i2,pair)
         two={"object":"O2","n":n,"verdict":"INDEPENDENT" if two_ldl["positive"] else "UNRESOLVED","witness_complete":two_ldl["positive"],"pivot_lower_bounds":two_ldl["pivot_lower_bounds"],"pivot_upper_bounds":two_ldl.get("pivot_upper_bounds",[]),"enclosures":{"lambda_P":[qs(i1[0]),qs(i1[1])],"lambda_2P":[qs(i2[0]),qs(i2[1])],"pairing":[qs(pair[0]),qs(pair[1])]},"ldl":two_ldl,"verifier_agreement":None}
         records.extend([one,two])
+        last_p, last_p2, last_p3 = p, p2, p3
+        ckpt = os.environ.get("EXP_ECRANK_52D039_R2_CHECKPOINT")
+        if ckpt:
+            Path(ckpt).parent.mkdir(parents=True, exist_ok=True)
+            Path(ckpt).write_text(
+                json.dumps(
+                    {
+                        "stage": "R2",
+                        "status": "failed_infrastructure",
+                        "checkpoint_n": n,
+                        "selected_curve_index": selected["index"],
+                        "curve": enc(E),
+                        "point_P": enc(P),
+                        "C_E": C,
+                        "C_E_derivation": selected["checks"]["C_E"],
+                        "candidates": enc(cand),
+                        "verdict_ledger": records,
+                        "n_cert_O1": next((x["n"] for x in records if x["object"]=="O1" and x["verdict"]=="INDEPENDENT"), None),
+                        "stop": {
+                            "class": "resource_exhaustion",
+                            "reason": "checkpoint after completed n; final status set at process end",
+                            "n": n,
+                        },
+                        "cost_coordinate_bit_sizes": cost_bits,
+                        "implementation": "producer",
+                        "n_max": 60,
+                    },
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ),
+                encoding="utf-8",
+            )
+        infra = _infrastructure_stop(started, sizes=sizes, n=n)
+        if infra is not None:
+            status="failed_infrastructure"
+            stop=infra
+            break
         if n<60:
             p=add_point(E,p,p); p2=add_point(E,p2,p2); p3=add_point(E,p3,p3)
+    except BudgetExpired:
+        status="failed_infrastructure"
+        stop={
+            "class": "resource_exhaustion",
+            "reason": "SIGALRM: wall-clock budget approaching frozen 3600 s cap",
+            "n": records[-1]["n"] if records else None,
+            "elapsed_seconds": time.monotonic()-started,
+            "peak_rss_bytes": _peak_rss_bytes(),
+            "coordinate_bit_sizes": cost_bits[-1]["chains"] if cost_bits else None,
+        }
+    finally:
+        _disarm_wall_alarm()
     # Comparison-only floating values at the last completed n.  No verdict
     # reads these values.
     if records:
         nlast=records[-1]["n"]
         try:
-            float_self=_float_log_height(p)
-            float_a=_float_log_height(p)
-            float_b=_float_log_height(p2)
-            float_c=_float_log_height(p3)
+            scale=float(4**nlast)
+            float_self=_float_log_height(last_p)/scale
+            float_a=_float_log_height(last_p)/scale
+            float_b=_float_log_height(last_p2)/scale
+            float_c=(_float_log_height(last_p3)/scale-float_a-float_b)/2.0
             float_det=float_a*float_b-float_c*float_c
         except (OverflowError, ValueError):
             float_self=float_a=float_b=float_c=float_det=None

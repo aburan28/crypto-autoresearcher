@@ -297,7 +297,7 @@ def add(E, left, right):
         if denominator == 0:
             return INFINITY
         slope = (3 * x1 * x1 + 2 * E["a2"] * x1 + E["a4"] - E["a1"] * y1) / denominator
-        intercept = (-x1**3 + E["a4"] * x1 + 2 * E["a6"]) / denominator
+        intercept = (-x1**3 + E["a4"] * x1 + 2 * E["a6"] - E["a3"] * y1) / denominator
     else:
         slope = (y2 - y1) / (x2 - x1)
         intercept = (y1 * x2 - y2 * x1) / (x2 - x1)
@@ -423,7 +423,7 @@ def elliptic_record(E, point, c, n):
     h2 = height(p2)
     h3 = height(p3)
     i1 = canonical((q(h1["interval"][0]), q(h1["interval"][1])), c, n)
-    i2 = canonical((q(h2["interval"][0]), q(h2["interval"][1])), c, n + 1)
+    i2 = canonical((q(h2["interval"][0]), q(h2["interval"][1])), c, n)
     i3 = canonical((q(h3["interval"][0]), q(h3["interval"][1])), c, n)
     pairing_i = sub_interval(sub_interval(i3, i1), i2)
     pairing_i = pairing_i[0] / 2, pairing_i[1] / 2
