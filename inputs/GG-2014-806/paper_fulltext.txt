@@ -1,0 +1,2315 @@
+Summation polynomial algorithms for elliptic curves in characteristic two
+
+Steven D. Galbraith and Shishay W. Gebregiyorgis
+
+Mathematics Department,
+University of Auckland,
+New Zealand.
+S.Galbraith@math.auckland.ac.nz,sgeb522@aucklanduni.ac.nz
+
+Abstract. The paper is about the discrete logarithm problem for elliptic curves over characteristic 2 ﬁnite ﬁelds
+F2n of prime degree n. We consider practical issues about index calculus attacks using summation polynomials in
+this setting. The contributions of the paper include: a choice of variables for binary Edwards curves (invariant under
+the action of a relatively large group) to lower the degree of the summation polynomials; a choice of factor base
+that “breaks symmetry” and increases the probability of ﬁnding a relation; an experimental investigation of the use
+of SAT solvers rather than Gr¨obner basis methods for solving multivariate polynomial equations over F2.
+We show that our choice of variables gives a signiﬁcant improvement to previous work in this case. The symmetry-
+breaking factor base and use of SAT solvers seem to give some beneﬁts in practice, but our experimental results
+are not conclusive. Our work indicates that Pollard rho is still much faster than index calculus algorithms for the
+ECDLP (and even for variants such as the oracle-assisted static Difﬁe-Hellman problem of Granger and Joux-Vitse)
+over prime extension ﬁelds F2n of reasonable size.
+Keywords: ECDLP, summation polynomials, index calculus.
+
+1
+
+Introduction
+
+Let E be an elliptic curve over a ﬁnite ﬁeld F2n where n is prime. The elliptic curve discrete logarithm
+problem (ECDLP) is: Given P, Q ∈ E(F2n) to compute an integer a, if it exists, such that Q = aP .
+As is standard, we restrict attention to points P of prime order r. The Difﬁe-Hellman problem (CDH) is:
+Given P ∈ E(F2n) and points P1 = aP and P2 = bP , for some integers a and b, to compute abP .
+These two computational problems are fundamental to elliptic curve cryptography. There is a wide variety
+of “interactive” Difﬁe-Hellman assumptions, meaning that the attacker/solver is given access to an oracle
+that will perform various computations for them. These problems also arise in some cryptographic settings,
+and it is interesting to study them (for scenarios where they arise in practice for static-CDH see Brown and
+Gallant [3]). These problems are surveyed by Koblitz and Menezes [23] and we recall some of them now.
+
+– The “Delayed Target One-More Discrete Logarithm Problem” in the sense of Joux-Naccache-Thom´e is
+the following. The solver is supplied with a discrete logarithm oracle and must ﬁnd the discrete logarithm
+of a random group element Y that is given to the solver only after all the queries to the oracle have been
+made.
+
+– The “oracle-assisted static Difﬁe-Hellman problem” (also called the “delayed target One-More Difﬁe-
+Hellman problem”) is the following. The solver is given (P, X = aP ) and a static (also called “one-
+sided”) Difﬁe-Hellman oracle (i.e., O(Y ) = aY ), and must solve the DHP with input (P, X, Y ), where
+Y is a random group element that is given to the solver only after all the queries to O have been made.
+In other words, the solver must compute Z = aY .
+
+– The “static One-More Difﬁe-Hellman Problem” is as follows. The solver is again given (P, X = aP )
+and access to an oracle O(Y ) = aY , and also a challenge oracle that produces random group elements
+Yi . After t queries to the challenge oracle (where t is chosen by the solver) and at most t − 1 queries to
+the DHP oracle O, the solver must ﬁnd Zi = aYi for all i = 1, . . . , t.
+
+Early papers on attacking these sorts of interactive assumptions (e.g., [20]) used index calculus algo-
+rithms for ﬁnite ﬁelds. Granger [18] and Joux-Vitse [22] were the ﬁrst to consider the case of elliptic curve
+groups E(Fqn) (both papers mainly focus on the case where q is a large prime, and brieﬂy mention small
+characteristic but not prime degree extension ﬁelds F2n).
+
+One approach to solving the ECDLP (or these interactive assumptions) is to use Semaev’s summation
+polynomials [27] and index calculus ideas of Gaudry, Diem, and others [5–8, 11–13, 16, 21, 22, 25]. The
+main idea is to specify a factor base and then to try and “decompose” random points R = uP + wQ as a
+sum P1 + · · · + Pm of points in the factor base. Semaev’s summation polynomials allow to express the sum
+P1 + · · · + Pm − R = ∞, where ∞ is the identity element, as a polynomial equation over F2n, and then
+Weil descent reduces this problem to a system of polynomial equations over F2
+
+There is a growing literature on these algorithms. Much of the previous research has been focussed on
+
+elliptic curves over Fqn where q is prime or a prime power, and n is small.
+
+Our Work This paper is about the case F2n where n is prime. Other work (for example [6–8, 25]) has
+focused on asymptotic results and theoretical considerations. Instead, we focus on very practical issues and
+ask about what can actually be computed in practice today. In other words, we follow the same approach as
+Huang, Petit, Shinohara and Takagi [19] and Shantz and Teske [26].
+
+We assume throughout that the ECDLP instance cannot be efﬁciently solved using the Gaudry-Hess-
+Smart approach [15] or its extensions, and that the point decomposition step of the algorithm is the bottle-
+neck (so we ignore the cost of the linear algebra). This will be the case in our examples.
+
+The goal of our paper is to report on our experiments with three ideas:
+
+(1) We describe a choice of variables for binary Edwards curves that is invariant under the action of a
+relatively large group (generated by the action of the symmetric group and addition by a point of order 4).
+This allows the summation polynomials to be re-written with lower degree, which in turn speeds up the
+computation of relations.
+
+(2) We consider a factor base that “breaks symmetry” and hence signiﬁcantly increases the probability that
+relations exist. It may seem counterintuitive that one can use symmetric variables to reduce the degree and
+also a non-symmetric factor base, but if one designs the factor base correctly then this is seen to be possible.
+The basic idea is as follows. The traditional approach has relations R = P1 + · · · + Pm where Pi ∈
+F = {P ∈ E(F2n) : x(P ) ∈ V } where V ⊆ F2n is some F2-vector subspace of dimension l. Instead, we
+demand Pi ∈ Fi over 1 ≤ i ≤ m for m different factor bases Fi = {P ∈ E(F2n) : x(P ) ∈ V + vi}
+where vi ∈ F2n are elements of a certain form so that the sets V + vi are all distinct. (Diem [8] has also
+used different factor bases Fi, but in a different way.) The probability of ﬁnding a relation is increased by a
+factor approximately m!, but we need m times as many relations, so the total speedup is approximately by a
+factor of (m − 1)!.
+
+(3) We experiment with SAT solvers rather than Gr¨obner basis methods for solving the polynomial systems.
+This is possible since we obtain a system of multivariate polynomial equations over F2, rather than over
+larger ﬁelds. (SAT solvers have been considered in cryptanalysis before, e.g. [4, 24].)
+
+Our conclusions are: The suggested coordinates for binary Edwards curves give a signiﬁcant improve-
+ment over previous work on elliptic curves in characteristic 2. The use of SAT solvers may potentially enable
+larger factor bases to be considered (however, it seems an “early abort” strategy should be taken, as we will
+explain). Symmetry breaking seems to give a moderate beneﬁt when n is large compared with lm.
+
+Finally, our overall conclusion is that, for parameters of interest for actual computation, it is slower to
+use summation polynomials to solve an ECDLP instance (or even the interactive assumptions mentioned
+
+2
+
+earlier) in characteristic 2 elliptic curves than to use Pollard rho. Hence, summation polynomial algorithms
+do not seem to be a useful tool for attacking current ECDLP challenge curves for curves deﬁned over F2n
+where n is prime.
+
+The paper is organised as follows. Section 2 recalls previous work. Section 3 recalls binary Edwards
+curves and introduces our new variables. Section 4 shows how to do the index calculus attack in this setting
+and discusses the symmetry-breaking idea. Section 5 discusses the use of SAT solvers, while Section 6
+reports on our experimental results.
+
+2
+
+Index Calculus Algorithms and Summation Polynomials
+
+We brieﬂy recall the basic ideas of these methods and introduce our notation. Let P ∈ E(F2n) have prime
+order r and suppose Q = aP . One chooses an appropriate factor base F ⊆ E(F2n), computes random points
+R = uP + wQ and then tries to write R = P1 + · · · + Pm for Pi ∈ F. Each successful decomposition of
+the point R is called a “relation”. Let (cid:96) = #F. Writing F = {F1, . . . , F(cid:96)} we can write the j-th relation as
+ujP +wjQ = (cid:80)(cid:96)
+i=1 zj,iFi and store the relation by storing the values (uj, wj) and the vector (zj,1, . . . , zj,(cid:96)).
+When enough relations (more than (cid:96)) are found then one can apply (sparse) linear algebra to ﬁnd a kernel
+vector of the matrix M = (zj,i) and hence obtain a pair of integers u and w such that uP + wQ = 0 from
+which we can solve for a ≡ −uw−1 (mod r) as long as w (cid:54)≡ 0 (mod r). The details are standard.
+
+One can use this approach to solve interactive Difﬁe-Hellman assumptions. We give the details in the
+case of the oracle-assisted static Difﬁe-Hellman. Choose a factor base F = {F1, . . . , F(cid:96)} then call the oracle
+for each element Fi to get the points aFi for 1 ≤ i ≤ (cid:96). When provided with the challenge point Y one
+tries to decompose Y = P1 + · · · + Pm for points Pi ∈ F. If such a relation is found then we can compute
+the required point aY as aP1 + · · · + aPm. (If we fail to ﬁnd a relation then we can randomise by taking
+Y + uP and recalling that uX = uaP .)
+
+One sees that all applications require decomposing random points over the factor base. This is the dif-
+ﬁcult part of the algorithm and is the main focus of our paper. Note however that the ECDLP application
+requires a very large number of relations and hence a very large number of point decompositions, whereas
+the oracle-assisted static-DH application only requires a single relation.
+
+We will ignore the linear algebra step as, for the parameters considered in the paper, its cost will always
+
+be insigniﬁcant.
+
+2.1 Summation Polynomials
+
+Let E be an elliptic curve in Weierstrass form over a ﬁeld K of odd characteristic. The mth summation
+polynomial fm(x1, x2, . . . , xm) ∈ K[x1, x2, . . . , xm] for E, deﬁned by Semaev [27], has the following
+deﬁning property. Let X1, X2, . . . , Xm ∈ K. Then fm(X1, X2, . . . , Xm) = 0 if and only if there exist
+Y1, Y2, . . . , Ym ∈ K such that (Xi, Yi) ∈ E(K) for all 1 ≤ i ≤ m and (X1, Y1) + (X2, Y2) + · · · +
+(Xm, Ym) = ∞, where ∞ is the identity element.
+
+Lemma 1. (Semaev [27]) Let E : y2 = x3 + a4x + a6 be an elliptic curve over a ﬁeld K of characteristic
+(cid:54)= 2, 3 and {a4, a6} ∈ K. The summation polynomials for E are given as follows.
+
+f2(X1, X2)=X1 − X2
+f3(X1, X2, X3)=(X1 − X2)2X 2
+
+3 − 2((X1 + X2)(X1X2 + a4) + 2a6)X3
+
++((X1X2 − a4)2 − 4a6(X1X2)).
+
+3
+
+For m ≥ 4 and a constant j such that 1 ≤ j ≤ m − 3, then
+
+fm(X1, . . . , Xm) = ResultantX (fm−j(X1, . . . , Xm−j−1, X), fj+2(Xm−j, Xm−j+1, . . . , Xm, X)).
+
+For m ≥ 2, the mth summation polynomial fm is an irreducible symmetric polynomial that has degree
+2m−2 in each of the variables.
+
+Gaudry and Diem noted that, for elliptic curves E(Fqn) over extension ﬁelds, there are choices of factor
+base for which the problem of ﬁnding solutions to summation polynomials can be approached using Weil
+descent with respect to Fqn/Fq. In other words, the problem of solving fm+1(x1, . . . , xm, x(R)) for xi ∈ Fq
+can be reduced to a system of multivariate polynomial equations over Fq. The details are standard.
+
+To solve the system of multivariate polynomial equations, the current most effective approach (see [11,
+19]) is to perform the F4 or F5 algorithm for the graded reverse lex order, followed by the FGLM algo-
+rithm [14].
+
+2.2 Degree Reduction Via Symmetries
+
+The summation polynomials have high degree, which makes solving them difﬁcult. Since the summation
+polynomial is invariant under the action of the symmetric group Sm, Gaudry [16] observed that re-writing
+the polynomial in terms of invariant variables reduces the degree and speeds up the resolution of the system
+of equations. As well as lowering the degree of the polynomials, this idea also makes the solution set smaller
+and hence faster to compute using the FGLM algorithm.
+
+Faug`ere et al [12, 13] have considered action by larger groups (by using points of small order) for elliptic
+curves over Fqn where n is small (e.g., n = 4 or n = 5) and the characteristic is (cid:54)= 2, 3. Their work gives
+further reduction in the cost of solving the system. We sketch (for all the details see [12, 13]) the case of
+points of order 2 on twisted Edwards curves.
+
+For a point P = (x, y) on a twisted Edwards curve we have −P = (−x, y) and so it is natural to
+construct summation polynomials in terms of the y-coordinate (invariant under P (cid:55)→ −P ). Accordingly
+Faug`ere et al [12] deﬁne their factor base as
+
+F = {P = (x, y) ∈ Fqn : y ∈ Fq}.
+
+Further, the addition of P with the point T2 = (0, −1) (which has order 2) satisﬁes P + T2 = (−x, −y).
+Note that P ∈ F if and only if P + T2 ∈ F. Hence, for each decomposition R = P1 + P2 + · · · + Pn, there
+exist 2n−1 further decompositions, such as
+
+R = (P1 + T2) + (P2 + T2) + P3 + · · · + Pn.
+
+It follows that the dihedral coxeter group Dn = (Z/2Z)n−1 (cid:111) Sn of order 2n−1n! acts on the set of relations
+R = P1 + · · · + Pn for any given point R (and all these relations correspond to solutions of the summation
+polynomial). It is therefore natural to try to write the summation polynomial fn+1(y1, y2, . . . , yn, y(R)) in
+terms of new variables that are invariant under the group action. For further details see [12].
+
+A recent idea (originating in the work of Joux-Vitse [21] for E(Fqn)) is to consider relations with fewer
+summands R = P1 + · · · + Pm with m < n. Joux and Vitse take m = n − 1 so the probability of a relation
+is reduced from 1/n! to 1/(q(n − 1)!). The cost of solving the polynomial system is signiﬁcantly reduced,
+but the running time increases by the factor q. Shantz and Teske [26] call this the “delta method”.
+
+4
+
+2.3 The Case of F2n where n is Prime
+Following Diem [8] we deﬁne the factor base in terms of an F2-vector space V ⊂ F2n of dimension l. A
+typical choice for the factor base in the case of Weierstrass curves is F = {P ∈ E(F2n) : x(P ) ∈ V }, and
+one wants to decompose random points as R = P1 + · · · + Pm for Pi ∈ F.
+
+As above, the symmetric group Sm of order m! acts on the set of relations R = P1 + · · · + Pm for any
+given point R (and all these relations correspond to solutions of the summation polynomial). It is therefore
+natural to try to write the summation polynomial fm+1(x1, x2, . . . , xm, x(R)) in terms of new variables
+that are invariant under the group action. In this example, such variables are the elementary symmetric
+polynomials in the xi. This approach gives polynomials of lower degree.
+
+Huang et al [19] observe that it is hard to combine re-writing the summation polynomial in terms of
+symmetric variables and also using a factor base deﬁned with respect to an arbitrary vector subspace of
+F2n. The point is that if x1, . . . , xm ∈ V then it is not necessarily the case that the value of the symmetric
+polynomial e2 = x1x2 + x1x3 + · · · + xm−1xm (or higher ones) lies in V . Hence, one might think that one
+cannot use symmetries in this setting.
+
+Section 3 of [19] considers prime n and the new idea of “both symmetric and non-symmetric variables”.
+It is suggested to use a “special subspace” V that behaves relatively well under multiplication: xi, xj ∈ V
+implies xixj ∈ V (cid:48) for a somewhat larger space V (cid:48). The experiments in [19], for n prime in the range
+17 ≤ n ≤ 53, m = 3, and l ∈ {3, 4, 5, 6}, show a signiﬁcant decrease of the degree of regularity (the highest
+degree reached) during Gr¨obner basis computations. However, the decrease in the degree of regularity is at
+the expense of an increased number of variables, which in turn increases the complexity of the Gr¨obner basis
+computations (which roughly take time N 3D and require N 2D memory, where N is the number of variables
+and D is the degree of regularity).
+
+Huang et al [19] exploit the action of Sm on the summation polynomials but do not exploit points of
+order 2 or 4. One of our contributions is to give coordinates that allow to exploit larger symmetry groups
+in the case of elliptic curves over binary ﬁelds. We are able to solve larger experiments in this case (e.g.,
+taking decompositions into m = 4 points, while [19] could only handle m = 3). For more details of our
+experiments see Section 6.
+
+3 Edwards Elliptic Curves in Characteristic Two
+
+We study binary Edwards curves [1] since the addition by points of order 2 and 4 is nicer than when using
+the Weierstrass model as was done in [12, 13]. Hence we feel this model of curves is ideally suited for the
+index calculus application.
+Deﬁnition 1. Let d1, d2 ∈ F2n be such that d1 (cid:54)= 0 and d2 (cid:54)= d2
+coefﬁcients d1 and d2 is the elliptic curve given by the afﬁne model
+
+1 + d1. The binary Edwards curve with
+
+Ed1,d2 : d1(x + y) + d2(x2 + y2) = xy + xy(x + y) + x2y2.
+The binary Edwards curve is symmetric in the variables x and y with the following group law [1].
+
+1. The identity element is the point P0 = (0, 0).
+2. For a point P = (x, y) ∈ Ed1,d2, its negation is given by −P = (y, x). We have P + −P = P0 = (0, 0).
+3. Let P1 = (x1, y1), P2 = (x2, y2) ∈ Ed1,d2, then P3 = (x3, y3) = P1 + P2 is given by
+d1(x1 + x2) + d2(x1 + y1)(x2 + y2) + (x1 + x2
+1)(x2 + y2)
+
+1)(x2(y1 + y2 + 1) + y1y2)
+
+d1 + (x1 + x2
+
+x3=
+
+y3=
+
+d1(y1 + y2) + d2(x1 + y1)(x2 + y2) + (y1 + y2
+
+1)(y2(x1 + x2 + 1) + x1x2)
+
+d1 + (y1 + y2
+
+1)(x2 + y2)
+
+5
+
+.
+
+4. The point T2 = (1, 1) ∈ Ed1,d2 is invariant under negation so it has order 2. For any point P = (x, y) ∈
+
+Ed1,d2 we have P + T2 = (x + 1, y + 1).
+
+If d1 (cid:54)= 0 and TrF2n /F2(d2) = 1, i.e., there is no element u ∈ F2n such that u satisﬁes u2 + u + d2 = 0,
+then the addition law on the binary Edwards curve is complete [1]. That is, the denominators in the addition
+law d1 + (y1 + y2
+
+1)(x2 + y2) and d1 + (x1 + x2
+
+1)(x2 + y2) never vanish.
+
+For summation polynomials with these curves, the best choice of variable is t = x+y. This is the natural
+choice, consistent with previous work [16, 12], as this function is invariant under the action of [−1] : P (cid:55)→
+−P . The coordinate t was used in [1] for differential addition, but it was called ω.
+
+The function t : Ed1,d2 → P1 has degree 4. Given a value t ∈ F2n there are generically four points
+P = (x, y) ∈ E(F2) having the same value for t(P ), namely (x, y), (y, x), (x + 1, y + 1), (y + 1, x + 1).
+When we come to deﬁne the factor base, we will choose a vector subspace V of F2n/F2 of dimension l
+
+and will deﬁne the factor base to be the set of points corresponding to t(P ) = x(P ) + y(P ) ∈ V .
+
+Theorem 1. Let Ed1,d2 be a binary Edwards curve over F2n and deﬁne the function t(P ) = x(P ) + y(P ).
+Let the mth summation polynomials for binary Edwards curves be deﬁned as follows:
+
+f2(t1, t2)=t1 − t2
+1t2
+1(t2
+
+f3(t1, t2, t3)=(d2t2
++d2
+
+2 + d1(t2
+1 + t2
+2)
+
+1t2 + t1t2
+
+2 + t1t2 + d1))t2
+
+3 + d1(t2
+
+1t2
+
+2 + t2
+
+1t2 + t1t2
+
+2 + t1t2)t3
+
+fm(t1, . . . , tm)=Resultantt(fm−k(t1, t2, . . . , tm−k−1, t), fk+2(tm−k, tm−k+1, . . . , tm, t)),
+
+for m ≥ 4 and 1 ≤ k ≤ m − 3.
+
+For any points P1, . . . , Pm ∈ Ed1,d2(F2) such that P1 + · · · + Pm = P0, then fm(t(P1), . . . , t(Pm)) = 0.
+Conversely, given any t1, . . . , tm ∈ F2 such that fm(t1, . . . , tm) = 0, then there exist points P1, . . . , Pm ∈
+Ed1,d2(F2) such that t(Pi) = ti for all 1 ≤ i ≤ m and P1 + · · · + Pm = P0. For m ≥ 2, the polynomials
+have degree 2m−2 in each variable.
+
+Proof. Let Pi = (xi, yi) ∈ Ed1,d2 and ti = xi+yi, where 1 ≤ i ≤ m. For m = 2, we have P1+P2 = P0 that
+is P1 = −P2 = (y2, x2) and this in turn implies t1 = t2. So, it is clear to see that f2(t1, t2) = t1 − t2 = 0.
+For m = 3, we have to construct the 3rd summation polynomial f3(t1, t2, t3) corresponding to P1 +
+P2 + P3 = P0. Let (x3, y3) = (x1, y1) + (x2, y2) and (x4, y4) = (x1, y1) − (x2, y2). Applying the group
+law, we have
+
+x3=
+
+y3=
+
+d1(x1 + x2) + d2(x1 + y1)(x2 + y2) + (x1 + x2
+1)(x2 + y2)
+
+d1 + (x1 + x2
+
+1)(x2(y1 + y2 + 1) + y1y2)
+
+d1(y1 + y2) + d2(x1 + y1)(x2 + y2) + (y1 + y2
+
+1)(y2(x1 + x2 + 1) + x1x2)
+
+d1 + (y1 + y2
+
+1)(x2 + y2)
+
+and
+
+t3=
+
+d1(x1 + x2) + d2(x1 + y1)(x2 + y2) + (x1 + x2
+1)(x2 + y2)
+d1(y1 + y2) + d2(x1 + y1)(x2 + y2) + (y1 + y2
+
+d1 + (x1 + x2
+
++
+
+1)(x2(y1 + y2 + 1) + y1y2)
+
+1)(y2(x1 + x2 + 1) + x1x2)
+
+.
+
+d1 + (y1 + y2
+
+1)(x2 + y2)
+
+6
+
+Then,
+(cid:0)d1 + (y1 + y2
+
+t3=
+
+(cid:0)d1 + (x1 + x2
+
++
+
+1)(x2 + y2)(cid:1) (cid:0)d1(x1 + x2) + d2(x1 + y1)(x2 + y2) + (x1 + x2
+
+(cid:0)d1 + (x1 + x2
+
+1)(x2 + y2)(cid:1)
+1)(x2 + y2)(cid:1) (cid:0)d1(y1 + y2) + d2(x1 + y1)(x2 + y2) + (y1 + y2
+
+1)(x2 + y2)(cid:1) (cid:0)d1 + (y1 + y2
+
+(cid:0)d1 + (x1 + x2
+
+1)(x2 + y2)(cid:1) (cid:0)d1 + (y1 + y2
+
+1)(x2 + y2)(cid:1)
+
+1)(x2(y1 + y2 + 1) + y1y2
+
+(cid:1)
+
+1)(y2(x1 + x2 + 1) + x1x2)(cid:1)
+
+.
+
+Now (x4, y4) and t4 are computed in a similar way and are given,
+
+x4=
+
+y4=
+
+d1(x1 + y2) + d2(x1 + y1)(x2 + y2) + (x1 + x2
+
+1)(y2(y1 + x2 + 1) + y1x2)
+
+d1 + (x1 + x2
+
+1)(x2 + y2)
+
+d1(y1 + x2) + d2(x1 + y1)(x2 + y2) + (y1 + y2
+
+1)(x2(x1 + y2 + 1) + x1y2)
+
+d1 + (y1 + y2
+
+1)(x2 + y2)
+
+and t4 = x4 + y4.
+
+We now require to construct a quadratic polynomial in the indeterminate variable t whose roots are t3
+and t4, that is t2 + (t3 + t4)t + t3t4. We can use the EliminationIdeal() function of Magma [32] and
+the curve equation to express t3 + t4 and t3t4 in terms of the variables t1 and t2. So, we have ﬁnally
+
+d1t1t2(t1t2 + t1 + t2 + 1)
+(cid:0)t1 + t2
+
+(cid:1) t2 + (cid:0)d1t1 + d2t2
+
+1
+
+d2
+1 + d1
+
+(cid:1) t2
+2
+
+and
+
+t3t4 =
+
+d2
+1 + d1
+
+1
+
+1(t1 + t2)2
+d2
+(cid:0)t1 + t2
+(cid:1) t2 + (cid:0)d1t1 + d2t2
+
+1
+
+.
+
+(cid:1) t2
+2
+
+1
+
+t3+t4 =
+
+Hence,
+
+t2 + (t3 + t4)t + t3t4=(cid:0)d2
+
+1 + d1
+
+(cid:0)t1 + t2
+
+(cid:1) t2 + (cid:0)d1t1 + d2t2
+(cid:1) t2
+(cid:1) t2
+1
+2
+1(t1 + t2)2.
++ (d1t1t2(t1t2 + t1 + t2 + 1)) t + d2
+
+1
+
+Rearranging terms, we have
+
+f3(t1, t2, t3)=(d2t2
+
+1t2
+
+2 + d1(t2
+
+1t2 + t1t2
+
+2 + t1t2 + d1))t2
+
+3 + d1(t2
+
+1t2
+
+2 + t2
+
+1t2 + t1t2
+
+2 + t1t2)t3 + d2
+
+1(t1 + t2)2.
+
+For m ≥ 4 we use the fact that P1 + · · · + Pm = P0 if and only if there exists a point R on the curve such
+that P1 + · · · + Pm−k−1 + R = P0 and −R + Pm−k + · · · + Pm = P0. It follows that
+
+fm(t1, . . . , tm)=Resultantt(fm−k(t1, t2, . . . , tm−k−1, t), fk+2(tm−k, tm−k+1, . . . , tm, t)),
+
+(for all m ≥ 4 and m − 3 ≥ k ≥ 1).
+
+We can observe that the 3rd summation polynomial has degree 2 in each variable ti. The 4th summation
+polynomial f4(t1, t2, t3, t4) = Resultantt(f3(t1, t2, t), f3(t3, t4, t)), which is the resultant of two third sum-
+mation polynomials, has degree 2 · 2 = 4 in each variable ti. Computing recursively using resultants, the
+mth summation polynomial has degree 2m−2 in each variable. Irreducibility and symmetry follow by the
+(cid:117)(cid:116)
+same arguments as used by Semaev [27]. This completes the proof.
+
+Note that the degree bound 2m−2 is consistent with the arguments on page 44 (Sections 2 and 3.1)
+of [13]: Since deg(t) = 4 we would expect polynomials of degree 4m−1, but t is invariant and so factors
+through a 2-isogeny, so we get degree 2m−1. The further saving of a factor 2 follows since t(−P ) = t(P ).
+
+We now specialise to the case d1 = d2, which will be the case considered in Section 3.3.
+
+7
+
+Lemma 2. Let Ed1,d2 be a binary Edwards curve over F2n such that d1 = d2 and deﬁne the function
+t(P ) = x(P ) + y(P ). Let the mth summation polynomials for binary Edwards curves be deﬁned as follows:
+
+f2(t1, t2)=t1 + t2
+
+f3(t1, t2, t3)=(d1 + t1t2(t1 + 1)(t2 + 1))t2
+
+3 + (t1t2 + (t1 + 1)(t2 + 1))t3 + d1(t1 + t2)2
+
+fm(t1, . . . , tm)=Resultantt(fm−j(t1, t2, . . . , tm−j−1, t), fj+2(tm−j, tm−j+1, . . . , tm, t))
+
+(for all m ≥ 4 and 1 ≤ j ≤ m − 3).
+
+For any points P1, . . . , Pm ∈ Ed1,d1(F2) such that P1 + · · · + Pm = P0, then fm(t(P1), . . . , t(Pm)) = 0.
+Conversely, given any t1, . . . , tm ∈ F2 such that fm(t1, . . . , tm) = 0, then there exist points P1, . . . , Pm ∈
+Ed1,d1(F2) such that t(Pi) = ti for all 1 ≤ i ≤ m and P1 + · · · + Pm = P0. For m ≥ 2, the polynomials
+have degree 2m−2 in each variable.
+
+3.1 Action of Symmetric Group
+
+Since the equation P1 +· · ·+Pm is symmetric it follows that the summation polynomials for binary Edwards
+curves are symmetric. Hence
+
+fm+1(t1, t2, . . . , tm, t(R)) ∈ F2n[t1, t2, . . . , tm]Sm
+
+where Sm is the symmetric group and the right hand side denotes the ring of polynomials invariant under the
+group Sm. Hence, it is possible to express the summation polynomials in terms of the elementary symmetric
+polynomials (e1, e2, . . . , em) in the variables ti, as they are generators of the ring F2n[t1, . . . , tm]Sm.
+
+Since the elementary symmetric polynomial ei has degree i, it is natural to expect the polynomial to
+have lower degree after this change of variables. Another way to explain this degree reduction is to note that
+each relation R = P1 + · · · + Pm comes in an orbit of size (at least, when the points Pi are all distinct)
+m!. This implies that the number of solutions to the polynomial when expressed in terms of the ei is smaller
+than the original polynomial, and this is compatible with a lowering of the degree.
+
+3.2 Action of Points of Order 2
+
+It was proposed in [12, 13] to consider the action of small torsion points to further lower the degree of
+the summation polynomials. This idea also allows to effectively reduce the size of the factor base when
+performing the linear algebra. Hence, it is important to exploit torsion points as much as possible. Of the
+previous papers, [12] only considers odd characteristic, while [13] considers even characteristic (and even
+goes as far as summation polynomials of 8 points!) but only for curves in Weierstrass form and using a point
+of order 2. In this section we consider these ideas for binary Edwards curves, and in the next section extend
+to using a point of order 4.
+
+Fix a vector space V ⊂ F2n of dimension l. The factor base will be
+
+F = {P ∈ Ed1,d2(F2n) : t(P ) ∈ V }.
+
+We expect #F ≈ #V , and our experiments conﬁrm this.
+
+As mentioned in Section 3, if P = (x, y) ∈ Ed1,d2 then P + T2 = (x + 1, y + 1). Note that t(P + T2) =
+(x + 1) + (y + 1) = x + y = t(P ) and so the function t is already invariant under addition by T2. Since the
+factor base is deﬁned in terms of t(P ) we have that P ∈ F implies P + T2 ∈ F. In other words, our choice
+of variables is already invariant under the action of adding a 2-torsion point.
+
+8
+
+Let R = P1 + · · · + Pm and let u = (u1, . . . , um−1) ∈ {0, 1}m−1. Then
+
+R = (P1 + u1T2) + (P2 + u2T2) + · · · + (Pm−1 + um−1T2) +
+
+Pm +
+
+(cid:32)
+
+(cid:32)m−1
+(cid:88)
+
+(cid:33)
+
+(cid:33)
+
+ui
+
+T2
+
+.
+
+i=1
+
+This gives an action of the group (Z/2Z)m−1 on the set of relations R = P1 + · · · + Pm. Combining with
+the action of the symmetric group, we have that the Dihedral Coxeter group Dm = (Z/2Z)m−1 (cid:111) Sm acts
+on the set of relations, and hence on the summation polynomial. Analogous to the discussion in the previous
+section, each relation R = P1 + · · · + Pm generically comes in an orbit of size 2m−1m!.
+Since the variables ti are already invariant under addition by T2, it follows that
+
+fm+1(t1, t2, . . . , tm, t(R)) ∈ F2n[t1, t2, . . . , tm]Dm.
+
+Hence it can be written in terms of the elementary symmetric polynomials ei, as they are the generators of
+the ring F2n[t1, t2, . . . , tm]Dm. This reduces its degree and we experience a speed-up in the FGLM algorithm
+due to the reduction in the size of the set of solutions.
+
+To speed-up the linear algebra, the factor base can be reduced in size. Recall that each solution (t1, . . . , tm)
+
+corresponds to many relations. Let us ﬁx, for each t, one of the four points {P, −P, P + T2, −P + T2}, and
+put only that point into our factor base. Hence the size of F is exactly the same as the number of t ∈ V that
+correspond to elliptic curve points, which is roughly 1
+
+4 #V .
+Then, for a point R, given a solution fm+1(t1, . . . , tm, t(R)) = 0 there is a unique value z0 ∈ {0, 1},
+
+unique points P1, . . . , Pm ∈ F, and unique choices of sign z1, . . . , zm ∈ {−1, 1} such that
+
+R + z0T2 =
+
+m
+(cid:88)
+
+i=1
+
+ziPi.
+
+It follows that the matrix size is reduced by a factor of 1/4 (with one extra column added to store the
+coefﬁcient of T2) which means we need to ﬁnd fewer relations and the complexity of the linear algebra,
+which has a complexity of ˜O(m#F 2) using the Lanczos or Wiedemann algorithm, is reduced by a factor of
+(1/4)2.
+
+3.3 Action of Points of Order 4
+
+We now consider binary Edwards curves in the case d1 = d2. Then T4 = (1, 0) ∈ Ed1,d1 and one can
+verify that T4 + T4 = (1, 1) = T2 and so T4 has order four. The group generated by T4 is therefore
+{P0, T4, T2, −T4 = (0, 1)}.
+
+For a point P = (x, y) ∈ Ed1,d1 we have P + T4 = (y, x + 1). Hence t(P + T4) = t(P ) + 1. We
+construct our factor base F such that (x, y) ∈ F implies (y, x+1) ∈ F. For example, we can choose a vector
+subspace V ⊆ F2n such that v ∈ V if and only if v + 1 ∈ V , and set F = {P ∈ Ed1,d1(F2n) : t(P ) ∈ V }.
+If R = P1 + P2 + · · · + Pm is a relation and (u1, . . . , um−1) ∈ {0, 1, 2, 3}m−1 then we also have
+
+R = (P1 + [u1]T4) + (P2 + [u2]T4) + · · · + (Pm−1 + [um−1]T4) + (Pm + [um]T4)
+
+(1)
+
+for um = − (cid:80)m−1
+i=1 ui. Hence, one can consider the group Gm = (Z/4Z)m−1 (cid:111)Sm acting on the summation
+polynomial. To express the summation polynomial in terms of invariant variables it sufﬁces to note that the
+
+9
+
+invariants under the action t (cid:55)→ t + 1 in characteristic 2 are t(t + 1) = t2 + t (this is mentioned in Section
+4.3 of [13]). Hence,
+
+1 + t1)(t2
+
+2 + t2) + · · · + (t2
+
+m−1 + tm−1)(t2
+
+m + tm),
+
+s2=(t2
+...
+sm=(t2
+
+1 + t1)(t2
+
+2 + t2) · · · (t2
+
+m + tm).
+
+(2)
+
+are invariant variables. One might also expect to use
+
+e1 + e2
+
+1 = t1 + t2
+
+1 + · · · + tm + t2
+m
+
+but since the addition by T4 cancels out in equation (1) we actually have that e1 = t1 + · · · + tm remains
+invariant. Hence, we can use the invariant variables e1, s2, . . . , sm, which are the generators of the ring
+F2n[t1, t2, . . . , tm]Gm.
+
+It is clear that we further halve the size of the factor base by choosing a unique representative of the orbit
+under the action. Overall, the factor base is reduced in total by a factor of 1/8 over the basic method. Hence
+the complexity of the linear algebra is reduced by a factor of (1/8)2.
+
+4 The Index Calculus Algorithm
+
+We now present the full index calculus algorithm combined with the new variables introduced in Section 3.1.
+We work in E(F2n) := Ed1,d1(F2n) where n is prime and Ed1,d1 is a binary Edwards curve with parameters
+d2 = d1. We choose an integer m (for the number of points in a relation) and an integer l. Considering
+F2n as a vector space over F2 we let V be a vector subspace of dimension l. More precisely, we will
+suppose F2n is represented using a polynomial basis {1, θ, . . . , θn−1} where F (θ) = 0 for some irreducible
+polynomial F (x) ∈ F2[x] of degree n. We will take V to be the vector subspace of F2n over F2 with basis
+{1, θ, . . . , θl−1}.
+
+We start with the standard approach, leaving the symmetry-breaking to Section 4.2. We deﬁne a factor
+base F = {P ∈ E(F2n) : t(P ) ∈ V }, where t(x, y) = x + y. Relations will be sums of the form
+R = P1 + P2 + · · · + Pm where Pi ∈ F. We heuristically assume that #F ≈ 2l. Under this heuristic
+assumption we expect the number of points in {P1 + · · · + Pm : Pi ∈ F} to be roughly 2lm/m!. Hence,
+the probability that a uniformly chosen point R ∈ E(F2n) can be decomposed in this way is heuristically
+(2lm/m!)/2n = 1/(m!2n−lm). Hence we would like to choose m and l so that lm is not too much smaller
+than n.
+
+To compute relations we evaluate the summation polynomial at the point R to get
+
+fm+1(t1, t2, . . . , tm, t(R)) ∈ F2n[t1, t2, . . . , tm].
+
+If we can ﬁnd a solution (t1, t2, . . . , tm) ∈ V m satisfying fm+1(t1, t2, . . . , tm, t(R)) = 0 then we need to
+determine the corresponding points, if they exist, (xi, yi) ∈ E(F2n) such that ti = xi + yi and (x1, y1) +
+· · · + (xm, ym) = R. Finding (xi, yi) given ti is just taking roots of a univariate quartic polynomial. Once
+we have m points in E(F2n), we may need to check up to 2m−1 choices of sign (and also determine an
+additive term zj,0T4, since our factor base only includes one of the eight points for each value of ti(ti + 1))
+to be able to record the relation as a vector. The cost of computing the points (xi, yi) is almost negligible,
+but checking the signs may incur some cost for large m.
+
+When a relation exists (i.e., the random point R can be written as a sum of m points in the factor base)
+then there exists a solution (t1, . . . , tm) ∈ V m to the polynomial system that can be lifted to points in
+
+10
+
+E(F2n). When no relation exists there are two possible scenarios: Either there is no solution (t1, . . . , tm) ∈
+V m to the polynomial system, or there are solutions but they don’t lift to points in E(F2n). In both cases,
+the running time of detecting that a relation does not exist is dominated by the Gr¨obner basis computation
+and so is roughly the same.
+
+In total we will need #F +1 ≈ #V = 2l relations. Finally, these relations are represented as the system
+
+of equations
+
+ujP + wjQ = zj,0T4 +
+
+(cid:88)
+
+Pi∈F
+
+zj,iPi
+
+where M = (zj,i) is a sparse matrix with at most m non-zero entries per row. Let r be the order of P
+(assumed to be odd). If S is any vector in the kernel of the matrix (meaning SM ≡ 0 (mod r)), then
+writing u = S(u1, . . . , u(cid:96)+1)T (where (cid:96) = #F) and w = S(w1, . . . , w(cid:96)+1)T . We have uP + wQ = 0 (the
+T4 term must disappear if r is odd) and so u + wa ≡ 0 (mod r) and we can solve for the discrete logarithm
+a.
+
+The details are given in Algorithm 1.
+
+4.1 The Choice of Variables
+
+Recall that our summation polynomials fm+1(t1, t2, . . . , tm, t(R)) can be written in terms of the invariant
+variables (e1, s2, . . . , sm). Here we are exploiting the full group (Z/4Z)m−1 (cid:111) Sm. Note that t(R) ∈ F2n
+is a known value and can be written as t(R) = r0 + r1θ + r2θ2 + · · · + rn−1θn−1 with ri ∈ F2.
+
+As noted by Huang et al [19], and using their notation, let us write tj, e1, and sj in terms of binary
+
+variables with respect to the basis for F2n. We have
+
+tj =
+
+l−1
+(cid:88)
+
+i=0
+
+cj,iθi
+
+(3)
+
+for 1 ≤ j ≤ m, which is a total of lm binary variables cj,i. Set k = min((cid:98)n/(2(l − 1))(cid:99), m). The invariant
+variables e1, s2, . . . , sm can be written as,
+
+e1=d1,0 + d1,1θ + d1,2θ2 + · · · + d1,l−1θl−1
+s2=d2,0 + d2,1θ + d2,2θ2 + · · · + d2,4(l−1)θ4(l−1)
+
+...
+
+sj=dj,0 + dj,1θ + dj,2θ2 + · · · + dj,2j(l−1)θ2j(l−1)
+where 1 ≤ j ≤ k = min((cid:98)n/(2(l − 1))(cid:99), m)
+sj+1=dj+1,0 + dj+1,1θ + dj+1,2θ2 + · · · + dj+1,(n−1)θn−1
+
+...
+
+sm=dm,0 + dm,1θ + dm,2θ2 + · · · + dm,n−1θn−1.
+
+Suppose that n ≈ lm. Then k = n/(2(l − 1)) ≈ m/2 and so we suppose it takes the value ´m = (cid:100) m
+the number of binary variables di,j is
+
+2 (cid:101). Then
+
+N = l + (4(l − 1) + 1) + (6(l − 1) + 1) + · · · + (2 ´m(l − 1) + 1) + ´mn ≈ (m2l + mn)/2.
+
+11
+
+Writing the evaluated summation polynomial as G(e1, s2, . . . , sm) we now substitute the above formu-
+
+lae to obtain a polynomial in the variables dj,i. Apply Weil descent to the polynomial to get
+
+φ1 + φ2θ + · · · + φnθn−1 = 0.
+
+where the φi are polynomials over F2 in the dj,i. This forms a system of n equations in the N binary
+variables dj,i. We add the ﬁeld equations d2
+
+j,i − dj,i and then denote this system of equations by sys1.
+
+One could attempt to solve this system using Gr¨obner basis methods. For each candidate solution (dj,i)
+one would compute the corresponding solution (e1, s2, . . . , sm) and then solve a univariate polynomial
+equation (i.e., take roots) to determine the corresponding solution (t1, . . . , tm). From this one determines
+whether each value tj corresponds to an elliptic curve point (xj, yj) ∈ E(F2n) such that xj + yj = tj. If
+everything works ok then one forms the relation.
+
+However, the approach just mentioned is not practical as the number N of binary variables is too large
+compared with the number of equations. Hence, we include the lm < n variables cj,˜i (for 1 ≤ j ≤ m,
+0 ≤ ˜i ≤ l − 1) to the problem, and add a large number of new equations relating the cj,˜i to the dj,i via the
+tj and equations (2) and (3).
+
+This gives N additional equations in the N + lm binary variables. After adding the ﬁeld equations
+c2
+− cj,˜i we denote this system of equations by sys2. Finally we solve sys1 ∪ sys2 using Gr¨obner basis
+j,˜i
+algorithms F4 or F5 using the degree reverse lexicographic ordering. From a solution, the corresponding
+points Pj are easily computed.
+
+Algorithm 1 Index Calculus Algorithm on Binary Edwards Curve
+1: Set Nr ← 0
+2: while Nr ≤ #F do
+3:
+4:
+5:
+6:
+7:
+8:
+9:
+10:
+11:
+12:
+13:
+14:
+15: Use linear algebra to ﬁnd non-trivial kernel element and hence solve ECDLP
+
+Compute R ← uP + wQ for random integer values u and w
+Compute summation polynomial G(e1, s2, . . . , sm) := fm+1(e1, s2, . . . , sm, t(R)) in the variables (e1, s2, . . . , sm)
+Use Weil descent to write G(e1, s2, . . . , sm) as n polynomials in binary variables dj,i
+Add ﬁeld equations d2
+j,i − dj,i to get system of equations sys1
+Buld new polynomial equations relating the variables dj,i and cj,˜i
+Add ﬁeld equations c2
+Solve system of equations sys1 ∪ sys2 to get (cj,˜i, dj,i)
+Compute corresponding solution(s) (t1, . . . , tm)
+For each tj compute, if it exists, a corresponding point Pj = (xj, yj) ∈ F
+if z1P1 + z2P2 + · · · + zmPm + z0T4 = R for suitable z0 ∈ {0, 1, 2, 3}, zi ∈ {1, −1} then
+
+Nr ← Nr + 1
+Record zi, u, w in a matrix M for the linear algebra
+
+j,˜i − cj,˜i to get system of equations sys2
+
+4.2 Breaking Symmetry
+
+We now explain how to break symmetry in the factor base while using the new variables as above.
+
+Again, suppose F2n is represented using a polynomial basis and take V to be the subspace with basis
+{1, θ, . . . , θl−1}. We choose m elements vi ∈ F2n (which can be interpreted as vectors in the n-dimensional
+F2-vector space corresponding to F2n) as follows: v1 = 0, v2 = θl = (0, 0, . . . , 0, 1, 0, . . . , 0) where the 1
+is in position l. Similarly, v3 = θl+1, v4 = θl+1 + θl, v5 = θl+2 etc. In other words, vi is represented as a
+
+12
+
+vector of the form (0, . . . , 0, w0, w1, w2, . . . ) where · · · w2w1w0 is the binary expansion of i − 1. Note that
+the subsets V + vi in F2n are pair-wise disjoint.
+
+Accordingly, we deﬁne the factor bases to be Fi = {P ∈ E(F2n) : t(P ) ∈ V + vi} for 1 ≤ i ≤ m,
+where t(x, y) = x + y. The decomposition over the factor base of a point R will be a sum of the form
+R = P1 + P2 + · · · + Pm where Pi ∈ Fi for 1 ≤ i ≤ m. Since we heuristically assume that #Fi ≈ 2l, we
+expect the number of points in {P1 + · · · + Pm : Pi ∈ Fi} to be roughly 2lm. Note that there is no 1/m!
+term here. The entire purpose of this deﬁnition is to break the symmetry and hence increase the probability
+of relations. Hence, the probability that a uniformly chosen point R ∈ E(F2n) can be decomposed in this
+way is heuristically 2lm/2n = 1/2n−lm.
+
+There is almost a paradox here: Of course if R = P1 +· · ·+Pm then the points on the right hand side can
+be permuted and the point T2 can be added an even number of times, and hence the summation polynomial
+evaluated at t(R) is invariant under Dm. On the other hand, if the points Pi are chosen from distinct factor
+bases Fi then one does not have the action by Sm, so why can one still work with the invariant variables
+(e1, s2, . . . , sm)?
+
+To resolve this “paradox” we must distinguish the computation of the polynomial from the construction
+of the system of equations via Weil descent. The summation polynomial does have an action by Dm (and
+Gm), and so that action should be exploited. When we do the Weil descent and include the deﬁnitions of
+the factor bases Fi, we then introduce some new variables. As noted by Huang et al [19], expressing the
+invariant variables with respect to the variables from the construction of the factor bases is non-trivial. But
+it is this stage where we introduce symmetry-breaking.
+
+When re-writing the system in terms of new variables, there is a penalty from the additional factors +vi.
+For example, previously we had t2 = c2,0 + c2,1θ + c2,2θ2 + · · · + c2,l−1θl−1 but now we have (for the case
+m = 4)
+
+t1=c1,0 + c1,1θ + c1,2θ2 + · · · + c1,l−1θl−1
+t2=c2,0 + c2,1θ + c2,2θ2 + · · · + c2,l−1θl−1 + θl
+t3=c3,0 + c3,1θ + c3,2θ2 + · · · + c3,l−1θl−1 + θl+1
+t4=c4,0 + c4,1θ + c4,2θ2 + · · · + c4,l−1θl−1 + θl + θl+1.
+
+It follows that
+
+e1 = t1 + t2 + t3 + t4 = d1,0 + d1,1θ + · · · + d1,l−1θl−1
+
+can be represented exactly as before. But the other polynomials are less simple. For example,
+
+s2 = (t2
+
+1 + t1)(t2
+
+2 + t2) + · · · + (t2
+
+3 + t3)(t2
+
+4 + t4)
+
+previously had highest term d2,4l−4θ4l−4 but now has highest terms d2,4l−4θ4l−4 + d2,4l−2θ4l−2 + θ4l+2.
+Hence, we require one more variable than the previous case, and things get worse for higher degree terms.
+So the symmetry breaking increases the probability of a relation but produces a harder system of polynomial
+equations to solve.
+
+An additional consequence of this idea is that the factor base is now roughly m times larger than in the
+symmetric case. So the number of relations required is increased by a factor m, and so the speedup over
+previous methods is actually by a factor approximately m!/m = (m − 1)!. Also, the cost of the linear
+algebra is increased by a factor m2 (though the system of linear equations is structured in blocks and so
+some optimisations may be possible). When using a point of order 4 with binary Edwards curves, the linear
+algebra cost is reduced (in comparison with the naive method) by a factor (m/8)2.
+
+13
+
+For large q and small n, it seems that symmetry-breaking is not a useful idea, as the increase in number
+of variables becomes a huge problem that is not compensated by the (m − 1)! factor. However, for small q
+and large n the situation is less clear. To determine whether the idea is a good one, it is necessary to perform
+some experiments (see Section 6).
+
+5 SAT Solvers
+
+Shantz and Teske [26] discuss a standard idea [30, 31, 2] they call the “hybrid method”, which is to partially
+evaluate the system at some random points before applying Gr¨obner basis algorithms. They argue (Section
+5.2) that it is better to just use the “delta method” (n − ml > 0), where m is the number points in a relation
+and 2l is the size of the factor base. The main observation of Shantz and Teske [26] is that using smaller l
+speeds-up the Gr¨obner basis computation at the cost of decreasing the probability of getting a relation. So,
+they try to ﬁnd such an optimal l value.
+
+Our choice of coordinates for binary Edwards curves helps us lower the degree of our systems. As a result
+we were able to make successful experiments for m = 4 and l ∈ {3, 4} using Gr¨obner basis algorithms, as
+reported in Table 3. For l > 4, values such that n − ml > 0 suffered high running times as the result of
+increased number of variables coming from our invariant variables.
+
+To increase the range for these methods, we investigated other approaches to solving systems of mul-
+tivariate polynomial equations over a binary ﬁeld. In particular, we experimented with SAT solvers. We
+used Minisat 2.1 [29], a version of Minisat [10, 28, 29], coupled with the Magma system for converting the
+polynomial system into conjunctive normal form (CNF).
+
+On the positive side, our experiments show that SAT solvers can be faster and, more importantly, handle
+larger range of values for l. As is shown in Table 1, we can work with l up to 7 for some n, whereas Gr¨obner
+basis methods are limited to l ∈ {3, 4} in our experiments.
+
+However, on the negative side, the running time of SAT solvers varies a lot depending on many factors.
+They are randomised algorithms, but more signiﬁcantly they seem to be faster when there is a solution of
+low hamming weight. They are even better when there is a solution of low Hamming weight and it is the
+lower bits that are non-zero. The value of the curve parameter d1 also seems to effect the running time.
+Finally, SAT solvers are usually slow when no solution exists. This behaviour is very different to the case of
+Gr¨obner basis methods, which perform rather reliably and are slightly better when the system of equations
+has no solution.
+
+Hence, we suggest using SAT solvers with an “early abort” strategy: One can generate a lot of instances
+and run SAT solvers in parallel and then kill all instances that are still running after some time threshold
+has been passed (a similar idea is mentioned in Section 7.1 of [24]). This could allow the index calculus
+algorithm to be run for a larger set of parameters. The probability of ﬁnding a relation is now decreased. The
+probability that a relation exists must be multiplied by the probability that the SAT solver terminates in less
+than the time threshold (we took an upper bound of 200 seconds for the execution time), in the case when a
+solution exists. It is this latter probability that we estimate in the Psucc column of Table 1.
+
+Note that all modern fast SAT solvers periodically restart the search for satisﬁability or unsatisﬁability
+with “restarting strategies” [17]: a cutoff value in the number of backtracks. Minisat has a small ﬁrst restart
+(100), second restart (250), and the size of consecutive restarts grows geometrically. So an “early-abort”
+mechanism is related to rejecting an instance when the number of backtracks becomes too large.
+
+SAT solvers take an input in Conjunctive Normal Form (CNF): a conjunction of clauses where a clause is
+a disjunction of literals, and a literal is a variable or its negation. The Magma interface with Minisat performs
+the conversion from polynomial equations to CNF. The number of variables, the number of clauses, and the
+
+14
+
+total length of all the clauses (that is, the total number of literals) determines the size of the CNF expression.
+We list these numbers in Table 1. Although the running time of SAT solvers in the worst case is exponential
+in the number of variables in the problem, practical running times may be shorter. It is beyond the scope of
+this paper to discuss the relations between problem size and hardness for SAT solvers.
+
+6 Experimental Results
+
+We conducted several experiments using binary Edwards elliptic curves E over F2n. We always use the
+m + 1-summation polynomial to ﬁnd relations as a sum of m points in the factor base. The factor base is
+deﬁned using a vector space of dimension l. In our experiments we follow the approach of Huang et al [19]
+and examine the effect of different choices of variables on the computation of intermediate results and degree
+of regularity Dreg (as it is the main complexity indicator of F4 or F5 Gr¨obner basis algorithms: the time and
+memory complexities are roughly estimated to be N 3Dreg and N 2Dreg respectively where N is the number of
+variables). Our hope is to get better experimental results resulting from exploiting the symmetries of binary
+Edwards curves.
+
+Experiment 1: For the summation polynomials we use the variables e1, e2, . . . , em, which are invariants
+under the group Dm = (Z/2Z)m−1 (cid:111) Sm. The factor base is deﬁned with respect to a ﬁxed vector space of
+dimension l.
+
+Experiment 2: For the summation polynomials we use the variables e1, s2, . . . , sm from equation (2), which
+are invariants under the group Gm = (Z/4Z)m−1 (cid:111) Sm. The factor base is deﬁned with respect to a ﬁxed
+vector space V of dimension l such that v ∈ V if and only if v + 1 ∈ V .
+
+Experiment 3: For the summation polynomials we use the variables e1, s2, . . . , sm, which are invariants
+under the group (Z/4Z)m−1 × Sm. We use symmetry-breaking to deﬁne the factor base by taking afﬁne
+spaces (translations of a vector space of dimension l).
+
+We denoted the set-up operations (lines 4 to 8 of Algorithm 1) by TInter, while TSAT and TGB denote the
+time for line 9. Other notation includes Mem (the average memory used in megabytes by the Minisat SAT
+solver or Gr¨obner basis), Dreg (the degree of regularity), Var (the total number of variables in the system)
+and Pequ (the total number of equations). In Table 1 we also give a success probability Psucc the percentage
+of times our SAT program terminated with solution within 200 seconds, TSAT the average of the running
+times in seconds to compute step 9 using a SAT solver, and #Clauses and #Literals are the average number
+of clauses and total number of literals (i.e., total length) of the CNF input to the SAT solver. All experiments
+are carried out using a computational server (3.0GHz CPU x8, 28G RAM). In all our experiments, timings
+are averages of 100 trials except for values of TGB + TInter > 200 seconds (our patience threshold), in this
+case they are single instances. We stress that all the tables do not report experiments for the case when the
+system of equations has no solution. As indicated in [19], the computational complexity is lower when the
+system of equations has no solution.
+
+Table 1 compares Minisat with Gr¨obner basis methods (experiment 2) for m = 4. The main observation
+of this experiment is we can handle larger values of l with Minisat in reasonable amount of time than Gr¨obner
+basis methods. But the process has to be repeated 1/Psucc times on average, as the probability of ﬁnding a
+relation is decreased by Psucc. We also observe that the memory used by Minisat is much lower than that of
+the Gr¨obner basis algorithm. We do not report experiments using Gr¨obner basis method for values of l > 4
+as they are too slow and have huge memory requirements.
+
+15
+
+Table 1. Comparison of solving polynomial systems, when there exists a solution to the system, in experiment 2 using SAT solver
+(Minisat) versus Gr¨obner basis methods for m = 4. #Var and #Pequ are the number of variables and the number of polynomial
+equations respectively. Mem is average memory used in megabytes by the SAT solver or Gr¨obner basis algorithm. #Clauses,
+#Literals, and Psucc represent the average number of clauses, total number of literals, and the percentage of times Minisat halts
+with solutions within 200 seconds respectively.
+
+868619
+
+Experiment 2 with SAT solver Minisat
+n l #Var#Pequ#Clauses#Literals TInter TSAT Mem Psucc
+0.35 7.90 5.98 94%
+181077
+173 54
+46678
+0.91 27.78 9.38 90%
+485214
+4 67
+125793
+0.37 3.95 6.07 93%
+215371
+193 54
+55262
+1.29 18.38 18.05 86%
+543422
+4 71
+140894
+0.39 1.53 7.60 87%
+240611
+233 54
+61572
+194929
+4 75
+2.15 5.59 14.48 83%
+760555
+394759 1538560 4.57 55.69 20.28 64%
+5 88
+3.01 7.23 19.05 87%
+221828
+294 77
+572371 2242363 9.95 39.41 32.87 67%
+5 96
+855653 3345987 21.23 15.87 43.07 23%
+6 109
+1063496 4148642 36.97 26.34133.13 14%
+7 118
+284748 1120243 3.14 17.12 20.52 62%
+314 77
+597946 2345641 11.80 33.48 45.71 57%
+5 98
+892727 3489075 26.23 16.45118.95 12%
+6 113
+1307319 5117181 44.77 21.98148.95 8%
+7 122
+329906 1300801 3.41 26.12 29.97 59%
+374 77
+755621 2977220 13.58 48.19 50.97 40%
+5 100
+1269801 4986682 41.81 42.85108.41 11%
+6 119
+1871867 7350251 94.28 40.15169.54 6%
+7 134
+317272 1250206 3.08 19.28 27.59 68%
+414 77
+797898 3146261 15.71 27.14 49.34 65%
+5 100
+1353046 5326370 65.25 31.69 89.71 13%
+6 123
+374011 1477192 2.97 17.77 28.52 68%
+434 77
+825834 3258080 13.85 29.60 54.83 52%
+5 100
+350077 1381458 3.18 11.40 29.93 59%
+474 77
+836711 3301478 14.25 27.56 61.55 43%
+5 100
+439265 1738168 11.02 27.88 32.35 75%
+534 77
+948366 3748119 14.68 34.22 64.09 62%
+5 100
+1821557 7200341 49.59 41.55123.38 11%
+6 123
+2930296 11570343 192.2067.27181.20 4%
+7 146
+
+59
+68
+61
+74
+65
+82
+91
+90
+105
+114
+119
+92
+109
+120
+125
+98
+117
+132
+143
+102
+121
+140
+104
+123
+108
+127
+114
+133
+152
+171
+
+Experiment 2 with Gr¨obner basis: F4
+n l #Var#PequTInter TGB Mem
+0.29 0.29 67.24
+173 54
+59
+0.92 51.79 335.94
+4 67
+68
+0.33 0.39 67.24
+193 54
+61
+1.53 33.96 400.17
+4 71
+74
+0.26 0.31 67.24
+233 54
+65
+2.52 27.97 403.11
+4 75
+82
+0.44 0.50 67.24
+293 54
+71
+3.19 35.04 503.87
+4 77
+90
+0.44 0.58 67.24
+313 54
+73
+3.24 9.03 302.35
+4 77
+92
+0.36 0.43 67.24
+373 54
+79
+3.34 9.07 335.94
+4 77
+98
+83
+413 54
+0.40 0.54 67.24
+102 3.39 17.19 382.33
+4 77
+85
+433 54
+0.43 0.53 67.24
+104 3.44 9.09 383.65
+4 77
+89
+473 54
+0.50 0.65 67.24
+108 3.47 9.59 431.35
+4 77
+95
+533 54
+0.33 0.40 67.24
+114 11.4311.64 453.77
+4 77
+
+16
+
+Table 2 compares experiment 1 and experiment 2 in the case m = 3. Gr¨obner basis methods are used in
+both cases. Timings are averages from 100 trials except for values of TGB + TInter > 200 seconds, in this
+case they are single instances.
+
+Experiments in [19] are limited to the case m = 3 and l ∈ {3, 4, 5, 6} for prime degree extensions
+
+n ∈ {17, 19, 23, 29, 31, 37, 41, 43, 47, 53}.
+
+This is due to high running times and large memory requirements, even for small parameter sizes. As shown
+in Table 2, we repeated these experiments. Exploiting greater symmetry (in this case experiment 2) is seen
+to reduce the computational costs. Indeed, we can go up to l = 8 with reasonable running time for some n,
+which is further than [19]. The degree of regularity stays ≤ 4 in both cases.
+
+Table 2. Comparison of solving our systems of equations, having a solution, using Gr¨obner basis methods in experiment 1 and
+experiment 2 for m = 3. Notation is as above. ’*’ indicates that the time to complete the experiment exceeded our patience
+threshold.
+
+*
+
+*
+
+*
+0.36
+
+*
+5.10
+
+0.11 31.64
+0.25 229.51
+0.60 5196.18
+
+*
+0.12
+0.27 167.29
+0.48 3259.80
+
+Experiment 1
+n lDreg#Var#PequTInter TGB
+0.08 13.86
+44
+17 5 4
+0.08 18.18
+46
+195 4
+0.18 788.91
+52
+6 4
+0.10 35.35
+50
+235 4
+0.21 461.11
+56
+6 4
+*
+7 *
+56
+295 4
+62
+6 4
+68
+7 4
+*
+8 *
+58
+315 4
+64
+6 5
+70
+7 5
+*
+8 *
+64
+375 4
+70
+6 4
+76
+7 4
+*
+8 *
+68
+415 4
+74
+6 4
+80
+7 4
+*
+8 *
+70
+435 4
+76
+6 4
+82
+7 3
+*
+8 *
+74
+475 4
+80
+6 4
+*
+7 *
+*
+8 *
+80
+535 4
+86
+6 5
+92
+7 4
+*
+8 *
+
+42
+42
+51
+42
+51
+*
+42
+51
+60
+*
+42
+51
+60
+*
+42
+51
+60
+*
+42
+51
+60
+*
+42
+51
+60
+*
+42
+51
+*
+*
+51
+51
+60
+*
+
+*
+*
+0.22
+0.45
+1.20 880.59
+
+*
+*
+0.19
+0.14
+0.54 78.43
+
+*
+0.19
+0.38 176.67
+0.78 1311.23
+
+*
+0.16
+0.36 251.37
+0.77 1401.18
+
+*
+0.18
+0.34 155.84
+0.75 1164.25
+
+*
+*
+0.19
+1.11
+
+*
+0.13
+
+*
+0.24
+
+*
+
+*
+
+*
+0.36
+2.94
+
+*
+0.03
+0.05
+0.07 2976.97
+
+0.02
+0.02
+0.03
+0.02
+0.04
+*
+0.03
+0.04
+0.07 3511.14
+
+Experiment 2
+n lDreg#Var#PeqTInter TGB
+0.41
+56
+17 5 4
+0.48
+60
+195 3
+5.58
+63
+6 4
+0.58
+68
+235 4
+2.25
+73
+6 4
+*
+*
+7 *
+0.12
+76
+295 4
+85
+6 4
+2.46
+90
+7 4
+*
+8 *
+78
+315 4
+89
+6 4
+94
+7 4
+*
+*
+*
+8 *
+0.04
+0.04
+84
+375 4
+95
+6 4
+4.23
+0.06
+106 0.09 27.87
+7 4
+*
+*
+*
+8 *
+0.04
+0.03
+88
+415 4
+0.49
+0.06
+99
+6 4
+110 0.09 11.45
+7 4
+*
+*
+8 *
+90
+435 3
+0.04
+101 0.06
+6 4
+112 0.10 15.360
+7 4
+*
+*
+8 *
+94
+475 4
+0.04
+105 0.06
+6 4
+116 0.13
+7 4
+127 0.16 152.90
+8 4
+0.02
+100 0.04
+535 3
+111 0.06
+6 4
+0.19
+122 0.14 68.23
+7 4
+133 0.19 51.62
+8 4
+
+54
+56
+62
+60
+68
+*
+62
+74
+82
+*
+62
+76
+84
+*
+62
+76
+90
+*
+62
+76
+90
+*
+62
+76
+90
+*
+62
+76
+90
+104
+62
+76
+90
+104
+
+*
+0.06
+1.28
+8.04
+
+*
+0.05
+5.35
+
+Table 3 considers m = 4, which was not done in [19]. For the sake of comparison, we gather some data
+for experiment 1 and experiment 2. Again, exploiting greater symmetry (experiment 2) gives a signiﬁcant
+decrease in the running times, and the degree of regularity Dreg is slightly decreased. The expected degree
+
+17
+
+of regularity for m = 4, stated in [25], is m2 + 1 = 17. The table shows that our choice of coordinates
+makes the case m = 4 much more feasible.
+
+Table 3. Comparison of solving our systems of equations, having a solution, using Gr¨obner basis methods in experiment 1 and
+experiment 2 for m = 4. Notation is as above. The second tabular column already appeared in Table 1.
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+564.92 211.58
+
+1080.14 146.65
+
+1069.49 232.49
+
+Experiment 1
+n lDreg#Var#Pequ TInter TGB
+41
+173 5
+590.11 216.07
+*
+4 *
+43
+193 5
+*
+4 *
+47
+233 5
+*
+4 *
+53
+293 5
+*
+4 *
+55
+313 5
+*
+4 *
+61
+373 5
+*
+4 *
+65
+413 4
+*
+4 *
+67
+433 4
+*
+4 *
+71
+473 4
+*
+4 *
+77
+533 4
+*
+4 *
+
+36
+*
+36
+*
+36
+*
+36
+*
+36
+*
+36
+*
+36
+*
+36
+*
+36
+*
+36
+*
+
+1193.13 220.25
+
+1261.72 217.22
+
+1163.94 247.78
+
+837.77 118.11
+
+929.82 178.04
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+*
+
+1031.93232.110
+
+Experiment 2
+n lDreg#Var#PequTInter TGB
+0.29 0.29
+173 4
+59
+0.92 51.79
+4 4
+68
+0.33 0.39
+193 4
+61
+1.53 33.96
+4 4
+74
+0.26 0.31
+233 4
+65
+2.52 27.97
+4 4
+82
+0.44 0.50
+293 4
+71
+3.19 35.04
+4 4
+90
+0.44 0.58
+313 4
+73
+3.24 9.03
+4 4
+92
+0.36 0.43
+373 4
+79
+3.34 9.07
+4 4
+98
+0.40 0.54
+413 4
+83
+3.39 17.19
+4 4
+102
+0.43 0.53
+433 4
+85
+3.44 9.09
+4 4
+104
+0.50 0.65
+473 4
+89
+3.47 9.59
+4 4
+108
+95
+533 4
+0.33 0.40
+114 11.43 11.64
+4 4
+
+54
+67
+54
+71
+54
+75
+54
+77
+54
+77
+54
+77
+54
+77
+54
+77
+54
+77
+54
+77
+
+Our idea of symmetry breaking (experiment 3) is investigated in Table 4 for the case m = 3. Some of
+the numbers in the second tabular column already appeared in Table 2. Recall that the relation probability
+is increased by a factor 3! = 6 in this case, so one should multiply the timings in the right hand column by
+(m − 1)! = 2 to compare overall algorithm speeds. The experiments are not fully conclusive (and there are
+a few “outlier” values that should be ignored), but they suggest that symmetry-breaking can give a speedup
+in many cases when n is large.
+
+For larger values of n, the degree of regularity Dreg is often 3 when using symmetry-breaking while it
+is 4 for most values in experiment 2. The reason for this is unclear, but we believe that the performance we
+observe is partially explained by the fact that the degree of regularity stayed at 3 as n grows.
+
+7 Conclusions
+
+We have suggested that binary Edwards curves are most suitable for obtaining coordinates invariant under
+the action of a relatively large group. Faug`ere et al [12] studied Edwards curves in the non-binary case and
+showed how the symmetries can be used to speed-up point decomposition. We show that these ideas are
+equally applicable in the binary case. For large q and small n one would get the same result as in [12]:
+that the FGLM complexity is reduced by a factor of 2m−1. We have studied small q and large (prime) n
+and shown that one can get overdetermined systems and that the use of symmetries reduces the degree of
+regularity.
+
+The idea of a factor base that breaks symmetry allows to maximize the probability of ﬁnding a relation.
+For large enough n (keeping m and l ﬁxed) this choice can give a small speed-up compared with previous
+methods.
+
+18
+
+Table 4. Comparison of solving our systems of equations using Gr¨obner basis methods having a solution in experiment 3 and
+experiment 2 when m = 3. Notation is as in Table 1. For a fair comparison, the timings in the right hand column should be
+doubled.
+
+0.21
+4.83
+
+Experiment 3
+n l Dreg#Var#PequTInter TGB
+0.04
+0.25
+90
+375 3
+0.07
+5.67
+99
+6 4
+*
+*
+*
+7 *
+0.39
+94
+415 4
+0.05
+103 0.07
+6 3
+4.55
+113 0.11 1905.21
+7 4
+96
+435 4
+0.05
+105 0.08
+6 4
+116 0.12 100.75
+7 3
+0.17
+100 0.05
+475 4
+109 0.08
+6 3
+3.88
+120 0.11 57.61
+7 3
+106 0.06
+535 3
+0.08
+115 0.09 12.75
+6 4
+126 0.14 11.38
+7 3
+0.05
+112 0.06
+595 4
+121 0.10
+6 4
+0.59
+132 0.16 13.60
+7 4
+0.04
+114 0.06
+615 4
+0.46
+123 0.11
+6 4
+8.61
+134 0.16
+7 4
+0.02
+120 0.07
+675 3
+129 0.11
+6 3
+0.17
+140 0.16 121.33
+7 4
+124 0.07
+715 3
+133 0.12
+6 3
+144 0.18
+7 4
+126 0.08
+735 3
+135 0.12
+6 3
+146 0.18
+7 4
+132 0.08
+795 3
+141 0.12
+6 4
+152 0.19
+7 4
+136 0.08
+835 3
+145 0.13
+6 4
+156 0.21
+7 3
+142 0.09
+895 3
+151 0.14
+6 3
+162 0.21
+7 3
+150 0.09
+975 3
+159 0.14
+6 3
+170 0.22
+7 4
+
+68
+80
+*
+68
+80
+93
+68
+80
+94
+68
+80
+94
+68
+80
+94
+68
+80
+94
+68
+80
+94
+68
+80
+94
+68
+80
+94
+68
+80
+94
+68
+80
+94
+68
+80
+94
+68
+80
+94
+68
+80
+94
+
+0.02
+0.12
+2.06
+0.02
+0.11
+1.47
+0.02
+0.07
+0.62
+0.02
+0.04
+0.29
+0.02
+0.03
+0.17
+0.02
+0.03
+0.10
+
+Experiment 2
+n l Dreg#Var#PequTInter TGB
+0.04 0.04
+375 4
+84
+95
+6 4
+0.06 4.23
+106 0.09 27.87
+7 4
+0.03 0.04
+88
+415 4
+99
+6 4
+0.06 0.49
+110 0.09 11.45
+7 4
+90
+435 3
+0.04 0.05
+101 0.06 5.35
+6 4
+112 0.10 15.360
+7 4
+0.04 0.06
+94
+475 4
+105 0.06 1.28
+6 4
+116 0.13 8.04
+7 4
+100 0.04 0.02
+535 3
+111 0.06 0.19
+6 4
+122 0.14 68.23
+7 4
+106 0.04 0.02
+595 4
+117 0.07 0.11
+6 3
+128 0.11 4.34
+7 4
+108 0.04 0.02
+615 4
+119 0.07 0.09
+6 3
+130 0.11 5.58
+7 4
+114 0.04 0.02
+675 4
+125 0.07 0.07
+6 4
+136 0.11 0.94
+7 4
+118 0.04 0.02
+715 4
+129 0.07 0.04
+6 4
+140 0.12 0.25
+7 3
+120 0.05 0.02
+735 4
+131 0.07 0.03
+6 4
+142 0.13 0.22
+7 3
+126 0.05 0.02
+795 4
+137 0.08 0.03
+6 4
+148 0.12 0.33
+7 4
+130 0.05 0.02
+835 4
+141 0.09 0.03
+6 4
+152 0.13 0.13
+7 4
+136 0.05 0.02
+895 4
+147 0.09 0.03
+6 4
+158 0.13 0.05
+7 4
+144 0.05 0.02
+975 4
+155 0.09 0.03
+6 4
+166 0.13 0.04
+7 4
+
+62
+76
+90
+62
+76
+90
+62
+76
+90
+62
+76
+90
+62
+76
+90
+62
+76
+90
+62
+76
+90
+62
+76
+90
+62
+76
+90
+62
+76
+90
+62
+76
+90
+62
+76
+90
+62
+76
+90
+62
+76
+90
+
+19
+
+SAT solvers often work better than Gr¨obner methods, especially in the case when the system of equations
+has a solution with low hamming weight supported mainly on the lower bits. They are non-deterministic and
+the running time varies widely depending on the inputs, including the curve parameter. Unfortunately, most
+of the time SAT solvers are slow (for example, because the system of equations does not have any solutions).
+We suggest an early abort strategy that may still make SAT solvers a useful approach.
+
+We conclude by analysing whether these algorithms are likely to be effective for ECDLP instances in
+E(F2n) when n > 100. The best we can seem to hope for in practice is m = 4 and l ≤ 10. Note that the
+linear algebra cost is negligible for such parameters. Since the probability of a relation is roughly 2lm/2n,
+so the number of trials (i.e., executions of polynomial system solving) needed to ﬁnd a relation is at least
+2n/2ml ≥ 2n−40 ≥
+2n. Since solving a system of equations is much slower than a group operation, we
+conclude that our methods are worse than Pollard rho. This is true even in the case of static-Difﬁe-Hellman,
+when only one relation is required to be found. Hence, we conclude that elliptic curves in characteristic 2
+are safe against these sorts of attacks for the moment, though one of course has to be careful of other “Weil
+descent” attacks in this case, such as the Gaudry-Hess-Smart approach [15].
+
+√
+
+Acknowledgements
+
+We thank Claus Diem, Christophe Petit and the anonymous referees for their helpful comments.
+
+References
+
+1. Daniel J. Bernstein, Tanja Lange and Reza Rezaeian Farashahi, Binary Edwards Curves, in E. Oswald and P. Rohatgi (eds.),
+
+CHES 2008, Springer LNCS 5154 (2008) 244–265.
+
+2. Luk Bettale, Jean-Charles Faug`ere and Ludovic Perret, Hybrid approach for solving multivariate systems over ﬁnite ﬁelds, J.
+
+Math. Crypt. 3 (2009) 177–197.
+
+3. Daniel R. L. Brown and Robert P. Gallant, The Static Difﬁe-Hellman Problem, IACR Cryptology ePrint Archive 2004/306
+
+(2004)
+
+4. Nicolas T. Courtois and Gregory V. Bard, Algebraic Cryptanalysis of the Data Encryption Standard, in S. D. Galbraith (ed.),
+
+IMA Int. Conf. Cryptography and Coding, Springer LNCS 4887 (2007) 152–169.
+
+5. Claus Diem, On the discrete logarithm problem in elliptic curves over non-prime ﬁnite ﬁelds, Lecture at ECC 2004, 2004.
+6. Claus Diem, On the discrete logarithm problem in class groups of curves, Mathematics of Computation, 80 (2011) 443-475
+7. Claus Diem, On the discrete logarithm problem in elliptic curves, Compositio Math. 147, No. 1 (2011) 75–104.
+8. Claus Diem, On the discrete logarithm problem in elliptic curves II, Algebra and Number Theory, 7, No. 6 (2013) 1281–1323.
+9. Iwan M. Duursma, Pierrick Gaudry and Francois Morain, Speeding up the discrete logarithm computation on curves with
+automorphisms, in K.Y. Lam, E. Okamoto and C. Xing (eds.), ASIACRYPT 1999, Springer LNCS 1716 (1999) 103–121.
+
+10. Niklas E´en and Niklas S¨orensson, The Minisat Page, http://www.minisat.se/
+11. Jean-Charles Faug`ere, Ludovic Perret, Christophe Petit and Gu´ena¨el Renault, Improving the Complexity of Index Calculus
+Algorithms in Elliptic Curves over Binary Fields, in D. Pointcheval and T. Johansson (eds.), EUROCRYPT 2012, Springer
+LNCS 7237 (2012) 27–44.
+
+12. Jean-Charles Faug`ere, Pierrick Gaudry, Louise Huot and Gu´ena¨el Renault, Using Symmetries in the Index Calculus for Elliptic
+
+Curves Discrete Logarithm, to appear in Journal of Cryptology (2014). doi: 10.1007/s00145-013-9158-5
+
+13. Jean-Charles Faug`ere, Louise Huot, Antoine Joux, Gu´ena¨el Renault and Vanessa Vitse, Symmetrized summation polynomials:
+Using small order torsion points to speed up elliptic curve index calculus, in P. Q. Nguyen and E. Oswald (eds.), EUROCRYPT
+2014, Springer LNCS 8441 (2014) 40-57.
+
+14. Jean-Charles Faug`ere, P. Gianni, D. Lazard, and T. Mora. Efﬁcient Computation of zero-dimensional Gr¨obner bases by change
+
+of ordering, Journal of Symbolic Computation, 16, No. 4 (1993) 329–344.
+
+15. Pierrick Gaudry, Florian Hess, and Nigel P. Smart, Constructive and destructive facets of Weil descent on elliptic curves, J.
+
+Crypt., 15, no. 1 (2002) 19–46.
+
+16. Pierrick Gaudry, Index calculus for abelian varieties of small dimension and the elliptic curve discrete logarithm problem,
+
+Journal of Symbolic Computation, 44, no. 12 (2009) 1690–1702.
+
+17. Carla P. Gomes, Bart Selman and Henry Kautz, Boosting combinatorial search through randomization, in Mostow J. and Rich
+
+C. (eds.), Proceedings AAAI-98 , AAAI (1998) 431–437.
+
+20
+
+18. Robert Granger, On the Static Difﬁe-Hellman Problem on Elliptic Curves over Extension Fields, in M. Abe (ed.), ASIACRYPT
+
+2010, Springer LNCS 6477 (2010) 283–302.
+
+19. Yun-Ju Huang, Christophe Petit, Naoyuki Shinohara and Tsuyoshi Takagi, Improvement of Faug`ere et al.’s Method to Solve
+
+ECDLP, in K. Sakiyama and M. Terada (eds.), IWSEC 2013, Springer LNCS 8231 (2013) 115–132.
+
+20. Antoine Joux, Reynald Lercier, David Naccache and Emmanuel Thom´e, Oracle-Assisted Static Difﬁe-Hellman Is Easier Than
+Discrete Logarithms, in M. G. Parker (ed.), IMA Int. Conf. Cryptography and Coding, Springer LNCS 5921 (2009) 351–367.
+21. Antoine Joux and Vanessa Vitse, Cover and Decomposition Index Calculus on Elliptic Curves Made Practical - Application
+p6 , in D. Pointcheval and T. Johansson (eds.), EUROCRYPT 2012, Springer LNCS
+
+to a Previously Unreachable Curve over F
+7237 (2012) 9–26.
+
+22. Antoine Joux and Vanessa Vitse, Elliptic Curve Discrete Logarithm Problem over Small Degree Extension Fields - Application
+
+to the Static Difﬁe-Hellman Problem on E(F
+
+q5 ), J. Cryptology, 26, no. 1 (2013) 119–143.
+
+23. Neal Koblitz and Alfred Menezes, Another look at non-standard discrete logarithm and Difﬁe-Hellman problems, J. Mathe-
+
+matical Cryptology, 2, No. 4 (2008) 311–326.
+
+24. Cameron McDonald, Chris Charnes and Josef Pieprzyk, Attacking Bivium with MiniSat, ECRYPT Stream Cipher Project,
+
+Report 2007/040 (2007).
+
+25. Christophe Petit and Jean-Jacques Quisquater, On Polynomial Systems Arising from a Weil Descent, in X. Wang and K. Sako
+
+(eds.), ASIACRYPT 2012, Springer LNCS 7658 (2012) 451–466.
+
+26. Michael Shantz and Edlyn Teske, Solving the Elliptic Curve Discrete Logarithm Problem Using Semaev Polynomials, Weil
+Descent and Gr¨obner Basis Methods - An Experimental Study, in M. Fischlin and S. Katzenbeisser (eds.), Number Theory and
+Cryptography - Papers in Honor of Johannes Buchmann on the Occasion of His 60th Birthday, Springer LNCS 8260 (2013)
+94–107.
+
+27. Igor A. Semaev, Summation polynomials and the discrete logarithm problem on elliptic curves, Cryptology ePrint Archive,
+
+Report 2004/031, 2004.
+
+28. Niklas S¨orensson and Niklas E´en, MiniSat - A SAT Solver with Conﬂict-Clause Minimization. Proc. Theory and Applications
+
+of Satisﬁability Testing (SAT 05) 2005.
+
+29. Niklas S¨orensson and Niklas E´en, Minisat 2.1 and minisat++ 1.0, SAT race 2008 editions, SAT (2008) 31–32.
+30. Bo-Yin and Jiun-Ming Chen, Theoretical analysis of XL over small ﬁelds, in H. Wang, J. Pieprzyk and V. Varadharajan (eds.),
+
+ACISP, Springer LNCS 3108 (2004) 277–288.
+
+31. Bo-Yin Yang, Jiun-Ming Chen and Nicolas Courtois, On asymptotic security estimates in XL and gr¨obner bases-related alge-
+
+braic cryptanalysis, in J. Lopez, S. Qing and E. Okamoto (eds.), ICICS, Springer LNCS 3269 (2004) 401–413.
+
+32. Wieb Bosma, John Cannon and Catherine Playoust, The Magma algebra system. I. The user language, J. Symbolic Comput.,
+
+24 (1997) 235–265.
+
+21
+
+
