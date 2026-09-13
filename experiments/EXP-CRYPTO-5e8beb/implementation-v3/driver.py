@@ -106,10 +106,10 @@ class LaunchBinding:
     implementation_manifest_path: str
     independent_review_receipt_path: str
     launch_lock_path: str
+    expected_reviewed_commit: str
+    expected_reviewed_path_fragment: str
+    expected_task_id: str
     expected_spec_experiment_id: str = "EXP-CRYPTO-5e8beb"
-    expected_reviewed_commit: Optional[str] = None
-    expected_reviewed_path_fragment: Optional[str] = None
-    expected_task_id: Optional[str] = None
     expected_write_scope_prefix: str = "experiments/EXP-CRYPTO-5e8beb/"
 
 
@@ -227,18 +227,26 @@ def _check_independent_review_receipt(binding: LaunchBinding) -> List[str]:
         problems.append("independent review receipt has no recognizable verdict field")
     elif str(verdict).strip().lower() != "passed":
         problems.append(f"independent review receipt verdict is {verdict!r}, not a passed-equivalent")
-    if binding.expected_reviewed_commit is not None:
-        if commit != binding.expected_reviewed_commit:
-            problems.append(
-                f"independent review receipt's reviewed commit {commit!r} does not match "
-                f"expected {binding.expected_reviewed_commit!r}"
-            )
-    if binding.expected_reviewed_path_fragment is not None:
-        if binding.expected_reviewed_path_fragment not in haystack:
-            problems.append(
-                f"independent review receipt does not reference expected reviewed path "
-                f"fragment {binding.expected_reviewed_path_fragment!r}"
-            )
+    if not binding.expected_reviewed_commit:
+        problems.append(
+            "no expected reviewed commit was supplied, so this receipt cannot be bound "
+            "to the implementation under launch"
+        )
+    elif commit != binding.expected_reviewed_commit:
+        problems.append(
+            f"independent review receipt's reviewed commit {commit!r} does not match "
+            f"expected {binding.expected_reviewed_commit!r}"
+        )
+    if not binding.expected_reviewed_path_fragment:
+        problems.append(
+            "no expected reviewed path fragment was supplied, so this receipt cannot be "
+            "bound to the implementation under launch"
+        )
+    elif binding.expected_reviewed_path_fragment not in haystack:
+        problems.append(
+            f"independent review receipt does not reference expected reviewed path "
+            f"fragment {binding.expected_reviewed_path_fragment!r}"
+        )
     return problems
 
 
@@ -274,7 +282,12 @@ def _check_launch_lock(binding: LaunchBinding) -> List[str]:
     problems: List[str] = []
     if doc.get("schema") != CLAIM_SCHEMA:
         problems.append(f"launch lock schema is {doc.get('schema')!r}, expected {CLAIM_SCHEMA!r}")
-    if binding.expected_task_id is not None and doc.get("task_id") != binding.expected_task_id:
+    if not binding.expected_task_id:
+        problems.append(
+            "no expected task_id was supplied, so this launch lock cannot be bound to the "
+            "task claiming the launch"
+        )
+    elif doc.get("task_id") != binding.expected_task_id:
         problems.append(
             f"launch lock task_id {doc.get('task_id')!r} does not match expected "
             f"{binding.expected_task_id!r}"
@@ -698,12 +711,15 @@ def run_scientific_pipeline(
         )
 
     certs_by_key: Dict[Tuple[int, int, str, Optional[int]], Dict[str, kernels.KernelCertificate]] = {}
+    records: List["fixtures.PartitionRecord"] = []
     total_transcript_checks = 0
     total_kernel_cells = 0
+    bound_violations = 0
     all_agree = True
 
     for spec in partition_specs:
         record = fixtures.build_partition(spec)
+        records.append(record)
         if write_files:
             write_partition_artifacts(run_dir, record)
         key = (spec.N, spec.q, spec.kind, spec.seed)
@@ -722,17 +738,21 @@ def run_scientific_pipeline(
                     )
                     total_transcript_checks += 1
                     all_agree = all_agree and tv_cert["producer_reference_agreement"]
+                    if tv_cert["bound_violated"]:
+                        bound_violations += 1
                     if write_files:
                         write_transcript_artifacts(
                             run_dir, spec.index, kernel_name, x0, t, real_m, sim_m, ref_d, tv_cert, status
                         )
 
     summary = {
-        "partitions_processed": len(list(partition_specs)),
+        "partitions_processed": len(records),
         "kernel_cells_processed": total_kernel_cells,
         "transcript_checks_processed": total_transcript_checks,
+        "bound_violations": bound_violations,
         "producer_reference_agreement": all_agree,
         "certs_by_key": certs_by_key,
+        "records": records,
         "output_dir": str(run_dir),
     }
     return summary
@@ -742,6 +762,10 @@ def run_assumption_trap(output_dir: Optional[str] = None, write_files: bool = Tr
     """Certify all 11 assumption-trap starts (producer + independent
     reference), classified `bound_inapplicable`, never a counterexample."""
     all_agree = True
+    # specification.assumption_trap.exact_expected, read off TRAP_N rather
+    # than written in as a literal.
+    expected_full_tv = Fraction(transcripts.TRAP_N - 1, transcripts.TRAP_N)
+    matches_exact_expected = True
     certs = transcripts.certify_all_trap_starts()
     for x0, cert in certs.items():
         ref_cert = reference.reference_trap_certificate(x0)
@@ -751,8 +775,27 @@ def run_assumption_trap(output_dir: Optional[str] = None, write_files: bool = Tr
             and cert.classification == ref_cert["classification"] == "bound_inapplicable"
         )
         all_agree = all_agree and agree
+        matches_exact_expected = matches_exact_expected and (
+            cert.full_transcript_tv == expected_full_tv
+            and cert.final_marginal_tv == 0
+            and cert.classification == "bound_inapplicable"
+        )
         if write_files and output_dir is not None:
             base = Path(output_dir) / certificates.expected_trap_dir(x0)
+            _write_json(base / "law.json", {
+                "N": transcripts.TRAP_N,
+                "feature": "identity",
+                "horizon": transcripts.TRAP_HORIZON,
+                "labels": [transcripts.TRAP_LABEL],
+                "nu": {str(transcripts.TRAP_LABEL): panel_scoring.rational(Fraction(1))},
+                "hidden_translation": {
+                    "drawn_once": True,
+                    "reused_at_every_step": True,
+                    "mu": {str(a): panel_scoring.rational(Fraction(1, transcripts.TRAP_N))
+                           for a in range(transcripts.TRAP_N)},
+                },
+                "fresh_step_independence": False,
+            })
             _write_json(base / "real-joint.json", certificates.serialize_distribution(cert.real))
             _write_json(base / "simulator-joint.json", certificates.serialize_distribution(cert.comparison))
             _write_json(base / "reference-joint.json", certificates.serialize_distribution(ref_cert["real"]))
@@ -763,7 +806,147 @@ def run_assumption_trap(output_dir: Optional[str] = None, write_files: bool = Tr
             _write_json(base / "assumption-status.json", {
                 "classification": cert.classification, "agrees_with_reference": agree,
             })
-    return {"trap_starts_processed": len(certs), "producer_reference_agreement": all_agree}
+    return {
+        "trap_starts_processed": len(certs),
+        "producer_reference_agreement": all_agree,
+        "matches_exact_expected": matches_exact_expected,
+    }
+
+
+# --- C8: control gates and the run's panel-advantage decision ---------------
+# Every gate below is read off certificates the run actually produced
+# (specification.controls); none is hardcoded to a passing value, and a gate
+# whose evidence a run does not contain stays False rather than assumed.
+
+def _certs_for(
+    summary: dict, record: "fixtures.PartitionRecord",
+) -> Dict[str, "kernels.KernelCertificate"]:
+    spec = record.spec
+    return summary["certs_by_key"][(spec.N, spec.q, spec.kind, spec.seed)]
+
+
+def _all_deltas_zero(summary: dict, records: Sequence["fixtures.PartitionRecord"]) -> bool:
+    return bool(records) and all(
+        cert.delta == 0 for record in records for cert in _certs_for(summary, record).values()
+    )
+
+
+def _hidden_uniform_holds(summary: dict, record: "fixtures.PartitionRecord") -> bool:
+    """`controls.hidden_uniform`: under U, K(x,b) == cell_size(b)/N for every
+    state, so the joint one-step defect is exactly zero."""
+    cert = _certs_for(summary, record).get("U")
+    if cert is None or cert.delta != 0:
+        return False
+    N = record.spec.N
+    K = kernels.build_K(kernels.reduced_law("U", N), N, record.feature)
+    expected = {b: Fraction(size, N) for b, size in record.cell_sizes.items()}
+    return all(K[x][0] == expected for x in range(N))
+
+
+def _public_rigidity_holds(summary: dict, record: "fixtures.PartitionRecord") -> bool:
+    """`controls.public_prime_rigidity`: under P every nonzero public
+    translation separates some same-fiber pair completely (delta_l == 1) while
+    the identity translation separates none (delta_l == 0), so max_l == 1."""
+    cert = _certs_for(summary, record).get("P")
+    if cert is None:
+        return False
+    return (
+        cert.delta_l.get(0) == 0
+        and all(cert.delta_l.get(a) == 1 for a in range(1, record.spec.N))
+        and cert.per_operation_max == 1
+    )
+
+
+def _matched_sizes_hold(summary: dict, records: Sequence["fixtures.PartitionRecord"]) -> bool:
+    """`controls.matched_sizes`: every matched seed reproduces the coordinate
+    partition's exact ordered cell sizes and full state coverage, and every
+    declared seed is retained for every (N, q)."""
+    matched = [r for r in records if r.spec.kind == "matched"]
+    if not matched:
+        return False
+    for record in matched:
+        N, q = record.spec.N, record.spec.q
+        observed = [record.cell_sizes.get(b, 0) for b in range(q)]
+        if observed != fixtures.coordinate_cell_sizes(N, q) or sum(observed) != N:
+            return False
+    for N in fixtures.PRIME_NS:
+        for q in fixtures.Q_VALUES:
+            seeds = sorted(r.spec.seed for r in matched if r.spec.N == N and r.spec.q == q)
+            if seeds != list(fixtures.SEEDS):
+                return False
+    return True
+
+
+def evaluate_controls(summary: dict, trap_summary: dict) -> Dict[str, bool]:
+    """Decide each of the seven gates named in specification.controls (and in
+    panel_scoring.CONTROL_NAMES) from this run's own certificates."""
+    records = summary["records"]
+    lossy_prime = [
+        r for r in records
+        if r.spec.N in fixtures.PRIME_NS and r.spec.kind in ("coordinate", "matched")
+    ]
+    return {
+        "exact_identity_constant": _all_deltas_zero(
+            summary, [r for r in records if r.spec.kind in ("identity", "constant")]
+        ),
+        "C15_cosets": _all_deltas_zero(
+            summary, [r for r in records if r.spec.kind in ("mod3", "mod5")]
+        ),
+        "hidden_uniform": bool(records) and all(
+            _hidden_uniform_holds(summary, r) for r in records
+        ),
+        "public_prime_rigidity": bool(lossy_prime) and all(
+            _public_rigidity_holds(summary, r) for r in lossy_prime
+        ),
+        "matched_sizes": _matched_sizes_hold(summary, records),
+        "full_joint_and_freshness": bool(
+            trap_summary["matches_exact_expected"]
+            and trap_summary["producer_reference_agreement"]
+            and trap_summary["trap_starts_processed"] == transcripts.TRAP_N
+        ),
+        "independent_exact_tables": bool(
+            summary["producer_reference_agreement"]
+            and trap_summary["producer_reference_agreement"]
+        ),
+    }
+
+
+def run_is_complete(summary: dict, trap_summary: dict) -> bool:
+    """Whether every fixed count in specification.fixed_counts was actually
+    processed. An incomplete run is invalid evidence, never a scientific
+    negative outcome (specification.falsification_criterion)."""
+    expected = certificates.expected_counts()
+    return (
+        summary["partitions_processed"] == expected["main_partitions"]
+        and summary["kernel_cells_processed"] == expected["main_partition_kernel_cells"]
+        and summary["transcript_checks_processed"] == expected["main_full_transcript_checks"]
+        and trap_summary["trap_starts_processed"] == expected["trap_full_transcript_checks"]
+    )
+
+
+def score_run(summary: dict, trap_summary: dict) -> Tuple[dict, dict]:
+    """Turn a completed pipeline plus trap pass into the run's two scientific
+    root artifacts (specification.artifacts.root_filenames): the
+    panel-advantage score table and the control summary it was gated on."""
+    controls = evaluate_controls(summary, trap_summary)
+    validity = run_is_complete(summary, trap_summary)
+    metadata = assemble_panel_metadata(summary["certs_by_key"], controls, validity)
+    score_table = panel_scoring.score_panel_advantage(metadata)
+    control_summary = {
+        "controls": controls,
+        "validity": validity,
+        "observed_counts": {
+            "main_partitions": summary["partitions_processed"],
+            "main_partition_kernel_cells": summary["kernel_cells_processed"],
+            "main_full_transcript_checks": summary["transcript_checks_processed"],
+            "trap_full_transcript_checks": trap_summary["trap_starts_processed"],
+        },
+        "expected_counts": certificates.expected_counts(),
+        "producer_reference_agreement": summary["producer_reference_agreement"],
+        "bound_violation_count": summary["bound_violations"],
+        "trap": dict(trap_summary),
+    }
+    return score_table, control_summary
 
 
 # --- guarded CLI entry point -------------------------------------------------
@@ -782,9 +965,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     parser.add_argument("--implementation-manifest-path", required=True)
     parser.add_argument("--independent-review-receipt-path", required=True)
     parser.add_argument("--launch-lock-path", required=True)
-    parser.add_argument("--expected-reviewed-commit")
-    parser.add_argument("--expected-reviewed-path-fragment")
-    parser.add_argument("--expected-task-id")
+    parser.add_argument("--expected-reviewed-commit", required=True)
+    parser.add_argument("--expected-reviewed-path-fragment", required=True)
+    parser.add_argument("--expected-task-id", required=True)
     parser.add_argument("--output-dir")
     args = parser.parse_args(argv)
 
@@ -825,12 +1008,20 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         write_files=True,
         create_output_dir=False,
     )
-    run_assumption_trap(args.output_dir, write_files=True)
+    trap_summary = run_assumption_trap(args.output_dir, write_files=True)
+    score_table, control_summary = score_run(summary, trap_summary)
+    run_dir = Path(args.output_dir)
+    _write_json(run_dir / "score-table.json", score_table)
+    _write_json(run_dir / "control-summary.json", control_summary)
     print(json.dumps({
         "partitions_processed": summary["partitions_processed"],
         "kernel_cells_processed": summary["kernel_cells_processed"],
         "transcript_checks_processed": summary["transcript_checks_processed"],
         "producer_reference_agreement": summary["producer_reference_agreement"],
+        "bound_violation_count": summary["bound_violations"],
+        "validity_passed": score_table["validity_passed"],
+        "paired_qualifier_count": score_table["paired_qualifier_count"],
+        "panel_advantage_outcome": score_table["outcome"],
     }, sort_keys=True))
     return 0
 
