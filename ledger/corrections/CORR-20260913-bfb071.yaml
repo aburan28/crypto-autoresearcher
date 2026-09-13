@@ -1,0 +1,172 @@
+correction:
+  id: CORR-20260913-bfb071
+  recorded_at: '2026-09-13'
+  recorded_by: coordinator
+  goal_id: GOAL-SEMBIN-5078bc
+  batch_id: BATCH-SEMBIN-20260913-9d649f
+  archived_by: TASK-20260913-f17ca2
+
+  corrects:
+    - DEC-20260913-74e208
+
+  nature: >-
+    DISCLOSES A VERIFICATION GAP AND CLOSES IT. DEC-20260913-74e208 stays exactly as
+    written and its verdicts are unaffected. What this correction adds is that one
+    check the contract requires of a claim-changing review round was never actually
+    performed on that round, because the tool that performs it could not run; the tool
+    is now fixed and the check has been run, and it passes on everything except the
+    duplicate dispatch the round already recorded.
+
+  context: >-
+    AGENTS.md "Review architecture" assigns tools/check_review_independence.py the job of
+    checking "that the composition rests on the independence it claims -- every joint
+    owned, every assigned reviewer attested, no undeclared sibling reads, and no
+    re-deriver whose declared sources intersect its blind_from". DEC-20260913-74e208
+    composed REVIEW-SEMBIN-20260913-9d649f, a six-joint round across three independent
+    reviewers, and cites the review plan and every attestation. It does not report a run
+    of that checker, and no run of it is recorded anywhere in the batch.
+
+  correction_1:
+    subject: >-
+      THE INDEPENDENCE CHECKER CRASHED ON THIS ROUND WITH A TypeError AND SO WAS NEVER
+      RUN ON IT. The failure is in the checker, not in the round.
+    what_happened: >-
+      Invoked on this round the tool raised
+      `TypeError: unhashable type: 'dict'` at check_review_independence.py:189, on
+      `attestation.get("verdict") not in VERDICTS`. The checker assumed a single scalar
+      verdict per reviewer. The red team's attestation records
+      `verdict: {J2: breaks, J3: breaks, J5: holds, J6: breaks}` -- one verdict per owned
+      joint -- and a dict is not hashable, so the membership test raised rather than
+      returned.
+    why_the_round_was_right_and_the_tool_was_wrong: >-
+      A per-joint mapping is the shape the CONTRACT ASKS FOR. AGENTS.md is explicit:
+      "Reviewers report on their own joints, not on the whole claim: a blinded reviewer
+      cannot see the other joints by construction, so a whole-claim verdict from one is
+      an opinion formed from a fraction of the evidence." A reviewer owning four joints
+      that returns one word has either collapsed four findings into one or offered the
+      whole-claim opinion the contract forbids. The red team's mapping, and the
+      validator's `verdicts:` mapping with `whole_claim_verdict: NOT OFFERED` beside it,
+      are both the compliant response. The tool could read neither.
+    a_second_defect_found_at_the_same_time: >-
+      Joint identity was matched by EXACT STRING. Plan joints are named with a label and
+      a full statement ("J1 -- SEMAEV'S MEMORY MODEL. That the peak memory of the
+      chained-S_3 algorithm at (n, m) is max(relation store, ...)"), because the
+      statement is what makes the assignment reviewable, while reviewers refer to the
+      joint as `J1` or paraphrase the statement. Every attestation in this round would
+      have failed the joints_owned check on that basis alone -- the red team by writing
+      the short label, the validator by paraphrasing. So even without the crash the tool
+      would have reported six spurious failures and nothing true.
+    why_this_is_worse_than_a_wrong_answer: >-
+      An unrunnable checker reads as a checker nobody needed. Neither defect surfaced as
+      a finding in any of the round's three reports or in the composition; the tool was
+      simply not invoked, and nothing in the pipeline noticed that the one mechanical
+      guard on review independence had never fired. Its 20 existing tests all passed
+      throughout, because every one of them uses single-joint reviewers with scalar
+      verdicts and plan joints named by a bare phrase -- a fixture set that no real round
+      resembles.
+
+  correction_2:
+    subject: WHAT THE FIX CHANGES, AND WHAT IT DELIBERATELY DOES NOT.
+    changed:
+      - >-
+        `verdict` is accepted as a scalar in {holds, breaks, inconclusive} OR as a
+        mapping from joint label to one of those, and the plural key `verdicts` is
+        accepted for the same, since one real attestation used it. A mapping that omits
+        an owned joint, carries a word outside the vocabulary, or is neither a string nor
+        a mapping is now a READABLE FAILURE naming the joint, rather than a traceback.
+      - >-
+        Joint identity is matched on the leading LABEL (the token before the first
+        `--`, `:` or sentence break), case-insensitively, with exact full-string match
+        still accepted. `J1` and a paraphrase of J1's statement both match the plan's
+        J1; an attestation that omits a joint it was assigned is still caught.
+      - >-
+        Nine tests added in tests/test_review_independence.py pinning both shapes, the
+        plural key, the label matching, a mapping missing an owned joint, an
+        out-of-vocabulary verdict word, and a wrong-typed verdict failing cleanly rather
+        than raising. 29 tests pass.
+    not_changed: >-
+      Nothing about what independence MEANS or what the checker is willing to accept as
+      independent. No check was loosened to make this round pass: the blindness rule, the
+      blind_from intersection rule, the one-owner-per-joint rule, the proves-too-much
+      requirement and the coordinator_prior requirement are all untouched, and the
+      vocabulary of verdicts is still exactly three words. The change is entirely in
+      which SHAPES of a compliant answer the tool can read.
+
+  correction_3:
+    subject: THE CHECK HAS NOW BEEN RUN ON REVIEW-SEMBIN-20260913-9d649f, AND WHAT IT FOUND.
+    command: >-
+      python3 tools/check_review_independence.py --plan
+      coordination/review/sembin-20260913-9d649f/review-plan.yaml --reports
+      coordination/review/sembin-20260913-9d649f
+    result: 3 problems across 6 reports, all three of one kind — duplicate attestations.
+    what_passed: >-
+      All six joints J1-J6 are enumerated, each has exactly one owner, each owner filed
+      an attestation, each claims its joints in joints_owned, and each carries a verdict
+      in the vocabulary for every joint it owns. No reviewer read a sibling report. The
+      proves-too-much block declares objects and a failure signature. The blind
+      re-deriver's declared sources_read does not intersect the plan's blind_from, and it
+      affirms blind_from_respected. THE ROUND'S INDEPENDENCE STRUCTURE HOLDS.
+    what_failed:
+      - >-
+        duplicate attestation for TASK-20260913-da3982 (three files: attestation.yaml,
+        attestation.session-a.yaml, attestation.session-b.yaml)
+      - >-
+        duplicate attestation for TASK-20260913-ec11c4 (attestation.yaml and
+        attestation-phase-two.yaml)
+    how_to_read_those_three: >-
+      TWO OF THE THREE ARE THE DUPLICATE DISPATCH ALREADY RECORDED, not a new finding.
+      CORR-20260913-bb05b0 correction_4 and DEC-20260913-74e208 PD-3 record that two
+      validator sessions ran TASK-20260913-da3982 concurrently into one write scope; both
+      sets of deliverables were deliberately preserved rather than discarded, which is
+      why three attestation files exist for one task. The checker is reporting exactly
+      that, from the artifacts, without being told — which is the first independent
+      confirmation that the duplicate is visible in the record rather than only in the
+      subagents' own notices.
+
+      THE THIRD IS NOT A DEFECT. TASK-20260913-ec11c4's two attestations are its phase-one
+      and phase-two records: the blind re-derivation filed `breaks`, then filed a second
+      attestation after the substituted term was identified. That is the correct handling
+      of a two-phase blind round and the alternative -- overwriting phase one -- would
+      violate immutability. The checker cannot currently tell a preserved collision
+      artifact or a declared second phase from a genuine double-filing, and this
+      correction does NOT change it to, because a checker that silently accepts two
+      attestations for one task is worse than one that asks about all of them.
+
+  what_this_correction_does_not_assert:
+    - >-
+      It does not change any verdict, any evidence record, or any state transition in
+      DEC-20260913-74e208. J1-J6 stand as composed.
+    - >-
+      It does not assert that the round WAS independent. The checker verifies that a
+      round is internally consistent with its declared setup and that no declared rule
+      was declared and then broken; it cannot verify that an attestation is truthful, and
+      its own docstring says so. Passing it is necessary, never sufficient.
+    - >-
+      It does not retroactively supply the check for any earlier round. Every
+      claim-changing round in this repository that used a multi-joint reviewer was
+      unverifiable by this tool for the same reason, and this correction establishes only
+      that the tool now runs and what it says about THIS round.
+
+  artifacts:
+    - tools/check_review_independence.py
+    - tests/test_review_independence.py
+    - ledger/corrections/CORR-20260913-bfb071.yaml
+
+  citations:
+    - source: coordination/review/sembin-20260913-9d649f/review-plan.yaml
+      provenance: internal
+      verified_by: coordinator this session — read, and used as the tool's input
+    - source: coordination/review/sembin-20260913-9d649f/red-team-cf9d98/attestation.yaml
+      provenance: internal
+      verified_by: >-
+        coordinator this session — the per-joint verdict mapping that triggered the
+        TypeError was read directly from this file
+    - source: >-
+        coordination/review/sembin-20260913-9d649f/validator-da3982/attestation.session-a.yaml
+      provenance: internal
+      verified_by: >-
+        coordinator this session — the `verdicts:` plural key and
+        `whole_claim_verdict: NOT OFFERED` were read directly from this file
+    - source: AGENTS.md "Review architecture"
+      provenance: internal
+      verified_by: coordinator this session

@@ -74,6 +74,72 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 VERDICTS = {"holds", "breaks", "inconclusive"}
 
 
+def _joint_label(name: str) -> str:
+    """The short label a reviewer will actually write, e.g. 'J1'.
+
+    Plan joints are named with a label and a full statement of the joint
+    ('J1 -- SEMAEV'S MEMORY MODEL. That the peak memory ...'), because the
+    statement is what makes the assignment reviewable. A reviewer then refers
+    to it as `J1`, or paraphrases the statement. Requiring the exact string
+    back made this tool unrunnable on every round it was written for.
+    """
+    head = re.split(r"\s+--\s+|\s+—\s+|:\s+|\.\s+", str(name).strip(), 1)[0]
+    return head.strip().rstrip(".").strip()
+
+
+def _claims_joint(owned: list, name: str) -> bool:
+    """Does this attestation's `joints_owned` name the plan's joint?"""
+    label = _joint_label(name).casefold()
+    full = str(name).strip().casefold()
+    for entry in owned:
+        entry = str(entry).strip().casefold()
+        if entry == full or _joint_label(entry).casefold() == label:
+            return True
+    return False
+
+
+def _verdict_for(attestation: dict, name: str) -> tuple[str | None, str | None]:
+    """This reviewer's verdict on one joint, and why it could not be read.
+
+    A reviewer that owns several joints reports one verdict PER JOINT -- the
+    contract is explicit that a whole-claim verdict from a blinded reviewer is
+    an opinion formed from a fraction of the evidence. So the compliant shape
+    is a mapping keyed by joint label, and `verdict: holds` is only meaningful
+    for a single-joint reviewer. This accepts both, under either `verdict` or
+    `verdicts`, and returns a readable problem for anything else rather than
+    raising on it.
+    """
+    raw = attestation.get("verdict")
+    if raw is None:
+        raw = attestation.get("verdicts")
+    if isinstance(raw, str):
+        value = raw.strip()
+        if value in VERDICTS:
+            return value, None
+        return None, (f"verdict '{value}' must be "
+                      f"{'|'.join(sorted(VERDICTS))}")
+    if isinstance(raw, dict):
+        label = _joint_label(name).casefold()
+        for key, value in raw.items():
+            key = str(key).strip().casefold()
+            if key == label or key == str(name).strip().casefold():
+                value = str(value).strip()
+                if value in VERDICTS:
+                    return value, None
+                return None, (f"verdict on '{_joint_label(name)}' is "
+                              f"'{value}', which must be "
+                              f"{'|'.join(sorted(VERDICTS))}")
+        return None, (f"per-joint verdict mapping carries no entry for "
+                      f"'{_joint_label(name)}' (has "
+                      f"{', '.join(sorted(str(k) for k in raw))})")
+    if raw is None:
+        return None, ("neither verdict nor verdicts is set; every owned joint "
+                      "carries an explicit verdict")
+    return None, (f"verdict must be a {'|'.join(sorted(VERDICTS))} string or a "
+                  f"mapping from joint label to one, not "
+                  f"{type(raw).__name__}")
+
+
 def _load(path: str):
     try:
         with open(path, encoding="utf-8") as handle:
@@ -183,12 +249,12 @@ def check(plan: dict, reports: list[tuple[str, dict]]) -> list[str]:
             continue
         _, attestation = by_task[owner]
         owned = attestation.get("joints_owned") or []
-        if name not in [str(j).strip() for j in owned]:
-            problems.append(f"{owner} does not claim joint '{name}' in "
-                            f"joints_owned")
-        if attestation.get("verdict") not in VERDICTS:
-            problems.append(f"{owner}: review_attestation.verdict must be "
-                            f"holds|breaks|inconclusive")
+        if not _claims_joint(owned, name):
+            problems.append(f"{owner} does not claim joint "
+                            f"'{_joint_label(name)}' in joints_owned")
+        _, problem = _verdict_for(attestation, name)
+        if problem:
+            problems.append(f"{owner}: {problem}")
     for name, assigned in owners.items():
         if len(assigned) > 1:
             problems.append(f"joint '{name}' has {len(assigned)} owners "
