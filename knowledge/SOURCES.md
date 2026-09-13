@@ -14,8 +14,8 @@ a hash it cannot is an assertion by the session that recorded it.
 
 | Class | Count |
 |---|---|
-| Frozen source packages (`SRC-*`) | 12 |
-| — of those with the artifact committed | 11 |
+| Frozen source packages (`SRC-*`) | 14 |
+| — of those with the artifact committed | 13 |
 | Per-URL retrieval attempts | 19 |
 | — succeeded | 11 |
 | — failed or blocked | 8 |
@@ -25,13 +25,13 @@ a hash it cannot is an assertion by the session that recorded it.
 | — present but carrying no `.sha256` | 3 |
 | — sought and never retrieved | 1 |
 | Seed bibliography entries | 10 |
-| Literature entries (`KN-LIT-*`) | 7872 |
-| — with a resolvable external identifier | 2259 |
+| Literature entries (`KN-LIT-*`) | 7874 |
+| — with a resolvable external identifier | 2261 |
 | — with no identifier recorded | 5613 |
 
-Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1326, doi 150, eprint 747, url 36. Every identifier an entry carries is kept in `sources.json`.
+Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1326, doi 150, eprint 749, url 36. Every identifier an entry carries is kept in `sources.json`.
 
-`citation_verified` distribution: `False` 23, `True` 10, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `metadata` 1, `partial` 5, `read` 7497, `secondary_only` 1, `transcription_of_full_text_at_recorded_sha256` 2, `web` 326.
+`citation_verified` distribution: `False` 23, `True` 10, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `metadata` 1, `partial` 5, `read` 7499, `secondary_only` 1, `transcription_of_full_text_at_recorded_sha256` 2, `web` 326.
 
 ## 1. Frozen source packages
 
@@ -44,6 +44,8 @@ decides whether a later session can re-read what was read here.
 | SRC-BENNETT-WEAKNESS-2023 | The Optimal Choice of Hypothesis Is the Weakest, Not the Shortest | Michael Timothy Bennett | 2023 | `inputs/BENNETT-WEAKNESS-2023` | yes | declared |  |  |
 | SRC-DCP-SIMON-2026 | A Polynomial-Time Quantum Algorithm for the Dihedral Coset Problem [Preliminary Draft] | Daniel R. Simon | 2026 | `inputs/DCP-SIMON-2026` | yes | package_contents |  |  |
 | SRC-KARABINA-PDP-2015 | Point Decomposition Problem in Binary Elliptic Curves | Koray Karabina | 2015 | `inputs/KARABINA-PDP-2015` | yes | declared |  |  |
+| SRC-NAGAO-2013-548 | Decomposition formula of the Jacobian group of plane curve | Koh-ichi Nagao | 2013 | `inputs/NAGAO-2013-548` | yes | declared | https://eprint.iacr.org/2013/548.pdf | 9406f2f7f01ae933 |
+| SRC-NAGAO-2013-549 | Equations System coming from Weil descent and subexponential attack for algebraic curve cryptosystem | Koh-ichi Nagao | 2013 | `inputs/NAGAO-2013-549` | yes | declared | https://eprint.iacr.org/2013/549.pdf | 5971667527aad7af |
 | SRC-NAGAO-2015-984 | Complexity of ECDLP under the First Fall Degree Assumption | Koh-ichi Nagao | 2015 | `inputs/NAGAO-2015-984` | yes | frozen_path |  |  |
 | SRC-NS-AGENT-RESOLUTION-2026 | Methodology note on a multiagent resolution of the Navier-Stokes and Euler regularity problems | UNATTRIBUTED IN THE RECEIVED TEXT. The excerpt speaks in an institutional first person ("our internal model") and names Codex and GPT-6 Astra as internal tools, which is consistent with an OpenAI-lineage announcement, but no byline, publisher, URL, or date was supplied. This record does not assert the author. | 2026 | `inputs/NS-AGENT-RESOLUTION-2026` | yes | declared |  | b37b0729e5cad0c1 |
 | SRC-OAI-TEN-PROOFS-2026 | Ten Advances in Mathematics and Theoretical Computer Science | OpenAI | 2026 | `inputs/OAI-TEN-PROOFS-2026` | **no** | declared | https://cdn.openai.com/pdf/ten-proofs-oai.pdf | 64b900d5fae6fe22 |
@@ -55,6 +57,8 @@ decides whether a later session can re-read what was read here.
 
 Declared reproducibility limitations:
 
+- **SRC-NAGAO-2013-548** — ONLY THE LAST OF THREE REVISIONS IS FROZEN, and for this package that is the load-bearing limitation rather than a formality. The paper is cited in a PRIORITY dispute -- 2015/984 credits it with the disjoint factor base and says Galbraith-Gebregiyorgis 2014/806 "recently re-discovered" it -- and a priority question is a question about what a specific version contained on a specific date. ePrint serves one PDF per identifier, so the two earlier versions are not obtainable from these bytes, and nothing in this package establishes when Section 7 first appeared.
+- **SRC-NAGAO-2013-549** — Only the LAST of the paper's revisions is frozen. ePrint serves one PDF per identifier, so the earlier version recorded in the landing-page history is not obtainable from these bytes and is not vendored here. Any question of the form "which version did a later paper read" is therefore not answerable from this package alone.
 - **SRC-NS-AGENT-RESOLUTION-2026** — Freezing the fragment makes the intake reproducible; it does NOT make the fragment's claims checkable. The mathematical objects the text refers to - the Euler regularity disproof, the Navier-Stokes resolution, the Lean formalization - are not present in this repository, were not supplied, and have no cited location. Nothing in this record is a receipt for any of them.
 - **SRC-OAI-TEN-PROOFS-2026** — The PDF is not committed, so the sha256 above cannot be recomputed from this repository and no later session can re-read the source these summaries were taken from. This record is an assertion about a read that happened, not a checkable receipt for it -- the contrast is SRC-P13-WESOLOWSKI-2026, whose full text is frozen at inputs/P13-WESOLOWSKI-2026/paper_fulltext.md.
 
@@ -145,7 +149,7 @@ records that some fetch failed, and says nothing about the file that is here.
 
 ## 5. Literature citations with a resolvable identifier
 
-2259 of 7872 `KN-LIT-*` entries carry an
+2261 of 7874 `KN-LIT-*` entries carry an
 eprint, arXiv, DOI, ISBN or URL identifier.
 
 | ID | Title | Year | Identifier | Verified |
@@ -2368,6 +2372,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-c2c4d0 | Reaction attacks against several public-key cryptosystems | 1999 | `url:cypherpunks.ca/~iang/pubs/paper-reaction-attacks.pdf` | false |
 | KN-LIT-c41d8b | Polynomial time key-recovery attack on high rate random alternant codes (boundary corrected: generic alternant only, Goppa codes explicitly excluded) | 2024 | `arxiv:2304.14757` | transcription_of_full_text_at_recorded_sha256 |
 | KN-LIT-c4974d | Analysis of backdoored (Classic) McEliece in a multi-user setting | 2024 | `doi:10.1007/978-981-95-0172-4_1` | web |
+| KN-LIT-c5dceb | Equations System coming from Weil descent and subexponential attack for algebraic curve cryptosystem (Draft) | 2013 | `eprint:2013/549` | read |
 | KN-LIT-caabe2 | Two decoding algorithms for linear codes | 1989 | `url:www.mathnet.ru/eng/ppi635` | false |
 | KN-LIT-cd29fd | Quantum sieving for code-based cryptanalysis and its limitations for ISD | 2025 | `eprint:2024/1358` | web |
 | KN-LIT-cd9880 | McEliece cryptosystem implementation: theory and practice | 2008 | `doi:10.1007/978-3-540-88403-3_4` | web |
@@ -2393,6 +2398,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-e800e6 | A key-recovery side-channel attack on Classic McEliece implementations | 2022 | `eprint:2022/514` | web |
 | KN-LIT-e8eaf8 | A designer's guide to KEMs | 2003 | `eprint:2002/174` | web |
 | KN-LIT-eb2b9b | NIST IR 8545: Status Report on the Fourth Round of the NIST Post-Quantum Cryptography Standardization Process | 2025 | `doi:10.6028/nist.ir.8545` | web |
+| KN-LIT-ebd657 | Decomposition formula of the Jacobian group of plane curve (Draft) | 2013 | `eprint:2013/548` | read |
 | KN-LIT-ef4327 | Concrete time/memory trade-offs in generalised Stern's ISD algorithm | 2023 | `eprint:2023/1940` | web |
 | KN-LIT-f1073f | On breaking McEliece keys using brute force | 2025 | `eprint:2025/632` | web |
 | KN-LIT-f1eb40 | Algebraic key-recovery side-channel attack on Classic McEliece | 2025 | `doi:10.1007/978-3-032-10536-3_20` | web |
