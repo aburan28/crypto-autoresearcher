@@ -216,5 +216,100 @@ class IndependenceTests(unittest.TestCase):
         self.assertTrue(any("owners" in p for p in problems))
 
 
+class MultiJointReviewerTests(unittest.TestCase):
+    """A reviewer owning several joints reports one verdict PER JOINT.
+
+    The contract is explicit that a blinded reviewer's whole-claim verdict is
+    an opinion formed from a fraction of the evidence, so the compliant shape
+    for a multi-joint reviewer is a mapping keyed by joint label. Every one of
+    these shapes was produced by a real round; the checker used to raise
+    TypeError on the mapping and so could not run on the round at all, which
+    is worse than a wrong answer -- an unrunnable checker reads as a checker
+    nobody needed (CORR-20260913-bfb071).
+    """
+
+    LABELLED = [
+        {"joint": "J1 -- SEMAEV'S MEMORY MODEL. That peak memory is max(...)",
+         "assigned_to": "TASK-20260913-da3982",
+         "attack_plan": "rebuild the accounting from the frozen text",
+         "breaking_artifact": "an accounting differing by more than 5 bits"},
+        {"joint": "J4 -- THE MECHANISM. That yield loss is exponential in n",
+         "assigned_to": "TASK-20260913-da3982",
+         "attack_plan": "re-derive the yield law and vary t",
+         "breaking_artifact": "a polynomial yield loss"},
+    ]
+
+    def _plan(self):
+        plan = copy.deepcopy(PLAN)
+        plan["joints"] = copy.deepcopy(self.LABELLED)
+        plan["blind_rederivation"]["required"] = False
+        plan["blind_rederivation"]["blind_from"] = []
+        return plan
+
+    def _round(self, **kwargs):
+        return [("/tmp/a.yaml", _attestation("TASK-20260913-da3982",
+                                             ["J1", "J4"], **kwargs))]
+
+    def test_per_joint_mapping_under_verdict_is_read(self) -> None:
+        problems = independence.check(
+            self._plan(), self._round(verdict={"J1": "holds",
+                                               "J4": "breaks"}))
+        self.assertEqual(problems, [])
+
+    def test_per_joint_mapping_under_verdicts_is_read(self) -> None:
+        """The plural key, which one real attestation used."""
+        problems = independence.check(
+            self._plan(), self._round(verdict=None,
+                                      verdicts={"J1": "holds",
+                                                "J4": "inconclusive"}))
+        self.assertEqual(problems, [])
+
+    def test_mapping_missing_an_owned_joint_is_caught(self) -> None:
+        problems = independence.check(self._plan(),
+                                      self._round(verdict={"J1": "holds"}))
+        self.assertTrue(any("J4" in p for p in problems), problems)
+
+    def test_unrecognised_verdict_word_in_a_mapping_is_caught(self) -> None:
+        problems = independence.check(
+            self._plan(), self._round(verdict={"J1": "mostly fine",
+                                               "J4": "holds"}))
+        self.assertTrue(any("mostly fine" in p for p in problems), problems)
+
+    def test_a_verdict_of_the_wrong_type_fails_rather_than_raises(self) -> None:
+        problems = independence.check(self._plan(),
+                                      self._round(verdict=["holds", "holds"]))
+        self.assertTrue(any("mapping" in p for p in problems), problems)
+
+    def test_paraphrased_joints_owned_is_matched_by_label(self) -> None:
+        """Reviewers restate the joint; the label is what identifies it."""
+        reports = [("/tmp/a.yaml", _attestation(
+            "TASK-20260913-da3982",
+            ["J1 -- Semaev's memory model (peak as max of store and working "
+             "set; dense versus sparse; the variable count N)",
+             "J4: the exponential-versus-polynomial mechanism"],
+            verdict={"J1": "holds", "J4": "holds"}))]
+        self.assertEqual(independence.check(self._plan(), reports), [])
+
+    def test_an_unclaimed_joint_is_still_caught(self) -> None:
+        reports = [("/tmp/a.yaml", _attestation(
+            "TASK-20260913-da3982", ["J1"],
+            verdict={"J1": "holds", "J4": "holds"}))]
+        problems = independence.check(self._plan(), reports)
+        self.assertTrue(any("joints_owned" in p for p in problems), problems)
+
+    def test_scalar_verdict_still_works(self) -> None:
+        self.assertEqual(independence.check(self._plan(),
+                                           self._round(verdict="holds")), [])
+
+    def test_label_extraction(self) -> None:
+        for name, label in (
+                ("J1 -- SEMAEV'S MEMORY MODEL. That peak memory is ...", "J1"),
+                ("J4: the mechanism", "J4"),
+                ("J6-BLIND -- the crossover n", "J6-BLIND"),
+                ("localisation", "localisation"),
+                ("prime-side evaluation", "prime-side evaluation")):
+            self.assertEqual(independence._joint_label(name), label)
+
+
 if __name__ == "__main__":
     unittest.main()
