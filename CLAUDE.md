@@ -43,14 +43,22 @@ Code specifically.
   Which one runs a queued task is decided by its (`role`, `inference.policy`)
   pair — see the canonical harness lifecycle and the effort table under
   "Model policy note".
-- **Public entry point**: `/crypto-autoresearcher-harness` routes status,
-  ideas/design, named-goal execution and the full portfolio loop through the
-  shared plugin skill. `/launch-research-harness` and
-  `/coordinate-research-goal` are compatibility aliases.
+- **Public execution entry point**: `/run` executes existing experiments and
+  reports their outputs. It adds no preflight, ledger/schema/protocol-validation
+  phase, preparation workflow, PR, or review cycle. Use the existing launcher;
+  its built-in ownership, resource, and output checks still apply. This routing
+  supersedes older lifecycle directions for plain run requests.
+- **Public coordination entry point**: `/coordinate` ranks work, opens
+  batches, approves complete protocols, dispatches non-execution tasks,
+  archives, and publishes. It never launches scientific trials. Canonical
+  source: `.claude/skills/coordinate/SKILL.md` (Codex/OpenCode adapter:
+  `.agents/skills/coordinate/`). Use for `/coordinate`, launch coordinator,
+  portfolio, or resume a `GOAL-*` without running it. Named-goal execution
+  remains `/run GOAL-...`.
 - **Stage references** (`.claude/skills/`), used by the shared lifecycle:
+  - `/coordinate` — Coordinator front door (rank, approve, dispatch, archive, PR)
   - `/propose-ideas` — ideation for a research question
   - `/design-experiment` — hypothesis + frozen protocol; approval is a separate Coordinator decision
-  - `/run-experiment` — bounded execution, immutable run records
   - `/review-evidence` — validation, evidence strength, official decision
   - `/research-status` — read-only ledger overview
   - `/deep-research` — cross-portfolio synthesis of ledger + knowledge state
@@ -368,10 +376,11 @@ them disagree.
 ## Typical loop
 
 ```text
+/coordinate            # rank, approve, dispatch, archive; does not run trials
 /research-status
   → /propose-ideas RQ-...
   → /design-experiment IDEA-...
-  → /run-experiment EXP-...
+  → /run EXP-... (execution only; later stages are separate tasks)
   → (Coordinator snapshot commit + independent validation/red team)
   → /review-evidence EXP-...
   → (knowledge-promotion gate: proven results → /curate-knowledge KN-FIND;

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 from pathlib import Path
 
 import yaml
@@ -15,7 +16,8 @@ SPEC.loader.exec_module(mod)
 
 def _write_exp(root: Path, exp_id: str, *, designed_at: str,
                approved: bool = True, report: bool = False,
-               has_runs: bool = False, supersedes: str | None = None) -> None:
+               has_runs: bool = False, supersedes: str | None = None,
+               goal_id: str | None = None) -> None:
     d = root / "experiments" / exp_id
     d.mkdir(parents=True)
     body = {"experiment": {
@@ -26,6 +28,7 @@ def _write_exp(root: Path, exp_id: str, *, designed_at: str,
         "execution_authorized": approved,
         "designed_at": designed_at,
         "supersedes": supersedes,
+        "goal_id": goal_id,
     }}
     (d / "specification.yaml").write_text(yaml.safe_dump(body))
     if report:
@@ -81,3 +84,51 @@ def test_newest_runnable_skips_an_experiment_superseded_before_it_ran(tmp_path):
 
     rows = mod.newest_runnable(tmp_path)
     assert [r["id"] for r in rows] == ["EXP-ECDLP-c83476"]
+
+
+def test_goal_filter_excludes_other_goals_and_unassigned_experiments(tmp_path):
+    (tmp_path / "orchestration").mkdir()
+    (tmp_path / "orchestration/research-priority.yaml").write_text(
+        "ecc_areas: [ECDLP]\n")
+    _write_exp(tmp_path, "EXP-ECDLP-aa1111", designed_at="2026-09-01",
+               goal_id="GOAL-ECDLP-aa1111")
+    _write_exp(tmp_path, "EXP-ECDLP-bb2222", designed_at="2026-09-10",
+               goal_id="GOAL-ECDLP-bb2222")
+    _write_exp(tmp_path, "EXP-ECDLP-cc3333", designed_at="2026-09-11")
+
+    rows = mod.newest_runnable(tmp_path, goal="GOAL-ECDLP-aa1111")
+    assert [row["id"] for row in rows] == ["EXP-ECDLP-aa1111"]
+    assert rows[0]["goal_id"] == "GOAL-ECDLP-aa1111"
+    assert mod.newest_runnable(tmp_path, goal="GOAL-ECDLP-dd4444") == []
+
+
+def test_cli_keeps_goal_scope_for_all_selected_rows_and_blockers(tmp_path, monkeypatch, capsys):
+    (tmp_path / "orchestration").mkdir()
+    (tmp_path / "orchestration/research-priority.yaml").write_text(
+        "ecc_areas: [ECDLP]\n")
+    for index in range(4):
+        _write_exp(tmp_path, f"EXP-ECDLP-aa000{index}", designed_at="2026-09-01",
+                   goal_id="GOAL-ECDLP-aa1111")
+    _write_exp(tmp_path, "EXP-ECDLP-aa0004", designed_at="2026-09-02",
+               goal_id="GOAL-ECDLP-aa1111", has_runs=True)
+    _write_exp(tmp_path, "EXP-ECDLP-bb0000", designed_at="2026-09-10",
+               goal_id="GOAL-ECDLP-bb2222", has_runs=True)
+
+    # Use real fixture discovery behind the CLI, changing only its checkout.
+    select = mod.newest_runnable
+    monkeypatch.setattr(mod, "newest_runnable", lambda **kwargs: select(tmp_path, **kwargs))
+    assert mod.main(["--goal", "GOAL-ECDLP-aa1111", "--limit", "0", "--json"]) == 0
+    rows = json.loads(capsys.readouterr().out)
+    assert len(rows) == 4
+    assert {row["goal_id"] for row in rows} == {"GOAL-ECDLP-aa1111"}
+
+    assert mod.main(["--goal", "GOAL-ECDLP-aa1111", "--limit", "0",
+                     "--include-blocked", "--json"]) == 0
+    rows = json.loads(capsys.readouterr().out)
+    assert len(rows) == 5
+    assert {row["goal_id"] for row in rows} == {"GOAL-ECDLP-aa1111"}
+    assert {row["id"] for row in rows if row["execution_state"] == "needs_reconciliation"} == {
+        "EXP-ECDLP-aa0004"}
+
+    assert mod.main(["--goal", "GOAL-ECDLP-ff0000", "--limit", "0", "--json"]) == 0
+    assert json.loads(capsys.readouterr().out) == []

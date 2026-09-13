@@ -131,7 +131,7 @@ review and a ledger archive after every required review.
 
 ## Persistent goals
 
-`/coordinate-research-goal` binds a queue to a committed
+Explicit Coordinator campaign preparation binds a queue to a committed
 `ledger/goals/GOAL-<AREA>-<tok>.yaml` record. New goal IDs use the random
 six-hex token returned by `tools/allocate_id.py --next goal --area AREA` and
 confirmed with `--check`; an existing three-digit legacy ID remains valid and

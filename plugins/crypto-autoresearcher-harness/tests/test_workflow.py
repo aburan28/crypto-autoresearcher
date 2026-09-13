@@ -19,7 +19,7 @@ from test_research_dispatch import task, archive_task, queue, FakeGitVerifier
 
 
 class EntryPointTests(unittest.TestCase):
-    def test_all_adapters_are_generated_and_references_exist(self):
+    def test_single_execution_entry_point_is_consistent(self):
         self.assertEqual(entrypoints.check(REPO), [])
 
     def test_drift_is_detected_without_rewriting(self):
@@ -28,10 +28,10 @@ class EntryPointTests(unittest.TestCase):
             canonical = root / entrypoints.CANONICAL
             canonical.parent.mkdir(parents=True)
             canonical.write_text("canonical")
-            for relative, (name, mode) in entrypoints.ADAPTERS.items():
+            for relative, name in entrypoints.ADAPTERS.items():
                 path = root / relative
                 path.parent.mkdir(parents=True, exist_ok=True)
-                path.write_text(entrypoints.render(name, mode))
+                path.write_text(entrypoints.render(name))
             changed = root / next(iter(entrypoints.ADAPTERS))
             changed.write_text("independent workflow")
             self.assertTrue(any("adapter drift" in p for p in entrypoints.check(root)))
@@ -43,10 +43,27 @@ class EntryPointTests(unittest.TestCase):
             installed = root / "installed"
             installed.mkdir()
             (installed / "SKILL.md").write_text(
-                "---\nname: crypto-autoresearcher-harness\n---\n")
+                "---\nname: run\n---\n")
             found = entrypoints.discover(REPO, [installed, installed])
             self.assertEqual(len(found), 2)
             self.assertIn(str((installed / "SKILL.md").resolve()), found)
+
+    def test_retired_alias_is_reported_without_deleting_it(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            path = root / entrypoints.RETIRED_ADAPTERS[0]
+            path.parent.mkdir(parents=True)
+            path.write_text("old skill")
+            self.assertTrue(any("retired execution skill" in p for p in entrypoints.check(root)))
+            self.assertEqual(path.read_text(), "old skill")
+
+    def test_packaged_second_skill_is_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            path = root / f"plugins/{entrypoints.PLUGIN_NAME}/skills/other/SKILL.md"
+            path.parent.mkdir(parents=True)
+            path.write_text("other skill")
+            self.assertTrue(any("extra plugin skill" in p for p in entrypoints.check(root)))
 
 
 class CheckpointTests(unittest.TestCase):

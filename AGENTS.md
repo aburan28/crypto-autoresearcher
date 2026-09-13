@@ -28,13 +28,34 @@ This repository defines a multi-agent operating system for reproducible ECDLP ex
 
 ## Harness entry point
 
-Use the single public `crypto-autoresearcher-harness` skill for research status,
-ideas/design, named-goal continuation, or a full portfolio run. Its canonical
-source is `plugins/crypto-autoresearcher-harness/skills/crypto-autoresearcher-harness/SKILL.md`;
-repository and legacy adapters delegate there. Read its mode table before work.
-A batch checkpoint continues within the authorized mode; report durable changes,
-owners, and the recorded next action so another session can resume. This routing
-does not replace any authority or evidence gate below.
+User instruction, 2026-09-10: **`run` is the single public execution skill.**
+Its canonical source is
+`plugins/crypto-autoresearcher-harness/skills/run/SKILL.md`; repository adapters
+expose the same `run` name across hosts. Old harness/experiment execution skill
+names are retired.
+
+A run request executes existing experiment programs and reports their outputs.
+Do not prepend agent-led preflight, ledger/schema/protocol validation, portfolio
+audits, branch synchronization, or protocol-authoring work. Do not append a
+mandatory PR, independent review, or research-state transition. Preparation,
+repository maintenance, and scientific review are separate tasks. This execution
+routing supersedes older skill/lifecycle instructions that require those phases
+on every run request.
+
+Use an existing command-based runner or prepared trial plan without migrating it
+merely to run. Keep the runner's built-in admission, ownership, machine-resource,
+and output-correctness checks; report a refused launch rather than bypassing it.
+Retain raw outputs and failed attempts. Results remain observations until the
+separate archive/review process supports a scientific state transition.
+
+The public **coordination** skill is `coordinate`
+(`.claude/skills/coordinate/SKILL.md`, Codex/OpenCode adapter
+`.agents/skills/coordinate/`). It ranks, designs, approves, reviews, archives,
+and publishes. It never launches scientific trials. Use it for portfolio
+coordination, launching the Coordinator, or resuming a `GOAL-*` without
+running it. Named-goal execution remains `run`. Old harness skill names
+(`crypto-autoresearcher-harness`, `launch-research-harness`,
+`coordinate-research-goal`) stay retired; do not recreate those adapters.
 
 ## Roles
 

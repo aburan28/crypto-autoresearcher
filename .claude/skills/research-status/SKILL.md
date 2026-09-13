@@ -35,4 +35,4 @@ Produce a read-only snapshot of the program. Make no state changes.
 4. Report: a short table per ledger area, experiments in flight with run
    tallies, the latest decision per active hypothesis, integrity flags, and
    the concrete next action the lifecycle implies (e.g. "EXP-ISO-002 is
-   approved but has no runs → /run-experiment EXP-ISO-002").
+   approved but has no runs → /run EXP-ISO-002").
