@@ -9,9 +9,39 @@ tags: [semaev, chained-system, chain-length, relation-collection, yield, trade-o
   characteristic-two, first-fall-degree, degree-of-regularity, asymptotic-complexity,
   author-declined-lead, open, ecdlp]
 confidence: reported
-status: open
+status: closed_scoped
+closed_scoped_at: '2026-09-13'
+closed_scoped_by: DEC-20260913-74e208
+closed_scoped_as: >-
+  CLOSED AS AN OPTIMIZATION QUESTION UNDER eq. (11) ONLY. There is no interior
+  optimum in t at any integer n in [250,600] under any of the three solving-cost
+  readings drawn from the frozen text: shortening the chain costs k - log2(t) bits
+  of yield per link (measured 27.68 to 44.00 bits at the FIPS labels at the
+  cost-optimal m) while every available solving-cost saving has DECREASING
+  per-link increments and so grows only like log(m-t). Semaev's t = m is optimal
+  under his own cost model at concrete cryptographic n, not merely asymptotically
+  indifferent, so the trade-off he declined would not have paid. Obstruction,
+  measurement and scope: KN-FIND-9643e7 and EV-SEMBIN-1d36a3. The hypothesis that
+  proposed the interior optimum, H-SEMBIN-b1708c, is rejected in scope.
+still_open_in:
+  - >-
+    UNDER ANY YIELD LAW OTHER THAN eq. (11). The whole closure consumes eq. (11)
+    as published and unmeasured, so it is conditional on it throughout.
+  - >-
+    THE INVERTING CONFOUND IS UNMEASURED. If realized yield falls short of
+    eq. (11) MORE at t = m than at t < m, the comparison flips and this closure
+    with it. EXP-SEMBIN-354a75 exists to measure exactly that by exhaustive
+    enumeration, and until it returns this closure is conditional on an unmeasured
+    premise.
+  - >-
+    THE ASSUMPTION-1 COUPLING THAT THIS RECORD WAS OPENED FOR IS UNTOUCHED. The
+    original question was two-sided: the trade-off becomes exponent-relevant
+    exactly where Assumption 1 fails, and no degree was measured by anyone in the
+    round that closed the optimization side. KN-OPEN-d218ec remains the
+    prerequisite and remains open; IMP-SEMBIN-ENGINE records why it could not be
+    addressed.
 source_refs: [KN-LIT-fa346d, KN-LIT-e77232, KN-TECH-b18366, KN-OPEN-d218ec, KN-FIND-007,
-  RQ-SEMBIN-ade131]
+  RQ-SEMBIN-ade131, KN-FIND-9643e7, EV-SEMBIN-1d36a3, DEC-20260913-74e208]
 added: 2026-09-13
 superseded_by: null
 ---
@@ -124,3 +154,36 @@ Assigned to `RQ-SEMBIN-ade131` and `GOAL-SEMBIN-cbf422`.
   claiming against a settled conservation law without noticing.
 - `KN-OPEN-d218ec` is the prerequisite; this problem is not independently
   resolvable.
+
+## Scoped closure, 2026-09-13
+
+Recorded by `DEC-20260913-74e208`, composing `REVIEW-SEMBIN-20260913-9d649f`.
+The body above is unchanged; this section is appended.
+
+**What closed.** The optimization side, and only under eq. (11). `EXP-SEMBIN-81dc96`
+re-solved Semaev's two-stage balance jointly over `(m, t)` instead of over `m` at
+`t = m`. There is no interior optimum: `t* = m*` at every integer `n` in
+[250, 600] under all three solving-cost readings, reproduced by two implementations
+sharing no code. The measured obstruction is in `KN-FIND-9643e7`; the composed
+evidence is `EV-SEMBIN-1d36a3`.
+
+**The question above was two-sided, and only one side is answered.** The record
+asked whether `t` is a free cost parameter *and* whether the trade-off becomes
+exponent-relevant where Assumption 1 fails. The first is answered no. The second
+is untouched: no degree was measured in the round that closed the first, because no
+Gröbner engine exists on the host (`IMP-SEMBIN-ENGINE`). `KN-OPEN-d218ec` stays the
+prerequisite and stays open, so the "not independently resolvable" note in *Related
+open surface* above still stands for the assumption-coupling half.
+
+**What must NOT be said, added to the list above.**
+
+- **Not** "the short-chain lane is dead." It is closed as an optimization under one
+  yield law, with the inverting measurement outstanding.
+- **Not** "coset-typed factor bases will reopen it." They close it *harder*:
+  removing the `t!` symmetry factor raises the per-link charge from `k - log2(t)`
+  to `k`, from 33.72 to 37.18 bits at `n = 409, m = 11`. See the resource reading in
+  `KN-FIND-9643e7`.
+- **Not** "Semaev was right for the reason he gave." He declined the trade-off
+  because it does not affect the asymptotics, which is correct and is a different
+  statement from what is now measured — that it does not pay at concrete `n`
+  either. The concrete claim is the new content.
