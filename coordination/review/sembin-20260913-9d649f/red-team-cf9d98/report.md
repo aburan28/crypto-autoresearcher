@@ -3,10 +3,14 @@
 - **Task:** TASK-20260913-cf9d98 · **Role:** red-team · **Policy:** review-adversarial, xhigh
 - **Under review:** RUN-SEMBIN-121b59 / COST-SEMBIN-8d123b (CLAIM A) and RUN-SEMBIN-aa5161 (CLAIM B)
 - **Joints owned:** J2, J3, J5, J6. **J1 and J4 are not mine and no verdict here bears on them.**
-- **Blindness honoured:** I read nothing under `validator-da3982/` or `blind-rederivation-ec11c4/`.
-  Neither directory existed in the tree when I worked. Full read list in `attestation.yaml`.
+- **Blindness honoured:** I read nothing under `validator-da3982/` or
+  `blind-rederivation-ec11c4/`. Neither directory existed in the tree when I began; both
+  are present in it now and I did not open either. Full read list in `attestation.yaml`.
 - **Machine-readable backing:** `recomputations.json`. Scripts: `work/redteam_recompute.py`,
-  `work/redteam_recompute2.py`, `work/redteam_combined.py`.
+  `work/redteam_recompute2.py`, `work/redteam_combined.py`, `work/redteam_extend.py`,
+  `work/redteam_pf_store.py`, `work/redteam_j6_control.py`. None imports producer code;
+  the producer's run artifacts and one committed prime-field cost record are read as
+  **data**.
 
 ## Verdict summary
 
@@ -23,6 +27,17 @@ four published crossovers (303 / 303 / 435 / 375) exactly, from formulas restate
 independently and importing none of the producer's code
 (`recomputations.json → step0_validation`). The arithmetic is not in dispute and I
 did not attack it. What breaks is the comparison and the interpretation.
+
+**The one result to read if you read nothing else.** The contract's prime-field
+nearby-object control — the one the run declined as impossible to build — is buildable
+from a committed record in this repository, and I built and ran it. Charged against the
+baseline the way COST-SEMBIN-8d123b charges it, prime-field index calculus **beats
+Pollard rho at 64, 128 and 256 bits** under the record's own product metric. This corpus
+records that ordering as false (KN-OPEN-001, KN-TECH-003). The inversion appears at
+`store_log2 ≥ 21.5` and the record charges 30; under a baseline charged coherently on its
+own time-memory curve it does not appear at any size. J2 and J6 are one defect, reached
+from two directions: **a 29-bit memory overcharge on the baseline, sitting under every
+crossover in the record.**
 
 ---
 
@@ -270,15 +285,67 @@ favour. "Share = 0" is false; the correct statement is that the reported +72 is 
 near-cancellation of +159 and −87. The Coordinator recorded that it did **not** expect
 a reviewer to overturn the matched-null attribution. It is overturned.
 
+### J2(f) The proves-too-much control: the record's baseline charge inverts a known-false ordering
+
+Everything above argues that the 2^30-point store is the wrong charge. This subsection
+does not argue it — it runs the argument against an object whose answer is already
+recorded in this corpus, which is the control the review architecture requires.
+
+`experiments/EXP-PFDR-c04716/runs/STATIC-001/concrete-cost.yaml` is a committed 54-cell
+prime-field index-calculus concrete-cost table over `log2 N ∈ {64, 128, 256}`, charging
+time **and** memory, and — this is what makes it usable — charging its Pollard-rho prior
+in exactly this record's `0.886·2^{n/2}` convention. I verified that agreement cell by
+cell before importing anything (`recomputations.json → J6 …
+baseline_convention_agrees_with_sembin: true`, at all three sizes to 1e-3). The known
+answer is in the corpus twice: KN-OPEN-001 ("Does index calculus beat Pollard rho for
+prime-field ECDLP? — No") and KN-TECH-003 ("uncompetitive with rho").
+
+Charging those cells against the baseline as the record charges it, and sweeping only
+the store:
+
+| `store_log2` | `log2 N = 64` | `log2 N = 128` | `log2 N = 256` | ordering inverted? |
+| --- | --- | --- | --- | --- |
+| 0 | −21.51 | −23.16 | −25.23 | no |
+| 10 | −11.51 | −13.16 | −15.23 | no |
+| 20 | −1.51 | −3.16 | −5.23 | no |
+| **30 (record)** | **+8.49** | **+6.84** | **+4.77** | **yes, at all three sizes** |
+| 40 | +18.49 | +16.84 | +14.77 | yes |
+| 60 | +38.49 | +36.84 | +34.77 | yes |
+
+(entries are the best product-metric margin in bits **for index calculus**; positive
+means index calculus wins.) The ordering inverts at `store_log2 ≥ 21.51` (64 bits),
+`23.16` (128), `25.23` (256). **The record charges 30.**
+
+At `log2 N = 64` the winning cell loses on time by 9.12 bits and wins under the record's
+product metric by 8.49, entirely because the record charges rho 37.59 bits of memory
+against index calculus's 19.97. Nobody believes prime-field index calculus beats Pollard
+rho at 64 bits. Under the coherent baseline of J2(b) it does not: the margin is −20.51
+bits at 64, −22.16 at 128, −24.23 at 256, and **zero cells invert at any size**.
+
+This is the strongest single artifact in this report and it is not an opinion about
+realism. The record's memory convention, applied to an object whose ordering this
+program has already recorded, produces the wrong ordering — at three sizes, including one
+where the answer is not in dispute — and the coherent convention produces the right one.
+The 29-bit differential between the two conventions is exactly the overcharge computed
+in J2(b), arrived at from a completely different direction.
+
+One honesty note that does not weaken it. Every PFDR cell is conditional on HEUR-001 of
+H-PFDR-06fd60, which that record itself prices at a 0.05 prior, so these cells are not a
+claim that prime-field index calculus is fast. They do not need to be: the inversion is a
+property of the *difference* between the two baseline conventions, and that difference is
+29 bits whatever the index-calculus side is worth.
+
 ### J2 breaking artifact
 
-Delivered, twice over. The plan asks for "a crossover figure that moves by more than
+Delivered, three times over. The plan asks for "a crossover figure that moves by more than
 10 in n under a defensible change to the baseline's charging" — it moves by **85**
 (coherent operating point) and by **180** (across the store parameter the contract
 declared and the run never swept) — "OR a demonstration that the comparison is
 asymmetric in a direction the record does not disclose": the record discloses the
 asymmetry with the **wrong sign** on both the tradeoff (it says the missing tradeoff
-favours the baseline; it favours Semaev by 29 bits) and the cofactor.
+favours the baseline; it favours Semaev by 29 bits) and the cofactor. J2(f) adds the
+control that decides it: the record's baseline convention **inverts a known ordering on a
+known-false object**, at the store size the record charges and at no smaller one.
 
 ### What J2 does NOT break
 
@@ -368,6 +435,17 @@ only in the band `2^65 … 2^89` bits.
 single-machine budget of 2^40 bits the readings disagree, so **the flip survives the
 soft reading.**
 
+*Robustness of the sparse figure off the argmin.* The fixed-budget metric lets Semaev
+re-choose `m`, but the record's `raw-result.json` exposes its sparse memory only at the
+time-argmin — five `(n, m)` pairs. So the budget verdicts rest on a restatement of the
+sparse reading evaluated at `m` values the record never printed. I bounded that
+extrapolation by rebuilding the sparse figure a second way, anchored on the **exact**
+Macaulay width of `N = (m−2)n + km` rather than the `(nm)^4/24` surrogate: over all
+`m ∈ [2, 30]` at every FIPS `n` the two disagree by at most **1.33 bits**, and every
+hard- and soft-budget verdict in the two tables above is identical under both
+(`recomputations.json → J3 … sparse_restatement_robustness`). The budget conclusions do
+not depend on which sparse restatement is used.
+
 ### J3(c) Does "the verdict at n = 409 is decided by the memory model" survive?
 
 **Yes in letter, no in substance, and not at all as the record frames it.**
@@ -448,6 +526,34 @@ solved in log space and `c = 2·sqrt(ln m / (ln2 · ln n))`:
 | 10^6 | 0.49999689 | 1.698638 | 5.3e−6 |
 | 10^9 | 0.5 | 1.6986436 | 1.0e−8 |
 
+**The guilty null — a convergence test that cannot fail is not a control.** The gap-scaling
+test above shows the deficit decays; it does not by itself show the test could have said
+otherwise. So I fitted a two-parameter tail model `gap ≈ A + B·(log log n / log n)` over
+the eight rungs from 10^20 to 10^300 and read off `A`, the limit offset — zero means
+convergence to 1.6986, non-zero means a wrong constant — then re-ran the *identical* fit
+against perturbed cost models whose true asymptote is known to have moved:
+
+| cost model | true asymptote | fitted limit offset `A` | rms residual |
+| --- | --- | --- | --- |
+| **the record's, unperturbed** | 1.698644 | **−0.00265** | 0.00088 |
+| `ω = 4` instead of 3 (benign: polylog only) | 1.698644 | −0.00265 | 0.00088 |
+| `α = 1.05` on the `n/m` term | 1.740592 | **−0.04459** (expected −0.04195) | 0.00087 |
+| `α = 0.90` on the `n/m` term | 1.611475 | **+0.08449** (expected +0.08717) | 0.00089 |
+| `(m!)²` instead of `m!` | — | **−0.70893** | 0.00178 |
+
+The true model's limit offset is within 0.003 of zero; every null whose asymptote actually
+moved reports an offset **16 to 267 times larger**, and within 7% of the value predicted
+from the shifted asymptote. A benign perturbation that changes only the polylog cofactor
+correctly reports the same near-zero offset. **The test has power**, and the record's
+conclusion survives a test that could have failed it.
+
+The `c_fitted`-versus-`c_balance_identity` discrepancy the record leaves unexplained is
+also closed rather than waved at. Stirling gives `log2 m! = m log2 m − m/ln 2 + O(log m)`,
+which predicts `c_fit = c_balance·(1 − 1/(2 ln m))` exactly; the prediction holds to
+0.0225 at 10^7, 0.0025 at 10^9, 3e−5 at 10^13 and to floating-point zero from 10^20 on.
+It is a named finite-`m` term with a known decay rate, not a defect — but the record
+should say so rather than print two numbers that look like a cross-check.
+
 **VERDICT: `c` is CONVERGING, not sitting below.** The mechanism is exactly the one the
 record names: `ln m / ln n = 1/2 − log2(log2 m)/(2 log2 n)`, so the approach is
 `Θ(log log n / log n)` — genuinely convergent and genuinely glacial. Declining the
@@ -499,8 +605,9 @@ on this joint.
 ### J5 breaking artifact
 
 The plan's second alternative is delivered: **confirmation of monotone convergence with
-the ladder**, extended 287 decades past the record's and cross-checked against an
-analytic continuation. The deviation is discharged.
+the ladder**, extended 287 decades past the record's, cross-checked against an analytic
+continuation, and — the part the record does not have — shown to be a test with
+demonstrated power against nulls whose asymptote moved. The deviation is discharged.
 
 ---
 
@@ -539,8 +646,16 @@ is **not available in this session** — `GetDynamicTools` returns no matching n
 so this is a filesystem search of the corpus and ledger, and per AGENTS.md absence of a
 result is not evidence of absence. What I found is present regardless.)
 
-The assertion is **false as written**:
+The assertion is **false as written**, and the strongest counterexample is not a
+specification but an executed record:
 
+- **`experiments/EXP-PFDR-c04716/runs/STATIC-001/concrete-cost.yaml`** (committed) — a
+  **54-cell prime-field index-calculus concrete-cost table** over
+  `log2 N ∈ {64, 128, 256}`, sweeping `m ∈ {3,4,5}`, `D_0 ∈ {4,6,8}` and
+  `ω ∈ {2.0, 2.807}`, charging **time and memory**, and carrying its own Pollard-rho
+  prior in **exactly this record's `0.886·2^{n/2}` convention** — verified cell by cell
+  before use. This is not a formula that had to be invented; it is a table that had to
+  be read. I ran the control with it, below.
 - **`experiments/EXP-ICEX-c32447/specification.yaml`** — a fully specified prime-field
   index-calculus cost model: a shared cost of `m!·N` charged group operations, three
   separated counters (`C_rel`, `C_LA`, `C_descent`), and **a genuine multi-target rho arm
@@ -559,11 +674,46 @@ The assertion is **false as written**:
   explicit: "no known construction yields an advantage over prime fields."
 
 The correct disclosure is not "it does not exist so building one means fabrication." It
-is: *"prime-field index-calculus cost models exist in this repository as specified but
-unexecuted contracts (EXP-ICEX-c32447, EXP-ICEX-349205); instantiating one was out of
-this experiment's scope."* That is a materially different statement, it does not rest on
-a false premise, and it leaves the control owed for a reason a later reader can act on.
-**The record should be corrected on this point.**
+is: *"a committed prime-field index-calculus concrete-cost table exists at
+EXP-PFDR-c04716/runs/STATIC-001, conditional on HEUR-001, and further models exist as
+unexecuted contracts (EXP-ICEX-c32447, EXP-ICEX-349205); instantiating the control was
+out of this experiment's scope."* That is a materially different statement, it does not
+rest on a false premise, and it leaves the control owed for a reason a later reader can
+act on. **The record should be corrected on this point.**
+
+### J6(b′) I ran the declined control, and the contract's stopping rule fires
+
+The contract's clause D3 says: *if the machinery reports index calculus winning there, it
+is mischarging memory or parallelism and every SEMBIN row is void.* Charging the 54 PFDR
+cells against the baseline as this record charges it:
+
+| `log2 N` | cells | IC beats rho on **time only** | largest IC advantage | IC beats rho under the **product** | largest |
+| --- | --- | --- | --- | --- | --- |
+| 64 | 18 | 0 | −9.12 | **1** | **+8.49** |
+| 128 | 18 | 0 | −0.22 | **1** | **+6.84** |
+| 256 | 18 | **4** | **+19.06** | **1** | **+4.77** |
+
+**D3 fires**, under time-only at 256 bits and under the product at every size. Taken
+literally, the contract says every SEMBIN row is void. I do not draw that conclusion, and
+the reason I do not is the finding:
+
+**D3's stated diagnosis is wrong for the way the control actually fires, and the two
+firings have different causes.** The time-only firing at 256 bits involves no memory and
+no parallelism — it is driven entirely by HEUR-001, an external conditional heuristic the
+corpus itself prices at a 0.05 prior, and it says nothing whatever about SEMBIN's
+machinery. Under the program's own unit discipline (EXP-ICEX-c32447's `kappa ∈ {1,10,100}`)
+it fires harder, 6 cells of 18 rather than 4, because converting the index-calculus side
+from field to group operations moves it the favourable way. The product firing has the
+opposite character: it is **entirely** the store size (J2(f)), it vanishes under the
+coherent baseline at every size, and it is a real defect in this record's convention.
+
+So the control is worth more than the contract knew, and the stopping rule is worth less.
+As written D3 conflates a conditional external model with a defect in the machinery under
+test, and it has no conditionality filter, no unit tag, and no localisation step — so any
+faithful instantiation trips it and voids a claim for a reason that is not a fault. **The
+control was owed a design, not merely an instantiation**, and the run's substitution
+concealed that: eq. (4) passes by thousands of bits and so never exposed that D3 cannot
+tell a mischarged baseline from a speculative heuristic.
 
 One thing the located models would have forced. `EXP-ICEX-c32447` declares a binding
 unit discipline — solver work counted in field operations is converted to group
@@ -593,6 +743,14 @@ that analysis — degree bound 5 or 6 (18–40 bits), dense versus sparse (20 bi
 max versus sum (≤ 1 bit), a variable count wrong by a factor of three (~6 bits) — leaves
 the control passing.
 
+Solved exactly rather than argued: the smallest degree bound `D` at which the chain's own
+Macaulay width would rise above the eq. (4) lower bound is **D = 553** at n = 310,
+**D = 1130** at n = 409 and **D = 2397** at n = 571 — a headroom of 549, 1126 and 2393
+over Assumption 1's `D = 4`. The record's own live failure mode, Assumption 1 breaking so
+that the effective bound is 5 or 6, costs 18–41 bits and sits roughly two orders of
+magnitude inside that threshold. **The control cannot detect the one failure the record
+itself says is the thing most likely to go wrong.**
+
 **What would a failing eq. (4) control look like?** The chain side is
 `log2 C(N, ≤4) ≈ 4·log2 N − log2 24`, which is bounded by 2^46 for any `N ≤ 7000`, while
 the eq. (4) side is `log2 C(mn, 2^{m-1}) ≥ 2^1998`. For the control to fail the
@@ -605,10 +763,14 @@ own uncertainty envelope.
 
 ### J6 breaking artifact
 
-Both of the plan's alternatives are delivered: a prime-field cost model **located in the
-repository**, which retires the stated reason for the substitution; and an argument that
-the eq. (4) control is **vacuous within the record's own error envelope**, which leaves
-CLAIM A with five controls rather than six.
+Both of the plan's alternatives are delivered, and a third that the plan did not ask for:
+a prime-field cost model **located in the repository and actually run as the control**,
+which retires the stated reason for the substitution; a demonstration that the eq. (4)
+control is **vacuous within the record's own error envelope** (it cannot see a `D = 5`
+or `D = 6` failure, which is the record's own named risk), leaving CLAIM A with five
+controls rather than six; and the finding that the contract's D3 stopping rule, once the
+control is real, **fires — and is mis-specified**, because it cannot distinguish a
+mischarged baseline from a heuristic-conditional external model.
 
 ### What J6 does NOT break
 
@@ -682,6 +844,14 @@ item for the Coordinator, not a finding.
   unchanged. Where Assumption 1 fails, every memory figure here is an underestimate by
   the amounts the record tabulates, which is one-sided against Semaev and would move the
   crossovers further up than I report.
+- **The prime-field cells are conditional and I do not launder that.** Every cell of
+  EXP-PFDR-c04716/runs/STATIC-001 is conditional on HEUR-001 of H-PFDR-06fd60, which that
+  record prices at a 0.05 prior, is a zero-run static derivation, and is stated in field
+  operations against a group-operation baseline (`kappa = 1`). Nothing here asserts that
+  prime-field index calculus is fast. The proves-too-much result in J2(f) turns on the
+  **difference** between two baseline conventions applied to the same cells, which is 29
+  bits regardless of what those cells are worth; the D3 firing on the time axis (J6(b′))
+  is the part that does depend on HEUR-001, and I have said so where it appears.
 - My J2 corrections are scoped to the comparison. **I did not re-derive Semaev's memory
   accounting** (J1) and I take his numbers as the record states them. If J1 finds the
   memory model wrong, every crossover in this report moves with it.
@@ -710,7 +880,16 @@ the run did not meet, and it decides the only question that matters for CLAIM A'
 headline: whether n = 409 straddles zero or sits below it. On my recomputation it sits
 below it.
 
-Three corrections should travel with that record, each cheap and each independent of the
+The cheapest single check that decides it is already run and costs nothing to repeat:
+re-charge the 54 committed PFDR prime-field cells under the candidate baseline and require
+that the KN-OPEN-001 ordering come out right. The record's present convention fails that
+check at all three sizes; a coherent one passes at all three. Make it a standing admission
+test for any memory-charged comparison this program publishes, because it is the one test
+here that has a known answer.
+
+Four corrections should travel with that record, each cheap and each independent of the
 recomputation: the inverted cofactor direction (J2(d), also present in the review plan),
-the "4–15%" range that its own ladder puts at 5–11% (J5(b)), and the false premise under
-the substituted control (J6(b)).
+the "4–15%" range that its own ladder puts at 5–11% (J5(b)), the false premise under the
+substituted control (J6(b)), and a rewritten D3 that names its conditionality filter, its
+`kappa` tag, and a localisation step — otherwise the next faithful instantiation voids a
+claim for a heuristic's sake (J6(b′)).
