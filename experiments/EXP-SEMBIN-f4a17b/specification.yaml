@@ -1,0 +1,277 @@
+experiment:
+  id: EXP-SEMBIN-f4a17b
+  hypothesis_id: H-SEMBIN-83999d
+  version: 1
+  title: >-
+    Memory-charged crossover: cost the chained-S_3 index calculus in time AND memory
+    against van Oorschot-Wiener parallel rho, on both algorithms' time-memory curves
+  status: approved
+  objective: >-
+    Supply the memory column Semaev's paper never states, and report which FIPS
+    parameters change verdict under which cost metric. Table 3, eqs. (15)-(17) and the
+    Section 4.5.2 four-curve conclusion are time against time, while stage 2 must hold
+    Theta(2^{ceil(n/m)}) relations -- 2^31 at n = 310, 2^38 at n = 409, 2^48 at n = 571
+    -- and each decomposition works in a degree-<=4 Macaulay space of 2^41.2 / 2^43.4 /
+    2^45.9 monomials whose dense square is 2^91.8 bits at n = 571, independently
+    recovering the 2^91 figure from the KN-LIT-e77232 thread against Semaev's sparse
+    2^70.
+    The deliverable is a COST record: two time-memory curves, one per algorithm,
+    compared under an enumerated set of metrics, with the affected and safe scopes
+    stated per metric and every optimistic assumption flagged on BOTH sides. It is not a
+    single corrected crossover, because a crossover quoted without its metric would
+    substitute one undisclosed convention for another -- which is the exact defect being
+    reported in the paper.
+    This is derivation from published formulas. No curve is instantiated, no relation is
+    computed, no Groebner basis is run.
+  inputs:
+    time_model: >-
+      Semaev's own, unchanged: stage 1 = m! * 2^{n/m} * n^{4 omega}, stage 2 = 2^{2n/m},
+      verified in the freezing session to reproduce all 36 Table 3 cells within 0.7%
+      (inputs/SEMAEV-2015-310/tables.yaml derived_checks)
+    memory_model_derived_here:
+      relation_store: 'Theta(2^k) words, k = ceil(n/m)'
+      f4_working_set: 'sum_{d<=4} C(N,d) monomials, N = (m-2)n + km'
+      storage_readings: [dense_row_echelon, semaev_sparse]
+    comparator: >-
+      van Oorschot-Wiener parallel collision search with distinguished points, costed on
+      its own time-memory curve: time about 2^{n/2}/P with a tunable distinguished-point
+      store W. NOT textbook rho -- comparing against a non-parallelizable
+      constant-memory baseline would overstate the asymmetry in this hypothesis's own
+      favour.
+    frozen_source: inputs/SEMAEV-2015-310/
+    n_values: [233, 283, 310, 409, 571]
+    n_dense_sweep: 'every integer n in [250, 650]'
+    m_range: 'every integer m in [2, 30]; the optimal m is COMPUTED, never asserted'
+    omega_variants: [2.376, 2.807, 3.0]
+    omega_prime_variants: [2.0, 3.0]
+    degree_bound_variants: [4, 5, 6]
+    k_readings: [unceiled_n_over_m_as_in_table3, ceil_n_over_m]
+    cost_metrics:
+      - time_only_zero_memory_weight
+      - time_memory_product
+      - area_time_AT
+      - equal_rate_max_of_time_and_memory
+    vow_parameters:
+      processors: [1, 1048576, 1099511627776]
+      distinguished_point_store_log2: [30, 40, 48, 60]
+  controls:
+    - kind: baseline
+      design: >-
+        Set the memory weight to zero and confirm the published answer is recovered
+        exactly: all 36 Table 3 cells within 0.7%, argmin over m returning 10, 11, 12 at
+        n = 310, 409, 571 (matching Table 3 where the paper states it), and the crossover
+        at n = 302 under the paper's un-ceiled k. If zero memory weight does not
+        reproduce the paper, the machinery is not costing the paper's algorithm.
+    - kind: nearby_object
+      design: >-
+        Apply the identical costing machinery to index calculus versus rho for
+        PRIME-field ECDLP, where this program's KN-OPEN-001 records the established
+        position that index calculus does not win at cryptographic sizes. If the
+        machinery reports index calculus winning there, it is mischarging memory or
+        parallelism and every SEMBIN row is void. This is the control that catches a
+        cost model tuned to produce the answer wanted.
+    - kind: matched_null
+      design: >-
+        A comparator with the SAME time curve as van Oorschot-Wiener but zero memory,
+        run through the same metrics. The difference between the two comparators
+        isolates how much of any reported crossover shift comes from charging the
+        baseline's own store rather than from charging Semaev's.
+    - kind: known_false
+      design: >-
+        A metric that charges memory at a rate high enough that even the baseline's
+        2^30-word distinguished-point store dominates its 2^{n/2} time at n = 233. Under
+        it the baseline must lose to a zero-memory reference, confirming the metric
+        machinery is sensitive to the weight. If it is not, the metric sweep is inert.
+    - kind: invalid_input
+      design: >-
+        m = 1, m > n, and a negative memory weight. All must be rejected.
+    - kind: arithmetic_independence
+      design: >-
+        Recompute the relation-store exponents (31, 38, 48), the Macaulay widths
+        (2^41.2, 2^43.4, 2^45.9), the dense square (2^91.8 bits), n^12 at n = 571
+        (2^109.9) and stage 2 at m = 12 (2^95.2) in a second, independently written
+        routine that does not import the first. These are the load-bearing quantities
+        and they get a blind re-derivation rather than a re-run.
+  independent_variables:
+    - cost metric
+    - memory weight
+    - n
+    - m (swept; optimum computed)
+    - omega and omega'
+    - degree bound (4, 5, 6)
+    - k reading (un-ceiled as in Table 3; ceiled)
+    - storage reading (dense; Semaev sparse)
+    - van Oorschot-Wiener processor count and distinguished-point store
+  metrics:
+    primary:
+      - crossover_n_per_metric
+      - fips_verdict_per_metric_per_n
+      - relation_store_log2
+      - macaulay_width_log2
+      - dense_square_bits_log2
+      - time_memory_curve_per_algorithm
+    secondary:
+      - table3_reproduction_ratio_per_cell
+      - argmin_m_per_n
+      - ceiling_discrepancy_bits
+      - cofactor_vs_stage2_gap_bits
+      - optimistic_assumptions_list
+      - affected_scope
+      - safe_scope
+  heuristic_under_test: HEUR-007
+  preregistered_prediction:
+    quantity: >-
+      The crossover n against van Oorschot-Wiener parallel rho, as a function of the
+      cost metric's memory weight, and the FIPS verdict read off it.
+    formula: >-
+      Zero memory weight reproduces Semaev exactly (crossover n = 302 under the
+      un-ceiled k, consistent with his stated n > 310). Under any metric charging memory
+      at a rate at least equal to time, crossover n0 > 409, so the n = 409 curves leave
+      the affected scope; n = 571 stays inside it under the Semaev-sparse reading and
+      leaves it under the dense reading. Exact values to be matched: relation store
+      2^31 / 2^38 / 2^48; Macaulay widths 2^41.2 / 2^43.4 / 2^45.9 at N = 2790, 4099,
+      6286; dense square 2^91.8 bits; n^12 = 2^109.9 at n = 571 against stage 2
+      2^95.2, a gap of 2^14.7.
+    source: >-
+      Semaev eqs. (15)-(17) and Table 3, inputs/SEMAEV-2015-310/paper_fulltext.md; the
+      memory re-derivation in inputs/SEMAEV-2015-310/tables.yaml
+      derived_checks.stage2_memory; van Oorschot-Wiener parallel collision search for
+      the comparator's curve (recalled citation -- the formulas used are recorded in the
+      artifact and flagged as unverified against the source).
+  scale_relevance:
+    tier: crypto
+    justification: >-
+      The parameters are cryptographic (n = 233 to 571) because that is where the
+      paper's own conclusion lives, but the EVIDENCE is derivational, not experimental:
+      nothing is executed at those parameters and nothing could be. The tier label
+      describes the parameters of the cost table, and every row is a heuristic estimate
+      under a stated metric. Under docs/claims-and-verification.md this record may
+      support no claim above its bound_kind of heuristic_estimate, and it carries no
+      certificate because it computes no solve.
+    correspondence: null
+  tail_checks:
+    - >-
+      Report the crossover as a full curve over n in [250, 650] per metric, not only the
+      transition point. A transition read off a flat region is not robust, and the
+      curve shows whether it is.
+    - >-
+      Report the ceiling discrepancy per n: the divergence in bits between Table 3's
+      un-ceiled stage 1 and the same formula at k = ceil(n/m). It is nonzero wherever m
+      does not divide n, and it is a cost the published table does not charge while its
+      own relation store does.
+    - >-
+      Report the degree-bound sensitivity: if the degree is 5 or 6 rather than 4, the
+      Macaulay space widens and the memory figures are UNDERESTIMATES. Give the widened
+      figures so the direction of the error under H-SEMBIN-2d7708's possible outcomes is
+      visible rather than inferred.
+    - >-
+      Report the difference between the van Oorschot-Wiener comparator and the
+      zero-memory matched null explicitly, so the share of any shift attributable to
+      charging the baseline is separable.
+  replication:
+    seeds: []
+    independent_instances: 1
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: 900
+    total_cpu_hours: null
+    maximum_memory_gb: 2
+    maximum_runs: 20
+    maximum_workers: 1
+  stopping_rules:
+    - >-
+      Stop and report a procedure defect if zero memory weight fails to recover the
+      published crossover and Table 3 to 0.7%.
+    - >-
+      Stop the whole costing if the prime-field control reports index calculus beating
+      rho at cryptographic sizes. No row may be quoted from a machinery that fails that
+      control.
+    - >-
+      Stop if the independent arithmetic re-derivation disagrees with the first routine
+      on any load-bearing quantity, and localize the disagreement to one of the two named
+      implementations before proceeding.
+    - >-
+      Do not report a single crossover number. A crossover without its metric is a
+      failed deliverable regardless of its value.
+  invalidation_rules:
+    - >-
+      The record is invalid if the comparator is textbook rho rather than van
+      Oorschot-Wiener parallel rho with a charged distinguished-point store. That
+      substitution biases the result in this hypothesis's own favour, and a number
+      computed that way must be withdrawn rather than caveated.
+    - >-
+      The record is invalid without a complete optimistic_assumptions list on BOTH
+      sides. Per templates/research-records.md a cost table lacking it is invalid; the
+      requirement is symmetric here because the interesting failure mode is flattering
+      the attack, and the symmetric one is flattering the baseline.
+    - >-
+      Any verdict recorded without its metric is invalid.
+    - >-
+      Any figure presented as a measurement rather than as a heuristic estimate from
+      published formulas is invalid.
+    - >-
+      A dense-reading figure quoted without the Semaev-sparse reading beside it is
+      invalid: the two bracket a dispute this program cannot settle from the frozen text,
+      and quoting one endpoint as the answer misrepresents it.
+  success_criterion: >-
+    A COST record giving time and memory for both algorithms at n = 233, 283, 310, 409,
+    571 on their own time-memory curves, under all four enumerated metrics, with the
+    dense and Semaev-sparse readings bracketed, every optimistic assumption flagged on
+    both sides, affected and safe scopes stated per metric, and the FIPS verdict map
+    reported per (metric, n) cell. Zero memory weight must reproduce the published
+    crossover, the prime-field control must not report index calculus winning, and the
+    independent arithmetic re-derivation must agree. A finding that no metric moves the
+    n = 409 verdict satisfies the criterion as an answer.
+  falsification_criterion: >-
+    If the crossover stays at n0 <= 409 under every enumerated metric, the memory
+    asymmetry is real but concretely irrelevant at FIPS parameters, refuting the
+    hypothesis's stated consequence -- a result to be recorded plainly. HEUR-007 fails
+    if a stage-2 algorithm at the paper's time with store o(2^k) is cited to a source an
+    agent here has read. HEUR-008 fails if a working set below sum_{d<=4} C(N,d) at
+    degree 4 is exhibited. Either control failing voids the machinery. If the crossover
+    depends more strongly on the vOW store parameter than on the metric choice, the
+    deliverable is a two-parameter surface and the hypothesis's framing is wrong even
+    where its direction is right.
+  required_artifacts:
+    - the COST-* record itself, with per-parameter-set time and memory for both algorithms
+    - the two time-memory curves, tabulated
+    - crossover n per metric, over the dense n sweep, as a curve
+    - the FIPS verdict map keyed by (metric, n, storage reading)
+    - complete optimistic_assumptions and overestimating_factors lists for BOTH algorithms
+    - affected_scope and safe_scope per metric, each with its reason
+    - the Table 3 reproduction table with per-cell ratios
+    - the ceiling-discrepancy table per n
+    - the degree-bound sensitivity table at bounds 4, 5, 6
+    - both independent arithmetic implementations and their agreement check
+    - all six control outcomes
+    - the exact command, git commit and dirty-tree state
+    - the van Oorschot-Wiener formulas used, flagged as a recalled citation not opened here
+    - stdout and stderr
+  assigned_to: executor
+  approved_by: DEC-20260913-ebd639
+  approval_basis: >-
+    Standing user authorization of 2026-09-06. Approval asserts protocol completeness,
+    not that H-SEMBIN-83999d is true.
+  dependencies: []
+  independence_note: >-
+    Pure derivation; needs no Groebner engine, no curve and no machine headroom beyond
+    arbitrary-precision arithmetic. It may run first and concurrently with everything
+    else. Its results are conditional on Assumption 1 and eq. (11), and EXP-SEMBIN-7e1371
+    and EXP-SEMBIN-354a75 respectively can invalidate its numbers later -- in the
+    direction of making the memory figures underestimates.
+  interpretation_limits:
+    - >-
+      A memory figure is not a refutation. This produces a cost table under stated
+      metrics; the time exponent 2^{1.6986 sqrt(n ln n)} is untouched by everything here.
+    - >-
+      Every verdict is scoped to its metric. The metric choice is a modelling decision
+      this program does not claim to settle.
+    - >-
+      Galbraith's 2^91 and Semaev's 2^70 are blog-comment claims with no published
+      artifact. The 2^91.8 used here is re-derived from the frozen text; the gap between
+      the readings is reported as a bracket.
+    - >-
+      NO CLAIM ABOUT THE SECURITY OF ANY DEPLOYED CURVE, IN EITHER DIRECTION. A metric
+      under which n = 409 leaves the affected scope is not a statement that those curves
+      are safe, and one under which it does not is not a statement that they are broken.
+      Both are statements about two heuristic cost models.
