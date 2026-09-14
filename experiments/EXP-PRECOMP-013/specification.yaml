@@ -1,0 +1,52 @@
+experiment:
+  id: EXP-PRECOMP-013
+  status: proposed
+  title: Scaling law for warm/cold solver speedup
+  objective: >-
+    Determine whether the best validated reusable-solver mechanism provides only
+    a constant-factor optimization or moves a growing fraction of point-decomposition
+    work offline as prime-field size increases.
+  fixtures:
+    field_bits: [11, 13, 16, 20, 24, 28, 32]
+    curve_seeds: [1, 2, 3, 4, 5]
+    holdout_targets: 200
+  mechanism_selection: >-
+    Before execution, freeze one mechanism using only completed calibration data
+    from PRECOMP-002/004/005/006/007. Do not choose a different mechanism per
+    field size after seeing holdout results.
+  metrics:
+    primary: warm_speedup_by_field_bits
+    required:
+      - cold_seconds
+      - precompute_seconds
+      - warm_seconds
+      - cache_bytes
+      - fallback_rate
+      - structural_reuse_fraction
+      - amortized_cost_at_N_10_100_1000
+  models:
+    constant: log2(S(n)) = beta
+    linear_exponent: log2(S(n)) = alpha*n + beta
+  analysis_requirements:
+    - fit both models with uncertainty across curve seeds
+    - report alpha confidence interval
+    - report residuals and leave-one-size-out sensitivity
+    - repeat fit on fully charged amortized cost, not warm time only
+    - no extrapolated 131-bit claim unless the measured model fit is explicitly labeled heuristic
+  success_criterion: >-
+    alpha > 0 with a confidence interval excluding zero, the positive slope
+    survives leave-one-size-out checks, and charged amortized cost also improves
+    with n for N<=1000.
+  strong_signal: >-
+    alpha >=0.05 across the declared ladder with no correctness failures and no
+    explosive cache-size growth that dominates the saved online work.
+  falsification_hook: >-
+    Constant-speedup model is preferred or alpha is statistically compatible
+    with zero/negative after total-cost accounting.
+  extrapolation_report:
+    target_bits: 131
+    rule: >-
+      Report S(131)=2^(alpha*131+beta) only as a model extrapolation with a wide
+      uncertainty interval and alongside T_pre, cache-size scaling, and rho's
+      ~2^65.5 generic-work reference. Never label the extrapolation a break.
+  depends_on: [EXP-PRECOMP-002, EXP-PRECOMP-004, EXP-PRECOMP-005, EXP-PRECOMP-006, EXP-PRECOMP-007]
