@@ -47,7 +47,7 @@ variable "cache_node_type" {
 
 variable "cache_engine_version" {
   type        = string
-  default     = "7.2"
+  default     = "7.1"
   description = "Redis OSS engine version."
 }
 
