@@ -3,7 +3,7 @@ experiment:
   hypothesis_id: H-ICPERF-5f038b
   goal_id: GOAL-ICPERF-e6b6a4
   proposal_id: IDEA-20260915-5c407a
-  version: 1
+  version: 2
   title: >-
     Descent as a DAG: Stage A freezes the analytic pigeonhole crossover j*, Stage B
     measures the tree-to-DAG sharing ratio rho_j of a declared degree-decreasing
@@ -18,6 +18,28 @@ experiment:
         Authored as the design deliverable for open ECC idea IDEA-20260915-5c407a
         (AGENTS.md "ECC comes first", instruction 3). Designing is not approving;
         approved_by stays null. See approval_preconditions.
+    - status: draft
+      at: '2026-09-15'
+      by: coordinator
+      version: 2
+      correction: CORR-20260915-3965c1
+      note: >-
+        v1 -> v2. ADDITIVE AMENDMENT, never a rewrite of history: the v1 entry
+        above stands unchanged and CORR-20260915-3965c1 preserves both values.
+        Commit 3bf175a2c ("Fix ICPERF descent contract parameters", Cursor
+        Agent) revised descent_rule.step, grid.target_degree and parameters.d_a
+        in place after v1 had already merged to main in PR #1197, and added the
+        frozen Stage A branching_model, but left version at 1. The mathematics
+        of the fix is right and is retained: w = (a*t) mod f only reduces when
+        deg(a*t) >= n, so the v1 bound d_a = 4*b could not force reduction for
+        mid-tree targets with d_t << n -- mod f became a no-op, w = a*t kept
+        the irreducible t as a factor, and the acceptance test "largest factor
+        degree strictly less than d_t" could never pass. Drawing the multiplier
+        degree from [n - d_t, d_a] with d_a = n - b - 1 and targets of degree
+        n - 1 makes the interval non-empty for every grid cell with
+        d_t >= b + 1. This bump exists so a later receipt cannot bind "v1"
+        ambiguously to two different protocols; the contract remains
+        status: draft, approved_by: null, and nothing here approves it.
   objective: >-
     Decide, for a declared and frozen descent rule over F_2[x] on a frozen grid,
     which of three regimes holds for the tree-to-DAG sharing ratio rho_j:
@@ -43,9 +65,10 @@ experiment:
     field: F_{2^n} = F_2[x]/(f), n prime, f the declared irreducible modulus recorded per cell
     factor_base: FB(b) = every monic irreducible polynomial of degree <= b
     step: >-
-      Given a monic target t with deg t = d_t > b, draw a uniformly at random
-      among b-smooth monic polynomials of degree <= d_a (sampled as a random
-      multiset of FB(b) elements with total degree <= d_a); compute
+      Given a monic irreducible target t with deg t = d_t > b, draw a uniformly
+      at random among b-smooth monic polynomials whose degree lies in
+      [n - d_t, d_a] (sampled as a random multiset of FB(b) elements with total
+      degree in that interval); compute
       w = (a * t) mod f; resample if w = 0; factor w over F_2[x]. ACCEPT iff every
       irreducible factor of w has degree <= max(b, ceil(alpha * d_t)) AND the
       largest factor degree is strictly less than d_t. On acceptance the emitted
@@ -79,8 +102,9 @@ experiment:
       b: [3, 4, 5]
       alpha: [0.6, 0.7, 0.8]
       targets_per_cell: 20
+      target_degree: n - 1
     parameters:
-      d_a: 4*b
+      d_a: n - b - 1
       K_try: 100000
       memo_key: monic canonical byte form of the polynomial (frozen before any run)
       global_seed: 20260915
@@ -109,6 +133,21 @@ experiment:
         implies. (3) j*(n, b, alpha) = the least level j at which the predicted T_j
         reaches M_j -- the pigeonhole crossover. (4) The predicted per-node
         acceptance probability, and the feasibility verdict per cell.
+      branching_model: >-
+        This model is frozen before Stage B and is not fitted to measurements.
+        Let D = n - 1, D_j = ceil(alpha^j * D), W_0 = {D}, and for j >= 1 let
+        W_j = {d : b < d <= D_j}. For a parent of degree d, set
+        L(d) = min(d - 1, max(b, ceil(alpha * d))) and model the accepted w as uniformly
+        distributed over nonconstant monic polynomials of degrees 1 through
+        n - 1 whose irreducible factors all have degree <= L(d). With
+        S_L(z) = product_{r=1..L}(1 - z^r)^(-M_r) and
+        Z_L = sum_{m=1..n-1} [z^m] S_L(z), the expected number of distinct
+        degree-r children is C(d,r) = M_r * (sum_{m=r..n-1} [z^(m-r)] S_L(z)) / Z_L
+        for b < r <= L(d), and zero otherwise. Starting with N_0(D) = 1,
+        compute N_{j+1}(r) = sum_d N_j(d) C(d,r), T_j = sum_{d in W_j} N_j(d),
+        M_j = sum_{d in W_j} M_d, and B_j = T_{j+1}/T_j. Stop when D_j <= b;
+        j* is the least j >= 1 with T_j >= M_j. The same recurrence is used
+        for every cell, with no Stage B quantity entering Stage A.
       output: >-
         experiments/EXP-ICPERF-025a52/runs/<RUN>/stage_a/crossover_table.json,
         with its sha256 recorded in the Stage B manifest.
