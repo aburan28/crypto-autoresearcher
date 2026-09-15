@@ -518,7 +518,57 @@ handoff:
   completion_gate: []
   review_plan: null               # required when this handoff opens a
                                   # claim-changing review round
+  dispatch_preconditions: []      # OPTIONAL, additive. Conditions the
+                                  # DISPATCHER must satisfy before launch.
+                                  # See "Dispatch preconditions bind the
+                                  # dispatcher" below.
 ```
+
+### Dispatch preconditions bind the DISPATCHER, not the agent
+
+A handoff card is addressed to two readers, and they are not the same reader.
+`objective`, `constraints`, `deliverables` and `completion_gate` bind the AGENT
+being launched. `dispatch_preconditions` bind the SESSION DOING THE LAUNCHING,
+and they must be checked and satisfied **before** the launch, not discovered
+afterwards.
+
+**Read the whole card before dispatching.** Reading only the half addressed to
+the callee is the failure this rule exists to prevent: on 2026-09-15 a
+Coordinator session read `TASK-20260915-532164`'s objective, constraints and
+completion gate, skipped its `dispatch_preconditions`, and launched the screen
+with `archived_by` still null and no lane claimed — against a precondition that
+said in terms "Dispatch with archived_by still null is forbidden". The
+violation was caught by the agent that had been dispatched, not by the
+dispatcher (`CORR-20260915-6708e4`).
+
+Three preconditions are standing requirements whether or not a card lists them:
+
+1. **`archived_by` is bound before dispatch.** Exactly one archival task must
+   own a report before any agent writes it. Dispatching first leaves the
+   deliverable as an unowned working-tree artifact for the length of the task —
+   it is not durable evidence, and if the session dies it is not evidence at
+   all. Binding afterwards is a remedy, not compliance, and is disclosed as a
+   correction.
+2. **Declared inputs are committed and pushed.** An agent asked to read
+   uncommitted state reads something no reviewer can reproduce.
+3. **A lane is claimed** (`tools/goal_lanes.py`) when the goal is already being
+   worked, respecting `max_concurrent` and any machine-quiet requirement the
+   goal's `campaign_budget` declares.
+
+A card may add its own; it may never waive these three.
+
+**A precondition is not waived by the work turning out fine.** The screen above
+stayed in scope, ran nothing, and produced a valid verdict — and the dispatch
+was still a violation, recorded as one. Judging a precondition by its outcome
+is how it stops being a precondition. Cost, stated plainly: this adds a read
+and up to two small acts before every dispatch, which is the price of a
+deliverable that is owned from the moment it exists.
+
+**Never edit a card to make a past dispatch look compliant.** The handoff is
+immutable. A card that still reads `written_not_dispatched` after its agent
+ran is historically accurate for the moment the violation occurred; a
+correction record supplies what followed. Rewriting the card instead destroys
+the only evidence that the ordering was wrong.
 
 ## Review architecture
 
