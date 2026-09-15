@@ -56,7 +56,7 @@ INDEPENDENT_REVIEW_ROLES = {"reviewer", "validator", "red-team"}
 TERMINAL_STATES = {"completed", "failed", "invalid", "cancelled"}
 STATES = {"queued", "running", "blocked"} | TERMINAL_STATES
 ARCHIVE_KINDS = {"snapshot", "ledger"}
-ARCHIVE_BINDING_MODES = {"commit", "content_first"}
+ARCHIVE_BINDING_MODES = {"commit", "content_first", "content_at_commit"}
 FAILURE_PROVENANCE_ARCHIVE_KIND = "terminal_failure_provenance_archive"
 TERMINAL_SNAPSHOT_ARCHIVE_KIND = "terminal_failure_snapshot_archive"
 SHA_PATTERN = re.compile(r"^[0-9a-fA-F]{7,64}$")
@@ -539,10 +539,22 @@ def validate_archive_shape(task: dict[str, Any], location: str) -> None:
     # opt-in: it is for source packages committed before their archive task
     # ran, where one exact changed-path commit cannot express intact custody.
     # Never infer this from a failed commit-scope check.
+    #
+    # `content_at_commit` is the third mode and differs from `content_first` in
+    # WHICH TREE the declared bytes are read from: its own commit, not HEAD.
+    # A `content_first` archive silently forbids its records from ever changing
+    # again -- and an archived experiment contract legitimately does change,
+    # every time its status advances. EXP-ICPERF-66fd51's move to `analyzed`
+    # broke TASK-20260913-f8bdec's pre-execution snapshot for exactly that
+    # reason, on a record that snapshot is supposed to be pinning the PAST
+    # state of. Use this mode when the archived package contains a record with
+    # a life after the archive, and `content_first` when the declared bytes are
+    # genuinely terminal.
     binding_mode = archive.get("binding_mode", "commit")
     if binding_mode not in ARCHIVE_BINDING_MODES:
         raise DispatchError(
-            f"{location}.archive.binding_mode must be commit or content_first"
+            f"{location}.archive.binding_mode must be commit, content_first, "
+            "or content_at_commit"
         )
     require_text_list(archive, "source_task_ids", f"{location}.archive")
     if len(archive["source_task_ids"]) != len(set(archive["source_task_ids"])):
@@ -1283,15 +1295,20 @@ def markdown(plan: dict[str, Any]) -> str:
             )
     degraded = plan.get("content_only_archives") or []
     if degraded:
-        lines.extend(["", "## Archives verified on CONTENT only", "",
-                      "These archives' commit bindings could not be reached, so they were",
-                      "verified against their declared `path_sha256` instead. The content",
-                      "binding held in every case below -- a mismatch would have failed.",
-                      "This is the expected state after a squash merge; see",
-                      "`ledger/corrections/CORR-20260802-a1f151.yaml`.", ""])
+        lines.extend(["", "## Archives verified on CONTENT", "",
+                      "These archives were verified against their declared `path_sha256`",
+                      "rather than by a changed-path comparison. The content binding held",
+                      "in every case below -- a mismatch would have failed. Entries with no",
+                      "`verified_against` were checked at HEAD, which is the expected state",
+                      "after a squash merge (see `ledger/corrections/CORR-20260802-a1f151.yaml`)",
+                      "and is also what `content_first` asks for. An entry naming a commit was",
+                      "checked in THAT tree, under `content_at_commit`, because its package",
+                      "contains a record allowed to change after the archive.", ""])
         for item in degraded:
+            against = item.get("verified_against")
+            where = f" at `{against[:12]}`" if isinstance(against, str) else ""
             lines.append(f"- `{item['task_id']}`: {item['reason']} "
-                         f"({item['paths_verified']} path hashes verified)")
+                         f"({item['paths_verified']} path hashes verified{where})")
 
     lines.extend(["", "## Dispatch Gates", ""])
     for gate, passed in plan["gates"].items():
@@ -1417,6 +1434,7 @@ class GitRepositoryVerifier:
         *,
         expected_paths: Sequence[str] | None = None,
         allow_generated_skip: bool = True,
+        tree_ref: str = "HEAD",
     ) -> None:
         """Verify an archive against CONTENT when its commit binding is gone.
 
@@ -1434,6 +1452,15 @@ class GitRepositoryVerifier:
         and records the degradation instead of raising. A CONTENT MISMATCH IS
         STILL FATAL -- what is relaxed is the binding to a commit, never the
         binding to bytes.
+
+        `tree_ref` chooses WHICH tree those bytes are read from, and the choice
+        is the whole difference between the `content_first` and
+        `content_at_commit` binding modes. Reading HEAD asks "does the record
+        still say what the archive said it said", which is the right question
+        for a squash-merge recovery and the wrong one for a record that is
+        allowed to change afterwards. Reading the archive's own commit asks
+        "did the archive commit these bytes", which no later legitimate
+        transition can falsify.
         """
 
         hashes = archive.get("path_sha256")
@@ -1444,18 +1471,18 @@ class GitRepositoryVerifier:
             )
         if expected_paths is not None and set(hashes) != set(expected_paths):
             raise DispatchError(
-                f"archive task {task_id} declared content_first binding must provide "
+                f"archive task {task_id} declared content binding must provide "
                 "path_sha256 for every archive and source artifact"
             )
         skipped: list[str] = []
         for path in sorted(hashes):
-            # Read the COMMITTED content at HEAD, not the working tree. A dirty
-            # tree is not evidence about an archive, and generated files in
-            # particular are rebuilt locally on demand -- comparing against them
-            # would fail an archive for a file the repository deliberately no
-            # longer tracks.
+            # Read COMMITTED content, never the working tree. A dirty tree is
+            # not evidence about an archive, and generated files in particular
+            # are rebuilt locally on demand -- comparing against them would
+            # fail an archive for a file the repository deliberately no longer
+            # tracks.
             blob = subprocess.run(
-                ["git", "-C", str(self.repo_root), "show", f"HEAD:{path}"],
+                ["git", "-C", str(self.repo_root), "show", f"{tree_ref}:{path}"],
                 stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, check=False)
             if blob.returncode != 0:
                 if allow_generated_skip and _is_generated_path(path):
@@ -1466,7 +1493,7 @@ class GitRepositoryVerifier:
                     continue
                 raise DispatchError(
                     f"archive task {task_id} commit binding is unverifiable ({reason}) and "
-                    f"declared artifact {path} is absent from HEAD"
+                    f"declared artifact {path} is absent from {tree_ref}"
                 )
             observed = hashlib.sha256(blob.stdout).hexdigest()
             if observed != hashes[path]:
@@ -1474,13 +1501,16 @@ class GitRepositoryVerifier:
                     skipped.append(path)
                     continue
                 raise DispatchError(
-                    f"archive task {task_id} content hash mismatch for {path}: "
+                    f"archive task {task_id} content hash mismatch for {path} at {tree_ref}: "
                     f"expected {hashes[path]}, observed {observed}"
                 )
-        self.content_only_archives.append({
+        entry = {
             "task_id": task_id, "reason": reason,
             "paths_verified": len(hashes) - len(skipped),
-            "generated_paths_skipped": skipped})
+            "generated_paths_skipped": skipped}
+        if tree_ref != "HEAD":
+            entry["verified_against"] = tree_ref
+        self.content_only_archives.append(entry)
 
     def verify_archive(self, task: dict[str, Any], expected_paths: Sequence[str]) -> None:
         archive = task["archive"]
@@ -1492,9 +1522,9 @@ class GitRepositoryVerifier:
         try:
             commit_sha = self._resolve_commit(declared_commit, task_id, "archive.commit_sha")
         except DispatchError:
-            if binding_mode == "content_first":
+            if binding_mode in {"content_first", "content_at_commit"}:
                 raise DispatchError(
-                    f"archive task {task_id} declared content_first binding requires "
+                    f"archive task {task_id} declared {binding_mode} binding requires "
                     "archive.commit_sha to resolve to a commit"
                 )
             self._verify_content_only(
@@ -1511,9 +1541,9 @@ class GitRepositoryVerifier:
         except OSError as error:
             raise DispatchError(f"unable to execute git for archive verification: {error}") from error
         if ancestor.returncode == 1:
-            if binding_mode == "content_first":
+            if binding_mode in {"content_first", "content_at_commit"}:
                 raise DispatchError(
-                    f"archive task {task_id} declared content_first binding requires "
+                    f"archive task {task_id} declared {binding_mode} binding requires "
                     "archive.commit_sha to be an ancestor of HEAD"
                 )
             self._verify_content_only(
@@ -1543,17 +1573,24 @@ class GitRepositoryVerifier:
                     f"archive task {task_id} parent_sha does not match first parent {parents[0]}"
                 )
 
-        if binding_mode == "content_first":
-            # This mode deliberately binds every declared artifact byte at HEAD
-            # instead of insisting that one commit changed the entire source
-            # package. A real, reachable commit, its declared parent, and the
-            # archival message IDs remain mandatory.
+        if binding_mode in {"content_first", "content_at_commit"}:
+            # Both modes deliberately bind every declared artifact byte instead
+            # of insisting that one commit changed the entire source package. A
+            # real, reachable commit, its declared parent, and the archival
+            # message IDs remain mandatory for either. They differ only in the
+            # tree the bytes are read from: HEAD for `content_first`, so the
+            # archive keeps asserting the records still say this; the archive's
+            # own commit for `content_at_commit`, so a record that is ALLOWED to
+            # move later -- an experiment contract advancing to `analyzed`, a
+            # hypothesis to `weakened` -- does not retroactively break custody
+            # of a package that correctly captured its earlier state.
             self._verify_content_only(
                 task_id,
                 archive,
-                "declared content_first binding mode",
+                f"declared {binding_mode} binding mode",
                 expected_paths=expected_paths,
                 allow_generated_skip=False,
+                tree_ref=commit_sha if binding_mode == "content_at_commit" else "HEAD",
             )
             message = self._run(["log", "-1", "--format=%B", commit_sha]).decode(
                 "utf-8", "replace"
