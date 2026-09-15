@@ -28,7 +28,7 @@ The plan requires M1(1), M4(1) and M5(4) to be re-derived BEFORE `code/surface_c
 
 - `own_rederivation.py` (07:04) IS the attestable blind derivation: it predates every code read the scratch directory records.
 - `rederive_pre_code.py` (07:27) is NOT attestable as blind, whatever its note says; `sequencing_log.txt` is superseded by this paragraph.
-- The two derivations agree on every quantity they share: crossovers 303 / 435 / 375 / 520 / 460 identically, margins at 409 to ≤ 9e-3 bits (own_rederivation used one relation-store convention; rederive_pre_code evaluated three and reproduced the parent's cells only with the `3n·2^k`-bit convention), excess 29.0 at all five labels, cheapest sparse memory 65.33 at m = 8 and dense 80.07 at m = 6, sparse working set at (571, 12) = 70.2714 to 1e-6 bits. So the blind result stands as recorded in `own_rederivation.json`, and the second derivation adds only the relation-store-convention disclosure.
+- The two derivations agree on every quantity they share: crossovers 303 / 435 / 375 / 520 / 460 identically, margins at 409 to ≤ 9e-3 bits (the attestable `own_rederivation` uses the stated `(m k + 2n)·2^k` relation-store formula; `rederive_pre_code` also tried the `3n·2^k` approximation, which happened to reproduce the parent's cells), excess 29.0 at all five labels, cheapest sparse memory 65.33 at m = 8 and dense 80.07 at m = 6, sparse working set at (571, 12) = 70.2714 to 1e-6 bits. So the blind result stands as recorded in `own_rederivation.json`, and the second derivation adds only the relation-store-convention clarification.
 
 Script runs: 6 scripted computations against the budget of 10 — `own_rederivation.py`, `check_surface.py`, `rederive_pre_code.py`, `validate_surface.py`, `validate_c10.py`, and one re-execution of the producer's `run_all.py`. Inline inspection one-liners (JSON field dumps, hash comparisons, one re-keying of the C10 table) were used freely and are not counted. Wall clock: the scratch directory was created 07:02 UTC; this report is written at ~08:00 UTC (≈ 58 min of the 90 allowed).
 
@@ -40,7 +40,7 @@ Script runs: 6 scripted computations against the budget of 10 — `own_rederivat
 
 Semaev side (Table 3 as stated in `inputs/SEMAEV-2015-310/tables.yaml`): stage 1 = m!·2^{n/m}·n^{4ω}, ω = 3, stage 2 = 2^{2n/m}, un-ceiled n/m in the exponents (the parent's truncation convention), argmin over m ∈ [2, 30]. Memory: relation store 2^{⌈n/m⌉} rows × (m⌈n/m⌉ + 2n) bits, log2-summed with the working set; dense = width² of the degree-≤4 Macaulay matrix in N = (m−2)n + km Boolean variables (width = Σ_{d≤4} C(N, d)); sparse = (nm)^4/24 columns × n^3/m nonzeros. Baseline (HEUR-VOW-CURVE): W = 0.886·2^{n/2}, T = W(1/M + 1/w), Mem = 3n·max(w, M) bits.
 
-The per-row bit width of the relation store is NOT stated in any record I had read; `rederive_pre_code.py` evaluated three conventions (none / 2^k bits / 3n·2^k bits) and only `3n·2^k` reproduces the parent's five sparse cells to ≤ 4e-5 bits (the others miss n = 571 sparse by 4.5e-4). That convention is what `own_rederivation.py` had already used. It is disclosed rather than chosen silently; it does not move any crossover below.
+The exact per-row bit width of the relation store is stated in `implementation.md` and used by `own_rederivation.py`: `m k + 2n` bits across `2^k` rows. `rederive_pre_code.py` evaluated three conventions (none / `2^k` bits / the approximate `3n·2^k` total), and the approximation happened to reproduce the parent's five sparse cells to ≤ 4e-5 bits (the others miss n = 571 sparse by 4.5e-4). That exploratory match does not replace the implementation's exact formula; `3n` equals `m k + 2n` only when `m` divides `n`.
 
 | quantity | expected (gate / plan) | mine (blind) | run |
 |---|---|---|---|
@@ -186,7 +186,7 @@ Caveat I must state: the model rows use the table's t for m (chain length as ari
 
 ### M4(1) Semaev's cheapest memory over m at n = 409 (blind)
 
-From the memory formulas with relation store 3n·2^k bits (k = ⌈n/m⌉) log2-summed with the working set (`own_rederivation.json` → `M4_1`; `rederive_pre_code.json` → `M4_cheapest_memory_over_m_at_409`; `validate_surface.json` → `M4_cheapest_memory_over_m_at_409_run_convention`):
+From the memory formulas with relation store `(m k + 2n)·2^k` bits (k = ⌈n/m⌉) log2-summed with the working set (`own_rederivation.json` → `M4_1`; `rederive_pre_code.json` → `M4_cheapest_memory_over_m_at_409`; `validate_surface.json` → `M4_cheapest_memory_over_m_at_409_run_convention`):
 
 | reading | cheapest m | cheapest memory (bits) | m within 1 bit | run |
 |---|---|---|---|---|
@@ -276,7 +276,7 @@ From KN-LIT-e77232's statement alone: columns (nm)^4/24 = (6852)^4/24 = 2,204,29
 |---|---|---|---|---|---|
 | columns | 2^46.38 | 46.3843 | 46.384275 | — | — |
 | nonzeros/row | 2^23.89 | 23.8871 | 23.887078 | — | — |
-| total | 2^70.3 | **70.271354** | 70.271354 | 70.271354 | the parent's 70.2718 is total ⊕ relation store (k = 48: 58.74), +0.0004 bits — reproduced under the 3n·2^k convention |
+| total | 2^70.3 | **70.271354** | 70.271354 | 70.271354 | the parent's 70.2718 is total ⊕ relation store (k = 48: 58.74), +0.0004 bits — reproduced under the `(m k + 2n)·2^k` convention |
 
 Disagreement with both implementations: **0 bits at 6 decimals**; with KN-LIT's printing: 0 at printed precision; with the parent's 70.2718: 4.5e-4 bits, fully accounted for by the relation store. At the labels with the run's argmin m: 55.2782 / 59.9741 / 61.9374 / 66.5250 / 70.2714 — the run's `samples_at_fips_n` rows at (163,7), (233,9), (283,9), (409,11), (571,12) to 1e-6.
 
