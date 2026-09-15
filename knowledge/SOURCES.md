@@ -14,8 +14,8 @@ a hash it cannot is an assertion by the session that recorded it.
 
 | Class | Count |
 |---|---|
-| Frozen source packages (`SRC-*`) | 14 |
-| — of those with the artifact committed | 13 |
+| Frozen source packages (`SRC-*`) | 16 |
+| — of those with the artifact committed | 15 |
 | Per-URL retrieval attempts | 19 |
 | — succeeded | 11 |
 | — failed or blocked | 8 |
@@ -25,13 +25,13 @@ a hash it cannot is an assertion by the session that recorded it.
 | — present but carrying no `.sha256` | 3 |
 | — sought and never retrieved | 1 |
 | Seed bibliography entries | 10 |
-| Literature entries (`KN-LIT-*`) | 7874 |
-| — with a resolvable external identifier | 2261 |
+| Literature entries (`KN-LIT-*`) | 7876 |
+| — with a resolvable external identifier | 2263 |
 | — with no identifier recorded | 5613 |
 
-Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1326, doi 150, eprint 749, url 36. Every identifier an entry carries is kept in `sources.json`.
+Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1327, doi 150, eprint 749, url 37. Every identifier an entry carries is kept in `sources.json`.
 
-`citation_verified` distribution: `False` 23, `True` 10, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `metadata` 1, `partial` 5, `read` 7499, `secondary_only` 1, `transcription_of_full_text_at_recorded_sha256` 2, `web` 326.
+`citation_verified` distribution: `False` 23, `True` 10, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `metadata` 1, `partial` 5, `read` 7501, `secondary_only` 1, `transcription_of_full_text_at_recorded_sha256` 2, `web` 326.
 
 ## 1. Frozen source packages
 
@@ -43,6 +43,8 @@ decides whether a later session can re-read what was read here.
 |  |  |  |  | `inputs/SAFECURVES-20260825` | yes | package_contents |  |  |
 | SRC-BENNETT-WEAKNESS-2023 | The Optimal Choice of Hypothesis Is the Weakest, Not the Shortest | Michael Timothy Bennett | 2023 | `inputs/BENNETT-WEAKNESS-2023` | yes | declared |  |  |
 | SRC-DCP-SIMON-2026 | A Polynomial-Time Quantum Algorithm for the Dihedral Coset Problem [Preliminary Draft] | Daniel R. Simon | 2026 | `inputs/DCP-SIMON-2026` | yes | package_contents |  |  |
+| SRC-ICPERF-TRIMOSKA-ECICB-2024 | EC Index Calculus Benchmarks (instance generator and benchmark set for the point-decomposition problem from a Weil descent of the fourth summation polynomial) | Monika Trimoska |  | `inputs/TRIMOSKA-ECICB-2024` | yes | package_contents |  |  |
+| SRC-ICPERF-TRIMOSKA-WDSAT-2024 | WDSat -- a SAT solver dedicated to instances derived from a Weil descent | Monika Trimoska (with Sorina Ionica and Gilles Dequen, per the README) |  | `inputs/TRIMOSKA-WDSAT-2024` | yes | package_contents |  |  |
 | SRC-KARABINA-PDP-2015 | Point Decomposition Problem in Binary Elliptic Curves | Koray Karabina | 2015 | `inputs/KARABINA-PDP-2015` | yes | declared |  |  |
 | SRC-NAGAO-2013-548 | Decomposition formula of the Jacobian group of plane curve | Koh-ichi Nagao | 2013 | `inputs/NAGAO-2013-548` | yes | declared | https://eprint.iacr.org/2013/548.pdf | 9406f2f7f01ae933 |
 | SRC-NAGAO-2013-549 | Equations System coming from Weil descent and subexponential attack for algebraic curve cryptosystem | Koh-ichi Nagao | 2013 | `inputs/NAGAO-2013-549` | yes | declared | https://eprint.iacr.org/2013/549.pdf | 5971667527aad7af |
@@ -149,7 +151,7 @@ records that some fetch failed, and says nothing about the file that is here.
 
 ## 5. Literature citations with a resolvable identifier
 
-2261 of 7874 `KN-LIT-*` entries carry an
+2263 of 7876 `KN-LIT-*` entries carry an
 eprint, arXiv, DOI, ISBN or URL identifier.
 
 | ID | Title | Year | Identifier | Verified |
@@ -194,6 +196,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-034 | Fast counting with tensor networks | 2019 | `arxiv:1805.00475` | web |
 | KN-LIT-035 | The diamond lemma for ring theory | 1978 | `doi:10.1016/0001-8708(78)90010-5` | web |
 | KN-LIT-036 | An introduction to commutative and noncommutative Grobner bases | 1994 | `doi:10.1016/0304-3975(94)90283-6` | web |
+| KN-LIT-036049 | EC Index Calculus Benchmarks: a reproducible PDP instance generator and benchmark set (S_4 Weil descent, binary Koblitz-form curve) | 2024 | `url:github.com/mtrimoska/ec-index-calculus-benchmarks` | read |
 | KN-LIT-037 | Small Solutions to Polynomial Equations, and Low Exponent RSA Vulnerabilities | 1997 | `doi:10.1007/s001459900030` | web |
 | KN-LIT-038 | A Sum-Product Estimate in Finite Fields, and Applications | 2004 | `arxiv:math/0301343` | web |
 | KN-LIT-039 | Chebotarev and his Density Theorem | 1996 | `doi:10.1007/bf03027290` | web |
@@ -1908,6 +1911,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-6c6f5e | Verified non-recursive calculation of Beneš networks applied to Classic McEliece | 2026 | `eprint:2026/107` | web |
 | KN-LIT-6da230 | Classic McEliece: conservative code-based cryptography: guide for security reviewers | 2022 | `url:classic.mceliece.org/mceliece-security-20221023.pdf` | read |
 | KN-LIT-6dcb5b | Verified fast formulas for control bits for permutation networks | 2020 | `url:cr.yp.to/papers.html#controlbits` | false |
+| KN-LIT-6e036d | WDSat (source release): a statically-allocated DPLL solver for Weil-descent PDP instances, with XORSET/XORGAUSS modules and static branching order | 2024 | `arxiv:2001.11229` | read |
 | KN-LIT-6e1eb5 | A side-channel attack against Classic McEliece when loading the Goppa polynomial | 2023 | `doi:10.1007/978-3-031-37679-5_5` | web |
 | KN-LIT-700 | PRIME TORSION IN THE BRAUER GROUP OF AN ELLIPTIC CURVE | 2019 | `arxiv:1909.05317` | read |
 | KN-LIT-701 | PRIMITIVE DIVISORS OF ELLIPTIC DIVISIBILITY SEQUENCES OVER FUNCTION FIELDS WITH CONSTANT j-INVARIANT | 2019 | `arxiv:1904.12393` | read |
@@ -8050,6 +8054,7 @@ corpus may hold a true duplicate. Resolving it is a `/curate-knowledge` job.
 | `arxiv:1012.4019` | KN-LIT-071, KN-LIT-282 |
 | `arxiv:1310.7789` | KN-LIT-078, KN-LIT-387 |
 | `arxiv:1711.04062` | KN-LIT-560, KN-LIT-7632 |
+| `arxiv:2001.11229` | KN-LIT-102cdb, KN-LIT-6e036d |
 | `arxiv:2304.14757` | KN-LIT-4c8135, KN-LIT-c41d8b |
 | `eprint:2010/331` | KN-LIT-13a01d, KN-LIT-3c9f21 |
 | `eprint:2015/310` | KN-LIT-009, KN-LIT-fa346d |
