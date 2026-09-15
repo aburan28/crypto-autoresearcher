@@ -30,6 +30,7 @@ variable "cache_client_security_group_id" {
 variable "cache_auth_token" {
   type        = string
   sensitive   = true
+  nullable    = false
   description = "Redis AUTH token (16-128 characters). Supply through TF_VAR_cache_auth_token or a tfvars file excluded from git."
 
   validation {
