@@ -23,14 +23,16 @@ hypothesis:
     EXP-ICPERF-025a52 section `descent_rule`: in F_{2^n} = F_2[x]/(f) with f a
     declared irreducible of prime degree n, factor base FB(b) = all monic
     irreducibles of degree <= b, a descent step on a monic target t of degree
-    d_t > b draws a b-smooth multiplier a, forms w = (a*t) mod f, and accepts
+    d_t > b draws a b-smooth multiplier a with degree in [n - d_t, d_a],
+    forms w = (a*t) mod f, and accepts
     when every irreducible factor of w has degree <= max(b, ceil(alpha*d_t))
     and strictly below d_t; the children of t are the distinct factors of w of
-    degree > b; the relation choice at a node is a deterministic function of
+    degree > b; each cell has 20 declared-seed monic irreducible targets of
+    degree D = n - 1; the relation choice at a node is a deterministic function of
     that node's canonical form and a global seed, so the tree unrolling is
     exactly the path-count expansion of the measured DAG. Over the frozen grid
     n in {61, 89, 127}, b in {3, 4, 5}, alpha in {0.6, 0.7, 0.8}, 20 declared-seed
-    targets per cell, and with T_j (level-j node occurrences in the tree
+    monic irreducible targets of degree n - 1 per cell, and with T_j (level-j node occurrences in the tree
     unrolling), U_j (distinct level-j nodes), rho_j = T_j/U_j, M_j (the exact
     count of monic irreducibles in the level-j degree window), and
     j* = the pre-registered pigeonhole crossover level of Stage A:
@@ -52,6 +54,21 @@ hypothesis:
     branching-factor distribution, same per-level pool sizes M_j, children drawn
     uniformly from the level pool, >= 20 seeds -- by at least two standard
     deviations of the null's own seed-to-seed spread.
+  branching_model: >-
+    Stage A freezes this model before Stage B and never fits it to measurements.
+    Let D = n - 1, D_j = ceil(alpha^j * D), W_0 = {D}, and for j >= 1 let
+    W_j = {d : b < d <= D_j}. For a parent of degree d, set
+    L(d) = min(d - 1, max(b, ceil(alpha * d))) and model the accepted w as uniformly
+    distributed over nonconstant monic polynomials of degrees 1 through n - 1
+    whose irreducible factors all have degree <= L(d). With
+    S_L(z) = product_{r=1..L}(1 - z^r)^(-M_r) and
+    Z_L = sum_{m=1..n-1} [z^m] S_L(z), the expected number of distinct
+    degree-r children is C(d,r) = M_r * (sum_{m=r..n-1} [z^(m-r)] S_L(z)) / Z_L
+    for b < r <= L(d), and zero otherwise. Starting with N_0(D) = 1,
+    compute N_{j+1}(r) = sum_d N_j(d) C(d,r), T_j = sum_{d in W_j} N_j(d),
+    M_j = sum_{d in W_j} M_d, and B_j = T_{j+1}/T_j. Stop when D_j <= b;
+    j* is the least j >= 1 with T_j >= M_j. This is the sole Stage A
+    branching model for every cell.
   mechanism: >-
     A descent step replaces a target by strictly smaller elements, so the
     recursion is a DAG whose acyclicity is free from the same strict-decrease
@@ -271,7 +288,8 @@ hypothesis:
     parameters:
       b: [3, 4, 5]
       alpha: [0.6, 0.7, 0.8]
-      d_a: 4*b (degree bound on the b-smooth multiplier a)
+      d_a: n - b - 1 (degree bound on the b-smooth multiplier a)
+      target_degree: n - 1 (20 monic irreducible targets per cell)
       K_try: 100000 draws per node before the node is recorded as a descent failure
       memo_key: the monic canonical byte form of the polynomial, frozen before any run
       primary_unit: >-
