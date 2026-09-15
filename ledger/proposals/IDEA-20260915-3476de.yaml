@@ -1,0 +1,566 @@
+idea:
+  id: IDEA-20260915-3476de
+  title: >-
+    Make the Groebner column measurable and then decide whether the SAT-over-Groebner
+    gap is structural or an engine-availability artifact: an RSS watchdog in place of
+    RLIMIT_AS, a Boolean-native engine (BRiAl over GF(2)) added beside Macaulay2 F4
+    and Singular std, and a hardware-independent Groebner cost unit (solving degree
+    reached x Macaulay matrix dimensions) so the column reports operations rather
+    than only wall time
+  class: tooling
+  research_question_id: RQ-ICPERF-94c86e
+  question_id: RQ-ICPERF-94c86e
+  area: ICPERF
+  goal_ids: [GOAL-ICPERF-e6b6a4]
+  status: proposed
+  proposed_by: idea-generator
+  task_id: TASK-20260915-5ba08b
+  recorded_at: '2026-09-15'
+  kind: instrument
+
+  provenance_note: >-
+    THIS ID WAS ALREADY ALLOCATED AND FORWARD-REFERENCED BY AN EARLIER, INTERRUPTED
+    SESSION OF THIS SAME TASK. IDEA-20260915-0d8e90 (interpretation_limits) says
+    "nothing about Groebner engines (their law is IDEA-20260915-3476de's to measure)"
+    and IDEA-20260915-eee7e4 (interpretation_limits) says "the analogous move there
+    is adding the side polynomial to the ideal, IDEA-20260915-3476de's column could
+    test it". Both of those records are immutable and name this identifier for exactly
+    this content. `python3 tools/allocate_id.py --check IDEA-20260915-3476de` reports
+    it well-formed and free across the union (0 occurrences in the identifier union;
+    the two references above are in free text, which the checker does not scan). This
+    record is therefore written AT that identifier so those two references resolve,
+    rather than minting a fresh token and leaving them dangling. Nothing in either
+    sibling record is edited. If a reviewer judges the reuse improper, the remedy is a
+    superseding record under a new id, never an edit to 0d8e90 or eee7e4 (AGENTS.md
+    rule 15).
+
+  claim: >-
+    (C1, INSTRUMENT) The 32 Macaulay2 1.22 rows of RUN-ICPERF-305ca3 that exited -6
+    with std::bad_alloc in 0.87-15.65 s did so at 2644-2653 MB peak child RSS under a
+    6 GB RLIMIT_AS, i.e. at 44% of the limit they were killed by. Replacing RLIMIT_AS
+    with (a) no address-space limit, (b) a polling RSS watchdog at 5.5 GB sampling
+    /proc/<pid>/status VmHWM at 250 ms, and (c) an unchanged wall timeout, makes at
+    least the (15,5) cell finish: this record predicts Macaulay2 F4 over ZZ/2 with
+    field equations completes n15l5-1-S in under 600 s at peak RSS below 3.5 GB.
+    (C2, INSTRUMENT) Adding one Boolean-native engine - BRiAl (the PolyBoRi successor,
+    zero-suppressed decision diagrams over GF(2), which needs no appended field
+    equations because the Boolean ring quotients by x^2 = x structurally - NOT
+    currently installed here) - makes the l = 6 cells reachable: predicted completion
+    of the (17,6) and (19,6) S instances within 900 s at peak RSS below 4 GB.
+    (C3, DISCRIMINATING) With C1 and C2 in place, P2 of H-ICPERF-cc4847 becomes
+    decidable, and the two outcomes mean DIFFERENT things. If the best installed
+    Groebner engine's median wall time exceeds WDSat's by at least 10x on every cell,
+    the SAT advantage on these instances is a property of the descended structure
+    (core-variable propagation) as the mechanism paragraph of H-ICPERF-cc4847 asserts.
+    If a Boolean-native engine lands WITHIN 10x of WDSat at l = 6, then P2 as worded
+    is FALSE here and the reported SAT-over-Groebner gap of
+    SRC-SATIC-TRIMOSKA-2019 is, on this host and at these cells, substantially an
+    artifact of which Groebner engine is available - the very confound the empty
+    column of RUN-ICPERF-305ca3 could not distinguish.
+    (C4, INSTRUMENT) The Groebner column must report a hardware-independent primary
+    unit, as RQ-ICPERF-94c86e's decision target requires ("Groebner matrix
+    operations"), not wall time alone: the solving degree reached d_solv and, per
+    degree step, the Macaulay matrix row count, column count and nonzero count,
+    parsed from the engines' own protocol output (Macaulay2 gbTrace, Singular
+    option(prot), BRiAl's polynomial/monomial counters). Without it, even a finishing
+    row yields a number that cannot be compared to another machine, another engine,
+    or the first-fall-degree literature.
+    No exponent is claimed and no curve is discussed.
+
+  mechanism: >-
+    WHY THE ABORT IS PLAUSIBLY AN ADDRESS-SPACE ARTIFACT AND WHAT WOULD SHOW IT IS
+    NOT. RLIMIT_AS caps the virtual address space a process may MAP; it does not cap
+    resident memory. A garbage-collected runtime that reserves a large heap region up
+    front (Macaulay2 links the Boehm-Demers-Weiser collector) can fail an mmap and
+    throw std::bad_alloc while its resident set is a small fraction of the limit. The
+    signature in RUN-ICPERF-305ca3 is exactly that shape - failure in 0.9-15.7 s (too
+    fast for a Macaulay matrix to have been built at l = 5, where the review plan
+    records a pre-run smoke observation of about 50 s to COMPLETION with no rlimit)
+    and a peak RSS of 2.65 GB against a 6 GB cap. The competing explanation is that
+    the process genuinely needs more than 6 GB of ADDRESSABLE space early because the
+    collector sizes its heap from the ideal's degree bound, in which case removing
+    RLIMIT_AS lets it grow and the RSS watchdog, not the address-space limit, becomes
+    the binding constraint. These two are distinguished by ONE run: no RLIMIT_AS, RSS
+    watchdog, wall timeout. Outcome A (finishes below 3.5 GB RSS): the column was
+    empty for a harness reason and AGENTS.md rule 5 applies - no negative
+    mathematical evidence was ever available. Outcome B (killed by the RSS watchdog at
+    5.5 GB, or bad_alloc again below 3.5 GB RSS): the memory model is the obstruction,
+    it is a real measured quantity, and the honest table entry is "not measurable with
+    Macaulay2 1.22 at this cell within 6 GB", with the peak RSS recorded as the
+    obstruction's value.
+
+    WHY A BOOLEAN-NATIVE ENGINE IS THE RIGHT ADDITION AND NOT A CONVENIENCE. The
+    shipped instance at l = 6 is 51 variables / 52 equations over GF(2)
+    (KN-LIT-036049). Macaulay2 and Singular are run here over ZZ/2 with the field
+    equations x_i^2 + x_i APPENDED, which doubles the generator count and forces the
+    engine to rediscover, by reduction, a quotient that a Boolean ring imposes by
+    construction. A ZDD-based Boolean ring stores a polynomial as a set of monomials
+    with sharing, so the memory profile of the same computation is structurally
+    different, and this is precisely why PolyBoRi/BRiAl is the engine the Trimoska
+    line compares against in the literature. Installing it is what makes the
+    Groebner side of the boundary table an engine comparison rather than a single
+    engine's failure. It is also the ONLY way to test C3, because a gap measured
+    against a general-purpose engine given a Boolean problem measures the mismatch,
+    not the structure.
+
+    WHY THE COST UNIT MATTERS MORE THAN THE WALL TIME. WDSat's primary unit is
+    conflicts (KN-LIT-6e036d), which is hardware-independent and comparable across
+    builds. The Groebner side currently has no counterpart in this program's ICPERF
+    row, so a ratio between the two columns is a ratio between a machine-independent
+    count and a machine-dependent second. Recording (d_solv, rows, cols, nnz) per
+    degree step gives the Groebner side a comparable unit - the dominant linear
+    algebra cost is rows x cols x (nnz/row) for a sparse elimination and cols^omega
+    for a dense one, both computable from the trace - and it makes the column
+    directly commensurable with the first-fall-degree and degree-of-regularity
+    literature this program treats as open (KN-LIT-023, KN-OPEN-d218ec), because
+    d_solv is the quantity those claims are about.
+
+  what_this_would_have_caught_in_RUN_ICPERF_305ca3: >-
+    (1) All 32 phase-C rows were killed by a limit they were nowhere near in resident
+    terms; the run therefore reports P2 as `null` and the boundary table's Groebner
+    column is empty on all three cells. C1's watchdog would either have produced the
+    column or produced a MEASURED memory obstruction with a number. (2) Nothing in
+    the 32 rows records the solving degree, the matrix dimensions, or the pair count,
+    so even a finishing row would have given wall seconds with no invariant to compare
+    - C4 fixes that and is independent of C1. (3) The four Singular std rows timing
+    out at 900 s are consistent both with "std over GF(2) with appended field
+    equations is the wrong algorithm" and with "no Boolean-native engine was
+    installed"; C2 separates them. (4) The contract's own assumption that the
+    installed engines "are stand-ins for Magma F4 / PolyBoRi, which are absent" is
+    load-bearing for every P2 reading; C2 removes the PolyBoRi half of that
+    assumption rather than carrying it forward into every later row.
+
+  novelty_status: unverified
+  novelty_screen:
+    what_is_not_new: >-
+      RSS-versus-address-space accounting is standard operational practice; polling
+      /proc/<pid>/status is not a technique. PolyBoRi/BRiAl as the reference Boolean
+      Groebner engine is the standard choice in this literature and is named as
+      absent in KN-LIT-036049 and in H-ICPERF-cc4847's assumptions. Recording the
+      solving degree and Macaulay matrix size is the standard instrumentation of
+      every Groebner complexity study.
+    what_is_new: >-
+      Nothing mathematically. What is new HERE is (i) the specific discrimination in
+      C3 - using a Boolean-native engine as the control that decides whether the
+      measured SAT advantage is structural or engine-availability - stated as a
+      prediction with a threshold before the engine is installed, and (ii) making the
+      Groebner column's primary unit an invariant rather than wall time inside this
+      program's boundary table. The record is filed as tooling and claims no
+      mathematical novelty.
+    searched: >-
+      Read this session: RUN-ICPERF-305ca3 task-report.md and environment.json,
+      EXP-ICPERF-66fd51 hypothesis and review plan, KN-LIT-036049, KN-LIT-6e036d,
+      KN-LIT-023, KN-LIT-022. `rg` over knowledge/ and ledger/proposals/ for
+      "PolyBoRi", "BRiAl", "RLIMIT", "RSS", "bad_alloc". Availability checked on this
+      host: /usr/bin/M2 (1.22), /usr/bin/Singular, /usr/bin/msolve present;
+      `import brial` raises ModuleNotFoundError; no Sage. No web search for BRiAl
+      version behaviour; hence unverified.
+
+  citations:
+    - ref: experiments/EXP-ICPERF-66fd51/runs/RUN-ICPERF-305ca3/task-report.md
+      provenance: internal
+      claim: >-
+        UNREVIEWED OBSERVATIONS, not findings - 32 Macaulay2 rows exited -6 with
+        std::bad_alloc, wall 0.87-15.65 s, max_rss_kb_children_highwater 2644-2653 MB,
+        child under RLIMIT_AS 6 GB; 4 Singular std rows budget_stop_timeout at 900 s;
+        P2 null on every cell.
+      verified_by: idea-generator TASK-20260915-5ba08b (read in full this session)
+    - ref: experiments/EXP-ICPERF-66fd51/runs/RUN-ICPERF-305ca3/environment.json
+      provenance: internal
+      claim: >-
+        M2 1.22; Singular version probe itself timed out at 60 s; mem_limit_gb_per_child
+        6; m2_f4_l5 timeout 600 s, m2_f4_l6 1800 s, singular_std 900 s; 4 CPUs.
+      verified_by: idea-generator TASK-20260915-5ba08b (read this session)
+    - ref: coordination/review/icperf-20260913-66fd51/review-plan.yaml
+      provenance: internal
+      claim: >-
+        Coordinator PRIOR, under review and NOT a result - "I EXPECT THE MACAULAY2
+        ABORT TO BE AN ADDRESS-SPACE-LIMIT ARTIFACT, NOT MEMORY EXHAUSTION", with the
+        smoke observation "the smoke run (no rlimit) finished n15l5 instances in ~50 s",
+        and joint V2 assigning ONE such re-run to TASK-20260913-6c5729.
+      verified_by: idea-generator TASK-20260915-5ba08b (read in full this session)
+    - ref: KN-LIT-036049
+      provenance: internal
+      claim: >-
+        The shipped Magma-form sizes are 42 variables / 43 equations at l = 5 and
+        51 / 52 at l = 6; "Magma is not available in this repository. Any in-repo
+        'Groebner baseline' is a different engine ... it is not a reproduction of the
+        Magma column"; PolyBoRi is named as absent.
+      verified_by: idea-generator TASK-20260915-5ba08b (read in full this session)
+    - ref: KN-LIT-6e036d
+      provenance: internal
+      claim: >-
+        WDSat's conf[0] conflict counter is the primary hardware-independent metric;
+        WDSat's memory is fixed at compile time and "cannot be compared to a
+        dynamically-allocating engine's peak without saying so".
+      verified_by: idea-generator TASK-20260915-5ba08b (read in full this session)
+    - ref: KN-LIT-023
+      provenance: internal
+      claim: >-
+        Program record of Faugere-Perret-Petit-Renault EUROCRYPT 2012, confidence
+        `reported`, "Full paper not read": the binary-field index-calculus complexity
+        claim is explicitly conditional on a first-fall-degree heuristic governing the
+        Groebner solving degree. Cited only to say WHICH quantity the Groebner column
+        must record (d_solv), never for any complexity figure.
+      verified_by: idea-generator TASK-20260915-5ba08b (corpus record KN-LIT-023 read this session; the underlying paper was not opened)
+    - ref: >-
+        Brickenstein and Dreyer, "PolyBoRi: A framework for Groebner-basis
+        computations with Boolean polynomials", J. Symbolic Computation 44 (2009);
+        BRiAl is its maintained successor (github.com/BRiAl/BRiAl)
+      provenance: recalled
+      claim: >-
+        RECALLED, THEREFORE A POINTER AND NOT SUPPORT (AGENTS.md rule 9). Recollection:
+        the framework represents Boolean polynomials by zero-suppressed decision
+        diagrams so that the ring is F_2[x]/(x_i^2 - x_i) by construction and field
+        equations need not be appended, and it implements a slimgb-style Groebner
+        engine specialised to that ring. No agent in this program has opened it. It is
+        recorded so a reviewer can check the memory-profile argument in `mechanism`
+        before the engine is installed; it backs nothing.
+      verified_by: null
+
+  assumptions:
+    - >-
+      BRiAl can be installed on this host without a Sage dependency (a pip wheel or a
+      cmake build against m4ri). If it cannot, the substitute is Singular's
+      `slimgb` inside a Boolean quotient ring plus Macaulay2 under C1, and C2's
+      threshold statement is recorded as untested rather than silently transferred.
+    - >-
+      The engines' protocol output exposes the solving degree and matrix sizes in a
+      parseable form. If an engine does not, its row records d_solv as unavailable and
+      C4 is partially discharged, with which engine failed named.
+    - >-
+      Removing RLIMIT_AS is safe on this host only with the RSS watchdog and a wall
+      timeout both active; a runaway engine must be killed by RSS, not by the OOM
+      killer, because an OOM kill takes the driver with it and loses the row.
+    - >-
+      Nothing here is an approval to run. This record proposes; the Coordinator
+      decides.
+
+  proof_search_map:
+    not_applicable_reason: >-
+      Instrument/tooling proposal. It proves nothing and certifies nothing; it changes
+      what the boundary table can measure. The four audits are recorded where they
+      apply because C3 is a prediction with a threshold that can fail.
+    bottleneck: >-
+      The Groebner column of the ICPERF boundary table is empty, so the ratio the
+      whole row exists to report (SAT cost / Groebner cost) is undefined on every cell.
+    baseline_embedding:
+      parameter_slice: >-
+        n15l5-1-S under Macaulay2 F4 over ZZ/2 with field equations - the exact row
+        that aborted, re-run with the limit changed and nothing else.
+      reproduction_check: >-
+        The RLIMIT_AS arm must reproduce the original abort (exit -6, bad_alloc, wall
+        under 20 s, RSS about 2.65 GB) before the no-rlimit arm is believed. A
+        re-run that does NOT reproduce the abort means the run's phase C differed from
+        this harness in some other way and the whole comparison is void.
+    observation_collision:
+      observable: exit status plus peak RSS plus wall time.
+      distinct_preimage_search: >-
+        "Column is empty" has at least four distinct preimages - address-space
+        artifact, genuine memory need, wrong algorithm for a Boolean system, and
+        engine absence. The four arms (RLIMIT_AS / no-rlimit+RSS / BRiAl /
+        Singular-in-Boolean-ring) are chosen so that each preimage produces a
+        different pattern across the arms; a pattern matching none of the four is
+        reported as such rather than assigned.
+    constructive_transforms:
+      - transform: representation_reduction
+        proposed_object: >-
+          The same ideal presented in a Boolean polynomial ring (x_i^2 = x_i imposed
+          by the representation) instead of ZZ/2[x] with appended field equations.
+        predicted_gain: >-
+          Generator count 52 instead of 103 at l = 6 and a memory profile that does
+          not grow with the appended quadratics; predicted completion within 900 s at
+          under 4 GB where the ZZ/2 presentation does not finish.
+    quantifier_order: >-
+      For the single instance n15l5-1-S and each of the four arms, one outcome tuple
+      (status, wall, peak RSS, d_solv) is recorded. C3's 10x threshold is then a claim
+      about per-cell MEDIANS over the 10 S and 10 U instances of each of (15,5),
+      (17,6), (19,6) for the engines that finish, and about nothing else.
+    method_ceiling:
+      strongest_certifiable_claim: >-
+        That the installed engines, at l <= 6, on this host, with these limits, do or
+        do not finish, and by what ratio to WDSat. It can never certify anything about
+        Magma F4, about l >= 7, or about the 200 GB wall reported at l = 8.
+      nearby_object_control: >-
+        The matched random Boolean system of the same shape run through the same
+        Groebner arms: a general-purpose engine should NOT show the same
+        structure-dependent profile there. If the Groebner engines behave identically
+        on the structured instance and on the null, the Groebner column is measuring
+        size, not structure, and any SAT/Groebner ratio is a statement about size.
+    proof_obligations:
+      - claim: the RLIMIT_AS arm reproduces the recorded abort
+        responsibility: baseline
+      - claim: the no-rlimit arm's outcome distinguishes artifact from memory model
+        responsibility: correctness
+      - claim: BRiAl finishes l = 6 within budget
+        responsibility: feasibility
+      - claim: d_solv and matrix dimensions are recorded for every finishing row
+        responsibility: interface
+      - claim: every conclusion is scoped to these engines, cells and host
+        responsibility: scope
+
+  predictions:
+    - metric: >-
+        Macaulay2 1.22 on n15l5-1-S, no RLIMIT_AS, RSS watchdog 5.5 GB, wall 600 s -
+        exit status
+      direction: different
+      minimum_effect: >-
+        completes (exit 0) with peak RSS below 3.5 GB; the alternative outcome
+        (watchdog kill at 5.5 GB, or bad_alloc again below 3.5 GB) is the named
+        falsifier of C1 and is a MEASURED obstruction, not a null row
+    - metric: BRiAl over GF(2) on the (17,6) and (19,6) S instances - completion rate
+      direction: higher
+      minimum_effect: >-
+        at least 8 of 10 instances per cell complete within 900 s at peak RSS below
+        4 GB; below 5 of 10 falsifies C2 as worded
+    - metric: median wall time ratio, best finishing Groebner engine / WDSat default, per cell
+      direction: higher
+      minimum_effect: >-
+        C3 is DECIDED either way - a ratio at or above 10 on every cell supports P2's
+        structural reading; any cell at l = 6 with a ratio below 10 falsifies P2 as
+        worded and reattributes the reported gap to engine availability. Both outcomes
+        are reportable results
+    - metric: solving degree d_solv recorded per finishing Groebner row
+      direction: different
+      minimum_effect: >-
+        recorded for 100% of finishing rows, with the maximum Macaulay matrix
+        (rows, cols, nnz); a row without it is an instrument defect, not a datum
+    - metric: peak RSS of the Groebner arms on the matched null object of the same shape
+      direction: different
+      minimum_effect: >-
+        differs from the structured instance's by at least 2x in at least one
+        direction; equality within 2x means the Groebner column measures size and the
+        interpretation of every SAT/Groebner ratio must say so
+
+  minimal_test:
+    design: >-
+      STAGE 1 (single instance, four arms, cheapest valid discriminator): n15l5-1-S,
+      Macaulay2 F4 over ZZ/2 with field equations, run (a) under RLIMIT_AS 6 GB
+      exactly as bench.py did, (b) with no RLIMIT_AS, a 250 ms /proc VmHWM poller
+      killing at 5.5 GB, and a 600 s wall timeout. Record exit status, wall, cpu,
+      peak RSS, and gbTrace output for both. STAGE 2 (engine addition): install BRiAl,
+      record its version and build provenance, run it on the same instance and then on
+      all 10 S and 10 U instances of each of (15,5), (17,6), (19,6) under the same
+      watchdog and a 900 s wall; also run Singular `slimgb` inside a Boolean quotient
+      ring on the same set. STAGE 3 (unit): parse d_solv and per-degree matrix
+      dimensions from each engine's protocol output into the row. STAGE 4 (control):
+      repeat Stage 2 on the 18 matched random Boolean null objects already generated
+      for RUN-ICPERF-305ca3. Then recompute P2 per cell from medians over finishing
+      rows only, with the count of non-finishing rows reported beside every median.
+    execution_status: design_only_not_approved_in_this_record
+    controls:
+      - kind: reproduction
+        design: >-
+          Arm (a) must reproduce the recorded abort signature before arm (b) is
+          interpreted. This is the control that makes Stage 1 a comparison rather than
+          a new observation.
+      - kind: null_object
+        design: >-
+          The 18 existing matched random Boolean systems through the same Groebner
+          arms; separates structure-dependence from size-dependence on the Groebner
+          side, which no row of RUN-ICPERF-305ca3 could do.
+      - kind: matched_encoding
+        design: >-
+          Boolean-ring presentation versus ZZ/2 with appended field equations, same
+          ideal, same engine family where possible (Singular slimgb in both forms), so
+          C2's gain is attributed to the representation and not to the engine change.
+      - kind: known_false
+        design: >-
+          An instance whose ideal is the unit ideal by construction (append 1 to the
+          generators): every engine must return the unit ideal in negligible time. An
+          arm that instead times out or aborts is broken and its rows are void.
+      - kind: load
+        design: >-
+          Every row records loadavg at start; medians are reported both including and
+          excluding rows above loadavg 2, because 31 of 32 phase-C rows of
+          RUN-ICPERF-305ca3 were launched above it.
+    required_metrics:
+      - exit status, wall_s, cpu_s, peak child RSS (VmHWM), and which limit fired, per row
+      - d_solv and per-degree (rows, cols, nnz) for every finishing Groebner row
+      - per-cell median wall and median d_solv over finishing rows, with the non-finishing count
+      - engine identity, version and build provenance for every row including BRiAl
+      - the ratio best-Groebner / WDSat default per cell, on S and U separately
+
+  falsification_conditions:
+    - >-
+      C1 fails if Macaulay2 aborts identically with no RLIMIT_AS at peak RSS below
+      3.5 GB, or is killed by the 5.5 GB RSS watchdog. Either outcome converts the
+      empty column into a measured memory obstruction with a value, which is a result
+      and must be recorded as one (with `resource_check` per docs/inventor-protocol.md).
+    - >-
+      C2 fails if BRiAl cannot be installed on this host, or completes fewer than 5
+      of 10 S instances per l = 6 cell within 900 s. Then no Boolean-native Groebner
+      column exists here and H-ICPERF-cc4847's "stand-ins for PolyBoRi" assumption
+      must travel with every later ICPERF row explicitly.
+    - >-
+      C3 fails - and this is the outcome that would most change the campaign - if any
+      l = 6 cell shows a best-Groebner / WDSat median wall ratio below 10. P2 as
+      worded is then false on this host and the reported SAT advantage is substantially
+      an engine-availability effect at these cells.
+    - >-
+      C4 fails if any finishing row lacks d_solv; the column is then still not
+      hardware-independent and the ratio to the SAT column remains incommensurable.
+    - >-
+      If the Groebner arms show the same wall and the same d_solv on the matched null
+      objects as on the structured instances, the Groebner column measures instance
+      size only, and every SAT/Groebner ratio in the table is a size comparison.
+
+  confounders:
+    - >-
+      Removing RLIMIT_AS changes the child's allocator behaviour globally, not only
+      its ceiling; a finishing run under arm (b) is evidence that the limit was
+      binding, not that the ideal is small. The peak RSS is what carries the
+      attribution.
+    - >-
+      BRiAl and Macaulay2 differ in monomial order defaults (degrevlex vs the
+      Boolean ring's own) and in whether field equations are appended; the matched
+      encoding control exists because otherwise C2's gain is unattributable.
+    - >-
+      31 of 32 phase-C rows of RUN-ICPERF-305ca3 launched at loadavg above 2, and
+      Macaulay2 used more than one thread (phase C cpu > wall). Any wall comparison to
+      single-threaded WDSat must either pin threads or report cpu_s beside wall_s.
+    - >-
+      A newly installed engine is a new confound for every later row; its version and
+      build must be frozen in the same way WDSat's was, or the Groebner column stops
+      being comparable across batches.
+    - >-
+      The validator task TASK-20260913-6c5729 is ALREADY assigned a version of Stage 1
+      (review plan joint V2(2)), so the marginal information of Stage 1 alone may be
+      near zero by the time this is dispatched. The stages that are not pre-empted are
+      2, 3 and 4.
+
+  interpretation_limits:
+    - >-
+      Tooling. Nothing here bears on any curve's security, on any exponent, or on
+      Magma F4, which remains absent. A repaired column is a measurement, not a
+      finding.
+    - >-
+      A finishing Macaulay2 row obtained after the limit changed is a NEW observation
+      under a different harness, never a correction of the immutable rows of
+      RUN-ICPERF-305ca3.
+    - >-
+      C3's threshold is P2's 10x as H-ICPERF-cc4847 words it; deciding C3 does not by
+      itself move that hypothesis's status, which is the Coordinator's act alone.
+    - >-
+      d_solv measured on 20 toy instances at l <= 6 is not a first-fall-degree or
+      degree-of-regularity result; those quantities and their disputes stay with
+      KN-OPEN-d218ec and their owning goals.
+
+  heuristic_assumptions:
+    - id: H1
+      statement: >-
+        The peak RESIDENT set of Macaulay2's F4 on the (15,5) instance is within a
+        factor 1.5 of the 2.65 GB observed at abort time, i.e. the abort occurred at
+        or near the computation's resident high-water mark rather than at the start of
+        a much larger allocation profile.
+      rigorous_support: >-
+        Rigorous side: RLIMIT_AS bounds mapped address space and is enforced at
+        mmap/brk, so a bad_alloc under it is consistent with any resident size below
+        the limit - the inequality peak_RSS <= peak_AS is exact and is all that is
+        known. Imitated side: for a mark-sweep collector whose heap is grown
+        geometrically, resident size at time t is within a constant factor of the live
+        set, in the same way that a dynamic array's occupancy is within a factor 2 of
+        its capacity. This is the assumption that makes the 3.5 GB prediction a
+        prediction rather than a guess, and it is the one H1 that can fail benignly.
+      validation_plan: >-
+        Sample VmRSS and VmSize every 250 ms for the whole of arm (b) on n15l5-1-S
+        and on n17l6-1-S, giving the full resident and virtual traces rather than a
+        single high-water number; compare the ratio VmSize/VmRSS at abort in arm (a)
+        against its value at the same wall time in arm (b). Tail check: the maximum
+        over the trace of VmSize/VmRSS - if that ratio exceeds 2 anywhere, the
+        address-space reading is supported quantitatively; if it stays near 1, H1's
+        premise is wrong and outcome B was the right prior. Sampled parameters: two
+        instances, one cell each at l = 5 and l = 6. Transfer assumption stated
+        explicitly: nothing about l >= 7, where the live set may exceed any limit here.
+    - id: H2
+      statement: >-
+        The number of F_2 operations a Groebner engine performs on these instances is
+        within a polynomial factor of (max Macaulay matrix columns)^omega with
+        2 <= omega <= 3, so d_solv plus the matrix dimensions is a sufficient
+        hardware-independent cost proxy.
+      rigorous_support: >-
+        Rigorous side: for a fixed degree bound d the F4 step IS a rank computation on
+        an explicit matrix, whose cost is bounded below by its nonzero count and above
+        by cols^3; both bounds are unconditional given the matrix. Imitated side: the
+        assumption that the LARGEST matrix dominates the total, in the same way that
+        the largest term dominates a geometric sum - true when the dimensions grow
+        geometrically in the degree, which is the standard bookkeeping in the
+        first-fall-degree literature (KN-LIT-023, relayed, unverified).
+      validation_plan: >-
+        For every finishing row, record the full per-degree (rows, cols, nnz) sequence
+        and check empirically that the largest degree step accounts for at least 60% of
+        the measured cpu_s, by regressing cpu_s on cols^2 and cols^3 across the 20
+        instances of a cell. Comparison: the fitted exponent against [2, 3]. Tail
+        check: the instance whose ratio of total cpu to top-step cost is largest -
+        if it exceeds 3, the proxy is not sufficient and the column reports cpu_s and
+        the trace side by side without claiming commensurability.
+
+  target_complexity:
+    time_exponent: >-
+      None claimed. This record changes what is measured, not what anything costs.
+      The quantity it makes measurable is the Groebner column's exponent in n and l,
+      which is currently unknown here because the column is empty.
+    memory_exponent: >-
+      None claimed. It replaces an address-space CEILING with a measured resident
+      quantity, so peak RSS becomes a reported axis of the boundary table on the
+      Groebner side, where WDSat's is fixed at compile time (about 17 MB flat,
+      KN-LIT-6e036d) and therefore incomparable without the disclosure.
+    best_known: >-
+      For the SAT side on the same instances, WDSat default medians of
+      RUN-ICPERF-305ca3 (unreviewed): 0.0651-2.3471 s wall and 30978-255301 conflicts
+      per cell/label. For the Groebner side: nothing measured in this program. The
+      published comparators (SRC-SATIC-TRIMOSKA-2019 Magma F4 numbers) are `reported`
+      and are excluded from any ratio by RQ-ICPERF-94c86e's own constraints.
+    hidden_overhead: >-
+      The RSS watchdog itself costs one poll per 250 ms and is negligible; the
+      instrumentation of gbTrace can slow an engine measurably (protocol output is
+      unbuffered in some engines), so every instrumented row must be paired with an
+      uninstrumented one and the overhead reported, or the cost unit contaminates the
+      wall time it is supposed to explain.
+    tradeoff_note: >-
+      Not applicable as an algorithm. Operationally: the watchdog trades a hard
+      guarantee (RLIMIT_AS never lets the child exceed the limit) for a sampled one (a
+      child can spike between polls), so a 5.5 GB watchdog on a 6 GB budget host is
+      the safe configuration and is what is proposed.
+
+  dominated_by: >-
+    Not applicable as an algorithmic claim - this record proposes no algorithm and
+    occupies no point on any cost frontier ("n/a (no cost result claimed)"). The
+    frontier check that IS meaningful, and was actually done: the alternatives for
+    obtaining a Groebner column here are (i) Macaulay2 1.22 under the existing
+    RLIMIT_AS, which produced 0 finishing rows in 32 attempts; (ii) Singular std over
+    GF(2) with field equations, 0 of 4 within 900 s; (iii) msolve, present at
+    /usr/bin/msolve but over prime fields, so not applicable to GF(2) here;
+    (iv) Magma F4, absent and unobtainable; (v) exhaustive enumeration of V^3, which
+    is IDEA-20260915-3f1964's instrument and dominates a Groebner engine outright on
+    time at l <= 8 (2^{3l}/6 field operations) while answering a different question -
+    it certifies UNSAT and classifies roots but yields no Groebner cost datum, which
+    is the number RQ-ICPERF-94c86e's table asks for. BRiAl is proposed because every
+    row of (i)-(iv) is empty or inapplicable, not because it is expected to beat
+    anything.
+  sota_delta: >-
+    Zero exponent change, zero constant change to any attack. The delta is in
+    measurability: three cells x two labels of the boundary table's Groebner column go
+    from `none (0)` to a number with a hardware-independent unit, or to a measured
+    memory obstruction with a value in GB. Quantitatively, the decidable quantity is
+    the best-Groebner/WDSat median wall ratio per cell, currently undefined on 6 of 6
+    cells; C3 predicts it is at least 10 everywhere and names below-10 at l = 6 as the
+    outcome that would reattribute the reported gap.
+
+  estimated_cost:
+    implementation: medium
+    compute: low
+    wall_clock_seconds: 21600
+    memory_gb: 6
+    note: >-
+      Advisory (AGENTS.md research-budget policy). Stage 1 is two runs of at most
+      600 s. Stage 2 is 60 structured + 18 null instances x 2 engines under a 900 s
+      cap; if BRiAl behaves as predicted the true cost is far below the cap, and if it
+      does not the cap binds at about 39 h of single-core time, which is why Stage 2
+      should be ordered l = 5 first and stopped per-cell on the first 5 timeouts.
+      Implementation cost is dominated by installing and freezing BRiAl and by parsing
+      three engines' protocol formats, not by the watchdog.
+  recommended_priority: high
+  inference:
+    policy: research-deep
+    reasoning_effort: null
