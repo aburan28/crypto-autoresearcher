@@ -658,6 +658,109 @@ class DispatchPlannerTests(unittest.TestCase):
                 plan["content_only_archives"],
             )
 
+    def test_content_at_commit_survives_a_later_legitimate_transition(self) -> None:
+        """Reproduce TASK-20260913-f8bdec: the snapshot's own record moved on.
+
+        A pre-execution snapshot pins an experiment contract as the executor
+        read it. When that contract later advances to `analyzed`, `content_first`
+        reports the snapshot as corrupt because it hashes HEAD -- punishing the
+        archive for the record doing exactly what a record is supposed to do.
+        `content_at_commit` reads its own commit and is unaffected; the byte
+        binding is not weakened, only asked about the right tree.
+        """
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+
+            def git(*arguments: str) -> str:
+                return subprocess.run(
+                    ["git", "-C", str(root), *arguments], check=True,
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                ).stdout.strip()
+
+            def write(path: str, content: bytes) -> None:
+                destination = root / path
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                destination.write_bytes(content)
+
+            git("init")
+            git("config", "user.email", "dispatch@example.test")
+            git("config", "user.name", "Dispatch Test")
+            write("README.md", b"base\n")
+            git("add", "README.md")
+            git("commit", "-m", "base")
+
+            source = task("WORK", 1, state="completed")
+            archive = archive_task("ARCHIVE", [source], state="completed",
+                                   record_ids=["REC-ARCHIVE"])
+            contract = source["artifact_paths"][0]
+            receipt = archive["artifact_paths"][0]
+            payloads = {contract: b"status: approved\n", receipt: b"snapshot receipt\n"}
+            for path, content in payloads.items():
+                write(path, content)
+            git("add", ".")
+            git("commit", "-m", "ARCHIVE REC-ARCHIVE snapshot")
+            commit = git("rev-parse", "HEAD")
+
+            # The archived contract legitimately advances after the snapshot.
+            write(contract, b"status: analyzed\n")
+            git("add", contract)
+            git("commit", "-m", "contract advances to analyzed")
+
+            binding = {
+                "commit_sha": commit,
+                "parent_sha": git("rev-parse", "HEAD~2"),
+                "path_sha256": {
+                    path: hashlib.sha256(content).hexdigest()
+                    for path, content in payloads.items()
+                },
+            }
+            verifier = dispatch.GitRepositoryVerifier
+            at_head = copy.deepcopy(queue(source, archive))
+            at_head["tasks"][1]["archive"].update({**binding, "binding_mode": "content_first"})
+            with self.assertRaisesRegex(dispatch.DispatchError, "content hash mismatch"):
+                dispatch.validate_queue(at_head, repository_verifier=verifier(root))
+
+            at_commit = copy.deepcopy(queue(source, archive))
+            at_commit["tasks"][1]["archive"].update(
+                {**binding, "binding_mode": "content_at_commit"})
+            plan = dispatch.select(at_commit, repository_verifier=verifier(root))
+            self.assertEqual(
+                [{
+                    "task_id": "ARCHIVE",
+                    "reason": "declared content_at_commit binding mode",
+                    "paths_verified": 2,
+                    "generated_paths_skipped": [],
+                    "verified_against": commit,
+                }],
+                plan["content_only_archives"],
+            )
+
+            # The mode moves which tree is read; it relaxes nothing else.
+            corrupt = copy.deepcopy(at_commit)
+            corrupt["tasks"][1]["archive"]["path_sha256"][receipt] = "0" * 64
+            with self.assertRaisesRegex(dispatch.DispatchError, "content hash mismatch"):
+                dispatch.validate_queue(corrupt, repository_verifier=verifier(root))
+
+            unreachable = copy.deepcopy(at_commit)
+            unreachable["tasks"][1]["archive"]["commit_sha"] = "f" * 40
+            with self.assertRaisesRegex(
+                dispatch.DispatchError, "content_at_commit binding requires"
+            ):
+                dispatch.validate_queue(unreachable, repository_verifier=verifier(root))
+
+            wrong_ids = copy.deepcopy(at_commit)
+            wrong_ids["tasks"][1]["archive"]["record_ids"] = ["REC-MISSING"]
+            with self.assertRaisesRegex(dispatch.DispatchError, "commit message is missing IDs"):
+                dispatch.validate_queue(wrong_ids, repository_verifier=verifier(root))
+
+    def test_binding_mode_must_be_one_of_the_three_declared_modes(self) -> None:
+        worker = task("WORK", 1)
+        archive = archive_task("ARCHIVE", [worker])
+        archive["archive"]["binding_mode"] = "content_whenever"
+        with self.assertRaisesRegex(dispatch.DispatchError, "binding_mode must be commit"):
+            dispatch.validate_queue(queue(worker, archive))
+
     def test_content_first_rejects_mismatch_partial_hashes_and_missing_commit(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

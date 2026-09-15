@@ -15,6 +15,22 @@ that an attestation is truthful; it verifies that the round is internally
 consistent and that no declared rule was declared and then broken -- which is
 the part that goes wrong silently.
 
+A PLAN IS THE PLAN PLUS ITS ADDENDA, and this tool composes them before
+checking. A round's setup is declared before it runs, and the plan file is
+immutable once committed -- so the only honest way to add a joint or move one
+between reviewers is a companion file that `extends` the plan (an addendum), and
+the base plan can never name the addenda that will later extend it. A checker
+that reads only `--plan` therefore holds every reviewer to a pre-addendum
+assignment. That is not a cosmetic gap: on 2026-09-15 it reported that
+`TASK-20260913-6c5729` failed to claim a joint an addendum had reassigned away
+from it, and the only way to turn the check green was for the reviewer to claim
+an ownership it did not have and invent a verdict on a joint it could not
+evaluate -- precisely the fabrication this tool exists to catch. So addenda are
+discovered beside the plan, ordered by `written_at`, and applied; what was
+applied is printed, because a composed check that looks identical to a bare one
+is its own trap. `--no-addenda` restores the old behaviour for auditing a round
+against its original plan.
+
 WHAT IT CHECKS.
   * every joint in the plan has exactly one owner, and that owner attested;
   * no reviewer read a sibling report unless `blindness.lifted_for` names it;
@@ -158,6 +174,109 @@ def _plan_of(doc) -> dict | None:
     if isinstance(handoff, dict) and isinstance(handoff.get("review_plan"), dict):
         return handoff["review_plan"]
     return None
+
+
+def _addendum_of(doc) -> dict | None:
+    if isinstance(doc, dict) and isinstance(doc.get("review_plan_addendum"), dict):
+        return doc["review_plan_addendum"]
+    return None
+
+
+def _same_file(declared: str, plan_path: str) -> bool:
+    """Does an addendum's `extends` value point at this plan?
+
+    Compared by resolved path, so a repo-relative declaration and a path given
+    on the command line agree. Falls back to basename: an addendum sitting in
+    the round's own directory that names the plan by file name is unambiguous
+    there, and refusing it would push a Coordinator toward editing the plan.
+    """
+    declared = str(declared or "").strip()
+    if not declared:
+        return False
+    plan_abs = os.path.abspath(plan_path)
+    for candidate in (declared, os.path.join(REPO, declared),
+                      os.path.join(os.path.dirname(plan_abs), declared)):
+        if os.path.abspath(candidate) == plan_abs:
+            return True
+    return os.path.basename(declared) == os.path.basename(plan_abs)
+
+
+def find_addenda(plan_path: str) -> list[tuple[str, dict]]:
+    """Addenda beside the plan that extend it, oldest declaration first.
+
+    Ordered by `written_at` so a later addendum's reassignment wins over an
+    earlier one's, with the file name as a stable tiebreak. An addendum that
+    declares no `written_at` sorts first: it cannot claim to supersede anything.
+    """
+    directory = os.path.dirname(os.path.abspath(plan_path)) or "."
+    found = []
+    for path in sorted(glob.glob(os.path.join(directory, "*.yaml"))
+                       + glob.glob(os.path.join(directory, "*.yml"))):
+        if os.path.abspath(path) == os.path.abspath(plan_path):
+            continue
+        addendum = _addendum_of(_load(path))
+        if addendum is None:
+            continue
+        targets = [addendum.get("extends")] + list(
+            addendum.get("also_extends") or []
+            if isinstance(addendum.get("also_extends"), list)
+            else [addendum.get("also_extends")])
+        if any(_same_file(target, plan_path) for target in targets):
+            found.append((path, addendum))
+    found.sort(key=lambda item: (str(item[1].get("written_at") or ""), item[0]))
+    return found
+
+
+def compose_plan(plan: dict, addenda: list[tuple[str, dict]]) -> tuple[dict, list[str]]:
+    """The plan as the round actually stands, plus a line per change applied.
+
+    Three things an addendum may do, and nothing else: add joints, reassign the
+    owner of a joint, and declare further proves-too-much objects. It may not
+    remove a joint or weaken a control -- an addendum that tried would be a
+    silent narrowing of a declared review, so unknown keys are simply not acted
+    on and the plan they extend keeps its own values.
+    """
+    import copy
+
+    composed = copy.deepcopy(plan)
+    notes: list[str] = []
+    joints = composed.get("joints")
+    composed["joints"] = list(joints) if isinstance(joints, list) else []
+
+    for path, addendum in addenda:
+        label = _rel(path)
+        added = addendum.get("joints_added")
+        if isinstance(added, list):
+            for entry in added:
+                if isinstance(entry, dict):
+                    composed["joints"].append(entry)
+                    notes.append(f"{label}: added joint "
+                                 f"'{_joint_label(entry.get('joint') or '?')}'")
+        changes = addendum.get("what_changes")
+        owners = (changes or {}).get("owners") if isinstance(changes, dict) else None
+        if isinstance(owners, dict):
+            for joint_label, owner in owners.items():
+                wanted = _joint_label(str(joint_label)).casefold()
+                owner = str(owner).strip()
+                for entry in composed["joints"]:
+                    if not isinstance(entry, dict):
+                        continue
+                    name = str(entry.get("joint") or "")
+                    if _joint_label(name).casefold() != wanted:
+                        continue
+                    if str(entry.get("assigned_to") or "").strip() != owner:
+                        notes.append(
+                            f"{label}: joint '{_joint_label(name)}' reassigned "
+                            f"{entry.get('assigned_to')} -> {owner}")
+                    entry["assigned_to"] = owner
+        extra = addendum.get("proves_too_much_objects_added")
+        if isinstance(extra, list) and extra:
+            control = composed.get("proves_too_much")
+            control = dict(control) if isinstance(control, dict) else {}
+            control["objects"] = list(control.get("objects") or []) + list(extra)
+            composed["proves_too_much"] = control
+            notes.append(f"{label}: added {len(extra)} proves-too-much object(s)")
+    return composed, notes
 
 
 def _attestation_of(doc) -> dict | None:
@@ -423,6 +542,10 @@ def main() -> int:
     parser.add_argument("--reports", nargs="*", default=[],
                         help="report files or directories to scan")
     parser.add_argument("--batch", help="batch directory holding both")
+    parser.add_argument("--no-addenda", action="store_true",
+                        help="check against the plan file alone, ignoring any "
+                             "review_plan_addendum beside it (for auditing a "
+                             "round against its ORIGINAL setup)")
     parser.add_argument("--blind-history", metavar="REF",
                         help="git ref whose reachable commit messages must not "
                              "state any protected literal")
@@ -463,6 +586,20 @@ def main() -> int:
     if plan is None:
         print(f"{plan_path}: no review_plan block", file=sys.stderr)
         return 2
+
+    composition: list[str] = []
+    if not args.no_addenda:
+        addenda = find_addenda(plan_path)
+        if addenda:
+            plan, composition = compose_plan(plan, addenda)
+            print(f"composed {len(addenda)} addendum/addenda into "
+                  f"{_rel(plan_path)}:")
+            for path, _ in addenda:
+                print(f"  extends: {_rel(path)}")
+            for note in composition:
+                print(f"  {note}")
+            if not composition:
+                print("  (no joint added or reassigned)")
 
     reports = _collect_reports(report_targets)
     if not reports:
