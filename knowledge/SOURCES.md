@@ -14,24 +14,24 @@ a hash it cannot is an assertion by the session that recorded it.
 
 | Class | Count |
 |---|---|
-| Frozen source packages (`SRC-*`) | 16 |
-| — of those with the artifact committed | 15 |
-| Per-URL retrieval attempts | 19 |
-| — succeeded | 11 |
-| — failed or blocked | 8 |
-| Source artifacts under `inputs/` | 22 |
-| — hash recomputed and matching | 18 |
+| Frozen source packages (`SRC-*`) | 17 |
+| — of those with the artifact committed | 16 |
+| Per-URL retrieval attempts | 21 |
+| — succeeded | 12 |
+| — failed or blocked | 9 |
+| Source artifacts under `inputs/` | 24 |
+| — hash recomputed and matching | 20 |
 | — hash MISMATCH | 0 |
 | — present but carrying no `.sha256` | 3 |
 | — sought and never retrieved | 1 |
 | Seed bibliography entries | 10 |
-| Literature entries (`KN-LIT-*`) | 7876 |
-| — with a resolvable external identifier | 2263 |
+| Literature entries (`KN-LIT-*`) | 7877 |
+| — with a resolvable external identifier | 2264 |
 | — with no identifier recorded | 5613 |
 
-Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1327, doi 150, eprint 749, url 37. Every identifier an entry carries is kept in `sources.json`.
+Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1327, doi 151, eprint 749, url 37. Every identifier an entry carries is kept in `sources.json`.
 
-`citation_verified` distribution: `False` 23, `True` 10, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `metadata` 1, `partial` 5, `read` 7501, `secondary_only` 1, `transcription_of_full_text_at_recorded_sha256` 2, `web` 326.
+`citation_verified` distribution: `False` 23, `True` 10, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `metadata` 1, `partial` 5, `read` 7502, `secondary_only` 1, `transcription_of_full_text_at_recorded_sha256` 2, `web` 326.
 
 ## 1. Frozen source packages
 
@@ -56,6 +56,7 @@ decides whether a later session can re-read what was read here.
 | SRC-SATIC-TRIMOSKA-2019 | A SAT-Based Approach for Index Calculus on Binary Elliptic Curves |  | 2019 | `inputs/SATIC-TRIMOSKA-2019` | yes | package_contents |  |  |
 | SRC-SEMAEV-2015-310 | New algorithm for the discrete logarithm problem on elliptic curves | Igor Semaev | 2015 | `inputs/SEMAEV-2015-310` | yes | declared |  |  |
 | SRC-SHA2-LI-39STEPS-2026 | Pushing Collision Attacks on SHA-2 to 39 Steps |  | 2026 | `inputs/SHA2-LI-39STEPS-2026` | yes | package_contents |  |  |
+| SRC-VOW-1996-PCS | Parallel Collision Search with Cryptanalytic Applications |  |  | `inputs/VOW-1996-PCS` | yes | declared | https://people.scs.carleton.ca/~paulv/papers/JoC97.pdf | 049182522b2a38a1 |
 
 Declared reproducibility limitations:
 
@@ -63,6 +64,7 @@ Declared reproducibility limitations:
 - **SRC-NAGAO-2013-549** — Only the LAST of the paper's revisions is frozen. ePrint serves one PDF per identifier, so the earlier version recorded in the landing-page history is not obtainable from these bytes and is not vendored here. Any question of the form "which version did a later paper read" is therefore not answerable from this package alone.
 - **SRC-NS-AGENT-RESOLUTION-2026** — Freezing the fragment makes the intake reproducible; it does NOT make the fragment's claims checkable. The mathematical objects the text refers to - the Euler regularity disproof, the Navier-Stokes resolution, the Lean formalization - are not present in this repository, were not supplied, and have no cited location. Nothing in this record is a receipt for any of them.
 - **SRC-OAI-TEN-PROOFS-2026** — The PDF is not committed, so the sha256 above cannot be recomputed from this repository and no later session can re-read the source these summaries were taken from. This record is an assertion about a read that happened, not a checkable receipt for it -- the contrast is SRC-P13-WESOLOWSKI-2026, whose full text is frozen at inputs/P13-WESOLOWSKI-2026/paper_fulltext.md.
+- **SRC-VOW-1996-PCS** — Preprint, not the version of record. Any constant or section number that a later record leans on should be re-checked against the JoC version if that version is ever retrieved.
 
 ## 2. Per-URL retrieval attempts
 
@@ -91,6 +93,8 @@ not the same as never having looked.
 | local-artifact |  | local_artifact |  | 2026-09-13T12:52:00Z | `inputs/SEMAEV-2015-310/eprint-2015-310.pdf` |
 | local-artifact |  | local_artifact |  | 2026-09-13T12:52:00Z | `inputs/SEMAEV-2015-310/paper_fulltext.md` |
 | local-artifact |  | local_artifact |  | 2026-09-13T12:52:00Z | `inputs/SEMAEV-2015-310/tables.yaml` |
+| vow-pcs-1996-pdf | https://people.scs.carleton.ca/~paulv/papers/JoC97.pdf | retrieved | 200 | 2026-09-15T08:23:24Z | `inputs/VOW-1996-PCS/vow-pcs-1996.pdf` |
+| vow-pubs-landing | https://people.scs.carleton.ca/~paulv/papers/pubs.html | retrieved_not_vendored | 200 | 2026-09-15T08:23:24Z |  |
 
 ## 3. Source artifacts under `inputs/`
 
@@ -131,6 +135,8 @@ records that some fetch failed, and says nothing about the file that is here.
 | `inputs/NAGAO-2015-984/paper_fulltext.md` | 23350 | match | 337fae555450162e |  |
 | `inputs/SEMAEV-2015-310/eprint-2015-310.pdf` | 271506 | match | d6636436e2e9254d |  |
 | `inputs/SEMAEV-2015-310/paper_fulltext.md` | 38979 | match | 3b3bea4c24c6265e |  |
+| `inputs/VOW-1996-PCS/paper_fulltext.md` | 91499 | match | 3be42e6d5001c4de |  |
+| `inputs/VOW-1996-PCS/vow-pcs-1996.pdf` | 135933 | match | 049182522b2a38a1 |  |
 
 ## 4. Seed bibliography
 
@@ -151,7 +157,7 @@ records that some fetch failed, and says nothing about the file that is here.
 
 ## 5. Literature citations with a resolvable identifier
 
-2263 of 7876 `KN-LIT-*` entries carry an
+2264 of 7877 `KN-LIT-*` entries carry an
 eprint, arXiv, DOI, ISBN or URL identifier.
 
 | ID | Title | Year | Identifier | Verified |
@@ -1958,6 +1964,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-737 | COMPUTING ENDOMORPHISM RINGS OF SUPERSINGULAR | 2020 | `arxiv:2004.11495` | read |
 | KN-LIT-738 | CONJECTURE A AND μ-INVARIANT FOR SELMER GROUPS OF SUPERSINGULAR ELLIPTIC CURVES | 2020 | `arxiv:2006.14134` | read |
 | KN-LIT-739 | CONSTRUCTING CONGRUENT NUMBER ELLIPTIC CURVES | 2020 | `arxiv:2006.08113` | read |
+| KN-LIT-73f7e1 | Parallel Collision Search with Cryptanalytic Applications (read at source) | 1999 | `doi:10.1007/pl00003816` | read |
 | KN-LIT-740 | CONSTRUCTION OF HECKE CHARACTERS FOR THREE-DIMENSIONAL CM | 2020 | `arxiv:2009.12761` | read |
 | KN-LIT-741 | COUNTING ELLIPTIC CURVES WITH A RATIONAL N -ISOGENY FOR SMALL N | 2020 | `arxiv:2009.05223` | read |
 | KN-LIT-7414 | University of Birmingham Quasi-subfield polynomials and the elliptic curve discrete logarithm problem |  | `doi:10.1515/jmc-2015-0049` | read |
@@ -8056,6 +8063,7 @@ corpus may hold a true duplicate. Resolving it is a `/curate-knowledge` job.
 | `arxiv:1711.04062` | KN-LIT-560, KN-LIT-7632 |
 | `arxiv:2001.11229` | KN-LIT-102cdb, KN-LIT-6e036d |
 | `arxiv:2304.14757` | KN-LIT-4c8135, KN-LIT-c41d8b |
+| `doi:10.1007/pl00003816` | KN-LIT-012, KN-LIT-73f7e1 |
 | `eprint:2010/331` | KN-LIT-13a01d, KN-LIT-3c9f21 |
 | `eprint:2015/310` | KN-LIT-009, KN-LIT-fa346d |
 | `eprint:2015/573` | KN-LIT-475, KN-LIT-7607 |
