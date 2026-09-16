@@ -24,6 +24,10 @@ about ECDLP cost.
 -- allowance of this container.
 import Mathlib.Algebra.Field.Basic
 import Mathlib.Algebra.Group.Hom.Defs
+import Mathlib.Algebra.BigOperators.Group.Finset.Basic
+import Mathlib.Algebra.CharP.Lemmas
+import Mathlib.Algebra.CharP.Two
+import Mathlib.FieldTheory.Finite.Basic
 import Mathlib.Tactic.FieldSimp
 import Mathlib.Tactic.LinearCombination
 
@@ -83,5 +87,123 @@ theorem degeneracy_root_unique (x : K) (hx : x ≠ 0) (μ : K) (hμ : μ ≠ 0) 
   · intro h
     rw [h]
     field_simp
+
+/-! ## The intended instance
+
+Everything above is stated for an ABSTRACT `T` carrying two hypotheses. On its
+own that is not a statement about finite fields: nothing there says the
+hypotheses are satisfiable at all, let alone satisfied by the absolute trace of
+`F_{2^n}`. This section discharges them, so `hT` and `hL` stop being
+assumptions and become theorems about a concrete field.
+
+The split below is deliberate. Squaring-invariance follows from ONE fact about
+the field -- `z ^ 2 ^ n = z` -- and nothing else; `absTrace_sq_of_pow` proves it
+from that alone, and `pow_two_pow_card` is the only place the order of the
+field is used. -/
+
+section AbsoluteTrace
+
+variable {K : Type*} [Field K] [CharP K 2]
+
+/-- The absolute trace of a field of order `2 ^ n`, written out rather than
+taken from an API: `z + z^2 + z^4 + ... + z^(2^(n-1))`. -/
+def absTrace (n : ℕ) (z : K) : K := ∑ i ∈ Finset.range n, z ^ 2 ^ i
+
+@[simp] lemma absTrace_zero (n : ℕ) : absTrace n (0 : K) = 0 :=
+  Finset.sum_eq_zero fun i _ => zero_pow (Nat.two_pow_pos i).ne'
+
+/-- Additivity: in characteristic 2 the Frobenius is additive, termwise. -/
+lemma absTrace_add (n : ℕ) (a b : K) :
+    absTrace n (a + b) = absTrace n a + absTrace n b := by
+  have : Fact (Nat.Prime 2) := ⟨Nat.prime_two⟩
+  simp only [absTrace, ← Finset.sum_add_distrib]
+  exact Finset.sum_congr rfl fun i _ => add_pow_char_pow a b 2 i
+
+/-- The absolute trace as an additive homomorphism, which is the shape
+`trace_witness_annihilates_degree_two_part` takes. -/
+def absTraceHom (n : ℕ) : K →+ K where
+  toFun := absTrace n
+  map_zero' := absTrace_zero n
+  map_add' := absTrace_add n
+
+/-- **`hT` discharged, from the field-order fact alone.** Squaring shifts the
+sum by one place; `z ^ 2 ^ n = z` closes the cycle, so the shifted sum and the
+original differ by nothing. -/
+lemma absTrace_sq_of_pow {n : ℕ} (hpow : ∀ w : K, w ^ 2 ^ n = w) (z : K) :
+    absTrace n (z ^ 2) = absTrace n z := by
+  have shift : ∀ i : ℕ, (z ^ 2) ^ 2 ^ i = z ^ 2 ^ (i + 1) := by
+    intro i
+    rw [← pow_mul]
+    congr 1
+    ring
+  have key := Finset.sum_range_succ' (fun i => z ^ 2 ^ i) n
+  rw [Finset.sum_range_succ] at key
+  simp only [pow_zero, pow_one, hpow] at key
+  simp only [absTrace, shift]
+  exact (add_right_cancel key).symm
+
+end AbsoluteTrace
+
+section FiniteInstance
+
+variable {K : Type*} [Field K] [Fintype K] [CharP K 2]
+
+/-- The only place the ORDER of the field is used: in a field of order `2 ^ n`
+every element satisfies `z ^ 2 ^ n = z`. -/
+lemma pow_two_pow_card {n : ℕ} (hcard : Fintype.card K = 2 ^ n) (z : K) :
+    z ^ 2 ^ n = z := by
+  have h := FiniteField.pow_card z
+  rwa [hcard] at h
+
+/-- **The witness theorem with no hypotheses left to discharge.** For a field of
+order `2 ^ n`, its absolute trace annihilates `x⁻¹^2 * (t^2 + t*x)` for every
+nonzero `x` and every `t`. -/
+theorem absTrace_witness_annihilates {n : ℕ} (hcard : Fintype.card K = 2 ^ n)
+    (x t : K) (hx : x ≠ 0) :
+    absTrace n ((x⁻¹) ^ 2 * (t ^ 2 + t * x)) = 0 :=
+  trace_witness_annihilates_degree_two_part (absTraceHom n)
+    (absTrace_sq_of_pow (pow_two_pow_card hcard))
+    (fun y => CharTwo.add_self_eq_zero y) x t hx
+
+/-! ### The object the claim is about
+
+`t` above is a bare field element. The descended system's degree-2 coefficients
+are pairwise products of a factor-base family, so name them and state the
+annihilation for those, quantified over the index type and the family. That is
+what "uniformly in `n'` and in `V`" means, as a quantifier rather than prose. -/
+
+/-- The degree-2 coefficients of the descended system built on a factor-base
+family `v`: the pairwise products `v j * v k`. -/
+def degreeTwoCoeff {ι : Type*} (v : ι → K) (j k : ι) : K := v j * v k
+
+/-- **One functional annihilates every degree-2 coefficient at once.** The
+functional depends only on `x`; the statement is quantified over the index type
+`ι`, the family `v`, and the pair `(j, k)`. -/
+theorem absTrace_witness_annihilates_degree_two_coeffs {n : ℕ} {ι : Type*}
+    (hcard : Fintype.card K = 2 ^ n) (v : ι → K) (x : K) (hx : x ≠ 0) (j k : ι) :
+    absTrace n ((x⁻¹) ^ 2 *
+      (degreeTwoCoeff v j k ^ 2 + degreeTwoCoeff v j k * x)) = 0 :=
+  absTrace_witness_annihilates hcard x _ hx
+
+/-- **The limitation, as a checked statement rather than a caveat in prose.**
+
+The same functional annihilates `t^2 + t*x` for EVERY `t : K`, not only for
+factor-base products. So the uniformity above is cheap: the argument never
+inspects `v`, `ι`, the subspace or its dimension, and could not tell a factor
+base from an arbitrary family.
+
+Two consequences, both reasons NOT to read any of this as a degree-2 fall.
+Annihilating the degree-2 part is one HALF of a fall; the other half is that
+the surviving degree-<=1 residue is NONZERO, which is not proved anywhere in
+this file and does not follow from anything in it. And a functional that kills
+all of `K` under this map carries no information about the system, so nothing
+here distinguishes the Semaev setting from any other. -/
+theorem absTrace_witness_kills_every_element {n : ℕ}
+    (hcard : Fintype.card K = 2 ^ n) (x : K) (hx : x ≠ 0) :
+    ∀ t : K, absTrace n ((x⁻¹) ^ 2 * (t ^ 2 + t * x)) = 0 :=
+  fun t => absTrace_witness_annihilates hcard x t hx
+
+end FiniteInstance
+
 
 end CryptoResearch.Semaev
