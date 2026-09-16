@@ -78,6 +78,45 @@ relations among them at a degree set by `deg(g)` and `q`, not by `n`. **This is
 a hypothesis consistent with the data, not a verified attribution.** Confirming
 it means exhibiting the explicit syzygy and checking it is not in `Triv`.
 
+## 3a. ADDENDUM (2026-09-16, TASK-20260916-43505c) — the attribution is now DERIVED
+
+Section 3 stated the Frobenius attribution as "a hypothesis consistent with the
+data, not a verified attribution". **It is now derived, and it is uniform.**
+
+The degree-2 coefficients of the descended system are exactly
+
+    c_{jk} = t² + t·x_R ,   t = v_j v_k
+
+An `F₂`-combination killing the whole degree-2 part is an `F₂`-linear
+functional, i.e. `Tr(μ·—)` for some `μ ≠ 0`. Using `Tr(z) = Tr(z²)` in the form
+`Tr(μ t²) = Tr(μ^{1/2} t)`:
+
+    Tr( μ (t² + t·x_R) ) = Tr( (μ^{1/2} + μ·x_R) · t )
+
+which vanishes for **all** `t` as soon as `μ^{1/2} + μ·x_R = 0`. Taking
+`μ = x_R^{−2}` gives `μ^{1/2} = x_R^{−1}` and `μ·x_R = x_R^{−1}`, whose sum is
+zero in characteristic 2.
+
+**So a degree-2 fall exists for every `n`, every `n'`, and every `V`, whenever
+`x_R ≠ 0`** — which is exactly the pinning at `d_ff = 2` that §2 measured, now
+explained rather than observed. Squaring `μ^{1/2} = μ x_R` gives
+`μ(1 + μ x_R²) = 0`, so `x_R^{−2}` is the unique nonzero root of *that* equation.
+
+Verified in `research/verification/ffd_frobenius_witness.py`: the witness
+annihilates the degree-2 part in **every** cell over `n = 2..9`, `n' = 1..5`,
+6 random `(V, x_R)` draws each.
+
+**Uniqueness of the annihilating `μ` is FALSE in general and is not claimed.**
+The same script finds 7 annihilating `μ` at `n=9, n'=3` and 63 at `n=9, n'=2`:
+when the products `v_j v_k` span a proper subspace, accidental solutions exist,
+and a negative control finds 14/106 non-witness `μ` that also work at small
+`n'`. Uniqueness returns once the products span enough of the field. The unique
+object is the nonzero root of `μ^{1/2} + μ x_R = 0`, not the annihilator.
+
+This upgrades the Frobenius attribution from hypothesis to derivation and is
+filed as Lean target `formal/targets/semaev-s3-degree2-fall-witness.yaml`. It
+still proves only that a degree-2 fall **exists**; §4 below is unchanged.
+
 ## 4. What this does NOT show
 
 - **`d_ff` is not the solving degree.** Caminata–Gorla §4 proves `d_ff` can be
