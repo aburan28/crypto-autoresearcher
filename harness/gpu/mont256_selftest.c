@@ -51,6 +51,16 @@ int main(void) {
     rd(order);
     if (scanf("%d %d %d %d", &nbranch, &nwalks, &nsteps, &dp_bits) != 4) return 2;
     if (nbranch > MAXB || nwalks > MAXW) { fprintf(stderr, "too big\n"); return 2; }
+    /* Defence in depth: the driver rejects these too, but this file also reads
+     * hand-written cases, and a non-power-of-two table makes `& (nbranch-1)`
+     * index past TX/TY/TC/TD rather than merely skew the distribution. */
+    if (nbranch < 2 || (nbranch & (nbranch - 1)) != 0) {
+        fprintf(stderr, "nbranch must be a power of two >= 2 (got %d)\n", nbranch);
+        return 2;
+    }
+    if (nwalks < 1 || dp_bits < 0 || dp_bits >= 64) {
+        fprintf(stderr, "bad nwalks/dp_bits\n"); return 2;
+    }
 
     static u64 TX[MAXB * LIMBS], TY[MAXB * LIMBS], TC[MAXB * LIMBS], TD[MAXB * LIMBS];
     for (int s = 0; s < nbranch; s++) {
