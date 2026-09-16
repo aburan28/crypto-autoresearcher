@@ -14,24 +14,24 @@ a hash it cannot is an assertion by the session that recorded it.
 
 | Class | Count |
 |---|---|
-| Frozen source packages (`SRC-*`) | 18 |
-| — of those with the artifact committed | 17 |
-| Per-URL retrieval attempts | 28 |
-| — succeeded | 17 |
-| — failed or blocked | 11 |
-| Source artifacts under `inputs/` | 32 |
-| — hash recomputed and matching | 28 |
+| Frozen source packages (`SRC-*`) | 20 |
+| — of those with the artifact committed | 19 |
+| Per-URL retrieval attempts | 35 |
+| — succeeded | 21 |
+| — failed or blocked | 14 |
+| Source artifacts under `inputs/` | 38 |
+| — hash recomputed and matching | 34 |
 | — hash MISMATCH | 0 |
 | — present but carrying no `.sha256` | 3 |
 | — sought and never retrieved | 1 |
 | Seed bibliography entries | 10 |
-| Literature entries (`KN-LIT-*`) | 7881 |
-| — with a resolvable external identifier | 2268 |
+| Literature entries (`KN-LIT-*`) | 7883 |
+| — with a resolvable external identifier | 2270 |
 | — with no identifier recorded | 5613 |
 
-Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1329, doi 151, eprint 751, url 37. Every identifier an entry carries is kept in `sources.json`.
+Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1330, doi 152, eprint 751, url 37. Every identifier an entry carries is kept in `sources.json`.
 
-`citation_verified` distribution: `False` 23, `True` 10, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `metadata` 1, `partial` 5, `read` 7503, `secondary_only` 1, `transcription_of_full_text_at_recorded_sha256` 2, `web` 329.
+`citation_verified` distribution: `False` 23, `True` 10, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `metadata` 1, `partial` 5, `read` 7505, `secondary_only` 1, `transcription_of_full_text_at_recorded_sha256` 2, `web` 329.
 
 ## 1. Frozen source packages
 
@@ -44,6 +44,8 @@ decides whether a later session can re-read what was read here.
 | SRC-BAILEY-2009-541-ECC2K130 | Breaking ECC2K-130 |  |  | `inputs/BAILEY-2009-541-ECC2K130` | yes | declared | https://eprint.iacr.org/2009/541.pdf | 825f19a11b489ee8 |
 | SRC-BENNETT-WEAKNESS-2023 | The Optimal Choice of Hypothesis Is the Weakest, Not the Shortest | Michael Timothy Bennett | 2023 | `inputs/BENNETT-WEAKNESS-2023` | yes | declared |  |  |
 | SRC-DCP-SIMON-2026 | A Polynomial-Time Quantum Algorithm for the Dihedral Coset Problem [Preliminary Draft] | Daniel R. Simon | 2026 | `inputs/DCP-SIMON-2026` | yes | package_contents |  |  |
+| SRC-EULER-PETIT-2019-QSP | New Results on Quasi-Subfield Polynomials |  | 2020 | `inputs/EULER-PETIT-2019-QSP` | yes | frozen_path |  |  |
+| SRC-HUANG-2020-JMC-QSP | Quasi-subfield Polynomials and the Elliptic Curve Discrete Logarithm Problem |  | 2020 | `inputs/HUANG-2020-JMC-QSP` | yes | frozen_path |  |  |
 | SRC-ICPERF-TRIMOSKA-ECICB-2024 | EC Index Calculus Benchmarks (instance generator and benchmark set for the point-decomposition problem from a Weil descent of the fourth summation polynomial) | Monika Trimoska |  | `inputs/TRIMOSKA-ECICB-2024` | yes | package_contents |  |  |
 | SRC-ICPERF-TRIMOSKA-WDSAT-2024 | WDSat -- a SAT solver dedicated to instances derived from a Weil descent | Monika Trimoska (with Sorina Ionica and Gilles Dequen, per the README) |  | `inputs/TRIMOSKA-WDSAT-2024` | yes | package_contents |  |  |
 | SRC-KARABINA-PDP-2015 | Point Decomposition Problem in Binary Elliptic Curves | Koray Karabina | 2015 | `inputs/KARABINA-PDP-2015` | yes | declared |  |  |
@@ -85,6 +87,13 @@ not the same as never having looked.
 | wayback-ecc-challenge-info | http://web.archive.org/web/20141231163824/http://ecc-challenge.info/ | blocked |  | 2026-09-16T09:38:00Z |  |
 | dent-galbraith-hidden.pdf |  | failed |  |  | `inputs/ECTD-TESKE-20260731/sources/dent-galbraith-hidden.pdf` |
 | ellipticnews-2015-04-13-ecdlp-char-two | https://ellipticnews.wordpress.com/2015/04/13/elliptic-curve-discrete-logarithm-problem-in-characteristic-two/ | retrieved | 200 | 2026-09-05T22:45:26Z |  |
+| arxiv-abs | https://arxiv.org/abs/1909.11326v2 | retrieved | 200 | 2026-09-16T19:49:49Z | `inputs/EULER-PETIT-2019-QSP/arxiv-1909.11326-abs.html` |
+| arxiv-pdf-v2 | https://arxiv.org/pdf/1909.11326v2 | retrieved | 200 | 2026-09-16T19:49:49Z | `inputs/EULER-PETIT-2019-QSP/arxiv-1909.11326v2.pdf` |
+| arxiv-search | https://export.arxiv.org/api/query?search_query=all:%22quasi-subfield%22&max_results=20 | retrieved_not_vendored | 200 | 2026-09-16T19:44:00Z |  |
+| bham-landing | https://research.birmingham.ac.uk/en/publications/quasi-subfield-polynomials-and-the-elliptic-curve-discrete-logari/ | retrieved | 200 | 2026-09-16T19:51:49Z | `inputs/HUANG-2020-JMC-QSP/bham-landing.html` |
+| bham-pure-pdf | https://pure-oai.bham.ac.uk/ws/files/97895891/Huang_et_al_Quasi_subfield_polynomials_Journal_of_Mathematical_Cryptology_2020.pdf | retrieved | 200 | 2026-09-16T19:51:48Z | `inputs/HUANG-2020-JMC-QSP/huang-et-al-jmc-2020-qsp.pdf` |
+| crossref-metadata | https://api.crossref.org/works?query.title=quasi-subfield+polynomials+elliptic+curve+discrete+logarithm&rows=5 | retrieved_not_vendored | 200 | 2026-09-16T19:47:00Z |  |
+| degruyter-pdf | https://www.degruyterbrill.com/document/doi/10.1515/jmc-2015-0049/pdf | blocked | 202 | 2026-09-16T19:49:00Z |  |
 | arxiv-math-0411378v3 | https://arxiv.org/abs/math/0411378 | retrieved | 200 | 2026-09-07T21:05:00Z |  |
 | arxiv-math-0411378v3-pdf | https://arxiv.org/pdf/math/0411378v3 | retrieved | 200 | 2026-09-07T21:05:00Z | `inputs/JMV-0411378-20260907/sources/jmv-math-0411378v3.pdf` |
 | local-artifact |  | local_artifact |  | 2026-09-07T21:07:57Z | `inputs/JMV-0411378-20260907/sources/jmv-math-0411378v3.pdf` |
@@ -139,6 +148,12 @@ records that some fetch failed, and says nothing about the file that is here.
 | `inputs/ECTD-TESKE-20260731/sources/jmv-0811.0647.pdf` | 294859 | match | 118c6096f6287f4b |  |
 | `inputs/ECTD-TESKE-20260731/sources/kutas-2019-1290.pdf` | 430504 | match | a7f94571aa03ce34 | yes |
 | `inputs/ECTD-TESKE-20260731/sources/teske-2003-058.pdf` | 287387 | match | 8d889ae0b1b03f77 | yes |
+| `inputs/EULER-PETIT-2019-QSP/arxiv-1909.11326-abs.html` | 40822 | match | 6405189206f2c680 |  |
+| `inputs/EULER-PETIT-2019-QSP/arxiv-1909.11326v2.pdf` | 350817 | match | f080c3ab72a2a553 |  |
+| `inputs/EULER-PETIT-2019-QSP/paper_fulltext.md` | 67096 | match | 7f7c88574961189b |  |
+| `inputs/HUANG-2020-JMC-QSP/bham-landing.html` | 53651 | match | b33cb5336d996c78 |  |
+| `inputs/HUANG-2020-JMC-QSP/huang-et-al-jmc-2020-qsp.pdf` | 531843 | match | e1ba608354a67c1b |  |
+| `inputs/HUANG-2020-JMC-QSP/paper_fulltext.md` | 48073 | match | 558a8704783957d6 |  |
 | `inputs/JMV-0411378-20260907/sources/jmv-math-0411378v3-layout.txt` | 70308 | **present_unhashed** |  |  |
 | `inputs/JMV-0411378-20260907/sources/jmv-math-0411378v3.pdf` | 320392 | match | c80586caaa2e4129 |  |
 | `inputs/JMV-0411378-20260907/sources/jmv-math-0411378v3.txt` | 59315 | **present_unhashed** |  |  |
@@ -174,7 +189,7 @@ records that some fetch failed, and says nothing about the file that is here.
 
 ## 5. Literature citations with a resolvable identifier
 
-2268 of 7881 `KN-LIT-*` entries carry an
+2270 of 7883 `KN-LIT-*` entries carry an
 eprint, arXiv, DOI, ISBN or URL identifier.
 
 | ID | Title | Year | Identifier | Verified |
@@ -287,6 +302,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-097 | Faster elliptic-curve discrete logarithms on FPGAs | 2016 | `eprint:2016/382` | read |
 | KN-LIT-098 | Polynomial-Time Algorithms for Prime Factorization and Discrete Logarithms on a Quantum Computer | 1997 | `doi:10.1137/s0097539795293172` | read |
 | KN-LIT-099 | Quantum Resource Estimates for Computing Elliptic Curve Discrete Logarithms | 2017 | `eprint:2017/598` | read |
+| KN-LIT-0a321c | Quasi-subfield polynomials and the ECDLP (read at source): the algorithm, its cost formula, the beta = l n / n'^2 quality parameter, and what the paper proves about existence | 2020 | `doi:10.1515/jmc-2015-0049` | read |
 | KN-LIT-0f43ad | Finding the permutation between equivalent linear codes: The support splitting algorithm | 2000 | `doi:10.1109/18.850662` | web |
 | KN-LIT-100 | Lattice Reduction by Random Sampling and Birthday Methods | 2003 | `doi:10.1007/3-540-36494-3_14` | read |
 | KN-LIT-1000 | Local Inversion of maps: Black box Cryptanalysis | 2022 | `arxiv:2207.03247` | read |
@@ -1711,6 +1727,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-4c8135 | Polynomial time key-recovery attack on high rate random alternant codes | 2024 | `arxiv:2304.14757` | web |
 | KN-LIT-4e8513 | Solving degree, last fall degree, and related invariants | 2021 | `eprint:2021/1611` | web |
 | KN-LIT-4fa25d | Classic McEliece: conservative code-based cryptography: what plaintext confirmation means | 2022 | `url:classic.mceliece.org/mceliece-pc-20221023.pdf` | web |
+| KN-LIT-4fe9d2 | New results on quasi-subfield polynomials (read at source): beta >= 3/4 for every completely splitting linearized QSP, new families, and the beta < 0.103 threshold for beating generic ECDLP algorithms | 2020 | `arxiv:1909.11326` | read |
 | KN-LIT-500 | ELLIPTIC CURVES IN ISOGENY CLASSES | 2016 | `arxiv:1611.05258` | read |
 | KN-LIT-501 | ELLIPTIC GAUSS SUMS AND SCHOOF’S ALGORITHM | 2016 | `arxiv:1601.03227` | read |
 | KN-LIT-502 | EXTENSIONS OF CM ELLIPTIC CURVES AND ORBIT COUNTING ON THE PROJECTIVE LINE | 2016 | `arxiv:1608.01390` | read |
@@ -8085,6 +8102,7 @@ corpus may hold a true duplicate. Resolving it is a `/curate-knowledge` job.
 | `arxiv:2001.11229` | KN-LIT-102cdb, KN-LIT-6e036d |
 | `arxiv:2304.14757` | KN-LIT-4c8135, KN-LIT-c41d8b |
 | `doi:10.1007/pl00003816` | KN-LIT-012, KN-LIT-73f7e1 |
+| `doi:10.1515/jmc-2015-0049` | KN-LIT-0a321c, KN-LIT-7414 |
 | `eprint:2009/541` | KN-LIT-096, KN-LIT-661e97 |
 | `eprint:2010/331` | KN-LIT-13a01d, KN-LIT-3c9f21 |
 | `eprint:2015/310` | KN-LIT-009, KN-LIT-fa346d |
