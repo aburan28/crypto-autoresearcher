@@ -1589,6 +1589,49 @@ EXECUTED = {
          "written `blocked` on a ruling rather than on the audit finishing, and this is that "
          "ruling. The executor reads the amendment as binding alongside the frozen contract."),
     ]),
+    PRIOR: od([
+        ("state", "completed"),
+        ("outcome",
+         "Completed 2026-09-16T12:10Z. Authored REVIEW-SEMBIN-20260916-cbb416-ADD3, which records "
+         "the reversed prior d'_F(A-SHIFTED) <= 4 at m = 3 with its mechanism, a four-row outcome "
+         "table covering refutation and censoring, five scope limits, and additive obligations on "
+         "J1 and J2 that reassign nothing. TWO SELF-CORRECTIONS DURING THE WORK, both disclosed in "
+         "the artifact rather than smoothed away. First, the draft was FLAT -- a top-level "
+         "`extends:` with no `review_plan_addendum:` wrapper -- which parses, validates, and is "
+         "SILENTLY IGNORED by compose_plan()'s `_addendum_of`, the worst of the three outcomes "
+         "because it reads as a protection that is not in force. Second, the draft header claimed "
+         f"{EXP}/code was absent; the executor began implementing between drafting and committing, "
+         "so the claim was true when written and false ten minutes later. Narrowed to the claim "
+         "that is true -- the prior precedes the MEASUREMENT, not the implementation."),
+    ]),
+    PRIOR_ARCHIVE: od([
+        ("state", "completed"),
+        ("outcome",
+         "Completed 2026-09-16 at commit c15dc4318. The archive's substantive content is an "
+         "ORDERING CHECK rather than a hash comparison: at that commit the only paths under "
+         f"{EXP} are specification.yaml and the collision amendment -- no runs/, no code/ -- so the "
+         "tree itself witnesses that the prediction preceded the measurement. Two independent "
+         "checks recorded (committed tree via git ls-tree, working tree via ls). Staged path by "
+         "path with three lanes writing into the worktree, because sweeping the executor's "
+         "untracked code/ into this commit would have destroyed the ordering the archive exists to "
+         "establish."),
+        ("archive_binding", od([
+            ("commit_sha", "c15dc43183f770205c41592e2a5cc691f4a7dd1e"),
+            ("commit_sha_note",
+             "READ BACK FROM GIT, not typed. The first value written here was a full hash extended "
+             "from the abbreviation by hand and it was wrong past the 9th character; "
+             "research_dispatch.py refused the queue with `requires archive.commit_sha to resolve "
+             "to a commit`, which is the check doing exactly its job. Confirm with "
+             "`git log -1 --format=%H` on the commit whose subject names TASK-20260916-d5e431."),
+            ("parent_sha", "a98f3334060f82c2c5383a72e6007209472d12d5"),
+            ("path_sha256", od([
+                (f"{BASE}/archives/{PRIOR_ARCHIVE}/snapshot-receipt.json",
+                 "ad4696bfc8c9ef7c8d27887cbbadcdea5aeac86d3c5b91899eedb64b6037e70e"),
+                (PRIOR_ADDENDUM_PATH,
+                 "1cb56e37d48f77c65cea003f87a24f55660181f4177a4b2edc0257a08d5f381b"),
+            ])),
+        ])),
+    ]),
 }
 
 REVISIONS = [
