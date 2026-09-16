@@ -7,21 +7,39 @@ Claim:  FFD-SEMAEV-MEASUREMENT1-THM-WITNESS
 
 FFD_SEMAEV_MEASUREMENT1 measured the first-fall degree of the descended system
 pinned at 2, uniformly in the extension degree `n`, the factor-base dimension
-`n'` and the subspace `V`. This file proves the mechanism behind that pinning.
+`n'` and the subspace `V`.
 
 The degree-2 coefficients of the descended system are `t^2 + t*x` with
 `t = v_j v_k` and `x` the target abscissa. The content is that scaling by
 `x⁻¹^2` turns every one of them into an ARTIN-SCHREIER element `z^2 + z`,
 and any Frobenius-invariant additive map kills `z^2 + z` in characteristic 2.
+`absTrace` supplies an instance -- the absolute trace of a field of order
+`2^n` -- so the hypotheses are discharged rather than assumed.
 
-Scope. This proves a degree-2 fall EXISTS, uniformly. It says nothing about the
-solving degree (which is provably unrelated to the first fall degree in either
-direction -- see CORR-20260916-0c9c0a), about propagation to higher degrees, or
-about ECDLP cost.
+SCOPE, WRITTEN TO MATCH WHAT IS ACTUALLY PROVED. This file proves that the
+degree-2 part is ANNIHILATED, uniformly in `n`, `n'` and `V`.
+
+That is ONE HALF of a degree fall. The other half -- that the surviving
+degree-<=1 residue is NONZERO -- is NOT proved here and does not follow from
+anything here; without it the cancellation is equally consistent with the
+trivial relation `0 = 0`. `absTrace_witness_kills_every_element` records the
+reason to be careful about reading more into it: the same functional
+annihilates EVERY element of `K` under this map, so the argument never inspects
+the factor base and cannot distinguish the Semaev setting from any other.
+
+So this file does not establish that a degree-2 fall exists. It establishes the
+cancellation such a fall requires. Bridging that to the measurement is the
+semantic-fidelity question, and it is open. The target YAML is a frozen record
+and still reads more strongly than this; per the immutability rule it is
+superseded here rather than edited.
+
+It also says nothing about the solving degree (provably unrelated to the first
+fall degree in either direction -- see CORR-20260916-0c9c0a), about propagation
+to higher degrees, or about ECDLP cost.
 -/
--- Minimal imports: this proof needs field algebra and additive maps only.
--- Importing all of Mathlib is unnecessary here and does not fit the disk
--- allowance of this container.
+-- Named imports rather than `import Mathlib`: they are the honest dependency
+-- list of this file, and they keep the build small enough that the CI proof
+-- gate is cheap to run on every change.
 import Mathlib.Algebra.Field.Basic
 import Mathlib.Algebra.Group.Hom.Defs
 import Mathlib.Algebra.BigOperators.Group.Finset.Basic
