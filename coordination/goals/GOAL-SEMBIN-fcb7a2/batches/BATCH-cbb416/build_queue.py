@@ -36,7 +36,7 @@ RULING_ARCHIVE = "TASK-20260916-9d98ef"
 EXECUTE = "TASK-20260916-0c2802"
 PRODUCER_SNAPSHOT = "TASK-20260916-8eb394"
 REVIEW_INSTRUMENT = "TASK-20260916-90af14"
-REVIEW_CONTROLS = "TASK-20260916-7be96a"
+REVIEW_BLIND = "TASK-20260916-7be96a"
 LEDGER = "TASK-20260916-6a2fcf"
 
 DECISION = "DEC-20260916-59921c"
@@ -47,7 +47,13 @@ EVIDENCE = "EV-SEMBIN-29c44f"
 CLOSING = "DEC-20260916-a0af84"
 
 AMENDMENT_PATH = f"{EXP}/amendments/{AMENDMENT}.yaml"
-ADDENDUM_PATH = f"{REVIEW}/review-plan-addendum-1.yaml"
+# ADDENDUM **2**. Addendum 1 is another session's, and it landed on origin/main
+# while this ruling was being written: it reassigns J3/J4 to the instrument
+# reviewer so the blind re-deriver reads nothing under blind_from. Two sessions
+# amended this batch's queue within the hour, which is the ordinary condition
+# here, and the merge kept both. Addendum 2 extends `blind_from` over the
+# collision audit; it does not touch addendum 1's assignment.
+ADDENDUM_PATH = f"{REVIEW}/review-plan-addendum-2.yaml"
 
 
 def od(pairs):
@@ -69,6 +75,14 @@ collision_artifacts = [
     f"{AUDIT}/searches.json",
     f"{AUDIT}/verdict.json",
 ]
+
+# The review plan is committed and bound at d38386a31, so a change to who owns
+# a joint travels as an addendum beside it (tools/check_review_independence.py
+# composes plan + addenda), never as an edit to the plan. Both of these are
+# Coordinator-written control-plane files the closing ledger archive binds.
+REVIEW_ADDENDUM = f"{REVIEW}/review-plan-addendum-1.yaml"
+BLIND_INSTANCE = f"{REVIEW}/blind-instance.yaml"
+CLOSING_CHECKPOINT = f"ledger/goals/{GOAL}/checkpoints/{BATCH}-close.yaml"
 
 # NO GOAL HEAD HERE, and the reason is a real constraint rather than an
 # oversight: an artifact path is owned by exactly ONE task in a queue, and
@@ -813,15 +827,36 @@ tasks.append(od([
 ]))
 
 # ---------------------------------------------------------------------------
-def reviewer(task_id, title, joints, objective, questions, extra_constraints=()):
-    """One reviewer card. Two of these split REVIEW-SEMBIN-20260916-cbb416's five joints.
+REVIEWER_READ_SCOPE = [
+    f"{EXP}/",
+    f"{REVIEW}/review-plan.yaml",
+    REVIEW_ADDENDUM,
+    AUDIT,
+    "ledger/hypotheses/H-SEMBIN-a7e721.yaml",
+    "ledger/decisions/DEC-20260916-88ac73.yaml",
+    "ledger/corrections/CORR-20260916-96f47d.yaml",
+    "coordination/review/sembin-20260916-propquant",
+    "inputs/NAGAO-2015-984",
+    "templates/research-records.md",
+]
 
-    Split by WHAT THEY ATTACK rather than by convenience: one owns the object and the
-    instrument (is this the system the contract names, does the code compute d'_F),
-    the other owns the controls and the blind re-derivation (do the nulls
-    discriminate, is an absence being written up as a fact). A reviewer told only to
-    "review this" converges on whatever is most legible, so their agreement would
-    measure shared taste rather than coverage.
+
+def reviewer(task_id, title, joints, objective, questions, extra_constraints=(), *,
+             read_scope=REVIEWER_READ_SCOPE, read_scope_note=None, extra_inputs=(),
+             extra_artifacts=(), extra_deliverables=(), extra_gate=(), extra_preconditions=()):
+    """One reviewer card. Two of these make up REVIEW-SEMBIN-20260916-cbb416's round.
+
+    Split the way ICPERF's BATCH-a33cda split its round, and for the reason that
+    batch learned: one reviewer owns every joint that requires READING THE RUN
+    (the object, the instrument, the controls, the accounting), the other owns
+    ONLY the blind re-derivation and reads nothing under the plan's `blind_from`.
+    The first draft of this queue put J3/J4 and the blind re-derivation on one
+    card; since J3/J4 cannot be checked without opening
+    experiments/EXP-SEMBIN-4fa22c/runs/ and tools/check_review_independence.py
+    reports ANY attested read under `blind_from` as a leak, that card's own
+    completion gate could not be passed by an honest reviewer. A reviewer told
+    only to "review this" converges on whatever is most legible, so the joints
+    are still enumerated and owned one by one.
     """
     return od([
         ("id", task_id),
@@ -837,23 +872,15 @@ def reviewer(task_id, title, joints, objective, questions, extra_constraints=())
          "PRODUCER_SNAPSHOT because a reviewer must read committed, pushed artifacts rather than a "
          "working tree -- if the tree can still move underneath a review, custody is exactly what "
          "breaks, which BATCH-a33cda's R5 verdict recorded from experience."),
-        ("read_scope", [
-            f"{EXP}/",
-            f"{REVIEW}/review-plan.yaml",
-            AUDIT,
-            "ledger/hypotheses/H-SEMBIN-a7e721.yaml",
-            "ledger/decisions/DEC-20260916-88ac73.yaml",
-            "ledger/corrections/CORR-20260916-96f47d.yaml",
-            "coordination/review/sembin-20260916-propquant",
-            "inputs/NAGAO-2015-984",
-            "templates/research-records.md",
-        ]),
+        ("read_scope", list(read_scope)),
+    ] + ([("read_scope_note", read_scope_note)] if read_scope_note else []) + [
         ("write_scope", [f"{REVIEW}/{task_id}/"]),
         ("artifact_paths", [
             f"{REVIEW}/{task_id}/report.md",
             f"{REVIEW}/{task_id}/attestation.yaml",
-        ]),
+        ] + list(extra_artifacts)),
         ("review_plan_ref", f"{REVIEW}/review-plan.yaml"),
+        ("review_plan_addendum", [REVIEW_ADDENDUM]),
         ("joints_owned", joints),
         ("handoff", od([
             ("objective", objective),
@@ -867,9 +894,11 @@ def reviewer(task_id, title, joints, objective, questions, extra_constraints=())
                 "the Coordinator thinks each one breaks. The Coordinator's priors are recorded "
                 "there BEFORE you ran; overturning one is among the most informative things you "
                 "can return.",
+                f"{REVIEW_ADDENDUM} -- ADDITIVE companion to the plan, written before any reviewer "
+                "ran: reassigns J3 and J4 so that the blind re-deriver reads nothing under "
+                "blind_from. The plan and this addendum together are the round's declaration.",
                 f"{EXP}/specification.yaml -- the frozen contract. Binding.",
-                f"{AUDIT}/verdict.json -- the pre-compute collision audit.",
-            ]),
+            ] + list(extra_inputs)),
             ("constraints", [
                 f"DO NOT READ your sibling reviewer's directory under {REVIEW}/. Record it in a "
                 "`did_not_read` list in your attestation.",
@@ -898,9 +927,10 @@ def reviewer(task_id, title, joints, objective, questions, extra_constraints=())
                 "(holds | breaks | cannot determine), the evidence, and what you re-derived versus "
                 "took on trust",
                 "attestation.yaml -- per-joint verdicts, `read_sibling_reports: false`, a "
-                "`did_not_read` list, what you re-derived, what you took on trust, what you could "
-                "not verify and what it would cost to, and your inference provenance",
-            ]),
+                "`did_not_read` list, a `sources_read` list, what you re-derived, what you took on "
+                "trust, what you could not verify and what it would cost to, and your inference "
+                "provenance",
+            ] + list(extra_deliverables)),
             ("inference", od([
                 ("policy", "review-adversarial"),
                 ("reasoning_effort", "xhigh"),
@@ -927,24 +957,32 @@ def reviewer(task_id, title, joints, objective, questions, extra_constraints=())
                 "every joint you own carries a verdict with its evidence",
                 "attestation.yaml records read_sibling_reports false and a did_not_read list",
                 "tools/check_review_independence.py raises no problem against this task",
-            ]),
+            ] + list(extra_gate)),
             ("dispatch_preconditions", [
                 f"{PRODUCER_SNAPSHOT} has a verified snapshot receipt, so you read committed "
                 "producer artifacts rather than a working tree",
-            ]),
+                f"{REVIEW_ADDENDUM} is committed and pushed, so the joint assignment you are "
+                "handed is the one the round declares",
+            ] + list(extra_preconditions)),
         ])),
     ])
 
 
 tasks.append(reviewer(
     REVIEW_INSTRUMENT,
-    "Review J1, J2 and J5 of REVIEW-SEMBIN-20260916-cbb416: is the measured object the coset-shifted "
-    "EQS4 descent the contract names, does the code compute d'_F rather than something near it, and "
-    "does the run state its own blindness to the true degree",
-    ["J1", "J2", "J5"],
-    "Attack the object and the instrument. Establish independently whether the systems measured are "
-    "the ones EXP-SEMBIN-4fa22c specifies, whether the integer it reports is the quantity the "
-    "contract defines, and whether the report states in words that it cannot refute Proposition 5.",
+    "Review J1-J5 of REVIEW-SEMBIN-20260916-cbb416: is the measured object the coset-shifted EQS4 "
+    "descent the contract names, does the code compute d'_F rather than something near it, do the "
+    "null objects actually discriminate, is any absence being written up as a fact, and does the run "
+    "state its own blindness to the true degree",
+    ["J1", "J2", "J3", "J4", "J5"],
+    "Attack the object, the instrument, the controls and the accounting -- every joint that requires "
+    "reading the run. Establish independently whether the systems measured are the ones "
+    "EXP-SEMBIN-4fa22c specifies, whether the integer it reports is the quantity the contract "
+    "defines, whether a reported separation is a fact about the summation polynomial or about the "
+    "shape of a degree-3 Boolean system, whether every censored arm, watchdog kill and wall figure "
+    "is reported as what it is, and whether the report states in words that it cannot refute "
+    "Proposition 5. The blind re-derivation is NOT yours: your sibling derives d'_F and M-2 without "
+    "opening the run, which is why you may.",
     [
         "Recompute the descent for the smallest n from Nagao's definitions rather than from the "
         "executor's code, and compare against the recorded M-4 hash. Do the two arms differ in "
@@ -961,59 +999,134 @@ tasks.append(reviewer(
         "cannot show this may not be cited on Lemma 4 in either form.",
         "S-1 and S-5: find the sentence. Both consequences for every measured value, and a "
         "confirmation direction carrying its dependence on Lemma 4's unproven inside form?",
+        "J3. Are the ten draws per null arm ten DISTINCT seeded draws? Regenerate two from their "
+        "recorded seeds -- do they reproduce?",
+        "J3. Does A-NULL-SHUFFLED preserve the exact global monomial multiset of A-SHIFTED? Count "
+        "it; do not trust the label.",
+        "J3. Did the run stay within maximum_runs 4? A fifth pass over the n-series is the shape of "
+        "re-rolling nulls until they cooperate and would void C-2 entirely.",
+        "J3. S-6: are the nulls reported BEFORE any target value is interpreted, or is the headline "
+        "first and the control a later section? The Coordinator expects the ordering to be where "
+        "this breaks.",
+        "J4. For every arm with no fall found: does the record say `> d_max_reached` rather than "
+        "'no fall', and does NO downstream sentence treat it as a measured value (SR-1)?",
+        "J4. Is every watchdog kill or infrastructure failure recorded as `failed_infrastructure` "
+        "and cited nowhere as evidence about Nagao (SR-5)?",
+        "J4. Read the recorded poll interval. Does any reported wall RATIO involve two measurements "
+        "that both finish inside it (CORR-20260916-33068f measured a 51x inflation from exactly "
+        "this)?",
+        "J4. C-5: is the series shown, or is monotonicity asserted? A non-monotone series is an "
+        "INSTRUMENT signal first (F-4) -- was it rationalised as a fact about the systems?",
     ],
     extra_constraints=(
         "The proves-too-much control is YOURS (review plan, proves_too_much): run the argument "
         "against a system with a PLANTED fall at degree 3, where its conclusion is known false. The "
         "instrument must find that fall at 3. And against a Koszul-only system, where it must find "
         "no non-trivial fall at all.",
+        f"NEVER QUOTE A MEASURED d'_F OR M-2 VALUE outside your own directory -- not in a bus "
+        f"message, not in a commit message, not in a note. Your sibling {REVIEW_BLIND} derives "
+        "those integers blind, and the plan's blind_from_note makes this a standing obligation on "
+        "every document in the campaign.",
     ),
+    extra_inputs=(f"{AUDIT}/verdict.json -- the pre-compute collision audit.",),
 ))
 
 tasks.append(reviewer(
-    REVIEW_CONTROLS,
-    "Review J3 and J4 of REVIEW-SEMBIN-20260916-cbb416 and perform the blind re-derivation: do the "
-    "null objects actually discriminate, is any absence being written up as a fact, and does an "
-    "independent computation of d'_F agree",
-    ["J3", "J4"],
-    "Attack the controls and the accounting, and independently derive d'_F and M-2 at the smallest "
-    "completed instance. Establish whether a reported separation is a fact about the summation "
-    "polynomial or about the shape of a degree-3 Boolean system, and whether every censored arm, "
-    "watchdog kill and wall figure is reported as what it is.",
+    REVIEW_BLIND,
+    "Blind re-derivation for REVIEW-SEMBIN-20260916-cbb416: derive d'_F and M-2 at the smallest "
+    "completed A-SHIFTED instance from the contract's definitions and the instance description alone, "
+    "pre-register them write-once, and only then compare",
+    ["blind_rederivation"],
+    "Independently derive d'_F for the A-SHIFTED arm and M-2 (the trivial-Koszul ceiling) at the "
+    "smallest n the run completed, from Nagao's definitions, the contract's declared_conventions and "
+    "the instance description the Coordinator hands you -- never from the producer's code or run. "
+    "Agreement between two implementations sharing no code is evidence about the quantity; "
+    "disagreement localises to one of two named implementations. Recomputing from the producer's "
+    "artifacts would reproduce a wrong-but-self-consistent implementation faithfully, which is the "
+    "one failure this round cannot otherwise see.",
     [
-        "Are the ten draws per null arm ten DISTINCT seeded draws? Regenerate two from their "
-        "recorded seeds -- do they reproduce?",
-        "Does A-NULL-SHUFFLED preserve the exact global monomial multiset of A-SHIFTED? Count it; do "
-        "not trust the label.",
-        "Did the run stay within maximum_runs 4? A fifth pass over the n-series is the shape of "
-        "re-rolling nulls until they cooperate and would void C-2 entirely.",
-        "S-6: are the nulls reported BEFORE any target value is interpreted, or is the headline "
-        "first and the control a later section? The Coordinator expects the ordering to be where "
-        "this breaks.",
-        "For every arm with no fall found: does the record say `> d_max_reached` rather than 'no "
-        "fall', and does NO downstream sentence treat it as a measured value (SR-1)?",
-        "Is every watchdog kill or infrastructure failure recorded as `failed_infrastructure` and "
-        "cited nowhere as evidence about Nagao (SR-5)?",
-        "Read the recorded poll interval. Does any reported wall RATIO involve two measurements that "
-        "both finish inside it (CORR-20260916-33068f measured a 51x inflation from exactly this)?",
-        "C-5: is the series shown, or is monotonicity asserted? A non-monotone series is an "
-        "INSTRUMENT signal first (F-4) -- was it rationalised as a fact about the systems?",
+        "From the instance description alone: what is d'_F at the smallest completed n under the "
+        "contract's equality-form convention on condition (1), with the field equations placed as "
+        "declared_conventions places them?",
+        "What is M-2, the degree at which the trivial Koszul syzygies alone first produce a fall, "
+        "at the same instance?",
+        "Does your derivation route share ANY code with anything under "
+        "experiments/EXP-SEMBIN-4fa22c/? It must not, and your report says how you know.",
+        "You do NOT compare against the run; your deliverable is the pre-registered pair and the "
+        "route that produced it. The Coordinator compares at composition and reports agreement or "
+        "disagreement beside your timestamp.",
     ],
     extra_constraints=(
         "THE BLIND RE-DERIVATION IS YOURS, AND ITS PROCEDURE IS MANDATORY AND ORDERED. Before you "
-        "open ANY file under experiments/EXP-SEMBIN-4fa22c/code/, experiments/EXP-SEMBIN-4fa22c/"
-        "runs/, this batch's archives, or your sibling's directory, derive d'_F and M-2 at the "
-        "smallest completed instance from the contract's definitions and the instance description "
-        "alone, and write them with your method, exact command and input hash to "
-        "PREREGISTERED-VALUES.json in your write scope. WRITE-ONCE: no edits, not even to fix a "
-        "typo -- append a second file. Only then read the rest. This ordering is what makes your "
-        "number evidence regardless of what you encounter afterwards, and it is required because "
-        "the last blind assignment in this repository was leaked by the very document written to "
-        "protect it (CORR-20260916-292e53).",
+        "open anything beyond your declared read scope, derive d'_F and M-2 at the smallest "
+        "completed instance from the contract's definitions and blind-instance.yaml alone, and "
+        "write them with your method, exact command and input hash to PREREGISTERED-VALUES.json in "
+        "your write scope. WRITE-ONCE: no edits, not even to fix a typo -- append a second file. "
+        "This ordering is what makes your number evidence regardless of what you encounter "
+        "afterwards, and it is required because the last blind assignment in this repository was "
+        "leaked by the very document written to protect it (CORR-20260916-292e53).",
+        "BLIND, AS A MATTER OF PATHS: do not open experiments/EXP-SEMBIN-4fa22c/code/, "
+        "experiments/EXP-SEMBIN-4fa22c/runs/, this batch's archives/, or your sibling's directory "
+        "-- the plan's blind_from -- at ANY point, before or after pre-registration. "
+        "tools/check_review_independence.py reports an attested read under blind_from as a failed "
+        "re-derivation and has no after-registration exception; that is why J3 and J4, which "
+        "cannot be checked without opening the run, are your sibling's and not yours. List every "
+        "path you did read in attestation.yaml `sources_read` and set `blind_from_respected: true` "
+        "only if it is true.",
         "Disclose any exposure you encounter, with WHEN, measured against your pre-registration. "
         "Exposure after it costs the joint nothing; exposure before it means your number is "
         "reported as informed rather than independent. Disclosing is the behaviour that preserves "
         "the joint's value -- it is not a failure.",
+        "The comparison against the producer's value happens at composition, by the Coordinator, "
+        "who reads the run and you do not. Disagreement is a finding, not a failure: do not "
+        "resolve it by adopting theirs.",
+    ),
+    read_scope=[
+        f"{REVIEW}/review-plan.yaml",
+        REVIEW_ADDENDUM,
+        BLIND_INSTANCE,
+        f"{EXP}/specification.yaml",
+        "ledger/hypotheses/H-SEMBIN-a7e721.yaml",
+        "inputs/NAGAO-2015-984",
+        "templates/research-records.md",
+    ],
+    read_scope_note=(
+        "DELIBERATELY NARROW AND DISJOINT FROM THE PLAN'S blind_from. This card's whole value is "
+        "that it reads the contract and the instance description and NOT the producer's "
+        "implementation or run, so the read scope excludes experiments/EXP-SEMBIN-4fa22c/code/ and "
+        "runs/ entirely, this batch's archives/, the collision audit, and the other reviewer's "
+        "directory. The instance description it needs -- which the contract records in the run's "
+        f"inputs block, under runs/ -- is extracted by the Coordinator to {BLIND_INSTANCE} before "
+        "dispatch, with no measured value in it (see dispatch_preconditions). ICPERF's BATCH-a33cda "
+        "gave its re-deriver the same shape of scope for the same reason."),
+    extra_inputs=(
+        f"{BLIND_INSTANCE} -- the smallest completed n, the curve, the basis of V and every coset "
+        "shift v_i as field elements, and the contract conventions needed to build the A-SHIFTED "
+        "system, copied by the Coordinator from the run's recorded inputs block WITHOUT any "
+        "measured value. This is the only thing about the run you are told.",
+    ),
+    extra_artifacts=(f"{REVIEW}/{REVIEW_BLIND}/PREREGISTERED-VALUES.json",),
+    extra_deliverables=(
+        "PREREGISTERED-VALUES.json -- d'_F and M-2 with UTC timestamp, method, exact command and "
+        "sha256 of your input, WRITE-ONCE, written before any other read. Declared here and in "
+        "artifact_paths so the ledger archive hash-binds it: an unbound pre-registration is a "
+        "pre-registration whose bytes may drift, which is the hole ICPERF's AP-AMD-1 closed after "
+        "research_dispatch.py refused an archive over it.",
+    ),
+    extra_gate=(
+        "PREREGISTERED-VALUES.json exists, carries both integers with method and input hash, and "
+        "its recorded timestamp precedes every other read the attestation declares",
+        "attestation.yaml `sources_read` intersects none of the plan's blind_from, and "
+        "`blind_from_respected` is explicitly true",
+    ),
+    extra_preconditions=(
+        f"The Coordinator has written {BLIND_INSTANCE} from the run's recorded inputs block -- the "
+        "smallest completed n, the curve's defining polynomial and coefficients, the basis of V and "
+        "every v_i as field elements, and nothing else -- and has re-grepped that file AND the tree "
+        "as it then stands for any d'_F, M-1 or M-2 figure, as the plan's blind_from_note requires. "
+        "Omitting exactly that re-grep is what caused CORR-20260916-292e53.",
+        "No document written as part of this dispatch quotes a measured value; the run record is "
+        "cited by path only.",
     ),
 ))
 
@@ -1029,7 +1142,7 @@ tasks.append(od([
     ("state", "queued"),
     ("priority", 50),
     ("review_required", False),
-    ("depends_on", [REVIEW_INSTRUMENT, REVIEW_CONTROLS]),
+    ("depends_on", [REVIEW_INSTRUMENT, REVIEW_BLIND]),
     ("read_scope", [BASE, REVIEW, EXP, "ledger"]),
     ("write_scope", [
         f"{BASE}/archives/{LEDGER}",
@@ -1038,15 +1151,30 @@ tasks.append(od([
         "ledger/hypotheses/H-SEMBIN-a7e721.yaml",
         f"{EXP}/specification.yaml",
         f"ledger/goals/{GOAL}/checkpoints/",
+        REVIEW_ADDENDUM,
+        BLIND_INSTANCE,
     ]),
     ("artifact_paths", [
         f"{BASE}/archives/{LEDGER}/ledger-receipt.json",
         f"ledger/evidence/{EVIDENCE}.yaml",
         f"ledger/decisions/{CLOSING}.yaml",
+        CLOSING_CHECKPOINT,
+        REVIEW_ADDENDUM,
+        BLIND_INSTANCE,
     ]),
+    ("artifact_paths_note",
+     "EVERY PATH THIS ARCHIVE WILL HASH-BIND IS DECLARED HERE, because research_dispatch.py "
+     "requires a completed archive's path_sha256 to equal exactly its own artifact_paths plus its "
+     "sources' -- a path bound at close time that no card declares is refused as outside the commit "
+     "scope, which is what blocked ICPERF's TASK-20260915-efa91b until AP-AMD-1. The checkpoint is "
+     f"a NEW shard, {CLOSING_CHECKPOINT}: the opening shard {BATCH}.yaml is write-once and already "
+     "committed at d38386a31, so the close cannot be written into it (precedent: "
+     "BATCH-ef31ab-close-20260808.yaml). The plan addendum and the blind-instance extract are "
+     "Coordinator-written control-plane files of this round that no earlier archive can own, so "
+     "this one does; both sit in write_scope for that reason and are not authored by this task."),
     ("archive", od([
         ("kind", "ledger"),
-        ("source_task_ids", [REVIEW_INSTRUMENT, REVIEW_CONTROLS]),
+        ("source_task_ids", [REVIEW_INSTRUMENT, REVIEW_BLIND]),
         ("record_ids", [EVIDENCE, CLOSING, "H-SEMBIN-a7e721", "EXP-SEMBIN-4fa22c", GOAL, BATCH]),
         ("commit_sha", None),
         ("parent_sha", None),
@@ -1066,7 +1194,11 @@ tasks.append(od([
         ("inputs", [
             f"{REVIEW}/review-plan.yaml -- the joints, the owners, and the Coordinator's priors as "
             "recorded before the round",
-            f"{REVIEW}/{REVIEW_INSTRUMENT}/", f"{REVIEW}/{REVIEW_CONTROLS}/",
+            f"{REVIEW_ADDENDUM} -- the J3/J4 reassignment, written before any reviewer ran",
+            f"{REVIEW}/{REVIEW_INSTRUMENT}/", f"{REVIEW}/{REVIEW_BLIND}/",
+            f"{REVIEW}/{REVIEW_BLIND}/PREREGISTERED-VALUES.json -- compare against the run record's "
+            "value HERE, at composition, and report agreement or disagreement with the "
+            "pre-registration timestamp beside it",
         ]),
         ("constraints", [
             "COMPOSE, DO NOT AVERAGE. Name every joint, its owner, its verdict and its evidence. A "
@@ -1094,7 +1226,8 @@ tasks.append(od([
             "footnote",
             f"{CLOSING} -- the closing decision, its composition of the joints, every overturned "
             "prior, the criteria that moved, and the ranked next action",
-            f"the {BATCH} goal checkpoint",
+            f"{CLOSING_CHECKPOINT} -- the {BATCH} closing checkpoint, as a new write-once shard "
+            f"beside the opening one; {BATCH}.yaml is never edited",
             "ledger-receipt.json",
         ]),
         ("inference", od([
@@ -1358,6 +1491,29 @@ queue = od([
              "learn it (DEC-20260916-7b2235, DEC-20260916-bec4b8). "
              "tools/research_dispatch.py `inference_advisories` reports the mismatch at render "
              "time; this queue is written so it has nothing to say."),
+        ]),
+        od([
+            ("at", "2026-09-16T11:05:00Z"),
+            ("kind", "review_round_restructured_before_any_reviewer_ran"),
+            ("text",
+             "Three defects in the reviewer and ledger cards, found by review of the queue as "
+             "committed at d38386a31 and repaired before either producer had returned, let alone "
+             f"a reviewer. (1) {REVIEW_BLIND} was told to write PREREGISTERED-VALUES.json but did "
+             "not declare it in artifact_paths, so the ledger archive could not have hash-bound "
+             "the one file that fixes the order of the blind derivation -- ICPERF's AP-AMD-1 hole "
+             f"exactly. (2) {REVIEW_BLIND} owned J3/J4, which cannot be checked without opening "
+             "experiments/EXP-SEMBIN-4fa22c/runs/, AND the blind re-derivation whose blind_from "
+             "includes runs/; tools/check_review_independence.py flags any attested read under "
+             "blind_from with no after-registration exception, so that card's own completion gate "
+             f"could not be met honestly. J3 and J4 move to {REVIEW_INSTRUMENT} by "
+             f"{REVIEW_ADDENDUM}; {REVIEW_BLIND} keeps only the blind re-derivation with a read "
+             "scope disjoint from blind_from, and the instance description it needs is extracted "
+             f"by the Coordinator to {BLIND_INSTANCE} before dispatch. (3) {LEDGER} listed the "
+             "batch checkpoint as a deliverable but not in artifact_paths, so binding it at close "
+             "would have failed the commit-scope check; the close is now a declared new shard, "
+             f"{CLOSING_CHECKPOINT}, since the opening shard is write-once. The review plan itself "
+             "is not edited: its blind_rederivation owner, blind_from and pre-registration path "
+             "were already right, and the joint reassignment is the addendum's to make."),
         ]),
     ]),
     ("tasks_state_revisions", REVISIONS),
