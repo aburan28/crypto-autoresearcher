@@ -130,6 +130,22 @@ class Case:
 
 def build_case(seed: int, nbranch: int, nwalks: int, nsteps: int,
                dp_bits: int) -> Case:
+    """Build one frozen walk instance.
+
+    `nbranch` MUST be a power of two: all three implementations select the
+    branch with `x & (nbranch - 1)`, which is only a valid index mask for a
+    power of two. With, say, nbranch=33 the mask is 32 and the C and CUDA
+    paths read PAST the end of the branch table -- an out-of-bounds read, not
+    merely a skewed branch distribution. Rejected here rather than in the CLI
+    because every path (Python, host C, CUDA) is built through this function.
+    """
+    if nbranch < 2 or (nbranch & (nbranch - 1)) != 0:
+        raise ValueError(
+            f"nbranch must be a power of two >= 2 (got {nbranch}): the walk "
+            "selects branches with a bitmask, and a non-power-of-two table "
+            "would be indexed out of bounds by the C and CUDA paths")
+    if dp_bits < 0 or dp_bits >= 64:
+        raise ValueError(f"dp_bits must be in [0, 64) (got {dp_bits})")
     rng = _lcg(seed)
     k_secret = (next(rng) << 64 | next(rng)) % N          # the instance's k
     G = (GX, GY)
@@ -204,7 +220,6 @@ def walk_batched(c: Case, nsteps: int | None = None):
     mask = c.nbranch - 1
     nw = c.nwalks
     dp_mask = (1 << c.dp_bits) - 1 if c.dp_bits > 0 else 0
-    rinv = pow(R, -1, P)
     dps = 0
 
     for _ in range(nsteps):
