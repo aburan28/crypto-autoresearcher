@@ -104,8 +104,9 @@ for p in sorted(set(fl) | set(rl)):
     if isnum(a) and isnum(b) and close(a, b): continue
     parts = p.strip("/").split("/")
     last = parts[-1]
+    field = last.partition("[")[0]  # leaves() emits list elements as `<field>[i]`
     cls = "UNATTRIBUTED"
-    if last in NEW_FIELDS: cls = "new_reporting_field (D3b/c)"
+    if field in NEW_FIELDS: cls = "new_reporting_field (D3b/c)"
     elif p.startswith("/predictions/P3/cells") and "cms_pure_cnf_over_wdsat" in p:
         if last == "ratio" and a != "ABSENT": cls = "D3a loop-variable leak (ratio corrected)"
         elif last == "holds": cls = "D3a (holds recomputed from corrected ratio)"
