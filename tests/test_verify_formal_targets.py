@@ -123,3 +123,30 @@ def test_explain_survives_a_missing_receipt(tmp_path, capsys):
     module = gate()
     assert module._explain(tmp_path / "absent.json") == ""
     assert "could not read receipt" in capsys.readouterr().err
+
+
+def test_workspace_glob_builds_the_root_module():
+    """The lakefile must use a glob that includes CryptoResearch itself.
+
+    AxiomAudit.lean opens with ``import CryptoResearch``, so if the root
+    module's olean is not built the audit cannot run -- and this failure is
+    SILENT: ``lake build`` reports success, having built every submodule and
+    skipped the root. That is exactly what ``globs = ["CryptoResearch.+"]``
+    did, because Lake's ``.+`` means submodules WITHOUT the module itself.
+
+    Guarding it here because nothing else can: the symptom only appears once
+    something actually imports the root, which until the CI gate landed
+    nothing in this repository ever did.
+    """
+
+    import tomllib
+
+    with (REPO_ROOT / "formal" / "lakefile.toml").open("rb") as handle:
+        lakefile = tomllib.load(handle)
+
+    libs = {lib["name"]: lib for lib in lakefile["lean_lib"]}
+    globs = libs["CryptoResearch"].get("globs", ["CryptoResearch"])
+    assert "CryptoResearch.+" not in globs, (
+        "Lake's `.+` excludes the root module; AxiomAudit.lean cannot import it")
+    assert any(g in ("CryptoResearch", "CryptoResearch.*") for g in globs), (
+        f"no glob in {globs} builds the CryptoResearch root module")
