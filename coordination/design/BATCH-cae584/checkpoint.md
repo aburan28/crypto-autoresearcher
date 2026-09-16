@@ -1,30 +1,28 @@
-# BATCH-cae584 checkpoint
+# BATCH-cae584 checkpoint — 2026-09-16
 
-- goal: GOAL-AUXIN-a93442 (activated)
-- idea: IDEA-20260831-df4197
-- hypothesis: H-AUXIN-66e6fd
-- experiment: EXP-AUXIN-7e2e3d
-- decision: DEC-20260913-515d80
-- status: design approved and hash-bound; executor not yet launched
+## Goal / lane
+- Goal: `GOAL-AUXIN-a93442` (ECC)
+- Batch: `BATCH-cae584`
+- Branch / PR: `cursor/auxin-7e2e3d-census-d048` / https://github.com/aburan28/crypto-autoresearcher/pull/1204
 
-## Why this idea
+## Completed
+- `TASK-20260913-e347cb` (executor): implemented Stage 0–1; ran `RUN-AUXIN-6117d3`
+- `TASK-20260913-d428ec` (snapshot): `content_first` verified by `research_dispatch.py`
 
-ECC-first open-idea ranking starts at high-priority AUXIN.
-GOAL-AUXIN-a93442.next_action already named this census first and alone.
-DEC-20260905-1c2b01 reserved H-AUXIN-66e6fd / EXP-AUXIN-7e2e3d after
-BATCH-aedb4e failed twice; this batch reuses those ids.
+## Producer outcome (observations only)
+- Controls: `frozen_numeric_bands_pass: false` (planted ≈0.278, safeprime r−1 ≈0.484)
+- Executor used asymptotic sanity gate (disclosed deviation)
+- `stop_and_escalate: true` on multiple deployed rows with reported E(r)≤0.40
+- Independent recompute agree=true on all rows; Cheon=0; DL recoveries=0
+- Deployed conclusions **not admissible** under frozen completion gate / stopping_rules
 
-## Queue
+## Decision
+- `DEC-20260916-c81d20` — checkpoint_and_rerank; no hypothesis promotion
 
-Opening snapshot TASK-20260913-9b4ec7 is Coordinator work in this session
-(not a dispatch-queue producer).
+## Exactly one next_action
+Dispatch independent `TASK-20260916-41af61` (validator) on the control-band
+conflict and `TASK-20260916-fa9626` (red-team) on the escalate package before
+any amendment, re-run, or official reading. Do not open `IDEA-20260831-ccb587`.
 
-1. TASK-20260913-e347cb — Executor, Stage 0 pin + Stage 1 census, maximum_runs 1.
-2. TASK-20260913-d428ec — Coordinator snapshot of producer artifacts (depends on e347cb).
-
-Do not open IDEA-20260831-ccb587 until the table exists.
-Do not run Cheon. Do not recover a discrete logarithm.
-
-## Next action
-
-Verify TASK-20260913-9b4ec7, then dispatch TASK-20260913-e347cb.
+## Owners
+- Coordinator session: `coordinator-harness-cont-d048`
