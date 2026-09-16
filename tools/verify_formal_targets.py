@@ -35,6 +35,7 @@ failure is never read as a proof that did not check out.
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
@@ -47,6 +48,41 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 VERIFIED, NOT_VERIFIED, INFRASTRUCTURE = "verified", "NOT VERIFIED", "INFRASTRUCTURE FAILURE"
 UNDISCHARGED = "undischarged (no theorem file yet)"
+
+
+def _explain(receipt: Path, log_lines: int = 40) -> str:
+    """Print the receipt's diagnosis and return a one-line summary.
+
+    A gate that reports only an exit code makes every failure a second CI run
+    to diagnose.  The receipt already holds the blocking reason and the build
+    and audit logs; the only thing missing was putting them where whoever is
+    looking at the red build will see them.
+    """
+
+    try:
+        data = json.loads(receipt.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        print(f"  (could not read receipt {receipt}: {exc})", file=sys.stderr)
+        return ""
+
+    verification = data.get("verification") or {}
+    summary = (verification.get("blocking_reason")
+               or data.get("infrastructure_failure") or "")
+    if summary:
+        print(f"  reason: {summary}", file=sys.stderr)
+    for label in ("build_log", "audit_log"):
+        text = (data.get(label) or "").strip()
+        if not text:
+            continue
+        lines = text.splitlines()
+        clipped = lines[-log_lines:]
+        head = f"  --- {label}"
+        if len(lines) > log_lines:
+            head += f" (last {log_lines} of {len(lines)} lines)"
+        print(head + " ---", file=sys.stderr)
+        for line in clipped:
+            print(f"  {line}", file=sys.stderr)
+    return summary
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -89,10 +125,15 @@ def main(argv: list[str] | None = None) -> int:
                             "--build-timeout", str(args.build_timeout)])
         if code == 0:
             outcomes.append((name, VERIFIED, task.theorem_name))
-        elif code == 3:
-            outcomes.append((name, INFRASTRUCTURE, "toolchain failed; no mathematical conclusion"))
+            continue
+        # The verifier puts WHY it failed in the receipt, which is an uploaded
+        # artifact nobody reads while triaging a red build. Print it.
+        reason = _explain(receipt)
+        if code == 3:
+            outcomes.append((name, INFRASTRUCTURE, reason
+                             or "toolchain failed; no mathematical conclusion"))
         else:
-            outcomes.append((name, NOT_VERIFIED, f"verifier exit {code}"))
+            outcomes.append((name, NOT_VERIFIED, reason or f"verifier exit {code}"))
 
     verified = [o for o in outcomes if o[1] == VERIFIED]
     failed = [o for o in outcomes if o[1] == NOT_VERIFIED]

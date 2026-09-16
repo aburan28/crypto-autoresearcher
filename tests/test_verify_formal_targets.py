@@ -15,6 +15,7 @@ The verifier is stubbed by exit code on purpose.  Driving real Lean here would
 make this suite need a Mathlib build to say anything about branching.
 """
 import importlib.util
+import json
 import shutil
 import sys
 from pathlib import Path
@@ -96,3 +97,29 @@ def test_floor_is_a_floor_not_a_count(monkeypatch, tmp_path):
         "--targets-dir", str(targets),
         "--min-verified", "2",
     ]) == 1
+
+
+def test_failure_reason_is_printed_not_buried_in_the_artifact(tmp_path, capsys):
+    """A red build must say why in its own log, not only in an uploaded file."""
+
+    module = gate()
+    receipt = tmp_path / "r.json"
+    receipt.write_text(json.dumps({
+        "verification": {"blocking_reason": "lake build failed"},
+        "build_log": "\n".join(f"line {i}" for i in range(100)),
+        "audit_log": "",
+    }), encoding="utf-8")
+
+    assert module._explain(receipt) == "lake build failed"
+    err = capsys.readouterr().err
+    assert "lake build failed" in err
+    assert "last 40 of 100 lines" in err   # clipped, so one failure cannot bury the summary
+    assert "line 99" in err                # and the clip keeps the END, where errors are
+
+
+def test_explain_survives_a_missing_receipt(tmp_path, capsys):
+    """Verification can fail before any receipt exists; triage must not crash."""
+
+    module = gate()
+    assert module._explain(tmp_path / "absent.json") == ""
+    assert "could not read receipt" in capsys.readouterr().err
