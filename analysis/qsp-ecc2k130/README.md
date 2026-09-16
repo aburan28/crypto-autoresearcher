@@ -27,10 +27,11 @@ baselines are `sqrt(2^131) = 2^65.5` (generic) and the recorded
   at `n = 131` they are not constants a reader can drop (`3^{kappa m^2}` is
   `2^{70}` at `m = 3`). The `O~` cofactor is dropped.
 - Attempts per relation search: `2^{n'} / min(1, 2^{n'm - n} / m!)`.
-- "Resultant-model floor": attempts times `M(E) = 2^{m(m-1)} d^{m(m-1)}`, the
+- "Resultant-model floor": attempts times `M(E) = 2^{m(m-1)} d^{m(m-1)/2}`, the
   degree of the univariate polynomial Rojas' method must root-find per attempt
-  (Appendix A.1), or the linear-algebra term, whichever is larger. It is a lower
-  bound **for the paper's own solver model**, not an achievable cost.
+  (Appendix A.1, `lambda_k = d^{k-1} 2^{m-1}`), or the linear-algebra term,
+  whichever is larger. It is a lower bound **for the paper's own solver
+  model**, not an achievable cost. (Corrected 2026-09-16, see below.)
 - "Frobenius orbits": if `L in F_2[X]` then `V` is Frobenius-stable and, on a
   Koblitz curve, the factor base splits into orbits of size 131 under an
   endomorphism, so relations needed and linear-algebra dimension both drop by
@@ -73,21 +74,25 @@ excluded by item 2, so the "not excluded" rows use `d = 3`:
 | selection | n' | d | m | orbits | beta | log2 attempts | log2 relation phase | log2 lin. alg. | log2 total (Thm 3.2) | log2 floor |
 |---|---|---|---|---|---|---|---|---|---|---|
 | min total, not excluded | 66 | 3 | 2 | 1 | 0.048 | 66.0 | 133.0 | 133.0 | **133.0** | 133.0 |
-| min floor, not excluded | 33 | 3 | 4 | 1 | 0.191 | 36.6 | 294.3 | 68.0 | 294.3 | **68.0** |
+| min floor, not excluded | 27 | 3 | 5 | 1 | 0.285 | 29.9 | 428.4 | 56.3 | 428.4 | **65.8** |
 | min total, Frobenius orbits | 66 | 3 | 2 | 131 | 0.048 | 59.0 | 126.0 | 118.9 | **126.0** | 118.9 |
-| min floor, Frobenius orbits | 33 | 3 | 4 | 131 | 0.191 | 29.6 | 287.2 | 53.9 | 287.2 | **60.6** |
+| min floor, Frobenius orbits | 33 | 3 | 4 | 131 | 0.191 | 29.6 | 287.2 | 53.9 | 287.2 | **53.9** |
 
 Reading: under the paper's own solver the line costs at least `2^126` on
 ECC2K-130 even granting a QSP that is not known to exist, because at
 `n = 131` either the linear algebra (`2^{2n'}`) or the resultant factor
 (`3^{kappa m^2}` with `m >= 3`) is enormous. Under the most optimistic floor
-the paper's model allows, and with the Koblitz orbit reduction, the single
-cell `(n' = 33, d = 3, m = 4)` reaches `2^60.6`, a tie with rho's `2^60.9`. That
-cell requires (a) a non-linearized `X^{2^33} + lambda(X)`, `lambda in F_2[X]`,
-with about `2^33` roots in `F_{2^131}` -- no such polynomial is known and the
-Section 4.2 heuristic of `KN-LIT-0a321c` predicts none -- and (b) a solver
-that decomposes at `M(E) = 2^31` operations per attempt, which no solver is
-known to do.
+the paper's model allows, the cheapest cell without orbit reduction is
+`2^65.8` (`n' = 27, m = 5`), at the generic bound; with the Koblitz orbit
+reduction the single cell `(n' = 33, d = 3, m = 4)` reaches `2^53.9`
+(linear-algebra bound), below rho's `2^60.9`. That cell requires (a) a
+non-linearized `X^{2^33} + lambda(X)`, `lambda in F_2[X]`, with about `2^33`
+roots in `F_{2^131}`, and (b) a solver that decomposes at `M(E) = 2^21.5`
+operations per attempt, which no solver is known to do. Requirement (a) is
+now excluded for `F_2` coefficients by the injection argument in the
+correction below: such an `L` has at most `d^4 <= 2401` roots, so the orbit
+rows (which need `L in F_2[X]`) are void, and every remaining row costs at
+least `2^65.8`.
 
 Prop. 8's asymptotic table (`m >> 1`) evaluated at `n = 131` for reference:
 `beta = 1: 2^124`, `0.75: 2^122`, `0.2: 2^97`, `0.1025: 2^65.5`, `0.0958: 2^60.9`.
@@ -108,3 +113,38 @@ per-cell rows in `table.md`.
   non-linearized (at most `2^8` candidates). A recorded discrepancy in
   `KN-LIT-4fe9d2` Section 4.4 (`kappa < 1.5` versus `kappa < 2/3`) does not
   affect any row above.
+
+## Correction 2026-09-16 (CORR-20260916-8d0b81)
+
+Two things changed after the snapshot archive `TASK-20260916-523cab`
+(commit `3b362fbd2`), both raised by the idea-generator in
+`TASK-20260916-a93a2a`:
+
+1. **Mixed-volume exponent.** The first version of `qsp_ecc2k130.py` used
+   `M(E) = 2^{m(m-1)} d^{m(m-1)}`. The frozen text (Appendix A.1,
+   `paper_fulltext.md` lines 1029-1032) reads `2^{m(m-1)} d^{m(m-1)/2}`,
+   which is also what the product of `lambda_k = d^{k-1} 2^{m-1}` gives. The
+   script, `results.json` and `table.md` were regenerated; the Theorem 3.2
+   totals are unchanged (they do not use `M(E)`), the floors dropped: the
+   orbit row `(33, 3, 4)` from `2^60.6` to `2^53.9` and the no-orbit minimum
+   from `2^68.0` at `(33, 3, 4)` to `2^65.8` at `(27, 3, 5)`.
+2. **The `131 = -1 mod n'` premise was read backwards.** Lemma 4.1 is only a
+   lower bound on `deg lambda`. For `lambda in F_2[X]` the root count has a
+   direct ceiling: Frobenius commutes with `lambda`, so a root `x` satisfies
+   `x^{2^{n'k}} = lambda^{ok}(x)` for every `k`; with `n = q n' + r` and
+   `k = q + 1`, `x^{2^{n' - r}} = lambda^{o(q+1)}(x)`, a polynomial equation
+   of degree `max(2^{n'-r}, d^{q+1})`. At `n' = 33` (`q = 3, r = 32`) that is
+   `max(2, d^4) <= 2401` roots against the `2^32` the row needs; at
+   `n' = 44, 66` it is `d^3`, `d^2`. So `131 = -1 mod n'` is the case where
+   an `F_2`-coefficient quasi-subfield polynomial is smallest, not largest,
+   and the "finite census of at most 2^8 candidates" named in
+   `RQ-QSP-f9bbdb` decision_target (a) is decided by this argument: every
+   candidate fails by at least 20 bits. This session verified the argument
+   for `F_2` (more generally `F_p`) coefficients only; `IDEA-20260916-5c9d6e`
+   proposes the general-coefficient bound and is unverified. The new table
+   section "Root ceiling for F_2-coefficient lambda" carries the numbers.
+
+What is still open after the correction: rows with `lambda` having
+coefficients outside `F_2` (no orbit reduction, floor `>= 2^65.8` under the
+paper's model, existence unknown), and the successor object of
+`IDEA-20260916-a17f43`.
