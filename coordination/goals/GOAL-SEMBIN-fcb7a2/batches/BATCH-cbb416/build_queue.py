@@ -34,6 +34,8 @@ AUDIT_SNAPSHOT = "TASK-20260916-81fa8c"
 RULE = "TASK-20260916-ac0aea"
 RULING_ARCHIVE = "TASK-20260916-9d98ef"
 EXECUTE = "TASK-20260916-0c2802"
+PRIOR = "TASK-20260916-1bb446"
+PRIOR_ARCHIVE = "TASK-20260916-d5e431"
 PRODUCER_SNAPSHOT = "TASK-20260916-8eb394"
 REVIEW_INSTRUMENT = "TASK-20260916-90af14"
 REVIEW_BLIND = "TASK-20260916-7be96a"
@@ -60,6 +62,16 @@ AMENDMENT_PATH = f"{EXP}/amendments/{AMENDMENT}.yaml"
 # here, and the merge kept both. Addendum 2 extends `blind_from` over the
 # collision audit; it does not touch addendum 1's assignment.
 ADDENDUM_PATH = f"{REVIEW}/review-plan-addendum-2.yaml"
+
+# ADDENDUM 3 exists because a task in ANOTHER LANE returned a sharp numeric
+# prediction about the arm THIS batch's executor is measuring right now, and the
+# prediction reverses the direction H-SEMBIN-a7e721 predicts. AGENTS.md "Review
+# architecture" requires the Coordinator's prior to be recorded before any
+# reviewer runs; here the harder constraint is that it be recorded before the
+# MEASUREMENT, because a prior written after the number arrives is not a prior.
+# Hence its own pair of cards below rather than a place on the closing card,
+# which commits at batch close -- far too late to prove anything.
+PRIOR_ADDENDUM_PATH = f"{REVIEW}/review-plan-addendum-3.yaml"
 
 
 def od(pairs):
@@ -613,6 +625,173 @@ tasks.append(od([
 ]))
 
 # ---------------------------------------------------------------------------
+# THE TWO CARDS BELOW RACE THE EXECUTOR, AND THAT IS THE POINT.
+#
+# TASK-20260916-64a93b -- a blind source read in the OTHER lane on this goal
+# (BATCH-e0a0c1) -- returned while EXECUTE was already running, carrying an exact
+# computation over F_2 that predicts d'_F(A-SHIFTED) <= 4 with NON-ZERO shifts.
+# H-SEMBIN-a7e721's mechanism predicts the shifted arm rises. Those cannot both
+# be right, and which one the measurement lands on is only interesting if the
+# prediction is on record BEFORE the measurement.
+#
+# `depends_on` is EMPTY and cannot be otherwise: the input is a task in a
+# different queue, and depends_on names tasks in this one. That is a real
+# limitation of a per-batch queue and it is recorded here rather than papered
+# over with a fake dependency. The prose below and the addendum itself name the
+# cross-lane source.
+tasks.append(od([
+    ("id", PRIOR),
+    ("title",
+     "Record the Coordinator's pre-measurement prior for the shifted arm, reversed by a blind read "
+     "in the other lane, BEFORE the running executor produces a number"),
+    ("role", "coordinator"),
+    ("state", "queued"),
+    ("priority", 89),
+    ("priority_note",
+     "ABOVE the ruling cards despite being authored after them. Priority here is urgency, not "
+     "importance: this card's value decays to zero the moment EXECUTE writes its first artifact, "
+     "and every other queued card's value does not decay at all."),
+    ("review_required", False),
+    ("depends_on", []),
+    ("depends_on_note",
+     "Empty, and not because this card has no input. Its input is TASK-20260916-64a93b in "
+     "BATCH-e0a0c1's queue; depends_on can only name tasks in THIS queue, so the cross-lane "
+     "dependency is recorded in prose and in the addendum's own provenance block. Do not read the "
+     "empty list as independence."),
+    ("read_scope", [
+        f"coordination/goals/{GOAL}/batches/BATCH-e0a0c1/read-semaev-2015-310",
+        REVIEW,
+        "ledger/hypotheses/H-SEMBIN-a7e721.yaml",
+        "ledger/corrections/CORR-20260916-96f47d.yaml",
+        f"{EXP}/specification.yaml",
+    ]),
+    ("write_scope", [REVIEW]),
+    ("artifact_paths", [PRIOR_ADDENDUM_PATH]),
+    ("handoff", od([
+        ("objective",
+         "Put a falsifiable numeric prediction, and what each possible outcome would mean, on the "
+         "record while the outcome is still unknown."),
+        ("uncertainty_reduced",
+         "NONE about the mathematics -- this card measures nothing. What it removes is the "
+         "possibility of narrating any measured value as expected after the fact."),
+        ("inputs", [
+            f"coordination/goals/{GOAL}/batches/BATCH-e0a0c1/read-semaev-2015-310/report.md",
+            f"coordination/goals/{GOAL}/batches/BATCH-e0a0c1/read-semaev-2015-310/attestation.yaml",
+            f"coordination/goals/{GOAL}/batches/BATCH-e0a0c1/read-semaev-2015-310/recheck.json",
+            "ledger/hypotheses/H-SEMBIN-a7e721.yaml mechanism, the premise now predicted false",
+        ]),
+        ("constraints", [
+            "THE PREDICTION IS COMMITTED BEFORE ANY ARTIFACT EXISTS UNDER "
+            f"{EXP}/code OR {EXP}/runs, and the commit is the proof. Do not assert "
+            "pre-registration in prose; make it checkable with git ls-tree.",
+            "DO NOT TELL THE RUNNING EXECUTOR. Its declared read_scope excludes this directory and "
+            "it was not informed. Telling a measurer the expected answer destroys the measurement, "
+            "and this program has already leaked a protected value once (CORR-20260916-292e53).",
+            "EVERY OUTCOME GETS ITS READING IN ADVANCE, including the one that refutes the prior "
+            "and the one where the run is censored. An outcome table written after the fact is a "
+            "narration.",
+            "A PRIOR IS NOT EVIDENCE and does not amend the frozen contract. It cannot move a "
+            "hypothesis, cannot relax the amendment, and cannot reassign a joint.",
+        ]),
+        ("deliverables", [
+            f"{PRIOR_ADDENDUM_PATH} -- the prior, its mechanism, its falsification table, its scope "
+            "limits, and the additive obligations it puts on J1 and J2",
+        ]),
+        ("inference", od([
+            ("policy", "coordinator-orchestration-code"),
+            ("reasoning_effort", None),
+            ("fallback_allowed", True),
+            ("fallback_note", "As every card in this batch: declared up front."),
+            ("degraded_allowed", False),
+            ("independent_session_required", False),
+        ])),
+        ("budget", od([
+            ("wall_clock_seconds", 1800),
+            ("memory_gb", 1),
+            ("maximum_runs", 0),
+        ])),
+        ("completion_gate", [
+            "the prediction is a number with a direction, not a hedge",
+            "every outcome including refutation and censoring has a pre-recorded reading",
+            f"the addendum is committed at a tree where {EXP}/runs does not exist",
+            "the addendum adds no joint reassignment and lifts no blindness",
+        ]),
+    ])),
+]))
+
+# ---------------------------------------------------------------------------
+tasks.append(od([
+    ("id", PRIOR_ARCHIVE),
+    ("title", "Snapshot-archive the pre-measurement prior immediately, so the tree proves it "
+              "preceded the measurement"),
+    ("role", "coordinator"),
+    ("state", "queued"),
+    ("priority", 89),
+    ("review_required", False),
+    ("depends_on", [PRIOR]),
+    ("read_scope", [REVIEW, BASE]),
+    ("write_scope", [
+        f"{BASE}/archives/{PRIOR_ARCHIVE}",
+    ]),
+    ("artifact_paths", [
+        f"{BASE}/archives/{PRIOR_ARCHIVE}/snapshot-receipt.json",
+    ]),
+    ("archive", od([
+        ("kind", "snapshot"),
+        ("source_task_ids", [PRIOR]),
+        ("record_ids", [ROUND, "EXP-SEMBIN-4fa22c", GOAL, BATCH]),
+        ("commit_sha", None),
+        ("parent_sha", None),
+        ("path_sha256", {}),
+        ("binding_mode", "content_at_commit"),
+        ("binding_mode_note",
+         "content_at_commit, for a reason specific to this archive: its whole purpose is to pin a "
+         "tree state that LATER COMMITS WILL CHANGE -- the executor is writing into "
+         f"{EXP} as this commits. content_first at HEAD would report the archive as corrupt within "
+         "the hour, which is exactly the defect CORR-20260915-654160 records."),
+        ("what_this_archive_asserts",
+         "ONE thing, and it is a fact about the tree rather than about the mathematics: at this "
+         f"commit, {PRIOR_ADDENDUM_PATH} exists and no artifact exists under {EXP}/code or "
+         f"{EXP}/runs. A later reader confirms it with `git ls-tree -r <commit> -- {EXP}` and does "
+         "not have to trust the receipt's prose."),
+    ])),
+    ("handoff", od([
+        ("objective",
+         "Commit the prior now. Not at batch close, not with the reader package, not after the "
+         "measurement -- now, because the commit timestamp relative to the run artifacts IS the "
+         "evidence that this was a prediction."),
+        ("uncertainty_reduced", "none; durability, and specifically durability with a provable order"),
+        ("inputs", [PRIOR_ADDENDUM_PATH]),
+        ("constraints", [
+            "stage ONLY the declared paths. Two other lanes are writing into this worktree and the "
+            "executor's output must NOT be swept into this commit -- doing so would destroy the "
+            "very ordering this archive exists to establish.",
+            f"verify and record in the receipt that {EXP}/code and {EXP}/runs are absent from the "
+            "committed tree",
+            "commit message names the task id and the cross-lane read that caused it",
+        ]),
+        ("deliverables", ["snapshot-receipt.json, with the absence check recorded"]),
+        ("inference", od([
+            ("policy", "coordinator-orchestration-code"),
+            ("reasoning_effort", None),
+            ("fallback_allowed", True),
+            ("fallback_note", "As every card in this batch: declared up front."),
+            ("degraded_allowed", False),
+            ("independent_session_required", False),
+        ])),
+        ("budget", od([
+            ("wall_clock_seconds", 900),
+            ("memory_gb", 1),
+            ("maximum_runs", 0),
+        ])),
+        ("completion_gate", [
+            "post-commit receipt verified by research_dispatch.py",
+            f"the receipt records the checked absence of {EXP}/runs at the commit",
+        ]),
+    ])),
+]))
+
+# ---------------------------------------------------------------------------
 tasks.append(od([
     ("id", EXECUTE),
     ("title",
@@ -651,7 +830,26 @@ tasks.append(od([
         "inputs/NAGAO-2015-984",
         "templates/research-records.md",
         "docs/claims-and-verification.md",
+        # Added when the card was unblocked. The ruling that unblocked it is
+        # binding beside the frozen contract, and its A-1 grants READ access to
+        # named files; a read scope is closed, so a file not listed here is a
+        # file the executor cannot open however the ruling reads.
+        f"ledger/decisions/{RULING}.yaml",
+        AMENDMENT_PATH,
+        "experiments/EXP-ECTD-9e4248/driver/reused/macaulay.py",
+        "experiments/EXP-ECTD-9e4248/driver/reused/mvpoly.py",
+        "experiments/EXP-SIG-007/src/ic_first_fall_fast.py",
+        "experiments/EXP-ALPF-012/source/round006_exp011_binary_fppr.sage",
+        "src/semaev_tree.py",
     ]),
+    ("read_scope_note",
+     "WIDENED AT UNBLOCK, 2026-09-16T12:05Z, and not before: the card was written `blocked` on a "
+     f"ruling that did not yet exist, so its opening read scope could not name {RULING} or "
+     f"{AMENDMENT}. The ruling's A-1 permits reading the five reference files listed last and "
+     "using macaulay.rank_mod_p as a TEST ORACLE under A-4 -- never in the measurement path -- "
+     "and A-2, A-3 and A-4 bind the builder, the unshifted arm's report and the C-3 fixture set. "
+     "An executor that can see only the frozen contract cannot honour any of them, and the "
+     "amendment's own A-1 requires the run manifest to record which of these files were read."),
     ("write_scope", [f"{EXP}/code/", f"{EXP}/runs/"]),
     ("write_scope_note",
      "Exactly the contract's own write_scope_when_dispatched. The run id is allocated by the "
@@ -687,6 +885,13 @@ tasks.append(od([
             "coordination/review/sembin-20260916-propquant/coordinator-recheck.py -- the C-3 "
             "known-answer fixture's hand algebra, already verified.",
             f"{AUDIT}/verdict.json -- the collision audit, and any Coordinator ruling on it.",
+            f"{AMENDMENT_PATH} -- the ruling's additive protocol amendment, BINDING beside the "
+            "frozen contract: A-1 (reuse as reference and test oracle only, with every read "
+            "recorded in the run manifest), A-2 (one builder for both arms, A-UNSHIFTED at "
+            "v = 0), A-3 (the unshifted arm reports as a replication with a changed instrument), "
+            "A-4 (the GF(2) rank kernel is checked against an independent computation before any "
+            "Nagao instance is measured, inheriting SR-3), and R-2 declined.",
+            f"ledger/decisions/{RULING}.yaml -- the committed ruling that unblocked this card.",
         ]),
         ("constraints", [
             "CONTROLS BEFORE BELIEF, AND IN THAT ORDER. C-3's known-answer fixture runs FIRST and "
@@ -1410,6 +1615,49 @@ EXECUTED = {
          "written `blocked` on a ruling rather than on the audit finishing, and this is that "
          "ruling. The executor reads the amendment as binding alongside the frozen contract."),
     ]),
+    PRIOR: od([
+        ("state", "completed"),
+        ("outcome",
+         "Completed 2026-09-16T12:10Z. Authored REVIEW-SEMBIN-20260916-cbb416-ADD3, which records "
+         "the reversed prior d'_F(A-SHIFTED) <= 4 at m = 3 with its mechanism, a four-row outcome "
+         "table covering refutation and censoring, five scope limits, and additive obligations on "
+         "J1 and J2 that reassign nothing. TWO SELF-CORRECTIONS DURING THE WORK, both disclosed in "
+         "the artifact rather than smoothed away. First, the draft was FLAT -- a top-level "
+         "`extends:` with no `review_plan_addendum:` wrapper -- which parses, validates, and is "
+         "SILENTLY IGNORED by compose_plan()'s `_addendum_of`, the worst of the three outcomes "
+         "because it reads as a protection that is not in force. Second, the draft header claimed "
+         f"{EXP}/code was absent; the executor began implementing between drafting and committing, "
+         "so the claim was true when written and false ten minutes later. Narrowed to the claim "
+         "that is true -- the prior precedes the MEASUREMENT, not the implementation."),
+    ]),
+    PRIOR_ARCHIVE: od([
+        ("state", "completed"),
+        ("outcome",
+         "Completed 2026-09-16 at commit c15dc4318. The archive's substantive content is an "
+         "ORDERING CHECK rather than a hash comparison: at that commit the only paths under "
+         f"{EXP} are specification.yaml and the collision amendment -- no runs/, no code/ -- so the "
+         "tree itself witnesses that the prediction preceded the measurement. Two independent "
+         "checks recorded (committed tree via git ls-tree, working tree via ls). Staged path by "
+         "path with three lanes writing into the worktree, because sweeping the executor's "
+         "untracked code/ into this commit would have destroyed the ordering the archive exists to "
+         "establish."),
+        ("archive_binding", od([
+            ("commit_sha", "c15dc43183f770205c41592e2a5cc691f4a7dd1e"),
+            ("commit_sha_note",
+             "READ BACK FROM GIT, not typed. The first value written here was a full hash extended "
+             "from the abbreviation by hand and it was wrong past the 9th character; "
+             "research_dispatch.py refused the queue with `requires archive.commit_sha to resolve "
+             "to a commit`, which is the check doing exactly its job. Confirm with "
+             "`git log -1 --format=%H` on the commit whose subject names TASK-20260916-d5e431."),
+            ("parent_sha", "a98f3334060f82c2c5383a72e6007209472d12d5"),
+            ("path_sha256", od([
+                (f"{BASE}/archives/{PRIOR_ARCHIVE}/snapshot-receipt.json",
+                 "ad4696bfc8c9ef7c8d27887cbbadcdea5aeac86d3c5b91899eedb64b6037e70e"),
+                (PRIOR_ADDENDUM_PATH,
+                 "1cb56e37d48f77c65cea003f87a24f55660181f4177a4b2edc0257a08d5f381b"),
+            ])),
+        ])),
+    ]),
 }
 
 REVISIONS = [
@@ -1517,13 +1765,21 @@ queue = od([
      "proof_search_map carries an audit marked REQUIRED BEFORE THE FIRST RUN and not yet performed. "
      "So this batch is that audit and then that run, in series, with the second gated on a "
      "Coordinator ruling about the first rather than on its mere completion."),
-    ("max_concurrent", 1),
+    ("max_concurrent", 2),
     ("max_concurrent_basis",
      "Machine headroom, not a research budget. 4 CPUs and ~15 GB RAM, and the executing task is a "
-     "degree-by-degree GF(2) rank computation with a 10 GB resident-set watchdog. The two producers "
-     "are in series by dependency anyway, so 1 costs this batch nothing and protects the "
-     "measurement: BATCH-51e2aa in the ICPERF campaign recorded a Macaulay2 phase driving the load "
-     "average to 4.55 and had to split a review joint out to keep a timing clean."),
+     "degree-by-degree GF(2) rank computation with a 10 GB resident-set watchdog. "
+     "RAISED 1 -> 2 AT 2026-09-16T12:05Z, and the constraint the original 1 was protecting is "
+     "UNCHANGED: at most ONE COMPUTE PRODUCER runs at a time. What the original number conflated "
+     "was compute contention with queue slots. The card that needed the second slot "
+     "(TASK-20260916-1bb446) carries maximum_runs 0 and memory_gb 1 and writes one YAML file, so it "
+     "consumes no headroom and cannot contend with a rank computation -- while blocking it would "
+     "have cost the campaign a pre-measurement prior, whose value expires the moment the "
+     "measurement lands. A LATER READER MUST NOT USE THIS 2 TO DISPATCH TWO ALGEBRA RUNS: the "
+     "reviewers are compute-capable and if two of them ever become Ready together, the cap comes "
+     "back to 1. BATCH-51e2aa in the ICPERF campaign recorded a Macaulay2 phase driving the load "
+     "average to 4.55 and had to split a review joint out to keep a timing clean, which is the cost "
+     "this basis exists to avoid."),
     ("notes", [
         od([
             ("at", "2026-09-16T09:30:00Z"),

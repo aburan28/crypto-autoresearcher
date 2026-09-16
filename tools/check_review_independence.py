@@ -250,11 +250,27 @@ def find_addenda(plan_path: str) -> list[tuple[str, dict]]:
 def compose_plan(plan: dict, addenda: list[tuple[str, dict]]) -> tuple[dict, list[str]]:
     """The plan as the round actually stands, plus a line per change applied.
 
-    Three things an addendum may do, and nothing else: add joints, reassign the
-    owner of a joint, and declare further proves-too-much objects. It may not
-    remove a joint or weaken a control -- an addendum that tried would be a
-    silent narrowing of a declared review, so unknown keys are simply not acted
-    on and the plan they extend keeps its own values.
+    Four things an addendum may do, and nothing else: add joints, reassign the
+    owner of a joint, declare further proves-too-much objects, and WIDEN
+    `blind_rederivation.blind_from`. It may not remove a joint or weaken a
+    control -- an addendum that tried would be a silent narrowing of a declared
+    review, so unknown keys are simply not acted on and the plan they extend
+    keeps its own values.
+
+    `blind_from_additions` was the fourth for a while only on paper. Two addenda
+    on BATCH-cbb416 declared it -- ADD2 over the collision audit's disclosed
+    fall-degree integers, ADD3 over a Coordinator prior stating the very value
+    being re-derived -- and neither reached the leak check below, because an
+    unknown key is left alone and `blind_from` was therefore always the parent
+    plan's. That is the worst failure mode available to this file: a protection
+    that reads as in force, is cited in a receipt as in force, and is enforced
+    nowhere. Honouring it cannot let an addendum weaken anything, because the
+    only permitted direction is wider -- a longer `blind_from` can add leak
+    findings and can never remove one.
+
+    Accepted at two spellings, `what_changes.blind_from_additions` and a
+    top-level `blind_from_additions`, because both are already committed in the
+    corpus and neither is more canonical than the other.
     """
     import copy
 
@@ -296,6 +312,22 @@ def compose_plan(plan: dict, addenda: list[tuple[str, dict]]) -> tuple[dict, lis
             control["objects"] = list(control.get("objects") or []) + list(extra)
             composed["proves_too_much"] = control
             notes.append(f"{label}: added {len(extra)} proves-too-much object(s)")
+
+        widened = (changes or {}).get("blind_from_additions") \
+            if isinstance(changes, dict) else None
+        if not isinstance(widened, list):
+            widened = addendum.get("blind_from_additions")
+        if isinstance(widened, list) and widened:
+            rederivation = composed.get("blind_rederivation")
+            rederivation = dict(rederivation) if isinstance(rederivation, dict) else {}
+            existing = [str(p).strip() for p in (rederivation.get("blind_from") or [])]
+            added = [str(p).strip() for p in widened
+                     if str(p).strip() and str(p).strip() not in existing]
+            if added:
+                rederivation["blind_from"] = existing + added
+                composed["blind_rederivation"] = rederivation
+                notes.append(f"{label}: widened blind_from by {len(added)} path(s) "
+                             f"-- {', '.join(added)}")
     return composed, notes
 
 

@@ -257,6 +257,86 @@ class AddendumComposition(unittest.TestCase):
         self.assertTrue(any("proves-too-much object" in n for n in notes))
 
     # --- what an addendum may NOT do -------------------------------------
+    # --- blind_from widening ------------------------------------------------
+    # These pin the one composition step that was declared in committed addenda
+    # and enforced nowhere: `blind_from_additions` was an unknown key, so
+    # compose_plan left it alone and the leak check below always ran against the
+    # parent plan's list. A protection cited in a receipt as in force and applied
+    # to nothing is worse than an absent one, which is why these are tests and
+    # not a comment.
+    def test_blind_from_additions_widen_the_composed_list(self):
+        self.write_addendum("a-widen.yaml", "2026-01-02T00:00Z", """
+            what_changes:
+              blind_from_additions:
+                - experiments/EXP-X/runs/
+                - coordination/review/r/prior.yaml
+        """)
+        composed, notes = self.composed()
+        self.assertEqual(
+            composed["blind_rederivation"]["blind_from"],
+            ["experiments/EXP-X/runs/", "coordination/review/r/prior.yaml"])
+        self.assertTrue(any("widened blind_from by 2 path(s)" in n for n in notes))
+
+    def test_blind_from_additions_accepted_at_top_level_too(self):
+        self.write_addendum("a-widen-flat.yaml", "2026-01-02T00:00Z", """
+            blind_from_additions:
+              - experiments/EXP-Y/code/
+        """)
+        composed, _ = self.composed()
+        self.assertEqual(composed["blind_rederivation"]["blind_from"],
+                         ["experiments/EXP-Y/code/"])
+
+    def test_blind_from_widening_appends_and_never_replaces(self):
+        plan = self.plan()
+        plan["blind_rederivation"] = {"required": True,
+                                      "blind_from": ["already/there/"]}
+        self.write_addendum("a-widen2.yaml", "2026-01-02T00:00Z", """
+            what_changes:
+              blind_from_additions: [newly/added/]
+        """)
+        composed, _ = cri.compose_plan(plan, cri.find_addenda(str(self.plan_path)))
+        self.assertEqual(composed["blind_rederivation"]["blind_from"],
+                         ["already/there/", "newly/added/"])
+
+    def test_blind_from_widening_is_idempotent(self):
+        """Two addenda naming the same path must not double it: a duplicated
+        blind_from entry would report the same leak twice and read as two."""
+        plan = self.plan()
+        plan["blind_rederivation"] = {"required": True, "blind_from": ["dup/"]}
+        self.write_addendum("a-dup.yaml", "2026-01-02T00:00Z", """
+            what_changes:
+              blind_from_additions: [dup/, fresh/]
+        """)
+        composed, _ = cri.compose_plan(plan, cri.find_addenda(str(self.plan_path)))
+        self.assertEqual(composed["blind_rederivation"]["blind_from"],
+                         ["dup/", "fresh/"])
+
+    def test_a_widened_blind_from_actually_catches_a_leak(self):
+        """The point of the fix. Composition alone proves nothing; what matters
+        is that check_plan now FINDS a read it previously could not see."""
+        plan = self.plan()
+        plan["blind_rederivation"] = {
+            "required": True, "quantity": "d", "assigned_to": "TASK-A",
+            "blind_from": ["unrelated/"]}
+        addenda = [("a.yaml", {"what_changes":
+                               {"blind_from_additions": ["experiments/EXP-X/runs/"]}})]
+        composed, _ = cri.compose_plan(plan, addenda)
+        attestation = {"task_id": "TASK-A", "role": "validator",
+                       "joints_owned": ["J1"], "blind_from_respected": True,
+                       "sources_read": ["experiments/EXP-X/runs/RUN-1/manifest.yaml"]}
+        reports = [("a/att.yaml", attestation)]
+        problems = cri.check(composed, reports)
+        self.assertTrue(
+            any("experiments/EXP-X/runs/" in p and "not independent" in p
+                for p in problems),
+            f"the widened path did not produce a leak finding: {problems}")
+
+        uncomposed = cri.check(plan, reports)
+        self.assertFalse(
+            any("experiments/EXP-X/runs/" in p for p in uncomposed),
+            "without composition the same read must go unnoticed -- that is the "
+            "defect these tests pin")
+
     def test_an_addendum_cannot_remove_a_joint(self):
         self.write_addendum("shrink.yaml", "2026-01-02T00:00Z", """
             joints_removed:
