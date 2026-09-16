@@ -21,7 +21,26 @@ about this program's research.
 | `ncp-reachability` | `formalize_claim` | THM-COMMUTATOR-KERNEL1 Lemma 2(b) | moderate |
 | `ncp-commutator-ideal-refutation` | `formal_counterexample` | THM-COMMUTATOR-KERNEL1 Prop 1 | hard; a failure here is informative, not a defect |
 
-All three come from one note that was read end to end. Do not add targets by
+## Semaev degree-fall attribution (RQ-DREG-bd6c86)
+
+| target | kind | from | expectation |
+| --- | --- | --- | --- |
+| `semaev-frobenius-collapse` | `formalize_claim` | THM_SEMAEV_FALL1 Lemma 1 | tractable — the smoke test for this lane |
+| `semaev-decomposition-certificate` | `formalize_claim` | THM_SEMAEV_FALL1 Lemma 3 | moderate; trivial mathematically, valuable operationally |
+| `semaev-symmetrization-degree` | `formalize_claim` | THM_SEMAEV_FALL1 Lemma 2(b) | hard; may come back blocked on Mathlib's graded symmetric-polynomial support, which is a useful result about reach |
+
+All three are **per-instance identities or decision procedures, never growth
+statements**. `RQ-DREG-bd6c86` asks how the solving degree of the Weil-descended
+Semaev systems grows; that is open, there is no proof to formalize, and a build
+here is not evidence toward it. Read `THM_SEMAEV_FALL1` §4 before reviewing one:
+the attribution procedure these lemmas support is sound and **not complete**, so
+a failing check never certifies that a degree fall is unexplained.
+
+The Huang–Kosters–Petit–Yeo last-fall-degree bound (`KN-LIT-7605`) is the real
+theorem in this lane and is deliberately not specced: it needs Macaulay-matrix
+and Gröbner machinery Mathlib does not carry.
+
+All three NCP targets come from one note that was read end to end. Do not add targets by
 skimming a note for a quotable sentence — the surrounding definitions are the
 part the engine has to get right, and a claim detached from them formalizes
 into something that is not the claim.
