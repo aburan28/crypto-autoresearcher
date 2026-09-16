@@ -14,10 +14,10 @@ never be recorded as a proof that did not check out.
 The verifier is stubbed by exit code on purpose.  Driving real Lean here would
 make this suite need a Mathlib build to say anything about branching.
 """
-from pathlib import Path
 import importlib.util
 import shutil
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -77,6 +77,22 @@ def test_floor_rejects_a_run_that_verifies_nothing(monkeypatch, tmp_path):
 
 
 def test_floor_is_a_floor_not_a_count(monkeypatch, tmp_path):
-    """Verifying fewer than the floor fails even when nothing failed outright."""
+    """Verifying fewer than the floor fails even when nothing failed outright.
 
-    assert run(monkeypatch, tmp_path, 0, ["--min-verified", "2"]) == 1
+    Uses a one-target fixture so the assertion stays true when more proofs
+    land on main — running against the live target set with ``--min-verified 2``
+    would start passing the moment a second theorem file appears.
+    """
+
+    targets = tmp_path / "targets"
+    targets.mkdir()
+    discharged = REPO_ROOT / "formal/targets/semaev-s3-degree2-fall-witness.yaml"
+    shutil.copy2(discharged, targets / discharged.name)
+
+    module = gate()
+    monkeypatch.setattr(module, "formal_main", lambda argv: 0)
+    assert module.main([
+        "--artifact-dir", str(tmp_path / "receipts"),
+        "--targets-dir", str(targets),
+        "--min-verified", "2",
+    ]) == 1
