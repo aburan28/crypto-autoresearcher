@@ -27,7 +27,7 @@ about this program's research.
 | --- | --- | --- | --- |
 | `semaev-frobenius-collapse` | `formalize_claim` | THM_SEMAEV_FALL1 Lemma 1 | tractable — the smoke test for this lane |
 | `semaev-decomposition-certificate` | `formalize_claim` | THM_SEMAEV_FALL1 Lemma 3 | moderate; trivial mathematically, valuable operationally |
-| `semaev-symmetrization-degree` | `formalize_claim` | THM_SEMAEV_FALL1 Lemma 2(b) | hard; may come back blocked on Mathlib's graded symmetric-polynomial support, which is a useful result about reach |
+| `semaev-symmetrization-degree` | `formalize_claim` | THM_SEMAEV_FALL1 Lemma 2 ((b) required; (a) if graded FTSP is available) | hard; may come back blocked on Mathlib's graded symmetric-polynomial support, which is a useful result about reach |
 
 All three are **per-instance identities or decision procedures, never growth
 statements**. `RQ-DREG-bd6c86` asks how the solving degree of the Weil-descended

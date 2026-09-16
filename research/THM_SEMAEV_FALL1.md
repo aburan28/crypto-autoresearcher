@@ -6,6 +6,41 @@
 - **Reads:** ledger/questions/RQ-DREG-bd6c86.yaml, knowledge/literature/KN-LIT-7605.md (last fall degree of Weil descent systems), formal/README.md, formal/targets/README.md
 - **Verification artifact:** none yet. This note exists to make three claims precise enough to formalize; no Lean build has been run, and `formal/setup.sh` has not been executed in the authoring session (no `elan`/`lean` on PATH).
 
+## 0a. CORRECTION (2026-09-16) — CORR-20260916-4f842d
+
+Two sentences below cite `KN-LIT-7605` for a proposition that record does not
+support. Per AGENTS.md rule 2 the original text is left standing and corrected
+here rather than rewritten.
+
+`KN-LIT-7605` summarises arXiv:2103.07282 as proving that "the last fall degree
+is bounded independently of `n`", with results "for summation-polynomial systems
+over `F_2`". The arXiv abstract, fetched and read verbatim on 2026-09-16, says
+neither. Ming-Deh Huang (2021) proves a theorem **relating** the last fall
+degrees of a system and of its Weil descent, for systems **not necessarily of
+dimension zero**; the application named is upper bounds in the case of
+**linearized** polynomials; **summation polynomials are not named in the
+abstract**. The body has not been read by any session.
+
+Corrected readings:
+
+- **Remark 1**, last sentence — "the bounded last-fall-degree results recorded
+  in `KN-LIT-7605`" overstates the cited record. There is at present **no record
+  in this corpus proving the last fall degree of summation-polynomial systems is
+  bounded in `n`.** Lemma 1 and Corollary 1 stand on their own proofs and are
+  unaffected; what changes is that they can no longer be described as the
+  mechanism behind an established bound, only as a mechanism producing falls.
+- **Gap G2** — "the last-fall-degree bound of `KN-LIT-7605` is a genuine
+  theorem" should read: arXiv:2103.07282 is a genuine theorem, but it is a
+  *relation* between the last fall degrees of a system and its Weil descent, not
+  a bound on summation-polynomial systems. It remains a reasonable eventual Lean
+  target and remains out of reach for the same Mathlib reason.
+
+This correction establishes what the **abstract** does and does not say. It does
+not assert the body lacks such a bound. See `knowledge/literature/KN-LIT-a2f7b3.md`
+for the full discrepancy note and for Caminata–Gorla ePrint 2021/1611, the
+likelier home of the solving-degree/last-fall-degree inequality this program
+keeps needing.
+
 ## 0. Result summary
 
 1. **PROVED (Lemma 1, Frobenius collapse):** over `K = F_{q^n}` with field equations imposed, `q`-th powering coincides with coefficientwise Frobenius. This is a two-line identity, and it is the exact structural reason the Weil-descended Semaev systems are not semi-regular: their Frobenius conjugates are redundant modulo `q`-th powers and field equations, so degree falls are available for free at a degree that does not grow with `n`.
