@@ -230,8 +230,12 @@ def cost_cell(n: int, np_: int, d: int, m: int, frobenius_orbits: int = 1) -> di
          m! * q^{n - n'm + n'} * O~(m^5.188 (3d)^{4.876 m^2}) + m q^{2n'}
        with |F| ~ |V| ~ q^{n'} and success probability |F|^m/(m! q^n) capped at 1.
        Also the resultant-model floor: the univariate polynomial h of Lemma 3.1 has degree
-       M(E) = 2^{m(m-1)} d^{m(m-1)} (Appendix A.1) and must be root-found once per attempt,
-       so relation search costs at least (attempts) * M(E) under that model."""
+       M(E) = prod_{k=1}^m lambda_k with lambda_k = d^{k-1} 2^{m-1} (Appendix A.1), i.e.
+       M(E) = 2^{m(m-1)} d^{m(m-1)/2}, and must be root-found once per attempt, so relation
+       search costs at least (attempts) * M(E) under that model.
+       CORRECTION 2026-09-16 (CORR-20260916-8d0b81): the first version of this script used
+       d^{m(m-1)}; the idea-generator (TASK-20260916-a93a2a) caught it against the frozen
+       text, whose exponent is m(m-1)/2 (paper_fulltext.md lines 1029-1032)."""
     ell = math.log2(d)
     b = beta(n, np_, ell)
     log2_orbit = math.log2(frobenius_orbits)               # 0 unless V is Frobenius-stable on a Koblitz curve
@@ -240,7 +244,7 @@ def cost_cell(n: int, np_: int, d: int, m: int, frobenius_orbits: int = 1) -> di
     log2_rojas = ROJAS_M_EXP * math.log2(m) + KAPPA * m * m * math.log2(3 * d)
     log2_relation_phase = log2_attempts + log2_rojas
     log2_linear_algebra = math.log2(m) + 2 * (np_ - log2_orbit)
-    log2_ME = m * (m - 1) * (1 + ell)
+    log2_ME = m * (m - 1) * (1 + ell / 2)
     log2_floor = log2_attempts + log2_ME
     total = max(log2_relation_phase, log2_linear_algebra)  # log2 of the dominant term
     # d = 2 forces lambda = a X^2 + b X + c, an affine linearized polynomial, so [EP21]
@@ -254,6 +258,22 @@ def cost_cell(n: int, np_: int, d: int, m: int, frobenius_orbits: int = 1) -> di
             "log2_relation_phase": log2_relation_phase, "log2_linear_algebra": log2_linear_algebra,
             "log2_total_theorem32": total, "log2_M_E": log2_ME,
             "log2_resultant_floor": max(log2_floor, log2_linear_algebra)}
+
+
+def frobenius_injection_bound(n: int, np_: int, d: int, p: int = P) -> dict:
+    """Root-count ceiling for L = X^{p^{n'}} - lambda(X) with lambda in F_p[X] of degree d
+    (added 2026-09-16 after IDEA-20260916-3f7a1c / 5c9d6e; verified by this session for
+    F_p coefficients only).  Write n = q n' + r.  Because lambda has F_p coefficients,
+    Frobenius commutes with it, so x^{p^{n' k}} = lambda^{ok}(x) for every root x in F_{p^n}.
+    With k = q + 1: p^{n'(q+1)} = p^{n + (n' - r)}, hence x^{p^{n' - r}} = lambda^{o(q+1)}(x),
+    a nonzero polynomial equation of degree max(p^{n' - r}, d^{q+1}) (nonzero because the two
+    sides have different degrees unless d^{q+1} = p^{n'-r}).  So N(L) <= max(p^{n'-r}, d^{q+1})
+    whenever d^{q+1} != p^{n'-r}.  At n = 131, n' = 33: q = 3, r = 32, ceiling max(2, d^4)."""
+    q, r = divmod(n, np_)
+    ceiling = max(p ** (np_ - r), d ** (q + 1))
+    return {"n_prime": np_, "d": d, "q": q, "r": r, "log2_root_ceiling_Fp_coefficients": math.log2(ceiling),
+            "log2_needed_for_row": np_ - 1, "row_reachable_with_Fp_coefficients": math.log2(ceiling) >= np_ - 1,
+            "degenerate_equal_degrees": d ** (q + 1) == p ** (np_ - r)}
 
 
 def cost_surface(n: int) -> dict:
@@ -348,6 +368,8 @@ def main() -> int:
              "beta_at_min": beta(N_EXT, np_, max(1.0, lemma41_min_log2_deg(N_EXT, np_)))}
             for np_ in range(2, N_EXT)],
         "prop8_exponent_table": prop8_exponent_table(),
+        "frobenius_injection_bound_Fp_coefficients": [frobenius_injection_bound(N_EXT, np_, d)
+                                                       for np_ in (22, 33, 44, 66) for d in (3, 4, 7)],
         "cost_surface": cost_surface(N_EXT),
     }
     if args.json:
@@ -382,6 +404,10 @@ def main() -> int:
         if (N_EXT + 1) % r["n_prime"] == 0 and r["m"] == math.ceil(N_EXT / r["n_prime"]) and r["n_prime"] >= 11:
             lines.append(f"| {r['n_prime']} | {r['d']} | {r['m']} | {r['frobenius_orbits']} | {r['linearized_only_and_excluded_by_EP21']} | {r['alpha']:.3f} | {r['beta']:.3f} | {r['log2_attempts']:.1f} | {r['log2_M_E']:.1f} | "
                          f"{r['log2_relation_phase']:.1f} | {r['log2_linear_algebra']:.1f} | {r['log2_total_theorem32']:.1f} | {r['log2_resultant_floor']:.1f} |")
+    lines.append("\n## Root ceiling for F_2-coefficient lambda (Frobenius injection, added 2026-09-16)\n")
+    lines.append("| n' | d | q | r | log2 ceiling | log2 needed for the row | row reachable |\n|---|---|---|---|---|---|---|")
+    for r in out["frobenius_injection_bound_Fp_coefficients"]:
+        lines.append(f"| {r['n_prime']} | {r['d']} | {r['q']} | {r['r']} | {r['log2_root_ceiling_Fp_coefficients']:.1f} | {r['log2_needed_for_row']} | {r['row_reachable_with_Fp_coefficients']} |")
     lines.append("\n## [EP21] Proposition 8 asymptotic exponent, evaluated at n = 131 (m >> 1 regime; NOT reachable at n = 131, see rows above)\n")
     lines.append("| beta | alpha_beta | exponent | log2 cost | < 65.5 | < 60.9 |\n|---|---|---|---|---|---|")
     for r in out["prop8_exponent_table"]:
