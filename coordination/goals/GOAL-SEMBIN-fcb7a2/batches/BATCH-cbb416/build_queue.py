@@ -46,6 +46,11 @@ ROUND = "REVIEW-SEMBIN-20260916-cbb416"
 EVIDENCE = "EV-SEMBIN-29c44f"
 CLOSING = "DEC-20260916-a0af84"
 
+# The audit snapshot's own receipt hash, read back from its commit. A receipt
+# cannot contain its own hash, so the queue carries it -- the one hash below that
+# a reader must take from here rather than from the receipt itself.
+RECEIPT_SHA = "c7b850aa0c61bb652d5b63856c4669ef828743badc0e63fca0077cb31b66f07e"
+
 AMENDMENT_PATH = f"{EXP}/amendments/{AMENDMENT}.yaml"
 # ADDENDUM **2**. Addendum 1 is another session's, and it landed on origin/main
 # while this ruling was being written: it reassigns J3/J4 to the instrument
@@ -1332,6 +1337,31 @@ EXECUTED = {
          "to have, and the control arm turns out to be substantially pre-measured, which is where "
          "the `partial` comes from. The kb retrieval index could not be called (six probes) so "
          "recall is stated as a FLOOR. Ruled on by " + RULING + "."),
+    ]),
+    AUDIT_SNAPSHOT: od([
+        ("state", "completed"),
+        ("outcome",
+         "Completed 2026-09-16 at commit 4af041050299e91c0e354effe242bcb7bff545ad. Staged exactly "
+         "the three declared audit artifacts plus its own receipt, path by path -- a second lane's "
+         "readers were in flight in the same worktree and `git add -A` would have swept them in. "
+         "The receipt discloses that the Coordinator read the audit before this commit existed, "
+         "which is how a producer returns into a shared worktree, and records that no commit in "
+         "that window touched collision-audit/."),
+        ("archive_binding", od([
+            ("commit_sha", "4af041050299e91c0e354effe242bcb7bff545ad"),
+            ("parent_sha", "2324bef46905952710c532f3350c2f6a7fbbd8c8"),
+            ("path_sha256", od([
+                (f"{BASE}/archives/{AUDIT_SNAPSHOT}/snapshot-receipt.json", RECEIPT_SHA),
+            ] + list(zip(collision_artifacts, [
+                "bd51ae401f5b018220ac58c3ad5224dec8467d7d3f66c58297100dc88d63556a",
+                "66128266e7f42807f42a2c200da293d095f3c274349efc9ce85abe44c42d7b0d",
+                "96dd4741f0c0d55a528a4659176fc6678017dc45f72183f4eda6574342353de9",
+            ], strict=True)))),
+            ("path_sha256_note",
+             "Four entries: the three audit artifacts and this archive's own receipt, which "
+             "research_dispatch.py requires a completed archive to bind and which the receipt "
+             "cannot carry itself."),
+        ])),
     ]),
 }
 
