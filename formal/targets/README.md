@@ -36,9 +36,20 @@ here is not evidence toward it. Read `THM_SEMAEV_FALL1` §4 before reviewing one
 the attribution procedure these lemmas support is sound and **not complete**, so
 a failing check never certifies that a degree fall is unexplained.
 
-The Huang–Kosters–Petit–Yeo last-fall-degree bound (`KN-LIT-7605`) is the real
-theorem in this lane and is deliberately not specced: it needs Macaulay-matrix
-and Gröbner machinery Mathlib does not carry.
+## Fall-degree invariants (RQ-DREG-bd6c86)
+
+| target | kind | from | expectation |
+| --- | --- | --- | --- |
+| `lastfall-is-max-degree-fall` | `formalize_claim` | THM_FALLDEG_INVARIANTS1 Thm 2.8 (= Caminata–Gorla Thm 2.8) | moderate; the first statement in this lane about the invariants themselves rather than one identity in one system |
+
+Chosen because its proof needs **no Gröbner machinery** — Definition 1.5 is a
+closure condition on vector subspaces and the proof is two inclusions plus
+finiteness. Caminata–Gorla **Theorem 3.1** (`sd_σ(F) = max{d_F, max.GB.deg_σ(F)}`)
+is the deeper result and is deliberately not specced: it needs reduced Gröbner
+bases, degree-compatible term orders and row-echelon Macaulay matrices.
+
+Note the direction, corrected in `CORR-20260916-0c9c0a`: the last fall degree is
+a **lower** bound for the solving degree, not an upper one.
 
 All three NCP targets come from one note that was read end to end. Do not add targets by
 skimming a note for a quotable sentence — the surrounding definitions are the
