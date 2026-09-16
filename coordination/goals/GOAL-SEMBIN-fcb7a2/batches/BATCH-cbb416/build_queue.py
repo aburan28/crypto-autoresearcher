@@ -50,6 +50,7 @@ CLOSING = "DEC-20260916-a0af84"
 # cannot contain its own hash, so the queue carries it -- the one hash below that
 # a reader must take from here rather than from the receipt itself.
 RECEIPT_SHA = "c7b850aa0c61bb652d5b63856c4669ef828743badc0e63fca0077cb31b66f07e"
+RULING_RECEIPT_SHA = "891420f789d63e3c8a503facd987cc175aa848975047678e96d56c0e7b25e8ba"
 
 AMENDMENT_PATH = f"{EXP}/amendments/{AMENDMENT}.yaml"
 # ADDENDUM **2**. Addendum 1 is another session's, and it landed on origin/main
@@ -1363,6 +1364,52 @@ EXECUTED = {
              "cannot carry itself."),
         ])),
     ]),
+    RULE: od([
+        ("state", "completed"),
+        ("outcome",
+         "Completed 2026-09-16. " + RULING + " accepts the `partial` verdict as the audit read it "
+         "and lets the run proceed; " + AMENDMENT + " makes four things binding additively (A-1 "
+         "reuse as reference and test oracle but never in the measurement path, A-2 one builder for "
+         "both arms with the control at v = 0, A-3 the unshifted arm reported as a replication with "
+         "a changed instrument, A-4 the GF(2) rank kernel checked before it is trusted) and declines "
+         "R-2's fixture with a revisit condition; addendum 2 puts the audit and the paths holding "
+         "prior integers under the blind re-deriver's blind_from. One audit finding was CORRECTED: "
+         "macaulay.rank_mod_p does not degenerate at p = 2, which changes the ruling's reasons and "
+         "not its outcome. No measured degree appears in any of the three files."),
+    ]),
+    RULING_ARCHIVE: od([
+        ("state", "completed"),
+        ("outcome",
+         "Completed 2026-09-16 at commit 323f22645cfc5d9b89132c25e4fab8eceff32c9e. Three declared "
+         "records plus its own receipt, staged path by path with two other lanes in flight in the "
+         "same worktree. The receipt also records a defect found while writing the ruling and "
+         "deliberately NOT fixed inside an archive commit: this round's review plan declares its "
+         "joints as id/name/owner where templates/research-records.md and "
+         "tools/check_review_independence.py use joint/assigned_to, so the checker cannot see the "
+         "plan's ownership and both reviewer cards' completion gate is unpassable as written. It "
+         "bites only when the first reviewer attests, which cannot happen until the execution has "
+         "run and been snapshotted."),
+        ("archive_binding", od([
+            ("commit_sha", "323f22645cfc5d9b89132c25e4fab8eceff32c9e"),
+            ("parent_sha", "9bcbd0112a2c1788119475841c16d2a898afd2ee"),
+            ("path_sha256", od([
+                (f"{BASE}/archives/{RULING_ARCHIVE}/ledger-receipt.json", RULING_RECEIPT_SHA),
+                (f"ledger/decisions/{RULING}.yaml",
+                 "d3aa82ddd08f8165e98edb4ab39a9ed34b34f9fd82de564d07040a5ae6abe24d"),
+                (AMENDMENT_PATH,
+                 "a49aa124e169bb1f4ddbe1265928914fee24a640b458f044452038db70a6777e"),
+                (ADDENDUM_PATH,
+                 "3029f17625ed86cda575599a7c7c4e935985bf2aca4ffb32a8c6d64ad8e815d9"),
+            ])),
+        ])),
+    ]),
+    EXECUTE: od([
+        ("state", "queued"),
+        ("unblocked_by",
+         RULING + ", committed at 323f22645 and archived by " + RULING_ARCHIVE + ". The card was "
+         "written `blocked` on a ruling rather than on the audit finishing, and this is that "
+         "ruling. The executor reads the amendment as binding alongside the frozen contract."),
+    ]),
 }
 
 REVISIONS = [
@@ -1414,6 +1461,18 @@ REVISIONS = [
          "out of the same commit as the run it preceded. Its source_task_ids are now "
          f"[{EXECUTE}] and the audit is archived by {AUDIT_SNAPSHOT}. Nothing was rewritten: three "
          "cards were added and one archive's source list narrowed, both visible here."),
+    ]),
+    od([
+        ("at", "2026-09-16T12:05:00Z"),
+        ("task_id", EXECUTE),
+        ("from_state", "blocked"),
+        ("to_state", "queued"),
+        ("reason",
+         "The ruling exists and is committed: " + RULING + " at 323f22645, archived by "
+         + RULING_ARCHIVE + ". The card's blocked_reason asked for a committed Coordinator ruling on "
+         "the audit's verdict and not merely for the audit to finish; it got one, which accepted "
+         "`partial`, granted a bounded reuse permission, and added four binding clauses in "
+         + AMENDMENT + "."),
     ]),
     od([
         ("at", "2026-09-16T11:24:00Z"),
