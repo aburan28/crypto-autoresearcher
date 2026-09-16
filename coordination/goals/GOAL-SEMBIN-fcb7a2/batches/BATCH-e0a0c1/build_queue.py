@@ -736,6 +736,42 @@ tasks.append(od([
 # Post-execution facts, applied to the cards. See BATCH-cbb416's builder for why
 # this table exists rather than hand edits to the generated JSON.
 EXECUTED = {
+    OPEN_SNAPSHOT: od([
+        ("state", "completed"),
+        ("outcome",
+         "Completed 2026-09-16 at commit 84f25affa595e433b34fc8d774fbaf5dda5701a8. Staged exactly "
+         "the seven declared source artifacts, its own receipt, and the lane side file; nothing "
+         "else. The concurrently running collision audit of BATCH-cbb416 was writing into its own "
+         "untracked directory at the time and was deliberately NOT staged -- a producer's artifacts "
+         "are committed by the archive that owns them, and staging a running producer's partial "
+         "output would bind bytes it has not finished writing."),
+        ("archive_binding", od([
+            ("commit_sha", "84f25affa595e433b34fc8d774fbaf5dda5701a8"),
+            ("parent_sha", "de6c804682fe138a63e4c9cb4d2c224c4c42430d"),
+            ("path_sha256", od([
+                # The archive's own artifact first. A receipt cannot contain its
+                # own hash, so this is the one value a reader takes from the
+                # queue rather than from the receipt.
+                (f"{BASE}/archives/{OPEN_SNAPSHOT}/snapshot-receipt.json",
+                 "46cda209dcfa01756f7b76704318b2e3cf42a53fa0e8fee0938b384213afba86"),
+            ] + list(zip(open_artifacts, [
+                "f063851780a5423aacad539156397cc62710cb87774cb30d1735fd34e8c0e509",
+                "b8e3fdbf22c22100f7afc9d28c7ed5c48341adf6adc10905a85bde09e74f5920",
+                "8605c51728bb35f957fe12f50f43afe8fddaf9a94dbb6106c443da0d802e8776",
+                "fe433b8e666729343d3e779728d9697036d902ca60f0d52b0fbdead20f17ea37",
+                "5bc45d68e23b0421b919fba598b0b83d416089813bc7df77daa72c8fb19c8a90",
+                "450207237b2462eb2b14a8da31d6c2ea11f54080aeb415bc22263f2926a27eeb",
+                "3e3c6555e8078f647e1935b29f045b0a5ded596f57a97202c798500641181c62",
+            ], strict=True)))),
+            ("path_sha256_note",
+             "EIGHT entries: the receipt plus the seven sources, INCLUDING THE GOAL HEAD, THIS "
+             "QUEUE AND ITS GENERATOR. All three legitimately change after this commit -- the head "
+             "at every rerank and whenever the other open lane appends, the queue and generator as "
+             "this table records what has executed. Under content_at_commit that is verification "
+             "working; under content_first each of those moves would report this archive corrupt "
+             "(CORR-20260915-654160)."),
+        ])),
+    ]),
     OPEN: od([
         ("state", "completed"),
         ("outcome",
@@ -748,7 +784,29 @@ EXECUTED = {
     ]),
 }
 
-REVISIONS = []
+REVISIONS = [
+    od([
+        ("at", "2026-09-16T11:40:00Z"),
+        ("task_id", OPEN),
+        ("from_state", "queued"),
+        ("to_state", "completed"),
+        ("reason",
+         "Recorded as a transition rather than written `completed` from the start, which is what "
+         "BATCH-cbb416's opening card did and had to disclose afterwards: that card read "
+         "`completed` while three of its declared artifacts did not exist. This one is marked "
+         "completed only now, with all seven present and committed at 84f25affa."),
+    ]),
+    od([
+        ("at", "2026-09-16T11:42:00Z"),
+        ("task_id", OPEN_SNAPSHOT),
+        ("from_state", "queued"),
+        ("to_state", "completed"),
+        ("reason",
+         "Snapshot archive executed at 84f25affa under binding_mode content_at_commit, binding "
+         "eight paths. Both readers are now unblocked and the read plan they are blind FROM is a "
+         "fixed, hash-bound object."),
+    ]),
+]
 
 for _task in tasks:
     _applied = EXECUTED.get(_task["id"])
