@@ -174,6 +174,44 @@ class AddendumComposition(unittest.TestCase):
         # that fires on every joint tells a reader nothing.
         self.assertEqual(sum("J1" in n for n in notes), 0)
 
+    def test_owner_reassignment_applies_to_id_owner_spelling(self):
+        """A plan naming joints `id:`/`owner:` (the SEMBIN rounds) is reassigned too.
+
+        Matching only `joint`/`assigned_to` made the SEMBIN addendum a no-op:
+        composition printed 'no joint added or reassigned' and the re-deriver
+        kept the run-reading joints the addendum had moved away from it.
+        """
+        self.plan_path.write_text(textwrap.dedent("""
+            review_plan:
+              id: REVIEW-TEST-002
+              coordinator_prior: I expect J1 to hold.
+              joints:
+                - id: J1
+                  name: THE FIRST THING
+                  owner: TASK-A
+                  attack_plan: recompute it
+                - id: J2
+                  name: THE SECOND THING
+                  owner: TASK-A
+                  attack_plan: re-run it
+              proves_too_much:
+                objects: [a known-false object]
+                failure_signature: the argument still goes through
+        """), encoding="utf-8")
+        self.write_addendum("split.yaml", "2026-01-03T00:00Z", """
+            what_changes:
+              owners:
+                J2: TASK-B
+        """)
+        composed, notes = self.composed()
+        owners = {j["id"]: j["owner"] for j in composed["joints"]}
+        self.assertEqual(owners, {"J1": "TASK-A", "J2": "TASK-B"})
+        self.assertNotIn("assigned_to", composed["joints"][1])
+        self.assertTrue(any("'J2' reassigned TASK-A -> TASK-B" in n for n in notes))
+        problems = cri.check(composed, cri._collect_reports([str(self.dir)]))
+        self.assertEqual(len(problems), 1, problems)
+        self.assertIn("TASK-B", problems[0])
+
     def test_later_addendum_wins_over_earlier(self):
         self.write_addendum("first.yaml", "2026-01-02T00:00Z", """
             what_changes:

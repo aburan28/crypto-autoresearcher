@@ -103,6 +103,26 @@ def _joint_label(name: str) -> str:
     return head.strip().rstrip(".").strip()
 
 
+def _joint_name(entry: dict) -> str:
+    """A plan joint's label under either spelling.
+
+    The ICPERF plans name a joint `joint:` and its owner `assigned_to:`; the
+    SEMBIN plans name them `id:` and `owner:`. Both are committed and immutable,
+    so the tool reads both rather than holding one round to the other's keys --
+    an addendum that matched only `joint` silently reassigned nothing on a plan
+    written with `id`.
+    """
+    return str(entry.get("joint") or entry.get("id") or "")
+
+
+def _owner_key(entry: dict) -> str:
+    return "owner" if "owner" in entry and "assigned_to" not in entry else "assigned_to"
+
+
+def _joint_owner(entry: dict) -> str:
+    return str(entry.get(_owner_key(entry)) or "").strip()
+
+
 def _claims_joint(owned: list, name: str) -> bool:
     """Does this attestation's `joints_owned` name the plan's joint?"""
     label = _joint_label(name).casefold()
@@ -261,14 +281,14 @@ def compose_plan(plan: dict, addenda: list[tuple[str, dict]]) -> tuple[dict, lis
                 for entry in composed["joints"]:
                     if not isinstance(entry, dict):
                         continue
-                    name = str(entry.get("joint") or "")
+                    name = _joint_name(entry)
                     if _joint_label(name).casefold() != wanted:
                         continue
-                    if str(entry.get("assigned_to") or "").strip() != owner:
+                    if _joint_owner(entry) != owner:
                         notes.append(
                             f"{label}: joint '{_joint_label(name)}' reassigned "
-                            f"{entry.get('assigned_to')} -> {owner}")
-                    entry["assigned_to"] = owner
+                            f"{_joint_owner(entry)} -> {owner}")
+                    entry[_owner_key(entry)] = owner
         extra = addendum.get("proves_too_much_objects_added")
         if isinstance(extra, list) and extra:
             control = composed.get("proves_too_much")
@@ -350,8 +370,8 @@ def check(plan: dict, reports: list[tuple[str, dict]]) -> list[str]:
         if not isinstance(entry, dict):
             problems.append(f"review_plan.joints[{index}] must be a mapping")
             continue
-        name = str(entry.get("joint") or "").strip() or f"joints[{index}]"
-        owner = str(entry.get("assigned_to") or "").strip()
+        name = _joint_name(entry).strip() or f"joints[{index}]"
+        owner = _joint_owner(entry)
         if not owner:
             problems.append(f"joint '{name}' has no assigned_to; an unowned "
                             f"joint is the coverage gap this plan exists to "
