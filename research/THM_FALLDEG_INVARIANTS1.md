@@ -83,6 +83,42 @@ CG §4 shows by explicit example that `d_ff` may be **arbitrarily larger or smal
 
 Semaev–Tenti Thm 5.2 applies to systems **containing the field equations** — which the descended Semaev systems do by construction — and yields `sd ≤ 2 d_reg − 2` under a checkable hypothesis. Combined with Prop. 4.13, `d_reg` of the descended system is computable from `d_reg` of the pre-descent system. This is a proven chain from a small computation to a solving-degree bound, replacing the heuristic the subexponential claims rest on.
 
+### 3.5 Prop. 4.13 checked numerically — 8 non-vacuous instances, and one caveat found
+
+`research/verification/falldeg_weil_dreg_check.py` computes `d_reg` directly
+from its definition (`min{e : (F^top)_e = R_e}`, as a rank condition over the
+relevant field) for `F` over `F_{2^n}` and for its Weil restriction over `F_2`,
+and compares against `n·d_reg(F) − n + 1`. Results in
+`falldeg_weil_dreg_check_results.txt`:
+
+| case | n | m | d_reg(F) | d_reg(Weil F) | predicted |
+| --- | --- | --- | --- | --- | --- |
+| 1 var, deg 2 | 2 | 1 | 2 | 3 | 3 |
+| 1 var, deg 3 | 2 | 1 | 3 | 5 | 5 |
+| 1 var, deg 2 | 3 | 1 | 2 | 4 | 4 |
+| 1 var, deg 3 | 3 | 1 | 3 | 7 | 7 |
+| 2×2 quadratic | 2 | 2 | 3 | 5 | 5 |
+| 2×2 quadratic | 3 | 2 | 3 | 7 | 7 |
+| 2×2 quadratic b | 2 | 2 | 3 | 5 | 5 |
+| 3×3 quadratic | 2 | 3 | 4 | 7 | 7 |
+
+All eight match. This verifies the **reading** of Prop. 4.13 — that the formula
+is exact, that `n` is the extension degree and not the variable count, and that
+it holds for multivariate systems over `F_4` and `F_8` — not the theorem, which
+is the authors'.
+
+**The caveat, which is the more useful half.** Two underdetermined cases (one
+equation in two variables) returned `d_reg` **undefined on both sides**: the
+hypothesis `(F^top)_d = R_d for d ≫ 0` simply fails there, because the top part
+of a single polynomial never fills the ring. Those rows are **not**
+confirmations, and an earlier version of the script scored them as matches by
+comparing `None` to `None`. Recorded because the same trap applies to the
+application: **Prop. 4.13 says nothing about a Semaev decomposition system that
+is underdetermined**, and whether the descended system satisfies the hypothesis
+is a property of the factor-base dimension and the number of summands, not
+something to be assumed. This sharpens G1 below from "check the hypotheses" to
+"check the hypothesis that is already known to fail in the nearby case".
+
 ## 4. Hypotheses NOT checked here — do not apply these blind
 
 - **`t ∤ 0` modulo `F^h`** (CCG Cor. 4.9, 4.12) and **generic coordinates over `k`** (Cor. 3.4(1)) are real hypotheses. Neither has been checked for any Semaev descent system. Checking them is cheap and is the obvious next task.
