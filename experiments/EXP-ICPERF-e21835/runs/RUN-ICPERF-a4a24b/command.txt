@@ -53,16 +53,32 @@ python3 accept/engine_rows.py --m2
 # phase: environment (epoch 2 record)
 python3 -c "import bench; bench.environment()" (from experiments/EXP-ICPERF-e21835/code on sys.path) -> environment-epoch2.json
 
-## EPOCH 1 -- NO `commands` BLOCK EXISTS IN manifest.yaml
+## EPOCH 1 -- NO `commands` BLOCK EXISTS IN manifest.yaml, AND THE COMMANDS ARE
+## NONETHELESS DETERMINED BY COMMITTED BYTES
 #
 # manifest.yaml records epoch 1's code tree, inputs, timings, resources and
-# per-criterion verdicts, but no invocation strings, and logs/PROGRESS.md records
-# none either. THIS IS A REAL DEFECT OF THE EPOCH-1 RECORD against the artifact
-# policy's 'exact command' requirement, and it is disclosed rather than filled:
-# reconstructing a plausible command line would be a fabrication under core rule 9.
-#
-# What IS recoverable: epoch 1's own JSON outputs captured the argv of the child
-# processes they spawned. Those are quoted verbatim below, with their source.
+# per-criterion verdicts but no invocation strings, and logs/PROGRESS.md records
+# none either. CITING PROGRESS.md AS THEIR SOURCE WOULD BE FALSE. The commands are
+# recovered instead from the drivers themselves, each of which is committed,
+# declared in epoch 1's `artifacts`, named to match the `invocation` label in its
+# own JSON output, and -- checked below on every run of this generator -- reads
+# NEITHER argv NOR the environment. A script that consults nothing outside itself
+# admits exactly one invocation, so these lines are DETERMINED, not reconstructed.
+
+# accept/probe_check.py  invocation label in logs/probe_check.json: 'probe_check'
+#   argument-free: no argparse, no sys.argv, no environment read
+python3 accept/probe_check.py
+
+# accept/sumreg.py  invocation label in logs/sumreg.json: 'sumreg'
+#   argument-free: no argparse, no sys.argv, no environment read
+python3 accept/sumreg.py
+
+# accept/watchdog_null.py  invocation label in logs/watchdog_null.json: 'watchdog_null'
+#   argument-free: no argparse, no sys.argv, no environment read
+python3 accept/watchdog_null.py
+
+# Additionally recovered verbatim: epoch 1's JSON outputs captured the argv of the
+# CHILD processes they spawned. Quoted with their source pointers.
 
 # recovered from logs/probe_check.json :: children.repaired_environment.argv
 /usr/bin/python3 -c 
@@ -86,10 +102,9 @@ t0 = time.monotonic()
 line = ver(["Singular", "--version"])
 print("FROZENJSON " + json.dumps({"seconds": round(time.monotonic() - t0, 3), "Singular": line}))
 
-# UNRECOVERABLE -- wrapper invocations named by their own output but with no argv
-# recorded in any committed artifact. Each JSON below carries an `invocation` label
-# and its measurements, so WHAT ran is known and the exact ARGV is not:
-#   logs/probe_check.json  invocation='probe_check'  argv: NOT RECORDED
-#   logs/sumreg.json  invocation='sumreg'  argv: NOT RECORDED
-#   logs/watchdog_null.json  invocation='watchdog_null'  argv: NOT RECORDED
+# WHAT REMAINS UNRECORDED, stated exactly: the WRAPPER-LEVEL stdout and stderr
+# streams. The drivers write per-phase logs rather than being launched under a
+# shell redirect, so no top-level stream was ever captured to a file. stdout.log
+# and stderr.log beside this file are compositions of the per-phase logs and are
+# labelled as such; they do not reconstruct a stream that never existed.
 

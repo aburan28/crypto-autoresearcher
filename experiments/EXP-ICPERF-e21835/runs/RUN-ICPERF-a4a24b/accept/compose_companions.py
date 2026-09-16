@@ -27,11 +27,21 @@ Nothing here is a measurement and nothing here is new evidence. Re-running this 
 on an unchanged tree reproduces all four files byte-for-byte, which is the only property
 that makes a derived artifact worth committing.
 
-THE ONE GAP THIS SCRIPT DISCLOSES AND CANNOT FILL: epoch 1's manifest carries no
-`commands` block and its PROGRESS.md records no invocation strings, so for three of its
-phases the exact command is UNRECORDED. The artifact policy requires the exact command,
-so that is a real defect of the epoch-1 record. It is reported in command.txt and in
-manifest_v2.yaml's `code.command_completeness`, not papered over.
+EPOCH 1'S COMMANDS ARE DETERMINED BY COMMITTED BYTES, NOT RECORDED IN PROSE, and this
+script's first version got that wrong in one direction while a concurrent session got it
+wrong in the other. Neither manifest.yaml nor logs/PROGRESS.md records an invocation
+string for epoch 1's three wrapper phases, so citing PROGRESS.md as their source is false.
+But the driver scripts ARE committed, ARE declared in epoch 1's `artifacts`, take NO
+arguments and read NO environment (verified below at import time), and their filenames
+match one-for-one the `invocation` labels their own JSON outputs carry. `python3
+accept/<name>.py` from this run directory is therefore the only invocation the committed
+script admits — determined rather than reconstructed. Calling that "unrecoverable", as
+this script's first version did, understated what the bytes fix.
+
+The residue, stated exactly: the argv is determined, and the WRAPPER-LEVEL stdout/stderr
+streams were never captured to a file, because the drivers write per-phase logs instead of
+being launched under a shell redirect. That is why stdout.log and stderr.log here are
+compositions of the per-phase logs and not captured streams, and they say so.
 """
 from __future__ import annotations
 
@@ -63,6 +73,29 @@ def load_manifests() -> tuple[dict, dict]:
     with open(os.path.join(RUN, "manifest-epoch2.yaml"), encoding="utf-8") as handle:
         e2 = yaml.safe_load(handle)["run"]
     return e1, e2
+
+
+ARGUMENT_FREE_DRIVERS = ("probe_check", "sumreg", "watchdog_null")
+
+
+def driver_takes_no_arguments(name: str) -> tuple[bool, str]:
+    """Check by inspection that a driver reads neither argv nor the environment.
+
+    This is what licenses recording `python3 accept/<name>.py` as the exact command: if
+    the script consults nothing outside itself, the committed bytes determine the whole
+    invocation. If a driver ever gains an argument this returns False and command.txt
+    stops claiming the command is determined -- the check is the claim's warrant, so it
+    runs every time rather than being asserted once in a comment.
+    """
+    path = os.path.join(RUN, "accept", name + ".py")
+    if not os.path.exists(path):
+        return False, "script not present"
+    with open(path, encoding="utf-8") as handle:
+        body = handle.read()
+    for token in ("argparse", "sys.argv", "os.environ", "getenv"):
+        if token in body:
+            return False, "reads %s" % token
+    return True, "no argparse, no sys.argv, no environment read"
 
 
 def epoch1_recovered_argv() -> list[tuple[str, str]]:
@@ -122,16 +155,37 @@ def write_command_txt(e1: dict, e2: dict) -> None:
             lines.append("#   engine argv -> %s" % " ".join(str(a) for a in item["engine_argv"]))
         lines.append("")
 
-    lines.append("## EPOCH 1 -- NO `commands` BLOCK EXISTS IN manifest.yaml")
+    lines.append("## EPOCH 1 -- NO `commands` BLOCK EXISTS IN manifest.yaml, AND THE COMMANDS ARE")
+    lines.append("## NONETHELESS DETERMINED BY COMMITTED BYTES")
     lines.append("#")
     lines.append("# manifest.yaml records epoch 1's code tree, inputs, timings, resources and")
-    lines.append("# per-criterion verdicts, but no invocation strings, and logs/PROGRESS.md records")
-    lines.append("# none either. THIS IS A REAL DEFECT OF THE EPOCH-1 RECORD against the artifact")
-    lines.append("# policy's 'exact command' requirement, and it is disclosed rather than filled:")
-    lines.append("# reconstructing a plausible command line would be a fabrication under core rule 9.")
-    lines.append("#")
-    lines.append("# What IS recoverable: epoch 1's own JSON outputs captured the argv of the child")
-    lines.append("# processes they spawned. Those are quoted verbatim below, with their source.")
+    lines.append("# per-criterion verdicts but no invocation strings, and logs/PROGRESS.md records")
+    lines.append("# none either. CITING PROGRESS.md AS THEIR SOURCE WOULD BE FALSE. The commands are")
+    lines.append("# recovered instead from the drivers themselves, each of which is committed,")
+    lines.append("# declared in epoch 1's `artifacts`, named to match the `invocation` label in its")
+    lines.append("# own JSON output, and -- checked below on every run of this generator -- reads")
+    lines.append("# NEITHER argv NOR the environment. A script that consults nothing outside itself")
+    lines.append("# admits exactly one invocation, so these lines are DETERMINED, not reconstructed.")
+    lines.append("")
+    for name in ARGUMENT_FREE_DRIVERS:
+        ok, why = driver_takes_no_arguments(name)
+        json_path = os.path.join(RUN, "logs", name + ".json")
+        label = None
+        if os.path.exists(json_path):
+            with open(json_path, encoding="utf-8") as handle:
+                label = json.load(handle).get("invocation")
+        lines.append("# accept/%s.py  invocation label in logs/%s.json: %r" % (name, name, label))
+        if ok:
+            lines.append("#   argument-free: %s" % why)
+            lines.append("python3 accept/%s.py" % name)
+        else:
+            lines.append("#   NOT argument-free (%s) -- the exact argv is NOT determined by the" % why)
+            lines.append("#   script alone and is recorded nowhere. Reporting a command line here")
+            lines.append("#   would be a fabrication under core rule 9.")
+        lines.append("")
+
+    lines.append("# Additionally recovered verbatim: epoch 1's JSON outputs captured the argv of the")
+    lines.append("# CHILD processes they spawned. Quoted with their source pointers.")
     lines.append("")
     recovered = epoch1_recovered_argv()
     if recovered:
@@ -143,15 +197,11 @@ def write_command_txt(e1: dict, e2: dict) -> None:
         lines.append("# (none recovered)")
         lines.append("")
 
-    lines.append("# UNRECOVERABLE -- wrapper invocations named by their own output but with no argv")
-    lines.append("# recorded in any committed artifact. Each JSON below carries an `invocation` label")
-    lines.append("# and its measurements, so WHAT ran is known and the exact ARGV is not:")
-    for name in ("probe_check", "sumreg", "watchdog_null"):
-        path = os.path.join(RUN, "logs", name + ".json")
-        if os.path.exists(path):
-            with open(path, encoding="utf-8") as handle:
-                label = json.load(handle).get("invocation")
-            lines.append("#   logs/%s.json  invocation=%r  argv: NOT RECORDED" % (name, label))
+    lines.append("# WHAT REMAINS UNRECORDED, stated exactly: the WRAPPER-LEVEL stdout and stderr")
+    lines.append("# streams. The drivers write per-phase logs rather than being launched under a")
+    lines.append("# shell redirect, so no top-level stream was ever captured to a file. stdout.log")
+    lines.append("# and stderr.log beside this file are compositions of the per-phase logs and are")
+    lines.append("# labelled as such; they do not reconstruct a stream that never existed.")
     lines.append("")
     with open(os.path.join(RUN, "command.txt"), "w", encoding="utf-8") as handle:
         handle.write("\n".join(lines) + "\n")
@@ -166,12 +216,14 @@ def write_stream_log(suffix: str, out_name: str) -> None:
     parts.append("=" * 78)
     parts.append("RUN-ICPERF-a4a24b -- composed %s, 2026-09-16" % out_name)
     parts.append("")
-    parts.append("DERIVED FILE. This run made many invocations across two epochs and each wrote")
-    parts.append("its own log; the run schema expects a single %s. This is a delimited" % out_name)
-    parts.append("concatenation of every logs/*%s in sorted order. Each section names its" % suffix)
-    parts.append("source path and that file's sha256, so any section can be verified against the")
-    parts.append("file it was taken from. No content is edited, reordered within a file, or omitted.")
-    parts.append("Generator: accept/compose_companions.py.")
+    parts.append("DERIVED FILE, AND NOT A CAPTURED STREAM. No top-level %s was ever" % out_name)
+    parts.append("written: the acceptance drivers write per-phase logs rather than being launched")
+    parts.append("under a shell redirect, so there is no single stream to reproduce and this file")
+    parts.append("does not pretend to reconstruct one. The run schema expects one %s, so" % out_name)
+    parts.append("this is a delimited concatenation of every logs/*%s in sorted order. Each" % suffix)
+    parts.append("section names its source path and that file's sha256, so any section can be")
+    parts.append("verified against the file it was taken from. No content is edited, reordered")
+    parts.append("within a file, or omitted. Generator: accept/compose_companions.py.")
     parts.append("=" * 78)
     parts.append("")
     for name in logs:

@@ -206,7 +206,12 @@ class Runner:
                     kill_group(pgid, p)
                     rc = None
                     break
-                time.sleep(RSS_POLL_INTERVAL_S)
+                try:
+                    rc = p.wait(timeout=min(RSS_POLL_INTERVAL_S,
+                                            timeout - (time.monotonic() - t0)))
+                except subprocess.TimeoutExpired:
+                    continue
+                break
         wall = time.monotonic() - t0
         after = resource.getrusage(resource.RUSAGE_CHILDREN)
         return {"argv": argv, "wall_s": round(wall, 4), "timed_out": timed_out, "returncode": rc,
