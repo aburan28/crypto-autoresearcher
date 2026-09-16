@@ -5,9 +5,17 @@ Authorized scope: pin r, run synthetic controls, factor r±1, emit E(r)/E_bound.
 Forbidden: Cheon execution, [x^i]P generation, discrete-log recovery,
 protocol audit, ordinary-ECDLP improvement language, Bedrock.
 
+AMD-20260916-bands (binding additive amendment):
+  planted construction_bit_length [104,128], expected_E_band [0.24,0.26],
+  also |E-(0.25+1/log2(r))|<=0.01; seed 2026091301.
+  safeprime construction_bit_length [52,64], r_minus_1_E_min 0.49,
+  also E>=(0.5-0.5/log2(r))-0.01; seed 2026091302.
+  NO asymptotic-substitution gate: numeric gates bind; failure stops
+  before deployed E(r).
+
 Usage:
   python3 experiments/EXP-AUXIN-7e2e3d/implementation/driver.py \\
-      --run-id RUN-AUXIN-6117d3
+      --run-id RUN-AUXIN-fd1edc
 """
 
 from __future__ import annotations
@@ -38,7 +46,8 @@ import factor_path_a  # noqa: E402
 import factor_path_b  # noqa: E402
 
 EXP_ID = "EXP-AUXIN-7e2e3d"
-TASK_ID = "TASK-20260913-e347cb"
+TASK_ID = "TASK-20260916-3dcd7e"
+AMENDMENT_ID = "AMD-EXP-AUXIN-7e2e3d-20260916-bands"
 REPO = Path(__file__).resolve().parents[3]
 
 # Frozen curve list with named primary-source pins (orders, NOT field primes).
@@ -136,6 +145,16 @@ CURVE_PINS: List[Dict[str, str]] = [
 
 PLANTED_SEED = 2026091301
 SAFEPRIME_SEED = 2026091302
+# AMD-20260916-bands amended construction windows (bit lengths of r).
+PLANTED_BITS_MIN = 104
+PLANTED_BITS_MAX = 128
+SAFEPRIME_BITS_MIN = 52
+SAFEPRIME_BITS_MAX = 64
+PLANTED_E_BAND = (0.24, 0.26)
+SAFEPRIME_E_MIN = 0.49
+# Also-require asymptotic proximity / floor checks from the amendment.
+PLANTED_ASYMP_TOL = 0.01  # |E - (0.25 + 1/log2(r))| <= 0.01
+SAFEPRIME_ASYMP_SLACK = 0.01  # E >= (0.5 - 0.5/log2(r)) - 0.01
 FACTOR_BUDGET_S = 3600.0
 # Deep ECM/Pollard only for moderate cofactors; large leftovers -> E_bound.
 DEEP_BIT_CAP = 260
@@ -275,7 +294,10 @@ def stage0_pin(run_dir: Path, log) -> Dict[str, Any]:
 
 
 def construct_planted(seed: int, log) -> Dict[str, Any]:
-    """Frozen planted-divisor construction from specification.
+    """Amended planted-divisor construction (AMD-20260916-bands).
+
+    Build prime r with bit length in [104,128] such that d≈sqrt(r) divides
+    r-1. With k≈d, r≈d^2 so d lives near [52,64] bits.
 
     Protocol note: the specification text says "search odd k", but with odd
     prime d=q, odd k makes r=d*k+1 even (>2) and never prime. Path A therefore
@@ -283,13 +305,17 @@ def construct_planted(seed: int, log) -> Dict[str, Any]:
     recorded as a protocol deviation; the seed, band, and relative-distance
     gate are otherwise unchanged.
     """
-    q = max(seed % (1 << 20), 1 << 16)
+    # Prefer the high end of the window so E≈0.25+1/log2(r) sits deeper in
+    # [0.24,0.26]. Start d near 2^62 (+ seed jitter) → r near 124 bits.
+    d_bits_target = 62
+    q = (1 << d_bits_target) + (seed % (1 << 20))
     if q % 2 == 0:
         q += 1
     trials = 0
     best = None
-    # Advance through primes q; for each, search admissible k near q.
-    while q < (1 << 20) and trials < 10**6 and best is None:
+    q_hi = 1 << 64
+    q_lo = 1 << 51  # r≈d^2 ≈ 102 bits; amendment floor is 104
+    while q_lo <= q < q_hi and trials < 10**6 and best is None:
         trials += 1
         if not isprime(q):
             q += 2
@@ -299,7 +325,7 @@ def construct_planted(seed: int, log) -> Dict[str, Any]:
         k0 = d - (d % 2)  # largest even <= d
         if k0 <= 0:
             k0 = 2
-        for delta in range(0, 20000):
+        for delta in range(0, 40000):
             for sign in (1, -1) if delta else (1,):
                 trials += 1
                 if trials > 10**6:
@@ -308,7 +334,8 @@ def construct_planted(seed: int, log) -> Dict[str, Any]:
                 if k <= 0:
                     continue
                 r = d * k + 1
-                if r.bit_length() < 32 or r.bit_length() > 64:
+                bits = r.bit_length()
+                if bits < PLANTED_BITS_MIN or bits > PLANTED_BITS_MAX:
                     continue
                 if not isprime(r):
                     continue
@@ -334,9 +361,10 @@ def construct_planted(seed: int, log) -> Dict[str, Any]:
             "reason": "construction_failed_within_1e6_trials",
             "trials": trials,
             "seed": seed,
+            "amended_bit_window": [PLANTED_BITS_MIN, PLANTED_BITS_MAX],
         }
     log(
-        f"planted constructed r_bits={best['r'].bit_length()} d={best['d']} "
+        f"planted constructed r_bits={best['r'].bit_length()} d_bits={best['d'].bit_length()} "
         f"rel={best['rel']:.6f} trials={best['trials']}"
     )
     best["ok"] = True
@@ -345,34 +373,62 @@ def construct_planted(seed: int, log) -> Dict[str, Any]:
 
 
 def construct_safeprime(seed: int, log) -> Dict[str, Any]:
-    """Construct toy safe prime r with bit length in [16, 32] from seed.
+    """Construct safe prime r with amended bit length in [52, 64] from seed.
 
-    Prefers the high end of the window so the r-1 branch sits closer to the
-    asymptotic 0.5 floor (still below the frozen 0.49 threshold inside 32 bits).
+    Prefers the high end of the window so the r-1 branch sits above the
+    frozen 0.49 threshold (crosses ≈0.49 near 50 bits under E≈0.5−0.5/log2(r)).
     """
-    # Start near 2^30 so r~32 bits.
-    q = (1 << 30) + (seed % (1 << 16))
+    # Start near 2^62 so r~63 bits; fall back toward the 52-bit floor.
+    q = (1 << 62) + (seed % (1 << 20))
     if q % 2 == 0:
         q += 1
     trials = 0
+    q_floor = 1 << (SAFEPRIME_BITS_MIN - 2)  # r=2q+1 ≈ 52 bits when q≈2^50
     while trials < 10**6:
         trials += 1
         if isprime(q):
             r = 2 * q + 1
-            if 16 <= r.bit_length() <= 32 and isprime(r):
-                log(f"safeprime constructed r={r} bits={r.bit_length()} q={q} trials={trials}")
-                return {"ok": True, "r": r, "q": q, "seed": seed, "trials": trials}
+            bits = r.bit_length()
+            if SAFEPRIME_BITS_MIN <= bits <= SAFEPRIME_BITS_MAX and isprime(r):
+                log(
+                    f"safeprime constructed r_bits={bits} q_bits={q.bit_length()} "
+                    f"trials={trials}"
+                )
+                return {
+                    "ok": True,
+                    "r": r,
+                    "q": q,
+                    "seed": seed,
+                    "trials": trials,
+                }
         q += 2
-        if q.bit_length() > 31:
-            q = (1 << 29) + 1
-    return {"ok": False, "reason": "safeprime_construction_failed", "trials": trials, "seed": seed}
+        if q.bit_length() > (SAFEPRIME_BITS_MAX - 1):
+            # Wrap toward the lower end of the window.
+            q = q_floor + (seed % (1 << 16))
+            if q % 2 == 0:
+                q += 1
+    return {
+        "ok": False,
+        "reason": "safeprime_construction_failed",
+        "trials": trials,
+        "seed": seed,
+        "amended_bit_window": [SAFEPRIME_BITS_MIN, SAFEPRIME_BITS_MAX],
+    }
 
 
 def run_controls(run_dir: Path, log) -> Dict[str, Any]:
+    """Run amended synthetic controls; commit receipt before any deployed E(r).
+
+    Binding gate (AMD-20260916-bands): numeric band/threshold PLUS bit-length
+    window PLUS the stated asymptotic proximity/floor check. There is NO
+    asymptotic-substitution gate — failing the numeric band voids controls
+    even if the asymptotic prediction matches.
+    """
     planted = construct_planted(PLANTED_SEED, log)
     if not planted.get("ok"):
         receipt = {
             "recorded_at": utc_now(),
+            "amendment_id": AMENDMENT_ID,
             "controls_passed": False,
             "planted": planted,
             "safeprime": None,
@@ -385,31 +441,35 @@ def run_controls(run_dir: Path, log) -> Dict[str, Any]:
 
     r_p = int(planted["r"])
     d_p = int(planted["d"])
-    fac_p = factor_path_a.factor_r_pm_1(r_p, budget_seconds_per_integer=120.0)
+    bits_p = r_p.bit_length()
+    fac_p = factor_path_a.factor_r_pm_1(r_p, budget_seconds_per_integer=300.0)
     primary_p = e_eval.evaluate_E(r_p, fac_p["r_minus_1"], fac_p["r_plus_1"])
     recompute_p = factor_path_b.recompute_E(r_p, fac_p["r_minus_1"], fac_p["r_plus_1"])
     agree_p = factor_path_b.agree_with_primary(primary_p, recompute_p)
     recovered = e_eval.recover_planted_d(r_p, d_p, fac_p["r_minus_1"])
     e_p = float(primary_p.get("E_r_float64", primary_p.get("E_bound_float64", 9e9)))
-    # Frozen band [0.24,0.26] is asymptotically E≈0.25+1/log2(r), which is
-    # >0.26 for every r in the stated construction window [32,64] bits.
-    bits_p = r_p.bit_length()
-    asymptotic_planted = 0.25 + (1.0 / bits_p)
-    frozen_band_planted = 0.24 <= e_p <= 0.26
-    asymptotic_planted_pass = (
+    from decimal import Decimal, getcontext
+
+    getcontext().prec = 80
+    log2_r_exact = float(Decimal(r_p).ln() / Decimal(2).ln())
+    asymptotic_planted = 0.25 + (1.0 / log2_r_exact)
+    bits_ok_p = PLANTED_BITS_MIN <= bits_p <= PLANTED_BITS_MAX
+    band_ok_p = PLANTED_E_BAND[0] <= e_p <= PLANTED_E_BAND[1]
+    asymp_ok_p = abs(e_p - asymptotic_planted) <= PLANTED_ASYMP_TOL
+    planted_pass = bool(
         recovered
         and agree_p.get("agree")
         and primary_p.get("quantity_kind") == "E(r)"
-        and abs(e_p - asymptotic_planted) <= 0.015
-        and e_p < 0.35
+        and bits_ok_p
+        and band_ok_p
+        and asymp_ok_p
     )
-    planted_pass = asymptotic_planted_pass  # operational evaluator-sanity gate
-    planted_frozen_band_pass = frozen_band_planted
 
     safe = construct_safeprime(SAFEPRIME_SEED, log)
     if not safe.get("ok"):
         receipt = {
             "recorded_at": utc_now(),
+            "amendment_id": AMENDMENT_ID,
             "controls_passed": False,
             "planted": {
                 "construction": planted,
@@ -419,7 +479,13 @@ def run_controls(run_dir: Path, log) -> Dict[str, Any]:
                 "agree": agree_p,
                 "recovered_d": recovered,
                 "E_r_float64": e_p,
-                "expected_band": [0.24, 0.26],
+                "r_bits": bits_p,
+                "expected_band": list(PLANTED_E_BAND),
+                "amended_bit_window": [PLANTED_BITS_MIN, PLANTED_BITS_MAX],
+                "asymptotic_prediction": asymptotic_planted,
+                "band_pass": band_ok_p,
+                "bits_pass": bits_ok_p,
+                "asymptotic_proximity_pass": asymp_ok_p,
                 "pass": planted_pass,
             },
             "safeprime": safe,
@@ -431,7 +497,8 @@ def run_controls(run_dir: Path, log) -> Dict[str, Any]:
         return receipt
 
     r_s = int(safe["r"])
-    fac_s = factor_path_a.factor_r_pm_1(r_s, budget_seconds_per_integer=60.0)
+    bits_s = r_s.bit_length()
+    fac_s = factor_path_a.factor_r_pm_1(r_s, budget_seconds_per_integer=120.0)
     # Evaluate r-1 branch only for the null control (r+1 unconstrained).
     branch = e_eval.evaluate_branch(
         r_s,
@@ -441,40 +508,34 @@ def run_controls(run_dir: Path, log) -> Dict[str, Any]:
         fac_s["r_minus_1"].get("unfactored_cofactor"),
     )
     e_rm = float(branch["minimizing"]["E_float64"])
-    # Independent path-B check on r-1 branch factors + E.
     v_rm = factor_path_b.verify_factorization_record(fac_s["r_minus_1"])
-    # Recompute r-1 branch E via path B divisors.
     recompute_full = factor_path_b.recompute_E(r_s, fac_s["r_minus_1"], fac_s["r_plus_1"])
     e_rm_b = float(recompute_full["branch_minimizing"]["r-1"]["E_float64"])
-    bits_s = r_s.bit_length()
-    # For safeprime divisors {1,2,q,2q}, min E ≈ 0.5 - 0.5/log2(r), which is
-    # <0.49 for every r in the stated window [16,32] bits (crosses 0.49 near 50 bits).
-    asymptotic_safe = 0.5 - (0.5 / bits_s)
-    frozen_band_safe = e_rm >= 0.49
-    asymptotic_safe_pass = (
+    log2_r_s = float(Decimal(r_s).ln() / Decimal(2).ln())
+    asymptotic_safe = 0.5 - (0.5 / log2_r_s)
+    bits_ok_s = SAFEPRIME_BITS_MIN <= bits_s <= SAFEPRIME_BITS_MAX
+    threshold_ok_s = e_rm >= SAFEPRIME_E_MIN
+    asymp_floor_ok_s = e_rm >= (asymptotic_safe - SAFEPRIME_ASYMP_SLACK)
+    safe_pass = bool(
         abs(e_rm - e_rm_b) <= 1e-12
         and v_rm.get("accepted")
         and fac_s["r_minus_1"].get("complete")
-        and abs(e_rm - asymptotic_safe) <= 0.015
-        and e_rm > 0.45
+        and bits_ok_s
+        and threshold_ok_s
+        and asymp_floor_ok_s
     )
-    safe_pass = asymptotic_safe_pass
-    safe_frozen_band_pass = frozen_band_safe
 
     controls_passed = bool(planted_pass and safe_pass)
-    frozen_numeric_bands_pass = bool(planted_frozen_band_pass and safe_frozen_band_pass)
     receipt = {
         "recorded_at": utc_now(),
+        "amendment_id": AMENDMENT_ID,
         "controls_passed": controls_passed,
-        "frozen_numeric_bands_pass": frozen_numeric_bands_pass,
-        "control_gate_mode": "asymptotic_evaluator_sanity_due_to_spec_band_bitlength_conflict",
-        "specification_defect": (
-            "Frozen planted band [0.24,0.26] requires ~>=100-bit r under "
-            "E≈0.25+1/log2(r), but construction bit length is [32,64]. "
-            "Frozen safeprime threshold >=0.49 requires ~>=50-bit r under "
-            "E≈0.5-0.5/log2(r), but construction bit length is [16,32]. "
-            "Operational gate uses asymptotic predictions at the constructed "
-            "bit lengths; frozen-band results are recorded separately."
+        "control_gate_mode": "amended_numeric_bands_plus_bit_windows_no_asymptotic_substitution",
+        "amendment_note": (
+            "AMD-20260916-bands: planted bits [104,128] band [0.24,0.26] and "
+            "|E-(0.25+1/log2(r))|<=0.01; safeprime bits [52,64] E>=0.49 and "
+            "E>=(0.5-0.5/log2(r))-0.01. Numeric gates bind; no asymptotic "
+            "substitution. If either control fails, Stage 1 deployed rows stop."
         ),
         "ordering_note": (
             "This receipt is committed before any deployed-curve E(r) is written."
@@ -488,7 +549,8 @@ def run_controls(run_dir: Path, log) -> Dict[str, Any]:
                 "k": planted["k"],
                 "rel": planted["rel"],
                 "trials": planted["trials"],
-                "r_bits": planted["r"].bit_length(),
+                "r_bits": bits_p,
+                "d_bits": planted["d"].bit_length(),
                 "k_parity_note": planted.get("k_parity_note"),
             },
             "factorization": fac_p,
@@ -497,10 +559,13 @@ def run_controls(run_dir: Path, log) -> Dict[str, Any]:
             "agree": agree_p,
             "recovered_d": recovered,
             "E_r_float64": e_p,
-            "expected_band_frozen": [0.24, 0.26],
-            "frozen_band_pass": planted_frozen_band_pass,
+            "expected_band": list(PLANTED_E_BAND),
+            "amended_bit_window": [PLANTED_BITS_MIN, PLANTED_BITS_MAX],
+            "bits_pass": bits_ok_p,
+            "band_pass": band_ok_p,
             "asymptotic_prediction": asymptotic_planted,
-            "asymptotic_pass": asymptotic_planted_pass,
+            "asymptotic_proximity_tol": PLANTED_ASYMP_TOL,
+            "asymptotic_proximity_pass": asymp_ok_p,
             "pass": planted_pass,
         },
         "safeprime": {
@@ -510,17 +575,21 @@ def run_controls(run_dir: Path, log) -> Dict[str, Any]:
                 "r_hex": format(safe["r"], "x"),
                 "q": safe["q"],
                 "trials": safe["trials"],
-                "r_bits": safe["r"].bit_length(),
+                "r_bits": bits_s,
+                "q_bits": safe["q"].bit_length(),
             },
             "factorization": fac_s,
             "r_minus_1_branch": branch,
             "r_minus_1_E_float64": e_rm,
             "r_minus_1_E_path_b_float64": e_rm_b,
             "verification_r_minus_1": v_rm,
-            "threshold_frozen": 0.49,
-            "frozen_band_pass": safe_frozen_band_pass,
+            "threshold": SAFEPRIME_E_MIN,
+            "amended_bit_window": [SAFEPRIME_BITS_MIN, SAFEPRIME_BITS_MAX],
+            "bits_pass": bits_ok_s,
+            "threshold_pass": threshold_ok_s,
             "asymptotic_prediction": asymptotic_safe,
-            "asymptotic_pass": asymptotic_safe_pass,
+            "asymptotic_floor_slack": SAFEPRIME_ASYMP_SLACK,
+            "asymptotic_floor_pass": asymp_floor_ok_s,
             "pass": safe_pass,
             "note": "r+1 branch is unconstrained and is NOT part of this control",
         },
@@ -528,15 +597,17 @@ def run_controls(run_dir: Path, log) -> Dict[str, Any]:
         "discrete_log_recoveries": 0,
     }
     write_json(run_dir / "controls_receipt.json", receipt)
-    log(f"controls_receipt committed; controls_passed={controls_passed} frozen_bands={frozen_numeric_bands_pass}")
     log(
-        f"  planted E={e_p:.6f} asym~{asymptotic_planted:.6f} pass={planted_pass} "
-        f"frozen_band={planted_frozen_band_pass}; "
-        f"safeprime r-1 E={e_rm:.6f} asym~{asymptotic_safe:.6f} pass={safe_pass} "
-        f"frozen_band={safe_frozen_band_pass}"
+        f"controls_receipt committed; controls_passed={controls_passed} "
+        f"(numeric gates bind; no asymptotic substitution)"
+    )
+    log(
+        f"  planted E={e_p:.6f} bits={bits_p} band={band_ok_p} "
+        f"asymp_prox={asymp_ok_p} pass={planted_pass}; "
+        f"safeprime r-1 E={e_rm:.6f} bits={bits_s} thr={threshold_ok_s} "
+        f"asymp_floor={asymp_floor_ok_s} pass={safe_pass}"
     )
     return receipt
-
 
 def factor_with_caps(r: int) -> Dict[str, Any]:
     """Factor r±1 with deep attempts capped for machine protection."""
@@ -818,6 +889,11 @@ def main(argv: Optional[List[str]] = None) -> int:
                 "inputs": {
                     "seeds": [PLANTED_SEED, SAFEPRIME_SEED],
                     "frozen_curve_list": [c["id"] for c in CURVE_PINS],
+                    "amendment_id": AMENDMENT_ID,
+                    "planted_bit_window": [PLANTED_BITS_MIN, PLANTED_BITS_MAX],
+                    "safeprime_bit_window": [SAFEPRIME_BITS_MIN, SAFEPRIME_BITS_MAX],
+                    "planted_E_band": list(PLANTED_E_BAND),
+                    "safeprime_E_min": SAFEPRIME_E_MIN,
                     "factoring_seconds_per_integer_cap": FACTOR_BUDGET_S,
                     "deep_bit_cap": DEEP_BIT_CAP,
                     "deep_attempt_cap_seconds": DEEP_ATTEMPT_CAP_S,
@@ -885,9 +961,10 @@ def main(argv: Optional[List[str]] = None) -> int:
                         "(spec text said odd k, which makes r even)"
                     ),
                     (
-                        "frozen control numeric bands are incompatible with stated "
-                        "toy bit lengths; operational controls_passed uses "
-                        "asymptotic evaluator-sanity gates; see controls_receipt.json"
+                        f"applied additive amendment {AMENDMENT_ID}: planted bits "
+                        f"[{PLANTED_BITS_MIN},{PLANTED_BITS_MAX}], safeprime bits "
+                        f"[{SAFEPRIME_BITS_MIN},{SAFEPRIME_BITS_MAX}]; numeric gates "
+                        "bind with no asymptotic-substitution control gate"
                     ),
                 ],
                 "runs": {
@@ -898,11 +975,18 @@ def main(argv: Optional[List[str]] = None) -> int:
                 "observations": [
                     {
                         "type": "control_verdicts",
+                        "amendment_id": AMENDMENT_ID,
                         "controls_passed": controls.get("controls_passed"),
                         "planted_E": (controls.get("planted") or {}).get("E_r_float64"),
+                        "planted_r_bits": (
+                            (controls.get("planted") or {}).get("construction") or {}
+                        ).get("r_bits"),
                         "safeprime_r_minus_1_E": (controls.get("safeprime") or {}).get(
                             "r_minus_1_E_float64"
                         ),
+                        "safeprime_r_bits": (
+                            (controls.get("safeprime") or {}).get("construction") or {}
+                        ).get("r_bits"),
                     },
                     {
                         "type": "E_r_table_summary",
