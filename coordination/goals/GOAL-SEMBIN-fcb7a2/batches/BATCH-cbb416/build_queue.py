@@ -830,7 +830,26 @@ tasks.append(od([
         "inputs/NAGAO-2015-984",
         "templates/research-records.md",
         "docs/claims-and-verification.md",
+        # Added when the card was unblocked. The ruling that unblocked it is
+        # binding beside the frozen contract, and its A-1 grants READ access to
+        # named files; a read scope is closed, so a file not listed here is a
+        # file the executor cannot open however the ruling reads.
+        f"ledger/decisions/{RULING}.yaml",
+        AMENDMENT_PATH,
+        "experiments/EXP-ECTD-9e4248/driver/reused/macaulay.py",
+        "experiments/EXP-ECTD-9e4248/driver/reused/mvpoly.py",
+        "experiments/EXP-SIG-007/src/ic_first_fall_fast.py",
+        "experiments/EXP-ALPF-012/source/round006_exp011_binary_fppr.sage",
+        "src/semaev_tree.py",
     ]),
+    ("read_scope_note",
+     "WIDENED AT UNBLOCK, 2026-09-16T12:05Z, and not before: the card was written `blocked` on a "
+     f"ruling that did not yet exist, so its opening read scope could not name {RULING} or "
+     f"{AMENDMENT}. The ruling's A-1 permits reading the five reference files listed last and "
+     "using macaulay.rank_mod_p as a TEST ORACLE under A-4 -- never in the measurement path -- "
+     "and A-2, A-3 and A-4 bind the builder, the unshifted arm's report and the C-3 fixture set. "
+     "An executor that can see only the frozen contract cannot honour any of them, and the "
+     "amendment's own A-1 requires the run manifest to record which of these files were read."),
     ("write_scope", [f"{EXP}/code/", f"{EXP}/runs/"]),
     ("write_scope_note",
      "Exactly the contract's own write_scope_when_dispatched. The run id is allocated by the "
@@ -866,6 +885,13 @@ tasks.append(od([
             "coordination/review/sembin-20260916-propquant/coordinator-recheck.py -- the C-3 "
             "known-answer fixture's hand algebra, already verified.",
             f"{AUDIT}/verdict.json -- the collision audit, and any Coordinator ruling on it.",
+            f"{AMENDMENT_PATH} -- the ruling's additive protocol amendment, BINDING beside the "
+            "frozen contract: A-1 (reuse as reference and test oracle only, with every read "
+            "recorded in the run manifest), A-2 (one builder for both arms, A-UNSHIFTED at "
+            "v = 0), A-3 (the unshifted arm reports as a replication with a changed instrument), "
+            "A-4 (the GF(2) rank kernel is checked against an independent computation before any "
+            "Nagao instance is measured, inheriting SR-3), and R-2 declined.",
+            f"ledger/decisions/{RULING}.yaml -- the committed ruling that unblocked this card.",
         ]),
         ("constraints", [
             "CONTROLS BEFORE BELIEF, AND IN THAT ORDER. C-3's known-answer fixture runs FIRST and "
