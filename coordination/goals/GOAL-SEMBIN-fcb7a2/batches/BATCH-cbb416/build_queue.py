@@ -867,6 +867,116 @@ tasks.append(od([
 
 
 # ---------------------------------------------------------------------------
+# POST-EXECUTION FACTS, APPLIED HERE RATHER THAN HAND-EDITED INTO THE JSON.
+#
+# A generated queue that is amended by hand after every task drifts from its
+# generator, and the next regeneration silently discards the execution history.
+# BATCH-a33cda carried that hazard and recorded it. So outcomes, archive
+# bindings and state revisions live in this table and are APPLIED to the cards
+# below, which makes `python3 build_queue.py` idempotent: re-running it
+# reproduces the queue including everything that has happened to it.
+EXECUTED = {
+    OPEN: od([
+        ("state", "completed"),
+        ("outcome",
+         "Completed 2026-09-16. DEC-20260916-59921c recorded (with the required `decision` field "
+         "added before commit, having been caught by validate_ledger.py), the eight-card queue "
+         "built, REVIEW-SEMBIN-20260916-cbb416 written before any reviewer was dispatched, the "
+         "BATCH-cbb416 checkpoint shard written, and the goal head reranked -- including "
+         "CORR-20260916-da9ab9's repair of IMP-SEMBIN-FCB7A2-DESCENT's recheck, which still "
+         "pointed at the fabricated run identifier RUN-SEMBIN-8eda8e and at a queue path that has "
+         "never existed. Zero runs, zero measurements, no status moved."),
+    ]),
+    OPEN_SNAPSHOT: od([
+        ("state", "completed"),
+        ("outcome",
+         "Completed 2026-09-16 at commit d38386a31b6f3356efc3a4de02d53c968204cc91. Staged exactly "
+         "the seven declared source artifacts plus its own receipt; the two corrections and the "
+         "schema supersession this session also produced were committed separately in 711e5c89b "
+         "ahead of the archive so this commit changes exactly its declared set."),
+        ("archive_binding", od([
+            ("commit_sha", "d38386a31b6f3356efc3a4de02d53c968204cc91"),
+            ("parent_sha", "711e5c89b05ea9397a875497e0cd81a64be5fa1a"),
+            # Keyed off open_artifacts so the binding cannot name a path the
+            # opening task does not declare -- the defect that made
+            # BATCH-a33cda's last archive fail to render until its source card
+            # was amended.
+            ("path_sha256", od([
+                # The archive's OWN artifact, which research_dispatch.py requires
+                # a completed archive to bind alongside its sources. The receipt
+                # cannot carry this value -- a file cannot contain its own hash --
+                # so the queue carries it. This is the one hash a reader must take
+                # from here rather than from the receipt.
+                (f"{BASE}/archives/{OPEN_SNAPSHOT}/snapshot-receipt.json",
+                 "86621e13aff90ef8052493b0252b5fb5bfde04027b9021c1fc1b85911da65ba2"),
+            ] + list(zip(open_artifacts, [
+                "55562b21ee55ddf23e0b5dbc0d2a47195e12736a42cc41d5e44cd57d51469be5",
+                "a0bbe535759bc16e2811216bbd78dca501b7926b5e704768b3fe4da85fea25c2",
+                "4f781242d82fb12905fdc3bb0e59efb27e8d762a61d1a37b12748ca190544be1",
+                "3918592dda834b22c59b0a7d34dfd809ca7c48ac1550ef7231654909014413db",
+                "e7ac2d4d91554c6ac3ef125d99f5a9abdfce7970220dae88e0c3e8b9fedfb49d",
+                "f03181611c63b1220d5ec89353491d28763413530cf671074c1d5bc55cfbe8bc",
+                "c8552620f672cf12556a53e1a35adfa6f398b16807aca6bff673e672069aa362",
+            ], strict=True)))),
+            ("path_sha256_note",
+             "SEVEN ENTRIES, INCLUDING THIS QUEUE AND ITS GENERATOR, which BATCH-a33cda's "
+             "equivalent archive could not bind and had to disown under also_staged_sha256. That "
+             "batch's own note (`what_content_at_commit_would_additionally_allow`) recorded why the "
+             "obstacle was specific to content_first and predicted that a batch declaring "
+             "binding_mode content_at_commit from the outset could bind its queue at its own "
+             "snapshot commit. This is that batch. The hashes are the bytes AT d38386a31, and both "
+             "files have legitimately changed since -- this table is the change. Under "
+             "content_at_commit that is verification working, not drift; under content_first it "
+             "would read as corruption. EXPECT every LATER archive in this batch to bind a "
+             "DIFFERENT snapshot of these same two files."),
+        ])),
+    ]),
+}
+
+REVISIONS = [
+    od([
+        ("at", "2026-09-16T10:30:00Z"),
+        ("task_id", OPEN),
+        ("from_state", "completed"),
+        ("to_state", "completed"),
+        ("reason",
+         "Not a state change. The card was already `completed` when the queue was first written, "
+         "which was accurate only in the sense that the opening act had run -- three of its seven "
+         "declared artifacts (the checkpoint shard, the opening report, and the goal head edit) did "
+         "not yet exist, and its completion gate required the decision to be COMMITTED, which it "
+         "was not. All seven now exist and are committed at d38386a31. Recorded rather than "
+         "smoothed: a card marked completed ahead of its own completion gate is exactly the kind of "
+         "state a later reader cannot distinguish from a card that passed it."),
+    ]),
+    od([
+        ("at", "2026-09-16T10:32:00Z"),
+        ("task_id", OPEN_SNAPSHOT),
+        ("from_state", "queued"),
+        ("to_state", "completed"),
+        ("reason",
+         "Snapshot archive executed at d38386a31 under binding_mode content_at_commit, binding all "
+         "seven declared source artifacts including this queue and its generator. Receipt at "
+         f"{BASE}/archives/{OPEN_SNAPSHOT}/snapshot-receipt.json, which records the origin/main "
+         "merge (c68e9d4c9, 24 commits, clean, never rebased), the validator outcome scoped to the "
+         "paths this commit stages, and the two errors that were this session's and are now closed."),
+    ]),
+]
+
+for _task in tasks:
+    _applied = EXECUTED.get(_task["id"])
+    if not _applied:
+        continue
+    _binding = _applied.get("archive_binding")
+    if _binding is not None:
+        for _field, _value in _binding.items():
+            _task["archive"][_field] = _value
+    for _field, _value in _applied.items():
+        if _field == "archive_binding":
+            continue
+        _task[_field] = _value
+
+
+# ---------------------------------------------------------------------------
 queue = od([
     ("schema", "crypto.autoresearch.dispatch_queue.v1"),
     ("goal_id", GOAL),
@@ -944,7 +1054,7 @@ queue = od([
              "time; this queue is written so it has nothing to say."),
         ]),
     ]),
-    ("tasks_state_revisions", []),
+    ("tasks_state_revisions", REVISIONS),
     ("tasks", tasks),
 ])
 
