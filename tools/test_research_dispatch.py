@@ -6,6 +6,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -1093,6 +1094,106 @@ class InferencePolicyTests(unittest.TestCase):
     def test_worker_may_not_take_a_state_changing_policy(self) -> None:
         with self.assertRaisesRegex(dispatch.DispatchError, "may change official"):
             self.check("coordinator-orchestration", "executor")
+
+
+class InferenceAdvisoryTests(unittest.TestCase):
+    """`fallback_allowed: false` is a claim, and a machine can be unable to keep it.
+
+    The advisory exists because that claim was repaired twice on one batch AFTER the
+    work had already run. These tests pin the two properties that make it worth
+    reading -- it fires exactly when the bound backend is uncredentialed, and it
+    never counsels degrading the one policy that may not be degraded -- and the two
+    that keep it from becoming noise: it is silent on cards already amended, and
+    silent on cards no longer dispatchable.
+    """
+
+    def card(self, identifier: str, *, policy: str, state: str = "queued",
+             role: str = "validator", **inference: Any) -> dict[str, Any]:
+        item = task(identifier, 50, state=state, role=role)
+        item["handoff"]["inference"] = {"policy": policy, "fallback_allowed": False,
+                                       **inference}
+        return item
+
+    def advise(self, *tasks: dict[str, Any], env: dict[str, str]) -> list[dict[str, Any]]:
+        # `clear=True`: the point of the check is which credentials are ABSENT, and a
+        # developer machine that happens to export ANTHROPIC_API_KEY would otherwise
+        # silently invert every assertion below.
+        with mock.patch.dict(os.environ, env, clear=True):
+            return dispatch.inference_advisories(list(tasks))
+
+    def test_fires_when_the_bound_backend_has_no_credentials(self) -> None:
+        found = self.advise(self.card("R", policy="review-adversarial"), env={})
+        self.assertEqual([item["id"] for item in found], ["R"])
+        self.assertEqual(found[0]["unservable_backend"], "anthropic")
+        self.assertIn("fallback_used: true", found[0]["advisory"])
+
+    def test_silent_when_the_bound_backend_is_credentialed(self) -> None:
+        self.assertEqual(
+            self.advise(self.card("R", policy="review-adversarial"),
+                        env={"ANTHROPIC_API_KEY": "present"}),
+            [])
+
+    def test_silent_on_a_card_that_permits_a_fallback(self) -> None:
+        self.assertEqual(
+            self.advise(self.card("R", policy="review-adversarial", fallback_allowed=True),
+                        env={}),
+            [])
+
+    def test_silent_on_a_card_the_coordinator_has_already_amended(self) -> None:
+        amended = self.card("R", policy="review-adversarial",
+                            inference_amendment="DEC-20260916-7b2235")
+        self.assertEqual(self.advise(amended, env={}), [])
+
+    def test_silent_on_terminal_tasks(self) -> None:
+        for state in sorted(dispatch.TERMINAL_STATES):
+            with self.subTest(state=state):
+                self.assertEqual(
+                    self.advise(self.card("R", policy="review-adversarial", state=state),
+                                env={}),
+                    [])
+
+    def test_never_counsels_degrading_a_non_degradable_policy(self) -> None:
+        """The remedy diverges here, and the wrong remedy is worse than none.
+
+        `review-breakthrough` may not be degraded under any amendment, so an
+        advisory telling a Coordinator to record one against it would counsel the
+        exact act the contract forbids.
+        """
+        breakthrough = self.advise(self.card("B", policy="review-breakthrough"), env={})
+        self.assertEqual(len(breakthrough), 1)
+        self.assertFalse(breakthrough[0]["degradable"])
+        text = breakthrough[0]["advisory"]
+        self.assertNotIn("record an inference_amendment", text)
+        self.assertIn("degraded_allowed is NOT", text)
+        self.assertIn("claim stays un-promoted", text)
+
+        ordinary = self.advise(self.card("R", policy="review-adversarial"), env={})
+        self.assertTrue(ordinary[0]["degradable"])
+        self.assertIn("record an inference_amendment", ordinary[0]["advisory"])
+
+    def test_advisory_does_not_block_a_dispatch(self) -> None:
+        """Advisory means advisory: an unkeepable claim is a paperwork defect.
+
+        Refusing here would stop research in exactly the environments where the
+        runtime-native binding is the legitimate route.
+        """
+        worker = self.card("R", policy="review-adversarial")
+        archive = archive_task("ARCHIVE", [worker])
+        with mock.patch.dict(os.environ, {}, clear=True):
+            plan = dispatch.select(queue(worker, archive), now=datetime.now())
+        self.assertEqual([item["id"] for item in plan["dispatches"]], ["R"])
+        self.assertEqual([item["id"] for item in plan["inference_advisories"]], ["R"])
+        self.assertTrue(all(plan["gates"].values()))
+
+    def test_report_names_the_task_and_the_remedy(self) -> None:
+        worker = self.card("R", policy="review-adversarial")
+        archive = archive_task("ARCHIVE", [worker])
+        with mock.patch.dict(os.environ, {}, clear=True):
+            plan = dispatch.select(queue(worker, archive), now=datetime.now())
+        report = dispatch.markdown(plan)
+        self.assertIn("Inference Advisories", report)
+        self.assertIn("`R` (validator)", report)
+        self.assertIn("AN ADVISORY IS NOT PERMISSION", report)
 
 
 class TerminalSnapshotTests(unittest.TestCase):

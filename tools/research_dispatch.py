@@ -7,6 +7,7 @@ import argparse
 import copy
 import hashlib
 import json
+import os
 import re
 import subprocess
 import sys
@@ -471,6 +472,152 @@ def validate_inference(handoff: dict[str, Any], role: str | None,
         raise DispatchError(
             f"{location}.inference.policy {policy_id!r} may change official "
             f"state, which role {role!r} may not")
+
+
+def inference_advisories(tasks: Sequence[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Report cards whose `fallback_allowed: false` this machine cannot honour.
+
+    `false` is the safe default in AGENTS.md's handoff template, and it is the
+    RIGHT default: it forbids silently substituting a model for the one a policy
+    binds. But a checkout with no credentials for the bound backend cannot serve
+    that binding at all, so `false` there is not a safeguard -- it is a claim
+    every dispatch breaks, discovered when a returning agent reports
+    `fallback_used: true` against a card that forbade it.
+
+    That is not hypothetical. It happened twice on BATCH-a33cda within a day, for
+    two different causes -- an exhausted billing quota (TASK-20260915-4f4027) and
+    absent API keys (the two reviewer cards, DEC-20260916-7b2235) -- and both were
+    repaired by amending a card AFTER the work had run. Two amendments for one
+    root cause is the tell that the default was wrong for the machine rather than
+    that the dispatches were unlucky.
+
+    THIS IS ADVISORY AND MUST STAY ADVISORY. Refusing the dispatch would block
+    every open card in exactly the environments where the runtime-native binding
+    is the legitimate route (AGENTS.md core rule 16 permits it), which would turn
+    a paperwork defect into a research stoppage. What the dispatching Coordinator
+    needs is to see it BEFORE launching, so the card can declare the binding up
+    front instead of being amended afterwards.
+
+    An advisory is not permission either: it does not authorize a substitution.
+    Only a Coordinator `inference_amendment` on the card does that, and a card
+    already carrying one is not reported.
+    """
+    try:
+        from orchestration.adapter import load as load_inference_config
+    except Exception:                      # adapter unavailable: nothing to check
+        return []
+    try:
+        config = load_inference_config()
+    except Exception:
+        return []
+
+    def servable(backend_name: str) -> bool:
+        """Same test `adapter doctor` prints as OK / 'backend unusable'.
+
+        Deliberately NOT a network probe. This runs on every plan render, and a
+        render that reaches out to eight vendors would be both slow and a new
+        failure mode. Credentials present is a NECESSARY condition, so its
+        absence is enough to know the binding cannot be served -- while its
+        presence proves only configuration, never that the backend serves the
+        model (`adapter doctor --probe` is the check for that, and
+        `model_verified` is where its result belongs).
+        """
+        try:
+            backend = config.backend(backend_name)
+        except Exception:
+            return True                    # unknown backend: not ours to judge
+        if backend.get("api_key_optional"):
+            return True
+        return bool(os.environ.get(backend.get("api_key_env") or ""))
+
+    try:
+        candidate_backends = [config.default_backend()] + list(
+            config.backend_fallback_order() or [])
+    except Exception:
+        return []
+
+    out: list[dict[str, Any]] = []
+    for task in tasks:
+        # A finished task cannot be dispatched, so an advisory about how it WOULD
+        # be dispatched is noise -- and noise in an advisory section is how the
+        # section stops being read. Whatever its inference block claimed is now
+        # history, correctable only by a record.
+        if task.get("state") in TERMINAL_STATES:
+            continue
+        handoff = task.get("handoff")
+        if not isinstance(handoff, dict):
+            continue
+        inference = handoff.get("inference")
+        if not isinstance(inference, dict):
+            continue
+        if inference.get("fallback_allowed"):
+            continue
+        if inference.get("inference_amendment"):
+            continue
+        policy_id = inference.get("policy")
+        if not policy_id:
+            continue
+        try:
+            canonical = config.canonical_policy(policy_id)
+        except Exception:
+            continue                       # validate_inference already reports this
+
+        # Which backends could serve this policy at all, and are any of them
+        # credentialed here? `fallback_allowed: false` pins the card to the
+        # DEFAULT backend, so that is the one whose absence makes the card's
+        # claim unhonourable -- but a policy with no servable binding anywhere
+        # is worth saying more loudly, and the two are reported differently.
+        bound = [b for b in candidate_backends
+                 if ((config.binding_table.get(b) or {}).get(canonical) or {}).get("model")]
+        if not bound:
+            continue                       # unbound everywhere: a config gap, not this check's business
+        default_backend = bound[0]
+        if servable(default_backend):
+            continue
+        anywhere = [b for b in bound if servable(b)]
+        try:
+            degradable = bool(config.policy(canonical).get("degradable", True))
+        except Exception:
+            degradable = True
+
+        observation = (
+            f"card sets fallback_allowed: false, but policy {canonical!r} binds on "
+            f"{default_backend!r}, which is not credentialed here"
+            + (f" (servable instead: {', '.join(anywhere)})" if anywhere else
+               " -- and NO backend bound to this policy is credentialed here, so the only "
+               "route is the runtime-native binding permitted by core rule 16")
+            + ". A session run here will report fallback_used: true against a card that "
+              "forbids it.")
+
+        # The remedy DIVERGES on `degradable`, and getting that wrong is worse
+        # than saying nothing: `review-breakthrough` is the one policy no
+        # amendment may degrade, so advising "record an inference_amendment"
+        # against it would counsel exactly the act AGENTS.md forbids. Moving to
+        # a backend that FULLY meets its floor is not degrading, so a permitted
+        # fallback is still the right card edit -- what may never be signed for
+        # is `degraded_allowed`.
+        if degradable:
+            remedy = ("Declare the binding on the card now, or record an "
+                      "inference_amendment, rather than amending after the work has run.")
+        else:
+            remedy = (
+                f"{canonical!r} is degradable: false. Permitting a cross-backend fallback to a "
+                "binding that FULLY meets its floor is legitimate and is the card edit to make; "
+                "degraded_allowed is NOT, here or under any amendment. If no binding meets the "
+                "floor, the claim stays un-promoted and the goal stays active -- never amend "
+                "this tier down to get a claim moving.")
+
+        out.append({
+            "id": task.get("id"),
+            "role": task.get("role"),
+            "policy": policy_id,
+            "canonical_policy": canonical,
+            "unservable_backend": default_backend,
+            "servable_alternatives": anywhere,
+            "degradable": degradable,
+            "advisory": observation + " " + remedy,
+        })
+    return out
 
 
 def validate_handoff(task: dict[str, Any], location: str) -> None:
@@ -1171,6 +1318,7 @@ def select(
             for task in expired
         ] + expired_claims,
         "claims": claim_report,
+        "inference_advisories": inference_advisories(queue["tasks"]),
         "gates": {
             "claimed_tasks_are_not_offered_to_others": all(
                 task["state"] == "running" or task["id"] not in claim_report
@@ -1310,6 +1458,23 @@ def markdown(plan: dict[str, Any]) -> str:
             lines.append(f"- `{item['task_id']}`: {item['reason']} "
                          f"({item['paths_verified']} path hashes verified{where})")
 
+    advisories = plan.get("inference_advisories") or []
+    if advisories:
+        lines.extend([
+            "", "## Inference Advisories (ADVISORY -- these do not block dispatch)", "",
+            "Each card below sets `fallback_allowed: false` while its policy binds to a backend",
+            "this machine has no credentials for. That is not a safeguard here, it is a claim the",
+            "dispatch will break: the returning session reports `fallback_used: true` against a",
+            "card that forbade it, and the card gets amended AFTER the work ran. Declare the",
+            "binding on the card now, or record an `inference_amendment`.",
+            "",
+            "AN ADVISORY IS NOT PERMISSION. It does not authorize a substitution -- only a",
+            "Coordinator `inference_amendment` on the card does, and a card carrying one is not",
+            "listed. A `degradable: false` policy is listed too, with a different remedy: moving",
+            "to a binding that fully meets its floor is fine, degrading it is not, and if nothing",
+            "meets the floor the CLAIM stays un-promoted while the campaign stays active.", ""])
+        for item in advisories:
+            lines.append(f"- `{item['id']}` ({item['role']}): {item['advisory']}")
     lines.extend(["", "## Dispatch Gates", ""])
     for gate, passed in plan["gates"].items():
         lines.append(f"- `{gate}`: {'passed' if passed else 'failed'}")
