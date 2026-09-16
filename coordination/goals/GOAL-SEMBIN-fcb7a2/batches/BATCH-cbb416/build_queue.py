@@ -30,6 +30,9 @@ REVIEW = "coordination/review/sembin-20260916-cbb416"
 OPEN = "TASK-20260916-141f76"
 OPEN_SNAPSHOT = "TASK-20260916-007117"
 COLLISION = "TASK-20260916-fc72a6"
+AUDIT_SNAPSHOT = "TASK-20260916-81fa8c"
+RULE = "TASK-20260916-ac0aea"
+RULING_ARCHIVE = "TASK-20260916-9d98ef"
 EXECUTE = "TASK-20260916-0c2802"
 PRODUCER_SNAPSHOT = "TASK-20260916-8eb394"
 REVIEW_INSTRUMENT = "TASK-20260916-90af14"
@@ -37,9 +40,14 @@ REVIEW_CONTROLS = "TASK-20260916-7be96a"
 LEDGER = "TASK-20260916-6a2fcf"
 
 DECISION = "DEC-20260916-59921c"
+RULING = "DEC-20260916-b0e654"
+AMENDMENT = "AMD-EXP-SEMBIN-4fa22c-20260916-collision"
 ROUND = "REVIEW-SEMBIN-20260916-cbb416"
 EVIDENCE = "EV-SEMBIN-29c44f"
 CLOSING = "DEC-20260916-a0af84"
+
+AMENDMENT_PATH = f"{EXP}/amendments/{AMENDMENT}.yaml"
+ADDENDUM_PATH = f"{REVIEW}/review-plan-addendum-1.yaml"
 
 
 def od(pairs):
@@ -60,6 +68,24 @@ collision_artifacts = [
     f"{AUDIT}/report.md",
     f"{AUDIT}/searches.json",
     f"{AUDIT}/verdict.json",
+]
+
+# NO GOAL HEAD HERE, and the reason is a real constraint rather than an
+# oversight: an artifact path is owned by exactly ONE task in a queue, and
+# ledger/goals/GOAL-SEMBIN-fcb7a2/goal.yaml is already owned by the OPEN card.
+# research_dispatch.py refuses a second owner by name. So this ruling does not
+# touch the head; the head is reranked at this batch's close, and the ruling is
+# discoverable from the queue, the decision itself and the batch checkpoint.
+#
+# THE DECISION RECORD ITSELF IS OWNED BY THE ARCHIVE CARD, not by this one. That
+# is not a preference either: research_dispatch.py requires a `ledger` archive to
+# own an artifact under ledger/decisions/ AND refuses two owners for one path, so
+# the two constraints together force the coordinator archive card to carry the
+# decision. BATCH-e0a0c1 hit the identical pair of rules and resolved it the same
+# way; the batch-closing card below has always been shaped like this.
+ruling_artifacts = [
+    AMENDMENT_PATH,
+    ADDENDUM_PATH,
 ]
 
 tasks = []
@@ -349,6 +375,224 @@ tasks.append(od([
 ]))
 
 # ---------------------------------------------------------------------------
+# THREE CARDS ADDED 2026-09-16 AFTER THE AUDIT RETURNED, and the reason they
+# were not in the queue at opening is worth recording rather than hiding: the
+# opening queue assigned the audit's artifacts to PRODUCER_SNAPSHOT, which also
+# owns the execution. That is a defect. It makes the audit's deliverables
+# uncommittable until the run they are supposed to gate has already happened,
+# so the Coordinator ruling would have cited an uncommitted working tree and
+# the reviewers would have read the audit out of the same commit as the run it
+# preceded. Split here: the audit gets its own snapshot, the ruling gets its own
+# card and its own ledger commit, and PRODUCER_SNAPSHOT is retargeted to the
+# execution alone. Recorded in tasks_state_revisions, additively; no existing
+# card's history is rewritten.
+tasks.append(od([
+    ("id", AUDIT_SNAPSHOT),
+    ("title",
+     "Snapshot-archive the collision audit exactly as produced, before any ruling cites it and "
+     "before any reviewer reads it"),
+    ("role", "coordinator"),
+    ("state", "queued"),
+    ("priority", 89),
+    ("review_required", False),
+    ("depends_on", [COLLISION]),
+    ("read_scope", [AUDIT, BASE]),
+    ("write_scope", [f"{BASE}/archives/{AUDIT_SNAPSHOT}"]),
+    ("artifact_paths", [f"{BASE}/archives/{AUDIT_SNAPSHOT}/snapshot-receipt.json"]),
+    ("archive", od([
+        ("kind", "snapshot"),
+        ("source_task_ids", [COLLISION]),
+        ("record_ids", ["EXP-SEMBIN-4fa22c", GOAL, BATCH]),
+        ("commit_sha", None),
+        ("parent_sha", None),
+        ("path_sha256", {}),
+        ("binding_mode", "content_at_commit"),
+        ("binding_mode_note",
+         "content_at_commit, consistently with every archive in this batch. The audit's three "
+         "files are write-once and are not expected to move, but the batch's other archives bind "
+         "this queue and the goal head, which do move, and a batch with two binding modes is a "
+         "batch whose reader has to work out which rule applies where."),
+        ("receipt_note",
+         "The receipt must disclose one thing plainly: THE COORDINATOR READ THESE THREE FILES "
+         "BEFORE THIS COMMIT EXISTED. They arrived as an uncommitted working tree, the Coordinator "
+         "read the verdict to decide what to do next, and only then were they staged. That is the "
+         "ordinary shape of a producer returning into a shared worktree, and the honest mitigation "
+         "is the receipt's own hashes plus the fact that the audit made no write after it reported "
+         "-- not a claim that custody was unbroken. An independent reviewer reads them from this "
+         "commit, which is the custody that matters for the review round."),
+    ])),
+    ("handoff", od([
+        ("objective", "Make the audit durable and citable, and bind its bytes."),
+        ("uncertainty_reduced", "none; durability"),
+        ("inputs", collision_artifacts),
+        ("constraints", [
+            "STAGE ONLY THE THREE DECLARED AUDIT PATHS AND THIS RECEIPT. `git add -A` here would "
+            "sweep in a concurrent lane's in-flight ledger edits -- BATCH-e0a0c1 opened on this "
+            "same goal while the audit was running and its own executor flagged the hazard in its "
+            "completion gate.",
+            "Never edit an audit artifact while staging it.",
+        ]),
+        ("deliverables", ["snapshot-receipt.json"]),
+        ("inference", od([
+            ("policy", "coordinator-orchestration-code"),
+            ("reasoning_effort", None),
+            ("fallback_allowed", True),
+            ("fallback_note", "As every card in this batch: declared up front."),
+            ("degraded_allowed", False),
+            ("independent_session_required", False),
+        ])),
+        ("budget", od([
+            ("wall_clock_seconds", 600),
+            ("memory_gb", 1),
+            ("maximum_runs", 0),
+        ])),
+        ("completion_gate", ["post-commit receipt verified by research_dispatch.py"]),
+    ])),
+]))
+
+# ---------------------------------------------------------------------------
+tasks.append(od([
+    ("id", RULE),
+    ("title",
+     "Rule on the collision audit's verdict: what the partial collision changes, whether another "
+     "campaign's Macaulay code may be imported, and which of the audit's two reframings bind"),
+    ("role", "coordinator"),
+    ("state", "queued"),
+    ("priority", 88),
+    ("review_required", False),
+    ("depends_on", [AUDIT_SNAPSHOT]),
+    ("read_scope", [AUDIT, EXP, REVIEW, "ledger", "experiments/EXP-DREG-001",
+                    "experiments/EXP-SIG-007", "experiments/EXP-ECTD-9e4248",
+                    "experiments/EXP-ALPF-012", "src/semaev_tree.py"]),
+    ("write_scope", [
+        f"{EXP}/amendments/",
+        REVIEW,
+    ]),
+    ("write_scope_note",
+     f"{EXP}/amendments/ and NOT {EXP}/specification.yaml. The contract is frozen at version 1 and "
+     "says so in its own what_changed_at_approval; a ruling that needs the protocol to change "
+     "writes an additive amendment under a new id."),
+    ("artifact_paths", ruling_artifacts),
+    ("handoff", od([
+        ("objective",
+         "Convert the audit's recommendations into a committed ruling, so that the execution card "
+         "is unblocked by a decision a later reader can audit rather than by a task merely having "
+         "finished."),
+        ("uncertainty_reduced",
+         "none about the mathematics. It resolves three OPEN QUESTIONS OF PERMISSION the contract "
+         "left silent: may another campaign's Macaulay implementation be imported, does the "
+         "unshifted arm report as a replication, and does the known-answer fixture set grow."),
+        ("inputs", collision_artifacts + [
+            f"{EXP}/specification.yaml dependencies and proof_search_map",
+            f"{REVIEW}/review-plan.yaml",
+        ]),
+        ("constraints", [
+            "THE RULING MAY NOT UNDERSTATE THE AUDIT IN THE DIRECTION THAT KEEPS THE RUN ALIVE, "
+            "and may not overstate it in the direction that kills the run. Both are steering. Name "
+            "the evidence, the test boundary, the remaining uncertainty, and a revisit condition "
+            "for anything declined.",
+            "DO NOT RESTATE ANY MEASURED DEGREE. The audit deliberately disclosed one scoped "
+            "relation between prior unshifted values and this contract's threshold, recorded under "
+            "values_disclosed_deliberately in verdict.json with the paths that hold the integers. "
+            "Cite it by pointer. A document written to protect a blind assignment has already "
+            "leaked the value it protected once in this repository (CORR-20260916-292e53) and the "
+            "cheap way not to repeat that is to name paths, never numbers.",
+            "The goal head is edited ADDITIVELY. A second lane (BATCH-e0a0c1) is working this same "
+            "goal and has already amended the head.",
+        ]),
+        ("deliverables", [
+            f"{RULING} -- the ruling, with the reuse permission stated explicitly either way",
+            f"{AMENDMENT} -- whatever the ruling makes binding, additively",
+            f"{ADDENDUM_PATH} -- the review plan's blind_from list extended to cover the audit, "
+            "because the blind re-derivation of J4 must not be anchored by it",
+        ]),
+        ("inference", od([
+            ("policy", "coordinator-orchestration-code"),
+            ("reasoning_effort", None),
+            ("fallback_allowed", True),
+            ("fallback_note", "As every card in this batch: declared up front."),
+            ("degraded_allowed", False),
+            ("independent_session_required", False),
+        ])),
+        ("budget", od([
+            ("wall_clock_seconds", 3600),
+            ("memory_gb", 1),
+            ("maximum_runs", 0),
+        ])),
+        ("completion_gate", [
+            "the ruling answers Q2 and Q3's permission question in words that an executor can act "
+            "on without asking again",
+            "every declined recommendation carries a revisit condition",
+            "no measured degree appears anywhere in the ruling or its amendment",
+        ]),
+    ])),
+]))
+
+# ---------------------------------------------------------------------------
+tasks.append(od([
+    ("id", RULING_ARCHIVE),
+    ("title", "Ledger-archive the collision ruling, its protocol amendment and the review-plan "
+              "addendum"),
+    ("role", "coordinator"),
+    ("state", "queued"),
+    ("priority", 87),
+    ("review_required", False),
+    ("depends_on", [RULE]),
+    ("read_scope", ["ledger", EXP, REVIEW, BASE, AUDIT]),
+    ("write_scope", [
+        f"{BASE}/archives/{RULING_ARCHIVE}",
+        f"ledger/decisions/{RULING}.yaml",
+    ]),
+    ("artifact_paths", [
+        f"{BASE}/archives/{RULING_ARCHIVE}/ledger-receipt.json",
+        f"ledger/decisions/{RULING}.yaml",
+    ]),
+    ("archive", od([
+        ("kind", "ledger"),
+        ("source_task_ids", [RULE]),
+        ("record_ids", [RULING, AMENDMENT, "EXP-SEMBIN-4fa22c", GOAL, BATCH]),
+        ("commit_sha", None),
+        ("parent_sha", None),
+        ("path_sha256", {}),
+        ("binding_mode", "content_at_commit"),
+        ("binding_mode_note",
+         "content_at_commit: the goal head moves again at this batch's close, which content_first "
+         "would report as corruption of this archive."),
+        ("ledger_kind_note",
+         "kind `ledger` with no EV-* record, which research_dispatch.py permits and "
+         "CORR-20260822-7e98b5 HD-1 records the reason for: a ledger archive's whole content can BE "
+         "the decision -- here a protocol amendment and a permission ruling. It promotes nothing "
+         "and moves no hypothesis."),
+    ])),
+    ("handoff", od([
+        ("objective",
+         "Write the ruling as a decision record and commit it with the amendment and addendum the "
+         "RULE card produced."),
+        ("uncertainty_reduced", "none; durability before the execution reads the ruling"),
+        ("inputs", ruling_artifacts + [f"{AUDIT}/verdict.json"]),
+        ("constraints", [
+            "stage only declared paths; the concurrent lane's edits are not this commit's",
+            "commit message names the task id and every record id",
+        ]),
+        ("deliverables", ["ledger-receipt.json"]),
+        ("inference", od([
+            ("policy", "coordinator-orchestration-code"),
+            ("reasoning_effort", None),
+            ("fallback_allowed", True),
+            ("fallback_note", "As every card in this batch: declared up front."),
+            ("degraded_allowed", False),
+            ("independent_session_required", False),
+        ])),
+        ("budget", od([
+            ("wall_clock_seconds", 900),
+            ("memory_gb", 1),
+            ("maximum_runs", 0),
+        ])),
+        ("completion_gate", ["post-commit receipt verified by research_dispatch.py"]),
+    ])),
+]))
+
+# ---------------------------------------------------------------------------
 tasks.append(od([
     ("id", EXECUTE),
     ("title",
@@ -367,9 +611,14 @@ tasks.append(od([
     ("role_note",
      "Executor, not validator: this card builds an instrument and records observations. It does not "
      "interpret them, and the review round that will is a separate batch."),
-    ("priority", 88),
+    ("priority", 86),
     ("review_required", True),
-    ("depends_on", [COLLISION]),
+    ("depends_on", [COLLISION, RULING_ARCHIVE]),
+    ("depends_on_note",
+     "BOTH, and the second is the point of the first. This card was written `blocked` on a "
+     f"COORDINATOR RULING rather than on {COLLISION} finishing, and the dependency on "
+     f"{RULING_ARCHIVE} is what makes that mechanical: the ruling has to be COMMITTED before this "
+     "runs, not merely decided in a session that will not survive."),
     ("read_scope", [
         f"{EXP}/specification.yaml",
         "ledger/hypotheses/H-SEMBIN-a7e721.yaml",
@@ -503,19 +752,23 @@ tasks.append(od([
 tasks.append(od([
     ("id", PRODUCER_SNAPSHOT),
     ("title",
-     "Snapshot-archive BATCH-cbb416's producers -- the collision audit and whatever the execution "
-     "produced -- before any independent review reads them"),
+     "Snapshot-archive whatever the execution produced, before any independent review reads it"),
     ("role", "coordinator"),
     ("state", "queued"),
     ("priority", 70),
     ("review_required", False),
-    ("depends_on", [COLLISION, EXECUTE]),
+    ("depends_on", [EXECUTE]),
+    ("retargeted_note",
+     f"OPENED owning both producers; retargeted 2026-09-16 to {EXECUTE} alone once the audit "
+     f"returned, because the audit's artifacts had to be committed before the ruling that reads "
+     f"them and this archive cannot run until the execution it also owned has happened. The audit "
+     f"is now archived by {AUDIT_SNAPSHOT}. See tasks_state_revisions."),
     ("read_scope", [BASE, EXP, "ledger"]),
     ("write_scope", [f"{BASE}/archives/{PRODUCER_SNAPSHOT}"]),
     ("artifact_paths", [f"{BASE}/archives/{PRODUCER_SNAPSHOT}/snapshot-receipt.json"]),
     ("archive", od([
         ("kind", "snapshot"),
-        ("source_task_ids", [COLLISION, EXECUTE]),
+        ("source_task_ids", [EXECUTE]),
         ("record_ids", ["EXP-SEMBIN-4fa22c", "H-SEMBIN-a7e721", GOAL, BATCH]),
         ("commit_sha", None),
         ("parent_sha", None),
@@ -534,7 +787,7 @@ tasks.append(od([
          "Commit the exact producer artifacts an independent review will read, and record what was "
          "staged with its hashes."),
         ("uncertainty_reduced", "none; durability before review"),
-        ("inputs", collision_artifacts + [f"{EXP}/code/", f"{EXP}/runs/"]),
+        ("inputs", [f"{EXP}/code/", f"{EXP}/runs/"]),
         ("constraints", [
             "stage only declared paths, and enumerate the run directory as actually produced",
             "commit message names the task id and every record id",
@@ -931,6 +1184,22 @@ EXECUTED = {
              "DIFFERENT snapshot of these same two files."),
         ])),
     ]),
+    COLLISION: od([
+        ("state", "completed"),
+        ("outcome",
+         "Completed 2026-09-16, zero runs and zero measurements, 63 recorded queries over 76,056 "
+         "files with four empty results, all six questions answered. Verdict `partial`, "
+         "recommendation `proceed`, both marked as recommendations rather than rulings. THE FINDING "
+         "THAT MATTERED WAS NOT THE VERDICT: the audit established by reading the code that this "
+         "program's shared descent builder cannot construct a shifted instance at all -- "
+         "src/semaev_tree.py contains no coset, shift, v_i or offset, and its subspace passes "
+         "through the origin -- so every Semaev descent the program has ever built is v = 0, which "
+         "is EQS2 in Nagao's own words. The headline arm's novelty therefore rests on a checkable "
+         "absence in code rather than on a failure to find a record, which is a much stronger thing "
+         "to have, and the control arm turns out to be substantially pre-measured, which is where "
+         "the `partial` comes from. The kb retrieval index could not be called (six probes) so "
+         "recall is stated as a FLOOR. Ruled on by " + RULING + "."),
+    ]),
 }
 
 REVISIONS = [
@@ -959,6 +1228,43 @@ REVISIONS = [
          f"{BASE}/archives/{OPEN_SNAPSHOT}/snapshot-receipt.json, which records the origin/main "
          "merge (c68e9d4c9, 24 commits, clean, never rebased), the validator outcome scoped to the "
          "paths this commit stages, and the two errors that were this session's and are now closed."),
+    ]),
+    od([
+        ("at", "2026-09-16T11:20:00Z"),
+        ("task_id", COLLISION),
+        ("from_state", "queued"),
+        ("to_state", "completed"),
+        ("reason",
+         "The audit returned. Its outcome is in the card; the ruling on it is " + RULING + ". Lane "
+         f"claim released as `completed` at {BASE}/claims/{COLLISION}.1.release.json."),
+    ]),
+    od([
+        ("at", "2026-09-16T11:22:00Z"),
+        ("task_id", PRODUCER_SNAPSHOT),
+        ("from_state", "queued"),
+        ("to_state", "queued"),
+        ("reason",
+         "NOT A STATE CHANGE, A RETARGET, and it repairs a defect the opening queue shipped with. "
+         f"{PRODUCER_SNAPSHOT} owned both producers' artifacts, so the audit's three files could "
+         "not be committed until the execution they exist to gate had already run -- the ruling "
+         "would have cited an uncommitted working tree, and the reviewers would have read the audit "
+         "out of the same commit as the run it preceded. Its source_task_ids are now "
+         f"[{EXECUTE}] and the audit is archived by {AUDIT_SNAPSHOT}. Nothing was rewritten: three "
+         "cards were added and one archive's source list narrowed, both visible here."),
+    ]),
+    od([
+        ("at", "2026-09-16T11:24:00Z"),
+        ("task_id", AUDIT_SNAPSHOT + ", " + RULE + ", " + RULING_ARCHIVE),
+        ("from_state", "absent"),
+        ("to_state", "queued"),
+        ("reason",
+         "Three cards added after the audit returned, taking the batch from eight to eleven. Why "
+         "they were not there at opening: the opening queue treated the Coordinator ruling as an "
+         "act that would simply happen between two cards, which is precisely the shape of an "
+         "approval that leaves no trace. The ruling now has a card, a write scope, a completion "
+         "gate and a ledger commit, and the execution card's blocked_reason -- which already said "
+         "it was gated on a ruling rather than on the audit finishing -- is now mechanically true "
+         "rather than aspirational."),
     ]),
 ]
 
