@@ -25,8 +25,6 @@ about ECDLP cost.
 import Mathlib.Algebra.Field.Basic
 import Mathlib.Algebra.Group.Hom.Defs
 import Mathlib.Tactic.FieldSimp
-import Mathlib.Tactic.Ring
-import Mathlib.Tactic.Linarith
 import Mathlib.Tactic.LinearCombination
 
 namespace CryptoResearch.Semaev
@@ -71,7 +69,6 @@ annihilators exist (7 at `n = 9, n' = 3`, 63 at `n = 9, n' = 2` -- see
 `research/verification/ffd_frobenius_witness.py`). Do not strengthen this. -/
 theorem degeneracy_root_unique (x : K) (hx : x ≠ 0) (μ : K) (hμ : μ ≠ 0) :
     μ = μ ^ 2 * x ^ 2 ↔ μ = (x⁻¹) ^ 2 := by
-  have hx2 : x ^ 2 ≠ 0 := pow_ne_zero 2 hx
   constructor
   · intro h
     -- μ = μ²x²  ⟹  μ(μx² − 1) = 0, and μ ≠ 0, so μx² = 1.
