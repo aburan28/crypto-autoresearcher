@@ -272,8 +272,16 @@ def gpu_available():
     return True, ""
 
 
-def walk_gpu(c: Case, nsteps: int, walks_per_thread: int, threads: int = 128):
-    """Run the CUDA kernel over the same case; returns the same tuple shape."""
+def gpu_resident(c: Case, walks_per_thread: int, threads: int = 128):
+    """Load the kernel and put the case's walks on the device ONCE.
+
+    Returns `(launch, read)`: `launch(nsteps)` advances the resident walks in
+    place and blocks until the kernel has finished; `read()` brings the state
+    back to the host in the reference tuple shape. Keeping compile, upload and
+    download out of `launch` is what makes a timing loop over it measure the
+    resident-walk step rate the emitted record claims, rather than the host
+    work around it.
+    """
     import cupy as cp
 
     src = (GPU_DIR / "rho_kernel.cu").read_text()
@@ -302,12 +310,14 @@ def walk_gpu(c: Case, nsteps: int, walks_per_thread: int, threads: int = 128):
 
     nthreads = (c.nwalks + walks_per_thread - 1) // walks_per_thread
     blocks = (nthreads + threads - 1) // threads
-    kern((blocks,), (threads,), (
-        X, Y, A, Bc, TX, TY, TC, TD, pbuf, cp.uint64(N0), onebuf, ordbuf,
-        dxbuf, dxinv, scratch,
-        cp.int32(c.nwalks), cp.int32(walks_per_thread), cp.int32(nsteps),
-        cp.int32(c.nbranch), cp.int32(c.dp_bits), dp_count))
-    cp.cuda.Stream.null.synchronize()
+
+    def launch(nsteps: int):
+        kern((blocks,), (threads,), (
+            X, Y, A, Bc, TX, TY, TC, TD, pbuf, cp.uint64(N0), onebuf, ordbuf,
+            dxbuf, dxinv, scratch,
+            cp.int32(c.nwalks), cp.int32(walks_per_thread), cp.int32(nsteps),
+            cp.int32(c.nbranch), cp.int32(c.dp_bits), dp_count))
+        cp.cuda.Stream.null.synchronize()
 
     def unpack(buf, mont):
         raw = cp.asnumpy(buf).tolist()
@@ -317,8 +327,18 @@ def walk_gpu(c: Case, nsteps: int, walks_per_thread: int, threads: int = 128):
             out.append(from_mont(v) if mont else v)
         return out
 
-    return (unpack(X, True), unpack(Y, True), unpack(A, False),
-            unpack(Bc, False), int(cp.asnumpy(dp_count)[0]))
+    def read():
+        return (unpack(X, True), unpack(Y, True), unpack(A, False),
+                unpack(Bc, False), int(cp.asnumpy(dp_count)[0]))
+
+    return launch, read
+
+
+def walk_gpu(c: Case, nsteps: int, walks_per_thread: int, threads: int = 128):
+    """Run the CUDA kernel over the same case; returns the same tuple shape."""
+    launch, read = gpu_resident(c, walks_per_thread, threads)
+    launch(nsteps)
+    return read()
 
 
 # --------------------------------------------------------------------------
@@ -438,14 +458,19 @@ def time_cpu(fn, c: Case, seconds: float):
 
 
 def time_gpu(c: Case, seconds: float, walks_per_thread: int):
-    import cupy as cp
-    walk_gpu(c, 1, walks_per_thread)               # compile + warm
+    """Steps/s for walks already resident on the device.
+
+    Compile, upload and download happen once, outside the window; the window
+    times only kernel launches (each synchronized) over state that stays on
+    the device -- the operation the record's `scope` describes.
+    """
+    launch, _read = gpu_resident(c, walks_per_thread)   # compile + upload
+    launch(1)                                           # warm
     steps_per_launch = 64
     t0 = time.perf_counter()
     steps = 0
     while time.perf_counter() - t0 < seconds:
-        walk_gpu(c, steps_per_launch, walks_per_thread)
-        cp.cuda.Stream.null.synchronize()
+        launch(steps_per_launch)
         steps += steps_per_launch * c.nwalks
     return steps / (time.perf_counter() - t0)
 
