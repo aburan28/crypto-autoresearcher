@@ -26,3 +26,10 @@ any amendment, re-run, or official reading. Do not open `IDEA-20260831-ccb587`.
 
 ## Owners
 - Coordinator session: `coordinator-harness-cont-d048`
+
+## Independent reviews (2026-09-16)
+- Validator `TASK-20260916-41af61`: frozen bands incompatible; Stage 1 voided; controls_receipt ordering intact; deployed E(r) not promoted. Archived by `TASK-20260916-5eeebb`.
+- Red-team `TASK-20260916-fa9626`: escalate is protocol event only; control contamination voids deployed readings; no vulnerability/ordinary-ECDLP claim. Archived by `TASK-20260916-0b0136`.
+
+## Updated next_action
+Author an additive control-band amendment (or a controls-only re-run under corrected bands) before any official deployed-row reading. Do not open `IDEA-20260831-ccb587`. No Cheon.
