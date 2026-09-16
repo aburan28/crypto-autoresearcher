@@ -14,24 +14,24 @@ a hash it cannot is an assertion by the session that recorded it.
 
 | Class | Count |
 |---|---|
-| Frozen source packages (`SRC-*`) | 17 |
-| — of those with the artifact committed | 16 |
-| Per-URL retrieval attempts | 21 |
-| — succeeded | 12 |
-| — failed or blocked | 9 |
-| Source artifacts under `inputs/` | 24 |
-| — hash recomputed and matching | 20 |
+| Frozen source packages (`SRC-*`) | 18 |
+| — of those with the artifact committed | 17 |
+| Per-URL retrieval attempts | 28 |
+| — succeeded | 17 |
+| — failed or blocked | 11 |
+| Source artifacts under `inputs/` | 32 |
+| — hash recomputed and matching | 28 |
 | — hash MISMATCH | 0 |
 | — present but carrying no `.sha256` | 3 |
 | — sought and never retrieved | 1 |
 | Seed bibliography entries | 10 |
-| Literature entries (`KN-LIT-*`) | 7877 |
-| — with a resolvable external identifier | 2264 |
+| Literature entries (`KN-LIT-*`) | 7878 |
+| — with a resolvable external identifier | 2265 |
 | — with no identifier recorded | 5613 |
 
-Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1327, doi 151, eprint 749, url 37. Every identifier an entry carries is kept in `sources.json`.
+Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1327, doi 151, eprint 750, url 37. Every identifier an entry carries is kept in `sources.json`.
 
-`citation_verified` distribution: `False` 23, `True` 10, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `metadata` 1, `partial` 5, `read` 7502, `secondary_only` 1, `transcription_of_full_text_at_recorded_sha256` 2, `web` 326.
+`citation_verified` distribution: `False` 23, `True` 10, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `metadata` 1, `partial` 5, `read` 7503, `secondary_only` 1, `transcription_of_full_text_at_recorded_sha256` 2, `web` 326.
 
 ## 1. Frozen source packages
 
@@ -41,6 +41,7 @@ decides whether a later session can re-read what was read here.
 | Record | Title | Author | Year | Package | Artifact in repo | Basis | URL | sha256 |
 |---|---|---|---|---|---|---|---|---|
 |  |  |  |  | `inputs/SAFECURVES-20260825` | yes | package_contents |  |  |
+| SRC-BAILEY-2009-541-ECC2K130 | Breaking ECC2K-130 |  |  | `inputs/BAILEY-2009-541-ECC2K130` | yes | declared | https://eprint.iacr.org/2009/541.pdf | 825f19a11b489ee8 |
 | SRC-BENNETT-WEAKNESS-2023 | The Optimal Choice of Hypothesis Is the Weakest, Not the Shortest | Michael Timothy Bennett | 2023 | `inputs/BENNETT-WEAKNESS-2023` | yes | declared |  |  |
 | SRC-DCP-SIMON-2026 | A Polynomial-Time Quantum Algorithm for the Dihedral Coset Problem [Preliminary Draft] | Daniel R. Simon | 2026 | `inputs/DCP-SIMON-2026` | yes | package_contents |  |  |
 | SRC-ICPERF-TRIMOSKA-ECICB-2024 | EC Index Calculus Benchmarks (instance generator and benchmark set for the point-decomposition problem from a Weil descent of the fourth summation polynomial) | Monika Trimoska |  | `inputs/TRIMOSKA-ECICB-2024` | yes | package_contents |  |  |
@@ -60,6 +61,7 @@ decides whether a later session can re-read what was read here.
 
 Declared reproducibility limitations:
 
+- **SRC-BAILEY-2009-541-ECC2K130** — The progress figures rest on 16 bytes per report (paper Appendix C) and on reading the graph's last point by eye; tallies.py re-derives every number and brackets the eye reading. No per-seed data was ever published, so nothing beyond the aggregates can be checked.
 - **SRC-NAGAO-2013-548** — ONLY THE LAST OF THREE REVISIONS IS FROZEN, and for this package that is the load-bearing limitation rather than a formality. The paper is cited in a PRIORITY dispute -- 2015/984 credits it with the disjoint factor base and says Galbraith-Gebregiyorgis 2014/806 "recently re-discovered" it -- and a priority question is a question about what a specific version contained on a specific date. ePrint serves one PDF per identifier, so the two earlier versions are not obtainable from these bytes, and nothing in this package establishes when Section 7 first appeared.
 - **SRC-NAGAO-2013-549** — Only the LAST of the paper's revisions is frozen. ePrint serves one PDF per identifier, so the earlier version recorded in the landing-page history is not obtainable from these bytes and is not vendored here. Any question of the form "which version did a later paper read" is therefore not answerable from this package alone.
 - **SRC-NS-AGENT-RESOLUTION-2026** — Freezing the fragment makes the intake reproducible; it does NOT make the fragment's claims checkable. The mathematical objects the text refers to - the Euler regularity disproof, the Navier-Stokes resolution, the Lean formalization - are not present in this repository, were not supplied, and have no cited location. Nothing in this record is a receipt for any of them.
@@ -74,6 +76,13 @@ not the same as never having looked.
 
 | Source id | URL | Status | HTTP | Retrieved at | Vendored path |
 |---|---|---|---|---|---|
+| ecc-challenge-info-index | https://ecc-challenge.info/ | retrieved | 200 | 2026-09-16T09:45:38Z | `inputs/BAILEY-2009-541-ECC2K130/ecc-challenge-info-index.html` |
+| ecc-challenge-info-servertotal-png | https://ecc-challenge.info/servertotal.png | retrieved | 200 | 2026-09-16T09:45:38Z | `inputs/BAILEY-2009-541-ECC2K130/servertotal.png` |
+| eprint-2009-541-pdf | https://eprint.iacr.org/2009/541.pdf | retrieved | 200 | 2026-09-16T09:45:38Z | `inputs/BAILEY-2009-541-ECC2K130/ecc2k130-2009-541.pdf` |
+| lange-35minutes-talk | https://hyperelliptic.org/tanja/vortraege/35minutes.pdf | retrieved | 200 | 2026-09-16T09:45:38Z | `inputs/BAILEY-2009-541-ECC2K130/lange-35minutes-talk.pdf` |
+| lange-ecc2010-talk | https://www.hyperelliptic.org/tanja/vortraege/ECC.pdf | retrieved | 200 | 2026-09-16T09:45:38Z | `inputs/BAILEY-2009-541-ECC2K130/lange-ecc2010-talk.pdf` |
+| twitter-eccchallenge | https://twitter.com/ECCchallenge | not_attempted |  |  |  |
+| wayback-ecc-challenge-info | http://web.archive.org/web/20141231163824/http://ecc-challenge.info/ | blocked |  | 2026-09-16T09:38:00Z |  |
 | dent-galbraith-hidden.pdf |  | failed |  |  | `inputs/ECTD-TESKE-20260731/sources/dent-galbraith-hidden.pdf` |
 | ellipticnews-2015-04-13-ecdlp-char-two | https://ellipticnews.wordpress.com/2015/04/13/elliptic-curve-discrete-logarithm-problem-in-characteristic-two/ | retrieved | 200 | 2026-09-05T22:45:26Z |  |
 | arxiv-math-0411378v3 | https://arxiv.org/abs/math/0411378 | retrieved | 200 | 2026-09-07T21:05:00Z |  |
@@ -113,6 +122,14 @@ records that some fetch failed, and says nothing about the file that is here.
 
 | Path | Bytes | Verdict | Declared sha256 | Fetch marker |
 |---|---|---|---|---|
+| `inputs/BAILEY-2009-541-ECC2K130/ecc-challenge-info-index.html` | 3453 | match | c725e6ebd7af40d0 |  |
+| `inputs/BAILEY-2009-541-ECC2K130/ecc2k130-2009-541.pdf` | 252689 | match | 825f19a11b489ee8 |  |
+| `inputs/BAILEY-2009-541-ECC2K130/lange-35minutes-talk.pdf` | 664222 | match | 5a0dbb7a0f232bfe |  |
+| `inputs/BAILEY-2009-541-ECC2K130/lange-ecc2010-talk.pdf` | 564139 | match | 87bda2b05539c0a9 |  |
+| `inputs/BAILEY-2009-541-ECC2K130/paper_fulltext.md` | 70688 | match | 519f330a963a226a |  |
+| `inputs/BAILEY-2009-541-ECC2K130/servertotal.png` | 17781 | match | a6f4f0c4f83f1217 |  |
+| `inputs/BAILEY-2009-541-ECC2K130/talk-35minutes_text.md` | 19496 | match | a21e56eff611c58f |  |
+| `inputs/BAILEY-2009-541-ECC2K130/talk-ecc2010_text.md` | 29583 | match | 383ba966149035e5 |  |
 | `inputs/BENNETT-WEAKNESS-2023/arxiv-2301.12987v4.pdf` | 211063 | match | b664a4074578629b |  |
 | `inputs/ECTD-TESKE-20260731/sources/defeo-1711.04062.pdf` | 901036 | match | ca0e70abad06f732 |  |
 | `inputs/ECTD-TESKE-20260731/sources/dent-galbraith-hidden.pdf` |  | **never_retrieved** |  | yes |
@@ -157,7 +174,7 @@ records that some fetch failed, and says nothing about the file that is here.
 
 ## 5. Literature citations with a resolvable identifier
 
-2264 of 7877 `KN-LIT-*` entries carry an
+2265 of 7878 `KN-LIT-*` entries carry an
 eprint, arXiv, DOI, ISBN or URL identifier.
 
 | ID | Title | Year | Identifier | Verified |
@@ -1869,6 +1886,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-659 | A VIEW ON ELLIPTIC INTEGRALS FROM PRIMITIVE FORMS | 2019 | `arxiv:1909.02715` | read |
 | KN-LIT-660 | Adventures in Supersingularland Sarah Arpin, Catalina Camacho-Navarro, Kristin Lauter | 2019 | `arxiv:1909.07779` | read |
 | KN-LIT-661 | An Energy-Efficient Reconfigurable DTLS Cryptographic Engine for Securing Internet-of-Things Applications | 2019 | `arxiv:1907.04455` | read |
+| KN-LIT-661e97 | Breaking ECC2K-130 (read at source): seed scheme, report format, and how far the computation got | 2009 | `eprint:2009/541` | read |
 | KN-LIT-662 | CHES 2018 side channel contest CTF – Solution of the AES Challenges | 2019 | `eprint:2019/094` | read |
 | KN-LIT-663 | COINCIDENCES OF DIVISION FIELDS | 2019 | `arxiv:1912.05618` | read |
 | KN-LIT-664 | Collusion Resistant Trace-and-Revoke for Arbitrary Identities from Standard Assumptions | 2019 | `eprint:2019/984` | read |
@@ -8064,6 +8082,7 @@ corpus may hold a true duplicate. Resolving it is a `/curate-knowledge` job.
 | `arxiv:2001.11229` | KN-LIT-102cdb, KN-LIT-6e036d |
 | `arxiv:2304.14757` | KN-LIT-4c8135, KN-LIT-c41d8b |
 | `doi:10.1007/pl00003816` | KN-LIT-012, KN-LIT-73f7e1 |
+| `eprint:2009/541` | KN-LIT-096, KN-LIT-661e97 |
 | `eprint:2010/331` | KN-LIT-13a01d, KN-LIT-3c9f21 |
 | `eprint:2015/310` | KN-LIT-009, KN-LIT-fa346d |
 | `eprint:2015/573` | KN-LIT-475, KN-LIT-7607 |
