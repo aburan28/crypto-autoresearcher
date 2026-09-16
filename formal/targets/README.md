@@ -41,6 +41,7 @@ a failing check never certifies that a degree fall is unexplained.
 | target | kind | from | expectation |
 | --- | --- | --- | --- |
 | `lastfall-is-max-degree-fall` | `formalize_claim` | THM_FALLDEG_INVARIANTS1 Thm 2.8 (= Caminata–Gorla Thm 2.8) | moderate; the first statement in this lane about the invariants themselves rather than one identity in one system |
+| `semaev-s3-degree2-fall-witness` | `formalize_claim` | FFD_SEMAEV_MEASUREMENT1 §3a | **tractable, and the one that proves a measured behaviour** — a two-line field identity explaining why `d_ff` is pinned at 2 uniformly in `n`, `n'` and `V` |
 
 Chosen because its proof needs **no Gröbner machinery** — Definition 1.5 is a
 closure condition on vector subspaces and the proof is two inclusions plus
