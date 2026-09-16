@@ -1,0 +1,185 @@
+coordinator_decision:
+  id: DEC-20260916-7b2235
+  recorded_at: '2026-09-16'
+  recorded_by: coordinator
+  area: ICPERF
+  decision_type: inference_amendment
+  decided_by: coordinator
+  target_ids:
+    - TASK-20260915-3f4b52
+    - TASK-20260915-abf147
+    - BATCH-a33cda
+  title: >-
+    Approve the runtime-native binding for REVIEW-ICPERF-20260915-a33cda's reviewers, and record that
+    every task card in this environment that says fallback_allowed false is saying something false
+
+  triggered_by: >-
+    The R1-R5 validator (TASK-20260915-3f4b52) declined to resolve an inference-provenance question and
+    flagged it for the Coordinator instead. Its attestation records requested_policy review-adversarial at
+    xhigh, resolved_model_id claude-fable-5.1 self-reported by the runtime, model_verified false, and
+    fallback_used TRUE relative to the adapter's configured binding — while its task card sets
+    fallback_allowed false with no amendment authorizing a substitution.
+
+    Flagging rather than resolving was the correct call: a reviewer cannot grant itself a policy exemption,
+    and it said so. The defect is the Coordinator's, in the card.
+
+  findings:
+    - id: F-1
+      what: the adapter's configured binding for this policy CANNOT BE SERVED in this environment
+      evidence: >-
+        `python3 -m orchestration.adapter resolve --role validator --independent-session` returns
+        review-adversarial -> anthropic:claude-opus-5 (effort=xhigh). `python3 -m orchestration.adapter
+        doctor` reports ANTHROPIC_API_KEY unset, backend unusable — and the same for fireworks,
+        fireworks-anthropic, openai, openrouter, zai and zai-anthropic. Only `local` needs no credentials,
+        and it carries no binding for review-adversarial. Run this session, 2026-09-16.
+      consequence: >-
+        There is NO API-backed route to anthropic:claude-opus-5 from this checkout. A card demanding that
+        identifier with fallback_allowed false demands something no session here can supply.
+    - id: F-2
+      what: the runtime-native session is an ALLOWED runtime, not a workaround
+      evidence: >-
+        AGENTS.md core rule 16 permits "authenticated direct Codex and Claude Code sessions whose resolved
+        provider is not Bedrock" alongside API-backed openai and local runtimes. CLAUDE.md's model policy
+        note states that under this runtime per-role MODEL selection is process-level and cannot be
+        expressed in subagent frontmatter, and that only reasoning EFFORT binds per subagent.
+      consequence: >-
+        The reviewer ran on a permitted runtime. Nothing about it is prohibited, and no Bedrock provider,
+        endpoint or identifier was involved at any point.
+    - id: F-3
+      what: what the policy actually requires WAS met; what was missed is narrower
+      met: >-
+        review-adversarial requires xhigh reasoning and an independent session. The reviewer ran at xhigh
+        in a session independent of the producer, did not read its sibling's report, and recorded
+        did_not_read naming review-plan-r6.yaml and TASK-20260915-abf147/.
+        tools/check_review_independence.py raises no problem against the task.
+      missed: >-
+        model_verified is false — no `doctor --probe` was run, and none COULD be, because probing requires
+        a usable backend. The resolved identifier also does not match model-bindings.yaml. These are the
+        gaps, and they are recorded as such rather than waved past.
+    - id: F-4
+      what: the setup was declared BEFORE the round, which is the property independence depends on
+      evidence: >-
+        review-plan.yaml:536-542 (`inference.model_note`) states, written before any reviewer ran, that the
+        default inherited model applies under the user directive "Use auto mode" of 2026-09-15, that
+        resolved_model_id is whatever each reviewer session self-reports, that model_verified stays false
+        absent a probe, and that both are recorded in each attestation with fallback_used and its reason.
+      consequence: >-
+        The binding is a DECLARED condition of the round rather than a discovery about it. What the cards
+        failed to do was carry the same declaration in their own inference blocks, where the dispatcher and
+        the reviewer look.
+    - id: F-5
+      what: this policy is degradable, and that is why an amendment is available here at all
+      evidence: >-
+        review-adversarial has no `degradable: false` marking; review-breakthrough does, and AGENTS.md
+        states it "may never be degraded — no amendment or permission runs it on a backend that cannot
+        reach max".
+      consequence_stated_plainly: >-
+        HAD THIS ROUND BEEN review-breakthrough, THIS AMENDMENT WOULD NOT BE PERMITTED and the honest
+        outcome would be that the claim stays un-promoted while the campaign stays active. Any future
+        ICPERF claim escalated to review-breakthrough hits exactly that wall in this environment, and it
+        must not be resolved by an amendment like this one. Recorded here so the precedent is not read
+        wider than it is.
+
+  decision:
+    approved: >-
+      An additive inference_amendment for the two reviewer cards of
+      REVIEW-ICPERF-20260915-a33cda — TASK-20260915-3f4b52 (R1-R5, returned) and TASK-20260915-abf147
+      (R6, blind, not yet dispatched): fallback_allowed false -> TRUE, with the resolved model recorded
+      per attestation and model_verified recorded false.
+    degraded_allowed: >-
+      Stays FALSE for the model's capabilities, and the one unmet REQUIREMENT is named rather than
+      permitted: model_verified could not be obtained because no backend is probeable here. It is recorded
+      in degraded_requirements below, not treated as satisfied.
+    fallback_reason: >-
+      The adapter's configured binding is unreachable from this checkout for want of credentials (F-1).
+      This is an environment fact, not a preference, and not a billing exhaustion like the one amended onto
+      TASK-20260915-4f4027's card — that one was a quota, this one is an absent key.
+    degraded_requirements:
+      - requirement: model_verified
+        status: NOT OBTAINED
+        why: >-
+          `doctor --probe` requires a usable backend and no backend in this environment is usable. The
+          requirement is unmet and unmeetable here; it is not deemed met.
+        what_it_costs: >-
+          The resolved identifier is self-reported and therefore unverified configuration by AGENTS.md's
+          own definition. A reader must not treat "claude-fable-5.1" as an established fact about which
+          model produced the review — only as what the session said about itself.
+      - requirement: resolved identifier matches model-bindings.yaml
+        status: NOT MET
+        why: F-1
+        what_it_costs: >-
+          A later reader reproducing this review cannot reach the same model through the adapter. The
+          review's findings are reproducible as ARGUMENTS — the report ships 72 artifact files, scripts and
+          captured output — but not as a model invocation.
+
+  what_this_does_not_do:
+    - >-
+      DOES NOT retroactively validate the returned review by fixing its paperwork. The review stands or
+      falls on its reasoning and its artifacts, and R5's break, its five overturned Coordinator priors and
+      its two corrections to CORR-20260916-d51133 were all checkable by this session against the
+      repository — several were checked, and one was found understated rather than overstated.
+    - >-
+      DOES NOT change any joint, verdict, prior, or blindness declaration. This decision touches inference
+      provenance only.
+    - >-
+      DOES NOT license silent substitution anywhere. The substitution is now declared on the card, in this
+      decision, and in the attestation, which is the whole difference between a fallback and a violation.
+    - >-
+      DOES NOT extend to review-breakthrough (F-5), and DOES NOT extend to any future round by default.
+      A round is dispatched with its inference block already truthful, or it is amended before it runs.
+
+  standing_condition_this_exposes: >-
+    EVERY CARD IN THIS CAMPAIGN THAT SETS fallback_allowed FALSE IS ASSERTING SOMETHING THIS ENVIRONMENT
+    CANNOT HONOUR. The value was copied from the handoff template in AGENTS.md, where false is the safe
+    default, into an environment with no API credentials at all — so the safe default became a claim that
+    every dispatch quietly broke. Two cards have now been amended one at a time after the fact
+    (TASK-20260915-4f4027 for an exhausted quota, these two for absent keys), which is the tell that the
+    default is wrong here rather than that the dispatches were unlucky.
+
+    Ranked next action, and NOT done in this decision because it changes the dispatch contract for every
+    open card at once: write the environment's actual inference reality into the queue builder, so that a
+    card either declares the runtime-native binding up front or names the backend it requires and refuses
+    to dispatch without it. A dispatcher that cannot tell a permitted runtime from an unauthorized
+    substitution will keep producing this correction.
+
+  knowledge_promotion:
+    promoted: []
+    not_warranted: >-
+      This decision records inference provenance for one review round in one environment. It establishes
+      no mathematical result and no reusable technique, and its central fact -- that this checkout holds no
+      API credentials -- is a property of the machine rather than of the research. The one durable lesson
+      is already stated as the standing condition above and belongs in the dispatch contract, not the
+      knowledge corpus.
+    revisit_if: >-
+      A second backend becomes servable here. That would restore both the goal closure quorum (AGENTS.md
+      names `doctor --probe` as the check) and genuine model diversity in review, at which point how this
+      program handles single-backend degradation becomes a technique worth recording rather than an
+      environment quirk worth noting.
+  citations:
+    - id: TASK-20260915-3f4b52
+      provenance: internal
+      what: the attestation that raised the question and declined to answer it
+      verified_by: >-
+        coordinator, this session: read attestation.yaml's inference block directly and re-ran
+        `adapter resolve --role validator --independent-session` and `adapter doctor` to check its two
+        claims about the configured binding and its reachability.
+    - id: REVIEW-ICPERF-20260915-a33cda
+      provenance: internal
+      what: the review plan whose model_note declared the binding before the round (F-4)
+      verified_by: >-
+        coordinator, this session: read review-plan.yaml:536-542 directly and confirmed the note predates
+        the round rather than being added after the reviewer returned.
+    - id: BATCH-a33cda
+      provenance: internal
+      what: the batch whose queue carries the two amended cards
+      verified_by: >-
+        coordinator, this session: amended both cards' inference blocks in dispatch_queue.json and
+        re-rendered the dispatch plan to confirm the queue still parses and gates still pass.
+    - id: CORR-20260916-33068f
+      provenance: internal
+      what: >-
+        the correction recording what this reviewer found in a Coordinator record, filed the same day; it
+        is the substantive counterpart to this procedural decision
+      verified_by: >-
+        coordinator, this session: authored it, having verified both of its cited defects against the
+        repository (bench.py:65, and bench.py hashed at five commits).
