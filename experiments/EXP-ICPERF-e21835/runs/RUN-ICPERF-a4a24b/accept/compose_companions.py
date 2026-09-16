@@ -167,7 +167,12 @@ def write_command_txt(e1: dict, e2: dict) -> None:
     lines.append("# NEITHER argv NOR the environment. A script that consults nothing outside itself")
     lines.append("# admits exactly one invocation, so these lines are DETERMINED, not reconstructed.")
     lines.append("")
+    declared = set(e1.get("artifacts") or [])
     for name in ARGUMENT_FREE_DRIVERS:
+        if "accept/%s.py" % name not in declared:
+            raise SystemExit(
+                "accept/%s.py is not declared in manifest.yaml `artifacts`, so the claim "
+                "above that every epoch-1 driver is declared there would be false" % name)
         ok, why = driver_takes_no_arguments(name)
         json_path = os.path.join(RUN, "logs", name + ".json")
         label = None
