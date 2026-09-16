@@ -5,7 +5,20 @@ x_R != 0, the F_2-linear functional Tr(mu * -) with mu = x_R^{-2} annihilates
 the entire degree-2 part of the Weil-descended S_3(x_1,x_2,x_R) system.
 Hence a degree fall exists at degree 2 and d_ff <= 2, uniformly.
 
-Also checks UNIQUENESS: mu = x_R^{-2} is the only nonzero such mu.
+UNIQUENESS OF THE ANNIHILATOR IS FALSE, AND THIS SCRIPT DISPROVES IT.
+Do not read the count column as confirming uniqueness. When the products
+v_j v_k span a PROPER subspace of F_{2^n} -- which happens whenever n' is small
+relative to n -- accidental annihilators exist: this script finds 7 at
+n=9, n'=3 and 63 at n=9, n'=2, and its negative control finds 14/106
+non-witness mu that also annihilate. Uniqueness returns only once the products
+span enough of the field.
+
+What IS unique, for every n and every x_R != 0, is the nonzero root of
+mu^(1/2) + mu*x_R = 0, namely mu = x_R^{-2}: squaring gives
+mu*(1 + mu*x_R^2) = 0. That is a statement about the DEGENERACY EQUATION, not
+about the annihilating functional, and only the former may be formalised.
+See formal/targets/semaev-s3-degree2-fall-witness.yaml, which states the same
+restriction, and FFD_SEMAEV_MEASUREMENT1 section 3a.
 """
 import random, itertools
 MODS={2:0b111,3:0b1011,4:0b10011,5:0b100101,6:0b1000011,7:0b10000011,
@@ -52,7 +65,7 @@ def indep(basis,n):
     return r==len(basis)
 
 random.seed(3)
-print("n  n'   x_R   claimed mu=x_R^-2 kills deg-2 part? | #mu that do (should be exactly 1)")
+print("n  n'   x_R   claimed mu=x_R^-2 kills deg-2 part? | #mu that do (NOT expected to be 1; see docstring)")
 print("-"*88)
 allok=True; alluniq=True
 for n in range(2,10):
@@ -75,7 +88,8 @@ for n in range(2,10):
                       f"{len(good)} {'(unique, = x_R^-2)' if uniq else '(NOT unique: '+str(good[:4])+')'}")
 print()
 print("witness kills the degree-2 part in EVERY cell:", allok)
-print("witness is the UNIQUE nonzero such mu in every cell:", alluniq)
+print("witness is the unique ANNIHILATOR in every cell:", alluniq,
+      "  <-- expected False; uniqueness of the annihilator is not claimed")
 
 # sanity: a WRONG mu should generally fail
 bad=0; tot=0
