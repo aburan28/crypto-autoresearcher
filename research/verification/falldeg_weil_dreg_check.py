@@ -108,12 +108,25 @@ def weil(F, m_vars, n):
     return out
 
 def run(name, F, m_vars, n):
+    """Returns True/False for a real comparison, or None when the HYPOTHESIS FAILS.
+
+    (F^top)_d = R_d for d >> 0 is a hypothesis of CCG Prop 4.13, not a
+    formality: it fails for underdetermined systems, where the top part never
+    fills the ring and d_reg is undefined. Such a cell is NOT a confirmation.
+    An earlier version of this function returned `dW == pred` there, which is
+    None == None, i.e. it scored a vacuous MATCH -- exactly the trap the
+    null-object discipline exists to prevent.  It is now refused explicitly.
+    """
     top=[topof(f) for f in F]
     dF=dreg(top, m_vars, n)
+    if dF is None:
+        print(f"{name}: n={n} m={m_vars} | HYPOTHESIS FAILS over K ((F^top)_d never fills R_d) "
+              f"-- d_reg undefined, formula does not apply, NOT a confirmation")
+        return None
     W=weil(F,m_vars,n)
     Wtop=[topof(g) for g in W]
     dW=dreg(Wtop, m_vars*n, 1)
-    pred = n*dF - n + 1 if dF else None
+    pred = n*dF - n + 1
     ok = "MATCH" if dW==pred else "MISMATCH"
     print(f"{name}: n={n} m={m_vars} | d_reg(F)={dF}  d_reg(Weil F)={dW}  predicted={pred}  -> {ok}")
     return dW==pred
@@ -131,7 +144,9 @@ results.append(run("2var quadratic", [f2], 2, 2))
 f3={(2,1):1,(1,2):2,(1,1):1,(0,0):1}
 results.append(run("2var cubic-ish", [f3], 2, 2))
 print()
-print("all match:", all(results))
+real=[r for r in results if r is not None]
+skipped=len(results)-len(real)
+print(f"non-vacuous cases: {len(real)}, hypothesis-failure cells refused: {skipped}, all match: {all(real) if real else 'n/a'}")
 
 print("\n=== determined multivariate cases (hypothesis actually holds) ===")
 res2=[]

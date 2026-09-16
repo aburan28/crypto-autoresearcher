@@ -25,13 +25,13 @@ a hash it cannot is an assertion by the session that recorded it.
 | — present but carrying no `.sha256` | 3 |
 | — sought and never retrieved | 1 |
 | Seed bibliography entries | 10 |
-| Literature entries (`KN-LIT-*`) | 7878 |
-| — with a resolvable external identifier | 2265 |
+| Literature entries (`KN-LIT-*`) | 7881 |
+| — with a resolvable external identifier | 2268 |
 | — with no identifier recorded | 5613 |
 
-Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1327, doi 151, eprint 750, url 37. Every identifier an entry carries is kept in `sources.json`.
+Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1329, doi 151, eprint 751, url 37. Every identifier an entry carries is kept in `sources.json`.
 
-`citation_verified` distribution: `False` 23, `True` 10, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `metadata` 1, `partial` 5, `read` 7503, `secondary_only` 1, `transcription_of_full_text_at_recorded_sha256` 2, `web` 326.
+`citation_verified` distribution: `False` 23, `True` 10, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `metadata` 1, `partial` 5, `read` 7503, `secondary_only` 1, `transcription_of_full_text_at_recorded_sha256` 2, `web` 329.
 
 ## 1. Frozen source packages
 
@@ -174,7 +174,7 @@ records that some fetch failed, and says nothing about the file that is here.
 
 ## 5. Literature citations with a resolvable identifier
 
-2265 of 7878 `KN-LIT-*` entries carry an
+2268 of 7881 `KN-LIT-*` entries carry an
 eprint, arXiv, DOI, ISBN or URL identifier.
 
 | ID | Title | Year | Identifier | Verified |
@@ -1709,6 +1709,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-4acef4 | One Discrete Gaussian Sample in 2^{n/2+o(n)} Time | 2026 | `eprint:2026/1599` | read |
 | KN-LIT-4c1133 | Compact HQC with new (un)balance | 2026 | `eprint:2026/461` | web |
 | KN-LIT-4c8135 | Polynomial time key-recovery attack on high rate random alternant codes | 2024 | `arxiv:2304.14757` | web |
+| KN-LIT-4e8513 | Solving degree, last fall degree, and related invariants | 2021 | `eprint:2021/1611` | web |
 | KN-LIT-4fa25d | Classic McEliece: conservative code-based cryptography: what plaintext confirmation means | 2022 | `url:classic.mceliece.org/mceliece-pc-20221023.pdf` | web |
 | KN-LIT-500 | ELLIPTIC CURVES IN ISOGENY CLASSES | 2016 | `arxiv:1611.05258` | read |
 | KN-LIT-501 | ELLIPTIC GAUSS SUMS AND SCHOOF’S ALGORITHM | 2016 | `arxiv:1601.03227` | read |
@@ -2374,6 +2375,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-999 | Local inversion of maps: A new attack on | 2022 | `arxiv:2202.06584` | read |
 | KN-LIT-9a915c | Isogenous hyperelliptic and non-hyperelliptic Jacobians with maximal complex multiplication | 2022 | `arxiv:2104.04919` | read |
 | KN-LIT-a24b73 | Triple Cryptanalysis of Isogeny-Based VRFs from Asiacrypt 2025 | 2026 | `eprint:2026/1623` | read |
+| KN-LIT-a2f7b3 | Last fall degree of semi-local polynomial systems | 2023 | `arxiv:2311.02804` | web |
 | KN-LIT-a409fc | New approaches to reduced complexity decoding | 1991 | `doi:10.1016/0166-218x(91)90107-8` | web |
 | KN-LIT-a4d70e | The syzygy distinguisher | 2025 | `eprint:2024/1193` | web |
 | KN-LIT-a58ca4 | How to lose some weight - a practical template syndrome decoding attack | 2025 | `eprint:2024/621` | web |
@@ -2432,6 +2434,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-f1073f | On breaking McEliece keys using brute force | 2025 | `eprint:2025/632` | web |
 | KN-LIT-f1eb40 | Algebraic key-recovery side-channel attack on Classic McEliece | 2025 | `doi:10.1007/978-3-032-10536-3_20` | web |
 | KN-LIT-f28b46 | Revisiting nearest-neighbor-based information set decoding | 2022 | `eprint:2022/1328` | web |
+| KN-LIT-f37b9a | The complexity of solving Weil restriction systems | 2023 | `arxiv:2112.10506` | web |
 | KN-LIT-f390dc | A new algorithm for finding minimum-weight words in a linear code: application to McEliece's cryptosystem and to narrow-sense BCH codes of length 511 | 1998 | `doi:10.1109/18.651067` | web |
 | KN-LIT-f50ab3 | Leaky McEliece: secret key recovery from highly erroneous side-channel information | 2025 | `eprint:2023/1536` | web |
 | KN-LIT-f51628 | Sieving method for SDP with the zero window: an improvement in low memory environments | 2024 | `doi:10.1007/978-981-97-7737-2_9` | web |
