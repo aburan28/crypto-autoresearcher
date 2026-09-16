@@ -27,9 +27,10 @@ baselines are `sqrt(2^131) = 2^65.5` (generic) and the recorded
   at `n = 131` they are not constants a reader can drop (`3^{kappa m^2}` is
   `2^{70}` at `m = 3`). The `O~` cofactor is dropped.
 - Attempts per relation search: `2^{n'} / min(1, 2^{n'm - n} / m!)`.
-- "Resultant-model floor": attempts times `M(E) = 2^{m(m-1)} d^{m(m-1)}`, the
-  degree of the univariate polynomial Rojas' method must root-find per attempt
-  (Appendix A.1), or the linear-algebra term, whichever is larger. It is a lower
+- "Resultant-model floor": attempts times `M(E) = prod_k lambda_k = 2^{m(m-1)}
+  d^{m(m-1)/2}` with `lambda_k = d^{k-1} 2^{m-1}`, the degree of the univariate
+  polynomial Rojas' method must root-find per attempt (Appendix A.1), or the
+  linear-algebra term, whichever is larger. It is a lower
   bound **for the paper's own solver model**, not an achievable cost.
 - "Frobenius orbits": if `L in F_2[X]` then `V` is Frobenius-stable and, on a
   Koblitz curve, the factor base splits into orbits of size 131 under an
@@ -73,21 +74,23 @@ excluded by item 2, so the "not excluded" rows use `d = 3`:
 | selection | n' | d | m | orbits | beta | log2 attempts | log2 relation phase | log2 lin. alg. | log2 total (Thm 3.2) | log2 floor |
 |---|---|---|---|---|---|---|---|---|---|---|
 | min total, not excluded | 66 | 3 | 2 | 1 | 0.048 | 66.0 | 133.0 | 133.0 | **133.0** | 133.0 |
-| min floor, not excluded | 33 | 3 | 4 | 1 | 0.191 | 36.6 | 294.3 | 68.0 | 294.3 | **68.0** |
+| min floor, not excluded | 27 | 3 | 5 | 1 | 0.285 | 29.9 | 428.4 | 56.3 | 428.4 | **65.8** |
 | min total, Frobenius orbits | 66 | 3 | 2 | 131 | 0.048 | 59.0 | 126.0 | 118.9 | **126.0** | 118.9 |
-| min floor, Frobenius orbits | 33 | 3 | 4 | 131 | 0.191 | 29.6 | 287.2 | 53.9 | 287.2 | **60.6** |
+| min floor, Frobenius orbits | 33 | 3 | 4 | 131 | 0.191 | 29.6 | 287.2 | 53.9 | 287.2 | **53.9** |
 
 Reading: under the paper's own solver the line costs at least `2^126` on
 ECC2K-130 even granting a QSP that is not known to exist, because at
 `n = 131` either the linear algebra (`2^{2n'}`) or the resultant factor
 (`3^{kappa m^2}` with `m >= 3`) is enormous. Under the most optimistic floor
 the paper's model allows, and with the Koblitz orbit reduction, the single
-cell `(n' = 33, d = 3, m = 4)` reaches `2^60.6`, a tie with rho's `2^60.9`. That
-cell requires (a) a non-linearized `X^{2^33} + lambda(X)`, `lambda in F_2[X]`,
-with about `2^33` roots in `F_{2^131}` -- no such polynomial is known and the
-Section 4.2 heuristic of `KN-LIT-0a321c` predicts none -- and (b) a solver
-that decomposes at `M(E) = 2^31` operations per attempt, which no solver is
-known to do.
+cell `(n' = 33, d = 3, m = 4)` reaches `2^53.9`, below rho's `2^60.9`; there
+the floor is set by the linear algebra (`4 * (2^33 / 131)^2`), since attempts
+times `M(E) = 2^21.5` is only `2^51.1`. That cell requires (a) a
+non-linearized `X^{2^33} + lambda(X)`, `lambda in F_2[X]`, with about `2^33`
+roots in `F_{2^131}` -- no such polynomial is known and the Section 4.2
+heuristic of `KN-LIT-0a321c` predicts none -- and (b) a solver that
+decomposes at `M(E) = 2^21.5` operations per attempt, which no solver is known
+to do.
 
 Prop. 8's asymptotic table (`m >> 1`) evaluated at `n = 131` for reference:
 `beta = 1: 2^124`, `0.75: 2^122`, `0.2: 2^97`, `0.1025: 2^65.5`, `0.0958: 2^60.9`.

@@ -230,7 +230,8 @@ def cost_cell(n: int, np_: int, d: int, m: int, frobenius_orbits: int = 1) -> di
          m! * q^{n - n'm + n'} * O~(m^5.188 (3d)^{4.876 m^2}) + m q^{2n'}
        with |F| ~ |V| ~ q^{n'} and success probability |F|^m/(m! q^n) capped at 1.
        Also the resultant-model floor: the univariate polynomial h of Lemma 3.1 has degree
-       M(E) = 2^{m(m-1)} d^{m(m-1)} (Appendix A.1) and must be root-found once per attempt,
+       M(E) = prod_k lambda_k = 2^{m(m-1)} d^{m(m-1)/2} with lambda_k = d^{k-1} 2^{m-1}
+       (Appendix A.1) and must be root-found once per attempt,
        so relation search costs at least (attempts) * M(E) under that model."""
     ell = math.log2(d)
     b = beta(n, np_, ell)
@@ -240,7 +241,7 @@ def cost_cell(n: int, np_: int, d: int, m: int, frobenius_orbits: int = 1) -> di
     log2_rojas = ROJAS_M_EXP * math.log2(m) + KAPPA * m * m * math.log2(3 * d)
     log2_relation_phase = log2_attempts + log2_rojas
     log2_linear_algebra = math.log2(m) + 2 * (np_ - log2_orbit)
-    log2_ME = m * (m - 1) * (1 + ell)
+    log2_ME = m * (m - 1) * (1 + ell / 2)
     log2_floor = log2_attempts + log2_ME
     total = max(log2_relation_phase, log2_linear_algebra)  # log2 of the dominant term
     # d = 2 forces lambda = a X^2 + b X + c, an affine linearized polynomial, so [EP21]
