@@ -226,8 +226,8 @@ def measure(system, iid, out_dir, args, logf):
                 verdict4, verdict4_source = cc.get("verdict"), "measured_at_D4"
             if cc.get("verdict") == "sufficient":
                 closure_D = D
-                if verdict4 is None:
-                    # Decided below 4, and the loop stops there rather than paying for a
+                if verdict4 is None and D <= 4:
+                    # Decided BELOW 4, and the loop stops there rather than paying for a
                     # degree-4 closure whose answer is already fixed: W_D is contained in
                     # W_{D'} for D <= D', so the standard monomial count is non-increasing
                     # in D, and it is bounded below by |V(I)|. Equal to |V(I)| at D forces
@@ -235,6 +235,13 @@ def measure(system, iid, out_dir, args, logf):
                     # the D = 4 block was not built.
                     verdict4 = "sufficient"
                     verdict4_source = f"implied_by_sufficiency_at_D{D}"
+                elif verdict4 is None:
+                    # Decided ABOVE 4, which implies NOTHING about degree 4: the implication
+                    # runs upward in D only. This is reachable with --d-max > 4, and for
+                    # generators of degree > 4 the degree-4 block is empty, so a degree-4
+                    # sufficiency verdict there would be flatly false.
+                    verdict4 = "not_determined_at_D4"
+                    verdict4_source = f"decided_at_D{D}_above_4_implies_nothing_about_D4"
                 break
             if cc.get("status") != "completed":
                 break
