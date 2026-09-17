@@ -95,6 +95,20 @@ test('ops panel is omitted when the snapshot has no AWS credentials', () => {
   dom.window.close();
 });
 
+test('an AWS failure banner does not render the error body', () => {
+  const {dom} = setup();
+  const el = dom.window.ui.opsPanel({
+    available: false,
+    reason: 'DescribeDBInstances 403: User: arn:aws:iam::123456789012:user/pages-deploy is not authorized',
+  });
+  assert.match(el.textContent, /Database metrics unavailable/);
+  assert.doesNotMatch(el.textContent, /arn:aws:iam/);
+  assert.doesNotMatch(el.textContent, /123456789012/);
+  assert.doesNotMatch(el.textContent, /pages-deploy/);
+  assert.doesNotMatch(el.textContent, /DescribeDBInstances 403/);
+  dom.window.close();
+});
+
 test('an empty last-hour window shows an em dash, never a naked zero', () => {
   const {dom} = setup();
   const latest = new Date(Date.now() - 3 * 3600 * 1000).toISOString();

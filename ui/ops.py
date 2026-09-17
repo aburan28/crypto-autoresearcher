@@ -181,10 +181,16 @@ class AwsQuery:
             with urllib.request.urlopen(req, timeout=self.timeout) as resp:
                 body = resp.read()
         except urllib.error.HTTPError as exc:
-            detail = exc.read().decode("utf-8", "replace")[:400]
-            raise RuntimeError(f"{action} {exc.code}: {detail}") from exc
+            # Drain the body but do not surface it. AWS error XML commonly
+            # carries IAM ARNs, account IDs, and user names, and ops.json is
+            # published on GitHub Pages.
+            try:
+                exc.read()
+            except OSError:
+                pass
+            raise RuntimeError(f"{action} failed ({exc.code})") from exc
         except (urllib.error.URLError, TimeoutError, OSError) as exc:
-            raise RuntimeError(f"{action} failed: {exc}") from exc
+            raise RuntimeError(f"{action} failed") from exc
         return ET.fromstring(body)
 
 
@@ -352,8 +358,9 @@ def collect_payload(*, now: int | None = None) -> dict[str, Any]:
 
     def hour_of(metric: str) -> dict[str, Any]:
         recent = series.get((metric, 60)) or []
-        if recent:
-            return summarize_rate(recent, hour_start, hour_end, 60)
+        hour = summarize_rate(recent, hour_start, hour_end, 60)
+        if hour["samples"]:
+            return hour
         return summarize_rate(series.get((metric, 300)) or [], hour_start, hour_end, 300)
 
     def day_of(metric: str) -> dict[str, Any]:

@@ -8,7 +8,9 @@ point, and never invent a rate of zero for an empty window.
 
 from __future__ import annotations
 
+import io
 import sys
+import urllib.error
 from pathlib import Path
 from xml.etree.ElementTree import Element
 
@@ -165,3 +167,96 @@ def test_s3_storage_metrics_try_the_instance_region_then_us_east_1(monkeypatch):
     dumped = str(payload).lower()
     assert "endpoint" not in dumped
     assert ".rds.amazonaws.com" not in dumped
+
+
+def test_aws_http_error_body_is_not_published(monkeypatch):
+    monkeypatch.setenv("AWS_ACCESS_KEY_ID", "AKIATEST")
+    monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "secret")
+    xml = (
+        b"<ErrorResponse><Error><Code>AccessDenied</Code>"
+        b"<Message>User: arn:aws:iam::123456789012:user/pages-deploy "
+        b"is not authorized to perform: rds:DescribeDBInstances on "
+        b"arn:aws:rds:us-west-2:123456789012:db:rho-dp</Message>"
+        b"</Error></ErrorResponse>"
+    )
+
+    def fake_urlopen(req, timeout=None):  # noqa: ARG001
+        raise urllib.error.HTTPError(
+            "https://rds.us-west-2.amazonaws.com/",
+            403,
+            "Forbidden",
+            hdrs=None,
+            fp=io.BytesIO(xml),
+        )
+
+    monkeypatch.setattr("ui.ops.urllib.request.urlopen", fake_urlopen)
+    payload = collect_payload()
+    assert payload["available"] is False
+    blob = str(payload)
+    assert "arn:aws:iam" not in blob
+    assert "123456789012" not in blob
+    assert "pages-deploy" not in blob
+    assert "AccessDenied" not in blob
+    assert payload["reason"] == "DescribeDBInstances failed (403)"
+
+
+def test_hour_falls_back_to_five_minute_when_one_minute_misses_the_window(monkeypatch):
+    now = 1_700_000_000
+    monkeypatch.setenv("AWS_ACCESS_KEY_ID", "AKIATEST")
+    monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "secret")
+    monkeypatch.setattr("ui.ops._describe_instance", lambda client: {  # noqa: ARG005
+        "id": "rho-dp",
+        "engine": "postgres",
+        "engine_version": "16.13",
+        "class": "db.r7g.xlarge",
+        "status": "available",
+        "region": RDS_REGION,
+        "allocated_bytes": 400 * (1024 ** 3),
+        "max_bytes": None,
+        "storage_type": "gp3",
+        "performance_insights": False,
+        "monitoring_interval": None,
+    })
+    monkeypatch.setattr("ui.ops._s3_size", lambda *args, **kwargs: None)
+
+    def fake_get_metric(client, metric, start, end, period):  # noqa: ARG001
+        if metric == "WriteIOPS" and period == 60:
+            return [(now - 2 * 3600, 10.0)]
+        if metric == "WriteIOPS" and period == 300:
+            return [(now - 2 * 3600, 10.0), (now - 300, 42.0)]
+        if metric == "ReadIOPS" and period == 300:
+            return [(now - 300, 1.0)]
+        return []
+
+    monkeypatch.setattr("ui.ops._get_metric", fake_get_metric)
+    payload = collect_payload(now=now)
+    assert payload["available"] is True
+    assert payload["last_hour"]["basis"] == "wall"
+    assert payload["last_hour"]["empty"] is False
+    assert payload["last_hour"]["write_iops"] == 42.0
+    assert payload["last_hour"]["read_iops"] == 1.0
+
+
+def test_hour_prefers_in_window_one_minute_samples(monkeypatch):
+    now = 1_700_000_000
+    monkeypatch.setenv("AWS_ACCESS_KEY_ID", "AKIATEST")
+    monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "secret")
+    monkeypatch.setattr("ui.ops._describe_instance", lambda client: {  # noqa: ARG005
+        "id": "rho-dp", "engine": "postgres", "engine_version": None,
+        "class": None, "status": None, "region": RDS_REGION,
+        "allocated_bytes": None, "max_bytes": None, "storage_type": None,
+        "performance_insights": False, "monitoring_interval": None,
+    })
+    monkeypatch.setattr("ui.ops._s3_size", lambda *args, **kwargs: None)
+
+    def fake_get_metric(client, metric, start, end, period):  # noqa: ARG001
+        if metric == "WriteIOPS" and period == 60:
+            return [(now - 60, 99.0)]
+        if metric == "WriteIOPS" and period == 300:
+            return [(now - 300, 42.0)]
+        return []
+
+    monkeypatch.setattr("ui.ops._get_metric", fake_get_metric)
+    payload = collect_payload(now=now)
+    assert payload["last_hour"]["write_iops"] == 99.0
+    assert payload["last_hour"]["empty"] is False

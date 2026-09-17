@@ -370,7 +370,7 @@ function opsPanel(ops) {
   if (!ops || !ops.available) {
     if (ops && ops.reason && !/no AWS credentials/i.test(ops.reason)) {
       return h('div', { class: 'banner warn' },
-        'Database metrics unavailable · ', ops.reason);
+        'Database metrics unavailable');
     }
     return null;
   }
