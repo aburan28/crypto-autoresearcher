@@ -93,6 +93,7 @@ def polymod_sparse_tail(a: int, np2: int, lam: int) -> int:
     """Reduce a modulo L = X^{np2} + lam(X) with deg lam < np2, using the
     substitution X^{np2} -> lam(X) on the high part (fast when lam is sparse
     relative to np2)."""
+    assert deg(lam) < np2, "tail degree must be below the leading exponent"
     mask = (1 << np2) - 1
     while a >> np2:
         high = a >> np2
@@ -150,13 +151,14 @@ def frob_power_mod_sparse(k: int, np2: int, lam: int) -> int:
     return x
 
 
-def root_count_gcd(L_np2: int, lam: int, n: int) -> int:
-    """deg gcd(X^{2^n} - X, X^{np2} + lam), i.e. the number of distinct roots
-    of L in F_{2^n} (L squarefree or not: distinct roots are what gcd counts
-    when X^{2^n}-X is squarefree)."""
-    L = (1 << L_np2) ^ lam
-    h = frob_power_mod_sparse(n, L_np2, lam) ^ 0b10
-    return deg(gcd(L, h)) if h else L_np2
+def root_count_gcd(np_: int, lam: int, n: int) -> int:
+    """deg gcd(X^{2^n} - X, X^{2^n'} + lam), i.e. the number of distinct roots
+    of L in F_{2^n} (distinct roots are what the gcd counts, X^{2^n} - X being
+    squarefree).  `np_` is n' itself; the leading exponent is 2^n'."""
+    np2 = 1 << np_
+    L = (1 << np2) ^ lam
+    h = frob_power_mod_sparse(n, np2, lam) ^ 0b10
+    return deg(gcd(L, h)) if h else np2
 
 
 def is_irreducible(f: int) -> bool:
