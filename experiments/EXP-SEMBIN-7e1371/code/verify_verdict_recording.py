@@ -1,6 +1,16 @@
-"""Exercise the branch itself with a stub closure, since no real instance in this
-contract both has degree-5 generators and returns sufficient. This is a test of
-the recording logic, not a measurement of anything."""
+"""verify_verdict_recording.py -- checks how run_cert records the degree-4
+verdict when the closure decides at some other degree.
+
+Run by hand: `python3 verify_verdict_recording.py`. NOT named test_* on purpose.
+The root pytest configuration scopes discovery to tests/ and tools/, so a file
+called test_*.py here would never be collected, and a test that looks collected
+but is not is worse than one that plainly is not.
+
+Exercises the branch with a stub closure, because no real instance in this
+contract both has degree-5 generators and returns sufficient: the eq. (4)
+systems have degree-6 generators but no exact counter, so their verdict is
+undetermined and the path is unreachable through them. This checks the
+recording logic, not any mathematics."""
 import sys, tempfile
 from pathlib import Path
 sys.path.insert(0, "/home/user/crypto-autoresearcher/experiments/EXP-SEMBIN-7e1371/code")
