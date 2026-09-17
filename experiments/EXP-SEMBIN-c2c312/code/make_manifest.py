@@ -178,7 +178,8 @@ def main():
             identity[b["instance_id"]] = {
                 "system_sha256_first": b["system_sha256"], "system_sha256_repeat": r["system_sha256"],
                 "f4_status_first": [b["f4_status"]], "f4_status_repeat": [r["f4_status"]],
-                "f4_rounds_equal": None if "completed" not in (b["f4_status"], r["f4_status"]) else
+                # None when either F4 instrument was skipped, as in run_cells.py: a stub is not a measurement.
+                "f4_rounds_equal": None if "unreached_declared" in (b["f4_status"], r["f4_status"]) else
                                    (b["d_F4_semaev"] == r["d_F4_semaev"] and b["f4_rounds"] == r["f4_rounds"]),
                 "closure_profiles_equal": [(p["D"], p["rank"], p["verdict"]) for p in b["closure_per_D"]]
                                           == [(p["D"], p["rank"], p["verdict"]) for p in r["closure_per_D"]],
