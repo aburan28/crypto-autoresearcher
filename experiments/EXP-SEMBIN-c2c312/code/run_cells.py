@@ -273,8 +273,13 @@ def main():
                         for r in recs2:
                             r["group"] = "instrument_identity_repeat"
                         emit(recs2)
+                        f4_first = [x for x in recs if x["instrument"] == "f4_trace_msolve"]
+                        f4_repeat = [x for x in recs2 if x["instrument"] == "f4_trace_msolve"]
+                        f4_measured = all(x["status"] != "unreached_declared" for x in f4_first + f4_repeat)
                         ident = {"system_sha256_first": sha, "system_sha256_repeat": sha2,
-                                 "f4_rounds_equal": [f4_profile(x) for x in recs if x["instrument"] == "f4_trace_msolve"] == [f4_profile(x) for x in recs2 if x["instrument"] == "f4_trace_msolve"],
+                                 "f4_status_first": [x["status"] for x in f4_first], "f4_status_repeat": [x["status"] for x in f4_repeat],
+                                 # None when the F4 instrument was skipped: [] == [] on two stubs is not a measurement.
+                                 "f4_rounds_equal": ([f4_profile(x) for x in f4_first] == [f4_profile(x) for x in f4_repeat]) if f4_measured else None,
                                  "closure_profiles_equal": [[(p.get("D"), p.get("rank"), p.get("basis_lm_sha256"), [(i["rows"], i["rank_after"]) for i in p.get("iterations", [])]) for p in x["per_D"]] for x in recs if x["instrument"] == "closure_certificate"]
                                                            == [[(p.get("D"), p.get("rank"), p.get("basis_lm_sha256"), [(i["rows"], i["rank_after"]) for i in p.get("iterations", [])]) for p in x["per_D"]] for x in recs2 if x["instrument"] == "closure_certificate"]}
                         controls.setdefault("instrument_identity", {})[iid] = ident
