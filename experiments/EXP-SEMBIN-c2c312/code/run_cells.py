@@ -210,13 +210,24 @@ def main():
     b_modes = args.b_modes.split(",")
     identity_done = set()
     null_done = set()
+    # resume: skip an instance only if its F4 trace already COMPLETED (a cap hit
+    # under an earlier cap is re-measured; the earlier record stays in the file)
+    done_f4 = set()
+    if (out / "results.jsonl").exists():
+        for line in open(out / "results.jsonl"):
+            try:
+                r = json.loads(line)
+            except Exception:
+                continue
+            if r.get("instrument") == "f4_trace_msolve" and r.get("status") == "completed":
+                done_f4.add(r["instance_id"])
     for group, (n, m, t, k) in cells:
         for subspace in subspaces:
             for B_mode in b_modes:
                 for draw in range(args.draws):
                     seed = SEEDS[draw % len(SEEDS)]
                     iid = instance_id(n, m, t, k, subspace, B_mode, seed, draw)
-                    if (out / "instances" / f"{iid}.json").exists() and any(iid in line for line in open(out / "results.jsonl")):
+                    if iid in done_f4:
                         continue  # resume
                     sysd = boolsys.generate(n, m, t, k, B_mode, subspace, seed, draw)
                     if not sysd["structure"]["valid"]:
