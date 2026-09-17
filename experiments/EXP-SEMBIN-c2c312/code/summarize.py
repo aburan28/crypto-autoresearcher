@@ -94,7 +94,15 @@ def load(paths):
             continue
         slot[key] = r
     # heavy-pass records are keyed by the same instance_id with suffix "_heavy": fold their F4 into the base instance
-    # and drop the "_heavy" key so the same system is not counted twice in its cell
+    # and drop the "_heavy" key so the same system is not counted twice in its cell. The folded record keeps the
+    # base record's group: a heavy worker started with --cells tags its records "override", and the cell label
+    # must follow the system, not the worker that measured it.
+    def fold(hv, b):
+        hv = dict(hv, heavy_pass=True)
+        if b and b.get("group") is not None:
+            hv["group"] = b["group"]
+        return hv
+
     for iid in list(by_inst):
         if iid.endswith("_heavy"):
             base = iid[: -len("_heavy")]
@@ -104,11 +112,10 @@ def load(paths):
             if hv:
                 b = by_inst[base].get("f4_trace_msolve")
                 if not b or b.get("status") != "completed":
-                    hv = dict(hv, heavy_pass=True)
-                    by_inst[base]["f4_trace_msolve"] = hv
+                    by_inst[base]["f4_trace_msolve"] = fold(hv, b)
             for k in ("closure_certificate",):
                 if k in by_inst[iid] and (k not in by_inst[base] or by_inst[base][k].get("closure_D") is None):
-                    by_inst[base][k] = dict(by_inst[iid][k], heavy_pass=True)
+                    by_inst[base][k] = fold(by_inst[iid][k], by_inst[base].get(k))
             del by_inst[iid]
     for iid, ins in by_inst.items():
         if "closure_certificate" in ins:
