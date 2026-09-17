@@ -92,6 +92,40 @@ def crossover(omega: float, variant: str, n_max: int = 2000) -> int | None:
     return None
 
 
+def total_log2(n: int, m: int, omega: float, variant: str) -> float:
+    """log2 of stage 1 + stage 2 at (n, m); stage 2 = 2^{2n/m} (eq. (16), omega' = 2)."""
+    a, b = stage1_log2(n, m, omega, variant), 2 * n / m
+    hi, lo = max(a, b), min(a, b)
+    return hi + math.log2(1 + 2 ** (lo - hi))
+
+
+def budget_frontier(log2_budget: float, variant: str, omega: float, n_max: int = 4000) -> dict:
+    """Largest n whose m-optimised cost stays within 2^{log2_budget}, i.e. what an
+    adversary holding that budget reaches with THIS method under THIS cost reading.
+
+    Reported next to what the same budget buys against Pollard rho, which is
+    n = 2 * log2_budget, because the only thing a cost number means is what it
+    reaches compared with the alternative."""
+    best_n, best = None, None
+    for n in range(50, n_max + 1):
+        m, _ = best_m(n, omega, variant)
+        tot = total_log2(n, m, omega, variant)
+        if tot <= log2_budget:
+            best_n, best = n, (m, tot)
+    if best_n is None:
+        return {"variant": variant, "omega": omega, "log2_budget": log2_budget,
+                "max_n_within_budget": None,
+                "note": "no n >= 50 is within budget under this reading"}
+    m, tot = best
+    k = math.ceil(best_n / m)
+    return {"variant": variant, "omega": omega, "log2_budget": log2_budget,
+            "max_n_within_budget": best_n, "m_at_that_n": m, "k_at_that_n": k,
+            "log2_cost_at_that_n": round(tot, 2),
+            "log2_stage2_relations_stored": k,
+            "pollard_rho_max_n_within_same_budget": int(2 * log2_budget),
+            "n_advantage_over_rho": best_n - int(2 * log2_budget)}
+
+
 def report() -> dict:
     out: dict = {"what_this_is": "arithmetic on the paper's own formulas; not a measurement",
                  "source": "inputs/SEMAEV-2015-310/ (frozen), tables.yaml table_3",
@@ -122,6 +156,33 @@ def report() -> dict:
     out["crossover_with_pollard_rho"] = {
         f"{variant},omega={omega}": crossover(omega, variant)
         for variant in ("paper_table3", "standard_f4", "monomials") for omega in OMEGAS}
+    out["fips_curves_against_budget"] = []
+    for n in FIPS_BINARY:
+        row = {"n": n, "pollard_rho_log2": n / 2, "within_2_to_131": []}
+        for variant in ("paper_table3", "standard_f4", "monomials"):
+            for omega in OMEGAS:
+                m, _ = best_m(n, omega, variant)
+                c = total_log2(n, m, omega, variant)
+                row[f"log2_cost[{variant},omega={omega}]"] = round(c, 2)
+                row[f"m_opt[{variant},omega={omega}]"] = m
+                if c <= 131.0:
+                    row["within_2_to_131"].append(f"{variant},omega={omega}")
+        row["beats_rho"] = [k.split("log2_cost[")[1][:-1] for k in row
+                            if k.startswith("log2_cost[") and row[k] < n / 2]
+        out["fips_curves_against_budget"].append(row)
+    out["fips_note"] = (
+        "Cost of the index-calculus route at each FIPS binary field size, m optimised, against "
+        "Pollard rho at the same n and against a fixed 2^131 operation budget. Every column "
+        "assumes Assumption 1 holds at that n, which is what the measurement campaign is "
+        "testing and what no experiment has established beyond toy scale. Time only.")
+    out["budget_frontier_2_to_131"] = [
+        budget_frontier(131.0, variant, omega)
+        for variant in ("paper_table3", "standard_f4", "monomials") for omega in OMEGAS]
+    out["budget_frontier_note"] = (
+        "Largest n this method reaches inside a 2^131 operation budget, m optimised at each n, "
+        "against n = 262 for Pollard rho at the same budget. Time only; the stage-2 relation "
+        "store is reported alongside and charged by neither. A budget frontier is not a break: "
+        "it says which n a stated budget reaches under a stated cost model, nothing more.")
     out["crossover_note"] = (
         "smallest n whose m-optimised stage-1+stage-2 cost falls below 2^{n/2}; "
         "the paper states n > 310 for its own column, and tables.yaml derived_checks "
