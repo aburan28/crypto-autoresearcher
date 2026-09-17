@@ -1,0 +1,182 @@
+experiment:
+  id: EXP-SEMBIN-992e73
+  hypothesis_id: null
+  hypothesis_id_note: >-
+    Null, deliberately. This contract scores no prediction. It evaluates an
+    already-accepted cost instrument at a set of n it was never evaluated at,
+    and reports the resulting table. Naming H-SEMBIN-b1708c here would invite
+    the reading that one of its predictions had been tested; none is. The
+    record it does bear on is a DEFECT in a derived figure of
+    RUN-SEMBIN-aa5161, which is filed as CORR-20260917-02cfe6, not as a
+    hypothesis movement.
+  version: 1
+  title: >-
+    Semaev 2015's optimized two-stage cost, evaluated at the field extension
+    degrees of the Certicom binary challenge curves and the FIPS binary curves,
+    against rho
+  status: specified
+  status_note: >-
+    `specified`, NOT approved. Approval is the Coordinator's authority alone
+    (AGENTS.md rule 1) and no Coordinator decision has been written for this
+    contract. The run archived beneath it is recorded as an unapproved
+    derivation so that its numbers are auditable; no evidence record may rest
+    on it and no hypothesis moves until a Coordinator approves the contract and
+    an independent reviewer reads the run.
+  objective: >-
+    The campaign has an accepted joint (m, t) balance instrument
+    (EXP-SEMBIN-81dc96, accepted at RUN-SEMBIN-aa5161) and has never pointed it
+    at the curves the program actually cares about. Its crossover sweep runs
+    n = 250..600 as a continuum and reports three FIPS parameter labels; the
+    Certicom binary challenge degrees are all below 250 and appear nowhere.
+
+    This contract evaluates the same frozen code at the exact field extension
+    degrees of every binary Certicom challenge curve and every FIPS binary
+    curve, and reports, per degree: the optimized cost under Section 4.5.2's
+    own convention, the cost under the joint (m, t) convention, the optimizing
+    (m, t), and the margin against rho. The question it answers is the one a
+    reader of this campaign would ask first and cannot currently answer: at
+    which named curve, if any, does Semaev's own model put index calculus below
+    rho.
+
+    It also carries a control the producing contract did not have, and which
+    found something: a SEARCH-FLOOR PROBE on the crossover routine. See
+    controls below.
+
+    Derivation only. No curve is instantiated, no factor base is built, no
+    polynomial system is solved, and no security statement about any curve is
+    made in either direction. Every n is a parameter label in a cost formula.
+  procedure:
+    - >-
+      Load experiments/EXP-SEMBIN-81dc96/code/joint_balance.py as a module and
+      record its sha256. Nothing in it is modified, re-implemented or
+      re-derived; a re-implementation would be a different experiment and could
+      not speak about the frozen instrument's own figures.
+    - >-
+      REPRODUCTION GATE, RUN BEFORE ANY NEW NUMBER IS COMPUTED. Recompute five
+      cells of the frozen run's own curve_charged (n = 250, 300, 302, 400, 571)
+      through this contract's call path and assert agreement to within 1e-3 in
+      log2 cost AND exact agreement in the optimizing m. The run aborts if any
+      cell disagrees. Without this gate a disagreement with the frozen figures
+      would be uninterpretable -- it could be a finding or a mis-call -- and the
+      whole value of the search-floor probe depends on the call path being the
+      frozen one.
+    - >-
+      Read the field extension degrees from frozen sources rather than from
+      recall. Certicom: the level-1 and level-2 challenge tables in
+      inputs/BAILEY-2009-541-ECC2K130/talk-35minutes_text.md, whose "Bits"
+      column is the field extension degree; this is checkable because ECC2K-130
+      appears at 131, matching the independently known GF(2^131). FIPS: the
+      "Curve K-163" .. "Curve K-571" headings in
+      inputs/SAFECURVES-20260825/specs/sp800-186.txt, with the B- family
+      sharing each degree via sect163r2 .. sect571r1 in
+      inputs/SAFECURVES-20260825/specs/sec2-v2.txt.
+    - >-
+      Evaluate each degree under three conventions and report all three: the
+      paper's own (stage 1 only, t = m), the joint (m, t) stage-1 optimum, and
+      the joint (m, t) total-cost optimum. Flag any degree whose optimizing m
+      sits at the grid cap, because an argmin at a cap is a cap reading and not
+      an optimum.
+    - >-
+      Report margins against two rho baselines: the naive 2^{n/2}, which is what
+      the frozen instrument itself uses, and vOW total work 0.886 x 2^{n/2} from
+      H-SEMBIN-97ea23. The fixed-memory-budget correction of that hypothesis is
+      CITED, not recomputed -- recomputing it is EXP-SEMBIN-f4a17b's work under
+      a different goal and duplicating it here would produce a second,
+      uncontrolled version of a number this program already has.
+  controls:
+    - id: C-REPRO
+      what: the reproduction gate above, five cells against the frozen run
+      why: >-
+        It is the control that makes every other statement in this run about
+        the frozen instrument rather than about a copy of it.
+      pass_criterion: >-
+        all five cells agree to 1e-3 in log2 cost and exactly in m; the run
+        aborts otherwise
+    - id: C-FLOOR
+      what: >-
+        SEARCH-FLOOR PROBE. Call the frozen crossover() routine on the absorbed
+        model at three different lower search bounds (n_lo = 20, 100, 250) and
+        check whether the returned crossover depends on the bound. Run the same
+        probe on the charged model as the discriminating control.
+      why: >-
+        crossover() returns the first n in its sweep meeting margin < 0 and
+        cannot signal that the condition already held at the first n examined.
+        A caller whose floor sits above the true crossover gets a plausible
+        integer back with no indication that it is a floor. This probe is the
+        cheapest thing that distinguishes a crossover from a floor, and it is
+        the control the producing contract lacked.
+      pass_criterion: >-
+        NOT a pass/fail control -- it is diagnostic. A model whose returned
+        crossover tracks n_lo has no crossover in range; a model whose returned
+        crossover is constant across floors has a real one. Both outcomes are
+        informative and neither invalidates the run.
+    - id: C-CAP
+      what: per-degree flag for an optimizing m sitting at the m grid cap of 30
+      why: >-
+        At small n a grid cap can bind and produce a degenerate argmin with
+        k = n/m near 3. Reporting such a cell as an optimum would be a cap
+        reading dressed as a result.
+      pass_criterion: diagnostic; every flagged cell is reported as flagged
+  success_criteria:
+    - >-
+      The table exists for every listed degree, C-REPRO passes, and every
+      cell whose optimizing m sits at the grid cap is flagged as such.
+    - >-
+      SATISFIED EQUALLY BY EITHER OUTCOME. A table in which no listed curve is
+      below rho satisfies this contract exactly as well as one in which some
+      are. There is no result this contract is trying to reach.
+  preregistered_predictions:
+    - id: P1
+      statement: >-
+        No Certicom binary challenge degree is below rho under any convention,
+        because every one of them (97, 109, 131, 163, 191, 239) is below the
+        frozen run's charged crossover of 302.
+      falsified_if: any Certicom binary degree shows a negative margin
+    - id: P2
+      statement: >-
+        FIPS 409 and 571 are below naive rho and 163, 233, 283 are not, again
+        from the charged crossover of 302. 283 is predicted to be the closest
+        losing degree.
+      falsified_if: the sign pattern differs at any of the five FIPS degrees
+    - id: P3
+      statement: >-
+        C-FLOOR shows the absorbed model's crossover tracking n_lo, because
+        charge_cofactor=False sets the solve cost to zero outright rather than
+        absorbing a polynomial factor, so its cost is below 2^{n/2} throughout.
+      falsified_if: the absorbed crossover is constant across the three floors
+  budget:
+    wall_clock_cap_seconds: 900
+    memory_cap_bytes: 2147483648
+    cpu_note: >-
+      Seconds of standard-library arithmetic. This contract needs no Groebner
+      engine, no solver and no quiet host, so it does not contend with any
+      measurement lane. That is why it is doable now.
+  scope:
+    claim_tier: heuristic_estimate
+    what_this_is: >-
+      Arithmetic on Semaev's own published cost model at a chosen set of n. Not
+      a measurement, not a new algorithm, and not a statement about the
+      security of any curve.
+    inherited_assumptions:
+      - >-
+        Assumption 1 (d_F4 <= 4), inherited wholesale from the instrument. What
+        is known about it is EV-ICPERF-a8080e: it reproduces at every cell
+        n <= 21 on the subspace family it actually names, and this program's
+        existing ladder measured a different family. NOTHING IS KNOWN ABOUT IT
+        AT ANY n IN THIS TABLE. Every row is conditional on an assumption
+        verified three orders of magnitude below where it is being used, and no
+        row may be quoted without that condition.
+      - eq. (11)'s yield taken as realized rather than as an upper bound
+      - the block-structured n^{4 omega} solving cost of Section 4.5.2
+      - HEUR-VOW-CURVE (unvalidated) for the vOW total-work column only
+    what_it_does_not_touch:
+      - >-
+        The security of any Certicom challenge curve or any FIPS curve, in
+        either direction. A cost model saying a figure is below 2^{n/2} is not
+        an attack and is not a break; it is a statement about a formula whose
+        load-bearing assumption is unverified at that n.
+      - >-
+        Semaev's asymptotic bound (17), which stands under Assumption 2
+        independently of anything here.
+  owner: coordinator
+  created_at: '2026-09-17'
