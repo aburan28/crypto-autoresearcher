@@ -34,7 +34,9 @@ import json
 import os
 import re
 import resource
+import signal
 import subprocess
+import threading
 import time
 from pathlib import Path
 
@@ -57,6 +59,39 @@ def _limits(mem_bytes: int):
         if mem_bytes:
             resource.setrlimit(resource.RLIMIT_AS, (mem_bytes, mem_bytes))
     return fn
+
+
+def _drain(stream, sink):
+    sink.append(stream.read())
+
+
+def _communicate_wait4(proc, deadline: float):
+    """Like Popen.communicate, but reaps the child with wait4 so the returned rusage is this
+    child's own.  RUSAGE_CHILDREN.ru_maxrss is the high-water mark over EVERY child this
+    process has ever waited for, so it would carry the heaviest earlier cell into every later
+    record.  Returns (stdout, stderr, timed_out, rusage)."""
+    outs, errs = [], []
+    readers = [threading.Thread(target=_drain, args=(proc.stdout, outs)),
+               threading.Thread(target=_drain, args=(proc.stderr, errs))]
+    for th in readers:
+        th.start()
+    for th in readers:
+        th.join(max(0.0, deadline - time.time()))
+    timed_out = any(th.is_alive() for th in readers)
+    if timed_out:
+        # os.kill, not proc.kill(): the latter polls, and polling would reap the child
+        # before wait4 can read its rusage.
+        try:
+            os.kill(proc.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        for th in readers:
+            th.join()
+    proc.stdout.close()
+    proc.stderr.close()
+    _, status, ru = os.wait4(proc.pid, 0)
+    proc.returncode = os.waitstatus_to_exitcode(status)
+    return "".join(outs), "".join(errs), timed_out, ru
 
 
 def read_d_f4(rounds: list, input_max_degree: int | None):
@@ -89,15 +124,10 @@ def run_msolve(ms_path: Path, out_path: Path, wall_cap_s: float, mem_cap_gb: flo
     try:
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
                                 preexec_fn=_limits(int(mem_cap_gb * (1 << 30))))
-        try:
-            stdout, stderr = proc.communicate(timeout=wall_cap_s)
-            rc = proc.returncode
-        except subprocess.TimeoutExpired:
-            proc.kill()
-            stdout, stderr = proc.communicate()
-            rc = proc.returncode
+        stdout, stderr, timed_out, ru = _communicate_wait4(proc, t0 + wall_cap_s)
+        rc = proc.returncode
+        if timed_out:
             status = "unreached_wall_cap"
-        ru = resource.getrusage(resource.RUSAGE_CHILDREN)
         peak_rss = ru.ru_maxrss * 1024
     except Exception as exc:
         status = "launch_error"

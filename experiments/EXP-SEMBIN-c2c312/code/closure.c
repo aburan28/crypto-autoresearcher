@@ -51,6 +51,13 @@ static double now_sec(void) {
 
 static int popc(u64 x) { return __builtin_popcountll(x); }
 
+/* polynomial-ring degree of a polynomial given as masks: its largest monomial degree */
+static int poly_deg(const u64 *masks, long cnt) {
+    int d = 0;
+    for (long i = 0; i < cnt; i++) if (popc(masks[i]) > d) d = popc(masks[i]);
+    return d;
+}
+
 static int cmp_u64(const void *a, const void *b) {
     u64 x = *(const u64 *)a, y = *(const u64 *)b;
     return (x < y) ? -1 : (x > y);
@@ -237,14 +244,28 @@ int closure_run(int N, int D, long ngens, const long *gen_ptr, const u64 *gen_ma
         mult_cnt[d] = gen_masks_deg(N, d, mult[d]);
     }
 
+    /* The single-level (GOAL-DREG-001) statistic multiplies the ORIGINAL generators, not the
+     * reduced basis iteration 0 installed: a reduced row whose degree dropped under cancellation
+     * would be multiplied by more monomials than any generator, and the row space would exceed
+     * the degree-D Macaulay matrix of the generators. */
+    int single_level = (max_iter == 1);
+
     for (int it = 1; it <= max_iter; it++) {
         t0 = now_sec();
-        /* collect new rows to multiply */
+        /* collect rows to multiply */
         long n_new = 0, n_prod = 0;
-        for (long i = 0; i < rank_; i++) if (row_new_[i]) {
-            n_new++;
-            int dg = popc(col_mask_[lm_col_[i]]);
-            for (int md = 1; md <= D - dg; md++) n_prod += mult_cnt[md];
+        if (single_level) {
+            n_new = ngens;
+            for (long g = 0; g < ngens; g++) {
+                int dg = poly_deg(gen_masks + gen_ptr[g], gen_ptr[g + 1] - gen_ptr[g]);
+                for (int md = 1; md <= D - dg; md++) n_prod += mult_cnt[md];
+            }
+        } else {
+            for (long i = 0; i < rank_; i++) if (row_new_[i]) {
+                n_new++;
+                int dg = popc(col_mask_[lm_col_[i]]);
+                for (int md = 1; md <= D - dg; md++) n_prod += mult_cnt[md];
+            }
         }
         if (n_new == 0) { break; }
         if (n_prod == 0) {
@@ -258,19 +279,27 @@ int closure_run(int N, int D, long ngens, const long *gen_ptr, const u64 *gen_ma
         /* batch size from memory cap: (rank + batch) * ncols / 8 <= cap */
         double per_row = (double)ncols_ / 8.0 + 64.0;
         long batch_max = (long)((mem_cap_bytes - (double)rank_ * per_row) / per_row);
-        if (batch_max < 1024) { hit_cap = 1; iter_rows[it] = rank_ + n_prod; iter_rank[it] = -1; iter_newpiv[it] = -1; iter_wall[it] = 0; iters = it + 1; break; }
+        /* Macaulay row count: every mu * g including mu = 1 for the single-level statistic */
+        long total_rows = (single_level ? ngens : rank_) + n_prod;
+        if (batch_max < 1024) { hit_cap = 1; iter_rows[it] = total_rows; iter_rank[it] = -1; iter_newpiv[it] = -1; iter_wall[it] = 0; iters = it + 1; break; }
         long total_new_piv = 0;
-        long total_rows = rank_ + n_prod;
         if (total_rows > max_rows_seen) max_rows_seen = total_rows;
         /* snapshot which rows are new (install_basis will reset flags) */
         long *newrows = malloc(sizeof(long) * (n_new ? n_new : 1));
         long k = 0;
-        for (long i = 0; i < rank_; i++) if (row_new_[i]) newrows[k++] = i;
-        /* copy the new rows' masks out first, since B_ is replaced batch by batch */
+        if (single_level) { for (long g = 0; g < ngens; g++) newrows[k++] = g; }
+        else { for (long i = 0; i < rank_; i++) if (row_new_[i]) newrows[k++] = i; }
+        /* copy the rows' masks out first, since B_ is replaced batch by batch */
         u64 **nm = malloc(sizeof(u64 *) * (n_new ? n_new : 1));
         long *nc = malloc(sizeof(long) * (n_new ? n_new : 1));
         for (long a = 0; a < n_new; a++) {
-            long cnt = row_masks(B_, newrows[a], rbuf);
+            long cnt;
+            if (single_level) {
+                cnt = gen_ptr[newrows[a] + 1] - gen_ptr[newrows[a]];
+                memcpy(rbuf, gen_masks + gen_ptr[newrows[a]], sizeof(u64) * cnt);
+            } else {
+                cnt = row_masks(B_, newrows[a], rbuf);
+            }
             nm[a] = malloc(sizeof(u64) * (cnt ? cnt : 1));
             memcpy(nm[a], rbuf, sizeof(u64) * cnt);
             nc[a] = cnt;
@@ -280,7 +309,7 @@ int closure_run(int N, int D, long ngens, const long *gen_ptr, const u64 *gen_ma
         /* stream products in batches */
         int found_one = 0;
         long a = 0; int md = 1; long mi = 0;
-        int dg_a = (n_new > 0) ? popc(nm[0][0]) : 0; /* leading mask is first (largest) */
+        int dg_a = (n_new > 0) ? poly_deg(nm[0], nc[0]) : 0;
         while (a < n_new) {
             long batch = batch_max;
             if (batch > n_prod) batch = n_prod;
@@ -288,7 +317,7 @@ int closure_run(int N, int D, long ngens, const long *gen_ptr, const u64 *gen_ma
             for (long i = 0; i < rank_; i++) mzd_copy_row(S, (rci_t)i, B_, (rci_t)i);
             long filled = 0;
             while (a < n_new && filled < batch) {
-                if (md > D - dg_a) { a++; md = 1; mi = 0; if (a < n_new) dg_a = popc(nm[a][0]); continue; }
+                if (md > D - dg_a) { a++; md = 1; mi = 0; if (a < n_new) dg_a = poly_deg(nm[a], nc[a]); continue; }
                 if (mi >= mult_cnt[md]) { md++; mi = 0; continue; }
                 write_product(S, rank_ + filled, nm[a], nc[a], mult[md][mi], tmp);
                 filled++; mi++;
