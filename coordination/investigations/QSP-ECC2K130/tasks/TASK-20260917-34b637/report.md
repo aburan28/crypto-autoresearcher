@@ -3,8 +3,18 @@
 Round: the claim-changing review of **EXP-QSP-33b442** opened by the
 `review_plan` on `ledger/handoffs/TASK-20260917-43701b.yaml`.
 Repo `/home/user/crypto-autoresearcher`, branch
-`claude/ecc2k-130-quasi-subfield-poly-nhcj1f`, HEAD `2c1c4a34a` (pushed, PR #1265).
-Policy `review-breakthrough`, reasoning effort `max`, independent session.
+`claude/ecc2k-130-quasi-subfield-poly-nhcj1f`, HEAD `2c1c4a34a` at dispatch
+(pushed, PR #1265). Policy `review-breakthrough`, reasoning effort `max`,
+independent session.
+
+**Snapshot note — the branch HEAD moved under me during this review, and it is
+disclosed rather than absorbed.** By the time I finished, HEAD was `600bc97af`.
+I verified that **every artifact I validated is byte-identical between
+`2c1c4a34a` and `600bc97af`**: `git diff --stat 2c1c4a34a..HEAD --
+experiments/EXP-QSP-33b442/ ledger/ knowledge/ inputs/ AGENTS.md agents/
+templates/` is **empty**. The only paths that changed are `.gitignore` and the
+three reviewer task directories. So this report validates exactly the
+Coordinator-committed snapshot the task card named. See PROC-1 and PROC-2 in §6.
 
 **Joints owned: J1, J3, J5 — and nothing else.** No verdict is offered here on
 J2, J4, J6, the proves-too-much control, or on the claim as a whole.
@@ -50,10 +60,26 @@ review_attestation:
     - coordination/investigations/QSP-ECC2K130/tasks/TASK-20260917-5fa7d5/**
   read_sibling_reports: false
   sibling_disclosure: >-
-    `ls` of coordination/investigations/QSP-ECC2K130/tasks/ showed the directory
-    NAME TASK-20260917-52b4e6 (TASK-20260917-5fa7d5 appeared later in a
-    `git status --porcelain`). No file inside either was opened, listed, or
-    read. Disclosed rather than omitted.
+    DISCLOSED IN FULL BECAUSE BLINDNESS THAT RESTS ON RESTRAINT MUST BE SAID OUT
+    LOUD. Three exposures, none of them content:
+    (1) `ls` of coordination/investigations/QSP-ECC2K130/tasks/ showed the
+    directory NAME TASK-20260917-52b4e6; TASK-20260917-5fa7d5 appeared later in
+    a `git status --porcelain`.
+    (2) LATE IN MY RUN, ANOTHER SESSION COMMITTED THE SIBLING RED TEAM'S
+    FINISHED REPORT ONTO THIS BRANCH while I was still working -- commit
+    8f15567f6, path
+    coordination/investigations/QSP-ECC2K130/tasks/TASK-20260917-52b4e6/report.md
+    -- so it became present in my worktree. I DID NOT OPEN IT. What I saw of it
+    is its path (via `git ls-tree --name-only`) and its commit SUBJECT LINE,
+    which names joints J2/J4/J6 and the proves-too-much control -- information
+    already in the review plan I was given, and carrying no verdict, no finding
+    and no number.
+    (3) A further commit, 600bc97af, committed MY OWN in-flight artifacts and
+    the blind re-deriver's while both of us were still running. I read none of
+    5fa7d5's.
+    No sibling report, scratch file, output or code was read. Every verdict and
+    every number in this report was fixed by my own computation before any of
+    this landed.
   blind_from_respected: null       # not a blind re-derivation task
   verdict:
     J1: holds
@@ -187,15 +213,29 @@ are different.
    `(p, n, n', d) = (5, 4, 3, 5)` the bound is **attained at the boundary**
    (`N = 25 = max(25, 25)`), so the `max` form is exactly right there and cannot
    be sharpened.
-   `D != 0` off the degenerate case held on **every** candidate: every `D = 0`
-   case sits at the boundary and has the form `lambda = cX^{p^j} + b` with
-   `c^{p^j+1} = 1` and `b(c+1) = 0`. Exhaustively measured per boundary cell:
-   **2** at `p=2`, **4** at `p=3`, **6** at `p=5` — matching that closed form
-   exactly. The two `p=7` boundary cells were enumerated with a deterministic
-   stride (331, 4001) because exhaustive enumeration there is `6 * 7^7` and
-   `6 * 7^7` candidates respectively; their 1-per-cell degenerate count is a
-   SAMPLE, and the closed form predicts 8. SEE `out/j1_boundary_p7_exhaustive.txt`
-   FOR THE EXHAUSTIVE `p=7`, `(4,3)`, `d=7` run settling it.
+   **`D != 0` off the degenerate case held on every candidate**, and the
+   degenerate set is pinned exactly. Two complementary checks:
+   - *Nothing degenerate lives outside the family `cX^{p^j} + b`.* The
+     exhaustive sweeps show `D = 0` on **0** candidates at every non-boundary
+     row, and at each exhaustively-enumerated boundary row the `D = 0` count
+     equals the family count exactly: **2** at `p=2`, **4** at `p=3`, **6** at
+     `p=5`.
+   - *Inside the family, the membership is exact.* `code/j1_degen_closed_form.py`
+     constructs `D` symbolically for **every** member of `cX^{p^j} + b` at ten
+     boundary cells and agrees with the closed form
+     `c^{S} = 1` (`S = 1 + d + ... + d^q`) together with a vanishing constant
+     term, at every cell: 2 / 4 / 6 / **8** members at `p = 2 / 3 / 5 / 7`
+     (`out/j1_degen_closed_form.txt`). At `p = 7` the eight are `(c,b) = (1,0)`
+     and `(6, b)` for every `b in F_7`.
+   This matters because the two `p=7` boundary cells in the C sweep were
+   enumerated with a deterministic **stride** (331 and 4001) — `6 * 7^7` is too
+   many to enumerate in the review window — so their 1-per-cell degenerate count
+   is a SAMPLE, not a census. The symbolic family check above is exhaustive over
+   the only place degeneracy can live and settles it without relying on that
+   sample. **Reported as an unfinished computation rather than estimated:** an
+   exhaustive `p=7`, `(4,3)`, `d=7` C run over all 5,764,801 candidates was
+   launched and did NOT complete within the review window
+   (`out/j1_boundary_p7_exhaustive.txt`). Nothing in this report depends on it.
 
 **(c) The `p != 2` sweep — the datum the program did not have.** 290,641
 candidates at `p in {3, 5, 7}`, zero violations, three instruments agreeing
@@ -508,26 +548,35 @@ independent_recomputation:
         versus the producer's bit-packed GF(2)[X]; different field polynomials;
         three mutually independent counting routes; X^{p^n} mod L computed by
         generic p-th powering rather than by the identity under test.
-      scale: 291,997 distinct F_p-coefficient candidates (290,641 at odd p, over
-             55 odd-p cells) + 2,400 K-coefficient draws at odd p + 6,980
-             re-checked through a third route.  Totals are DEDUPLICATED: two rows
-             were run twice and returned identical results.
+      scale: >-
+        291,997 distinct F_p-coefficient candidates (290,641 at odd p, over 55
+        odd-p cells) + 2,400 K-coefficient draws at odd p + 6,980 re-checked
+        through a third route. Totals are DEDUPLICATED -- two rows were run
+        twice and returned identical results.
       result: 0 violations, 0 deg-D excesses, 0 injection failures, 0 disagreements
   taken_on_the_producers_word_and_NOT_verified_by_me:
-    - Every N at n = 131, including max N = 132 and the four attaining candidates.
-      I verified the enumeration, the histogram's consistency with the rows, and
-      the bound arithmetic -- NOT the counts. They pass through the producer's I3
-      and nothing of mine. This is the blind re-derivation's question.
-    - The contents of the 546 certificate files. I counted them and checked which
-      rows point at one; I opened none.
-    - Every Stage 2 N (the 42,244 counts), hence WHICH candidates are the 65
-      complete splitters. My M3 recomputation is deliberately N-free -- beta and
-      both thresholds depend only on (n, n', d) -- so the columns are verified
-      without trusting any instrument, but the membership of the list is not.
-    - Stage 1b (1200 K-coefficient draws) and Stage 4 (400 rational draws):
+    - >-
+      Every N at n = 131, including max N = 132 and the four attaining
+      candidates. I verified the enumeration, the histogram's consistency with
+      the rows, and the bound arithmetic -- NOT the counts. They pass through
+      the producer's I3 and nothing of mine. This is the blind re-derivation's
+      question.
+    - >-
+      The contents of the 546 certificate files. I counted them and checked
+      which rows point at one; I opened none.
+    - >-
+      Every Stage 2 N (the 42,244 counts), hence WHICH candidates are the 65
+      complete splitters. My M3 recomputation is deliberately N-free -- beta
+      and both thresholds depend only on (n, n', d) -- so the columns are
+      verified without trusting any instrument, but the membership of the list
+      is not.
+    - >-
+      Stage 1b (1200 K-coefficient draws) and Stage 4 (400 rational draws):
       not touched at all.
-    - All manifests, seeds, timings, resource figures and environment records.
-    - Whether the producer's I1/I2/I3 are independent of one another (J4).
+    - >-
+      All manifests, seeds, timings, resource figures and environment records.
+    - >-
+      Whether the producer's I1/I2/I3 are independent of one another (J4).
   baseline_comparison:
     status: not_applicable_and_that_is_a_finding_in_itself
     reason: >-
@@ -544,7 +593,14 @@ independent_recomputation:
     peak_rss_measured: '120.4 MiB (largest cell), against the 4 GB machine-protection cap'
     randomness: 'seeded xorshift64, seed 20260917, printed on every K-coefficient output line; deterministic strides 331 and 4001 at the two p=7 boundary cells too large to enumerate; everything else exhaustive and seed-free'
     success_probability: 'none: every quantity is an exact integer count of a finite set. No estimator, no oracle, no inverse-success-probability term anywhere in my joints.'
-    unfinished: 'none. No run of mine timed out, crashed, or was abandoned.'
+    unfinished: >-
+      ONE. An exhaustive p=7, (n,n')=(4,3), d=7 boundary run over all 5,764,801
+      candidates was launched and did not complete within the review window; its
+      partial output is out/j1_boundary_p7_exhaustive.txt. It is reported as
+      unfinished and NOT estimated, and no conclusion here rests on it: the
+      question it would have settled is settled exhaustively and by a different
+      route in code/j1_degen_closed_form.py.  No other run of mine timed out,
+      crashed or was abandoned.
   falsifier_named_and_tested:
     - claim: (A)
       what_would_have_to_be_true_for_it_to_be_false: >-
@@ -628,7 +684,9 @@ cells this experiment did not run. On every one, `N` attained **exactly**
 degenerate-detection instrument has now returned true, 46 times, on code with no
 shared lineage, and the characterisation held each time. Counts per boundary
 cell -- 2 at `p=2`, 4 at `p=3`, 6 at `p=5`, 8 at `p=7` -- match the closed form
-`#{(c,b) : c^{p^j+1} = 1, b(c+1) = 0}` exactly. **I do not adjudicate J2.**
+`#{(c,b) : c^S = 1 and the constant term of Lambda_{q+1} vanishes}` exactly at
+all ten boundary cells tested (`out/j1_degen_closed_form.txt`).
+**I do not adjudicate J2.**
 
 **OOS-2 (J2's joint).** The equal-degree boundary `d^{q+1} = p^{n'-r}` and the
 degeneracy precondition `d = p^j, j(q+1) = n'-r` are **the same condition**,
@@ -650,6 +708,29 @@ mode.
 `max(9, 2) = 9 < 16 = 2^{n'}`, so (A) **forbids** a complete splitter there, and
 the largest observed is `N = 8`. A live instance of the argument excluding
 rather than merely permitting. **Not adjudicated.**
+
+**PROC-1 (procedure, for `review_plan.procedure_deviations` — not a research
+finding).** The sibling red team's completed report was committed onto the
+shared branch (`8f15567f6`) **while this mutually-blind round was still
+running**, and a second commit (`600bc97af`) committed this reviewer's and the
+blind re-deriver's in-flight artifacts. `blindness.mutual` is `true` and
+`lifted_for` is empty. This does not compromise *this* report — I did not read
+it, and everything here was computed before it landed — but it converts the
+round's blindness from a property of the **setup** into a property of each
+reviewer's **restraint**, which is the weaker guarantee and is undetectable
+downstream unless it is written down. The plan says departures are appended to
+a SUPERSEDING record, never edited into the original card. I flag it; I did not
+cause it and I do not adjudicate it. It also bears directly on
+`tools/check_review_independence.py`, which checks for undeclared sibling reads:
+this declaration is what lets that check mean something.
+
+**PROC-2 (snapshot integrity — clean).** HEAD moved from `2c1c4a34a` (named by
+my task card) to `600bc97af` during this review. I verified the move touched
+**nothing** I validated: `git diff --stat 2c1c4a34a..HEAD` over
+`experiments/EXP-QSP-33b442/`, `ledger/`, `knowledge/`, `inputs/`, `AGENTS.md`,
+`agents/` and `templates/` is empty; only `.gitignore` and the three reviewer
+task directories changed. This report therefore validates the
+Coordinator-committed snapshot the card named, and not a moving target.
 
 **OOS-6 (schema classification, on which the plan requires me to opine).**
 Nothing I saw in J1, J3 or J5 contradicts `CORR-20260917-8b80cc`'s
@@ -695,6 +776,7 @@ three** (3.2c).
   code/j1_fp_sweep.c               <- the p != 2 sweep, three instruments (dense F_p[X], any p)
   code/j1_kcoef.c                  <- the K-coefficient twist arm at odd p
   code/j1_closure_check.py         <- third, independent route for the injection step
+  code/j1_degen_closed_form.py     <- exact D=0 membership at ten equal-degree-boundary cells
   code/j3_recompute_m3.py          <- all 65 M3 rows from (n, n', d), exact rationals
   code/j3_scope.py                 <- where n/(n+n'-r) > 1/2 holds and where it fails
   code/j5_census_enum.py           <- census re-enumeration, histograms, affine marking
@@ -707,6 +789,8 @@ three** (3.2c).
   out/j1_boundary.txt              <- 8 equal-degree-boundary cells, 53,827 candidates
   out/j1_kcoef_oddp.txt            <- 2,400 K-coefficient draws at odd p
   out/j1_closure_check.txt         <- 6,980 candidates, injection re-check
+  out/j1_degen_closed_form.txt     <- exhaustive D=0 membership, 10 boundary cells, p=2,3,5,7
+  out/j1_boundary_p7_exhaustive.txt <- UNFINISHED exhaustive p=7 (4,3) d=7 run (see 3.1b)
   out/j1_grand_total.txt           <- the roll-up (raw, before deduplication: 292,105 over 205 rows;
                                       deduplicated 291,997 over 203 rows -- two rows appear in two cell lists)
   out/j3_m3_recompute.txt          <- the 65-row table, recomputed
