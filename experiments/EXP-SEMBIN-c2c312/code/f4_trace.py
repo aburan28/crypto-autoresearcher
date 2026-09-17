@@ -106,6 +106,65 @@ def read_d_f4(rounds: list, input_max_degree: int | None):
     return d_sem, d_lpr, d_naive, tail
 
 
+def gb_quotient_dimension(gb_path: Path, var_names, cap: int = 200000):
+    """|V(I)| from msolve's reduced Groebner basis file: the field equations are
+    in the ideal, so the quotient's monomial basis is the set of squarefree
+    monomials not divisible by any squarefree leading monomial of the basis
+    (leading monomials with a square divide no squarefree monomial). msolve
+    prints each polynomial with its leading term first (DRL). Returns
+    (count, note); count is None if the basis cannot be read, cap+1 if the
+    count exceeds cap, 0 for the unit ideal."""
+    try:
+        txt = Path(gb_path).read_text()
+    except OSError as exc:
+        return None, f"unreadable: {exc}"
+    body = txt[txt.index("["):] if "[" in txt else ""
+    body = body.strip().lstrip("[").rstrip(":").rstrip("]")
+    polys = [p.strip() for p in body.split(",\n")] if body else []
+    if not polys:
+        return None, "no basis in file"
+    idx = {v: i for i, v in enumerate(var_names)}
+    lms = []
+    for p in polys:
+        p = p.strip()
+        if p == "1":
+            return 0, "unit ideal"
+        lead = p.split("+")[0].strip()
+        mask, square = 0, False
+        for factor in lead.split("*"):
+            factor = factor.strip()
+            if factor.isdigit():
+                continue
+            name, _, exp = factor.partition("^")
+            if name not in idx:
+                return None, f"unknown variable {name}"
+            if exp and int(exp) >= 2:
+                square = True
+            mask |= 1 << idx[name]
+        if not square:
+            lms.append(mask)
+    if 0 in lms:
+        return 0, "unit ideal"
+    N = len(var_names)
+    by_hb = {}
+    for l in lms:
+        by_hb.setdefault(l.bit_length() - 1, []).append(l)
+    count = 1
+    queue = [0]
+    while queue:
+        m = queue.pop()
+        start = m.bit_length()
+        for j in range(start, N):
+            m2 = m | (1 << j)
+            if any((l & ~m2) == 0 for l in by_hb.get(j, ())):
+                continue
+            count += 1
+            if count > cap:
+                return cap + 1, f"exceeds cap {cap}"
+            queue.append(m2)
+    return count, f"standard squarefree monomials of {len(lms)} squarefree leading terms"
+
+
 def run_msolve(ms_path: Path, out_path: Path, wall_cap_s: float, mem_cap_gb: float,
                threads: int = 1, input_max_degree: int | None = None) -> dict:
     # -u 1: regenerate the basis hash table after every F4 step.  Without it
@@ -153,6 +212,7 @@ def run_msolve(ms_path: Path, out_path: Path, wall_cap_s: float, mem_cap_gb: flo
     quotient_dim = int(quot.group(1)) if quot else None
     basis_len = None
     basis_is_unit = None
+    quotient_source = "msolve 'Dimension of quotient' line"
     if out_path.exists():
         txt = out_path.read_text()
         mb = BASIS_RE.search(txt)
@@ -160,6 +220,12 @@ def run_msolve(ms_path: Path, out_path: Path, wall_cap_s: float, mem_cap_gb: flo
         basis_is_unit = ("[1]:" in txt) and (basis_len == 1)
         if basis_is_unit:
             quotient_dim = 0
+        elif quotient_dim is None and status == "completed" and basis_len:
+            names = ms_path.read_text().splitlines()[0].split(",")
+            qd, note = gb_quotient_dimension(out_path, names)
+            if qd is not None and qd <= 200000:
+                quotient_dim = qd
+                quotient_source = f"reduced basis file: {note}"
     d_semaev, d_lpr, d_naive, tail = read_d_f4(rounds, input_max_degree)
     return {
         "engine": "msolve", "engine_version": msolve_version(), "command": " ".join(cmd),
@@ -173,6 +239,7 @@ def run_msolve(ms_path: Path, out_path: Path, wall_cap_s: float, mem_cap_gb: flo
         "d_F4_partial_max_deg_seen": d_naive,
         "f4_empty_step_degrees": tail if status == "completed" else None,
         "quotient_dimension": quotient_dim if status == "completed" else None,
+        "quotient_dimension_source": quotient_source if (status == "completed" and quotient_dim is not None) else None,
         "basis_length": basis_len, "ideal_is_unit": basis_is_unit,
         "stdout_sha256": hashlib.sha256(stdout.encode()).hexdigest(),
         "stdout": stdout, "stderr": stderr[-4000:],
