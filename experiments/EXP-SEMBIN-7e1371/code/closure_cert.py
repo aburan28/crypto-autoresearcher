@@ -53,6 +53,8 @@ _lib.closure_ncols.restype = ctypes.c_long
 _lib.closure_lm_dump.argtypes = [ctypes.c_void_p]
 _lib.closure_count_deg.restype = ctypes.c_long
 _lib.closure_count_deg.argtypes = [ctypes.c_int]
+_lib.closure_dropped_terms.restype = ctypes.c_longlong
+_lib.closure_reset_dropped.restype = None
 _lib.closure_row_masks.restype = ctypes.c_long
 _lib.closure_row_masks.argtypes = [ctypes.c_long, ctypes.c_void_p]
 _lib.closure_standard_count.restype = ctypes.c_long
@@ -91,6 +93,7 @@ def _csr(equations):
 
 
 def _run(N, D, equations, max_iter, mem_cap_gb):
+    _lib.closure_reset_dropped()
     ptr, masks = _csr(equations)
     n_it = max_iter + 2
     iter_rows = array("q", [0] * n_it)
@@ -117,7 +120,14 @@ def _run(N, D, equations, max_iter, mem_cap_gb):
                 "new_pivots": iter_new[i], "wall_s": iter_wall[i]} for i in range(k)]
     return {"rc": rc, "ncols": ncols.value, "rank": rank.value, "contains_one": bool(one.value),
             "iterations": profile, "max_rows_seen": maxrows.value, "wall_s": wall,
-            "status": "completed" if rc == 0 else ("unreached_memory_cap" if rc == 1 else "error")}
+            "status": "completed" if rc == 0 else ("unreached_memory_cap" if rc == 1 else "error"),
+            # Product terms whose degree exceeded D and were dropped by the column
+            # lookup. A row written after a drop is a TRUNCATION of mu * g, not
+            # mu * g, so it need not lie in the ideal and the row space can exceed
+            # the true degree-D slice -- which makes 1 appear spuriously and biases
+            # the verdict toward sufficiency. MUST be 0 for a verdict to mean
+            # anything; recorded per instance so no future run can hide it.
+            "dropped_terms_above_D": int(_lib.closure_dropped_terms())}
 
 
 def _lm_stats(D):

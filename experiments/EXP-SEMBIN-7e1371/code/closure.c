@@ -158,6 +158,15 @@ static long first_col(const mzd_t *M, long i) {
 }
 
 /* write product (mu * row given as masks) into row r of M, cancelling mod 2 */
+/* DIAGNOSTIC: counts product terms whose degree exceeded D and were therefore
+ * dropped by the col_of2 lookup below. A nonzero count means the row written is
+ * a TRUNCATION of mu * g rather than mu * g itself, which is not an element of
+ * the ideal -- so the row space can exceed the true degree-D slice and 1 can
+ * appear spuriously. Purely observational; behaviour is unchanged. */
+static long long dropped_terms_ = 0;
+long long closure_dropped_terms(void) { return dropped_terms_; }
+void closure_reset_dropped(void) { dropped_terms_ = 0; }
+
 static void write_product(mzd_t *M, long r, const u64 *masks, long cnt, u64 mu, u64 *tmp) {
     for (long i = 0; i < cnt; i++) tmp[i] = masks[i] | mu;
     qsort(tmp, cnt, sizeof(u64), cmp_u64);
@@ -168,6 +177,7 @@ static void write_product(mzd_t *M, long r, const u64 *masks, long cnt, u64 mu, 
         if ((j - i) & 1) {
             long c = col_of2(tmp[i]);
             if (c >= 0) mzd_write_bit(M, (rci_t)r, (rci_t)c, 1);
+            else dropped_terms_++;
         }
         i = j;
     }
