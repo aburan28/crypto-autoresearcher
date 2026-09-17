@@ -15,6 +15,24 @@ from pathlib import Path
 from f4_trace import read_d_f4  # noqa: E402
 
 
+def fill_quotient(r, results_path):
+    """Records written before f4_trace read the quotient dimension off the basis
+    file: recover it the same way from instances/<id>.gb next to the results."""
+    if r.get("instrument") != "f4_trace_msolve" or r.get("status") != "completed" or r.get("quotient_dimension") is not None:
+        return r
+    inst = Path(results_path).parent / "instances"
+    gb = inst / f"{r['instance_id']}.gb"
+    ms = inst / f"{r['instance_id']}.ms"
+    if gb.exists() and ms.exists():
+        from f4_trace import gb_quotient_dimension
+        names = ms.read_text().splitlines()[0].split(",")
+        qd, note = gb_quotient_dimension(gb, names)
+        if qd is not None and qd <= 200000:
+            r["quotient_dimension"] = qd
+            r["quotient_dimension_source"] = f"reduced basis file (re-read): {note}"
+    return r
+
+
 def reread(r):
     """Re-derive the d_F4 readings from the stored raw rounds with the
     input-degree floor (records written before the floor existed carry
@@ -78,7 +96,7 @@ def load(paths):
         paths = [paths]
     recs = []
     for path in paths:
-        recs.extend(reread(json.loads(l)) for l in open(path) if l.strip())
+        recs.extend(fill_quotient(reread(json.loads(l)), path) for l in open(path) if l.strip())
     by_inst = defaultdict(dict)
     dups = 0
     for r in recs:
