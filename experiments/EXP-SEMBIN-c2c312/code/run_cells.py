@@ -187,6 +187,9 @@ def main():
     ap.add_argument("--resume-from", default="",
                     help="comma list of other workers' results.jsonl files whose records also count for resume "
                          "(the heavy pass reads the workers' files to find the unreached F4 traces)")
+    ap.add_argument("--closure-only-missing", action="store_true",
+                    help="heavy-pass mode: run ONLY the closure instrument, and only for instances that have no "
+                         "closure record with a decided closure_D in the resume files")
     ap.add_argument("--remeasure-unreached", action="store_true",
                     help="heavy-pass mode: for instances whose F4 trace exists but did not complete, run ONLY the F4 "
                          "trace again (under this process's caps); instances with a completed F4 are skipped")
@@ -259,6 +262,7 @@ def main():
     done_f4 = set()          # instances not to touch again
     unreached_f4 = set()     # instances whose F4 trace exists but did not complete
     seen_single = set()
+    seen_closure_decided = set()
     seen_f4_status = {}
     seen_ids = set()
     resume_files = [out / "results.jsonl"] + [Path(p) for p in filter(None, args.resume_from.split(","))]
@@ -273,6 +277,8 @@ def main():
             seen_ids.add(r.get("instance_id"))
             if r.get("instrument") == "macaulay_single_level_DREG":
                 seen_single.add(r["instance_id"])
+            if r.get("instrument") == "closure_certificate" and r.get("closure_D") is not None:
+                seen_closure_decided.add(r["instance_id"])
             if r.get("instrument") == "f4_trace_msolve":
                 st = r.get("status")
                 prev = seen_f4_status.get(r["instance_id"])
@@ -298,7 +304,10 @@ def main():
                 for draw in range(args.draws):
                     seed = SEEDS[draw % len(SEEDS)]
                     iid = instance_id(n, m, t, k, subspace, B_mode, seed, draw)
-                    if iid in done_f4:
+                    if args.closure_only_missing:
+                        if iid in seen_closure_decided or draw >= (args.closure_draws or 10**9):
+                            continue
+                    elif iid in done_f4:
                         continue  # resume
                     if args.remeasure_unreached and iid not in unreached_f4:
                         continue  # heavy pass touches only instances whose F4 did not complete
@@ -310,7 +319,10 @@ def main():
                     want_cl = (not args.no_closure) and (args.closure_draws is None or draw < args.closure_draws)
                     skip_reason = (f"F4 trace deferred to the serialized heavy pass: N = {sysd['N']} exceeds the "
                                    f"two-worker {args.mem_cap} GB msolve budget (declared by --f4-skip-cells)") if (n, m, t, k) in f4_skip else None
-                    if args.remeasure_unreached:
+                    if args.closure_only_missing:
+                        recs, sha = measure(sysd, iid, out, args, logf, want_closure=True, want_single=False,
+                                            skip_f4_reason="closure-only heavy pass: F4 trace not attempted here")
+                    elif args.remeasure_unreached:
                         want_cl, skip_reason = False, None
                         recs, sha = measure(sysd, iid, out, args, logf, want_closure=False, want_single=False, skip_f4_reason=None)
                     else:
@@ -319,6 +331,8 @@ def main():
                         r["group"] = group
                         r["structure"] = sysd["structure"]
                     emit(recs)
+                    if args.remeasure_unreached:
+                        continue  # heavy pass re-runs F4 traces only; the workers already ran the controls
                     # instrument identity + matched null on the first instance of each reproduction cell
                     if args.controls == "all" and group == "reproduction" and (n, m, t, k) not in identity_done and draw == 0 and iid not in done_repeat:
                         identity_done.add((n, m, t, k))
