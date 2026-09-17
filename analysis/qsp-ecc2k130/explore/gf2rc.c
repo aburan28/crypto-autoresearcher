@@ -4,6 +4,7 @@
  * Output lines:          n np lam_hex count
  * Word-level GF(2)[X] arithmetic; polynomials up to 2^np <= 2^22 bits.
  * Written for analysis/qsp-ecc2k130/explore (2026-09-17); no dependencies.  */
+#define _POSIX_C_SOURCE 200809L   /* getline */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -83,10 +84,13 @@ static int gcd_degree(u64 *L, u64 *a, int nwL) {
 }
 int main(void) {
     init_spread();
-    char line[1 << 16];
-    while (fgets(line, sizeof line, stdin)) {
-        int n, np; char hex[1 << 15];
-        if (sscanf(line, "%d %d %s", &n, &np, hex) != 3) continue;
+    char *line = NULL; size_t cap = 0;
+    while (getline(&line, &cap, stdin) > 0) {
+        int n, np, off = 0;
+        if (sscanf(line, "%d %d %n", &n, &np, &off) != 2 || off == 0) continue;
+        char *hex = line + off;           /* lam_hex may be up to 2^22 / 4 digits: never a fixed buffer */
+        hex[strcspn(hex, " \t\r\n")] = 0;
+        if (!*hex) continue;
         long np2 = 1L << np;
         int nw = np2 / 64 + 1;
         /* parse lam */
@@ -117,5 +121,6 @@ int main(void) {
         fflush(stdout);
         free(x); free(tmp); free(L);
     }
+    free(line);
     return 0;
 }

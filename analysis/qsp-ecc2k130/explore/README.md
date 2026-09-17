@@ -31,19 +31,19 @@ every root `x in F_{2^n}` satisfies `y := x^{2^r}` with
 | Stage 3 as written | **cannot be run as designed**: at n' = 11 and 12 the injection polynomial has degree d^12 and d^11, far above deg L, so the bound is vacuous there and there is nothing to compare. What was done instead: the two brute instruments (Python gcd, C gcd) agree on a subset at n' in {11, 12}; and at n' = 22 (q = 5, H of degree 729 at d = 3) the injection count equals the C brute count at degree 2^22 (111 s per candidate) on two candidates. |
 
 Census at n = 131, every non-linearized `lambda in F_2[X]` of degree 3..7
-(240 candidates per n'), exact `N_K(L)` by the injection method with the
+(244 candidates per n'; affine degree-4 lambda included since the 2026-09-17 fix below), exact `N_K(L)` by the injection method with the
 per-orbit closing test:
 
 | n' | q | r | max N | bound d^{q+1} at d = 7 | needed for the table row | histogram of N |
 |---|---|---|---|---|---|---|
-| 33 | 3 | 32 | **132** | 2401 | 2^32 | 0: 60, 1: 116, 2: 60, 132: 4 |
-| 44 | 2 | 43 | 2 | 343 | 2^43 | 0: 60, 1: 120, 2: 60 |
-| 66 | 1 | 65 | 2 | 49 | 2^65 | 0: 60, 1: 120, 2: 60 |
+| 33 | 3 | 32 | **132** | 2401 | 2^32 | 0: 62, 1: 118, 2: 60, 132: 4 |
+| 44 | 2 | 43 | 2 | 343 | 2^43 | 0: 62, 1: 122, 2: 60 |
+| 66 | 1 | 65 | 2 | 49 | 2^65 | 0: 62, 1: 122, 2: 60 |
 
 The four candidates with one full Frobenius orbit at n' = 33 are all of
 degree 7: `X^7+X^2`, `X^7+X^5+1`, `X^7+X^6+X^3+X^2`, `X^7+X^6+X^5+X^4+X^3+X+1`
 (N = 131 + 1 each; slack 0, i.e. every root of H is a root of L there). Under
-the Poisson(1/131)-orbit null of the proposal's H1, 240 candidates give 1.8
+the Poisson(1/131)-orbit null of the proposal's H1, 244 candidates give 1.9
 expected orbits; observing 4 has probability about 0.1 and is not evidence of
 structure. At n' in {11, 12} (brute, degree 2^11 and 2^12): max N = 2.
 
@@ -124,21 +124,21 @@ roots), `bound` is the record's correspondence bound `d0^{q+1} + 2^{q+1} 2^{a-r}
 
 | n | a | q | r | d0 | candidates | max N | needed 2^a | bound | holds |
 |---|---|---|---|---|---|---|---|---|---|
-| 23 | 11 | 2 | 1 | 2 | 42 | 2 | 2048 | 8200 | yes |
-| 23 | 7 | 3 | 2 | 3 | 218 | 24 | 128 | 593 | yes |
-| 23 | 5 | 4 | 3 | 3 | 218 | 24 | 32 | 371 | yes |
-| 23 | 4 | 5 | 3 | 3 | 218 | 25 | 16 | 857 | yes |
-| 23 | 3 | 7 | 2 | 3 | 218 | 2 | 8 | 7073 | yes |
-| 29 | 14 | 2 | 1 | 2 | 42 | 2 | 16384 | 65544 | yes |
-| 29 | 9 | 3 | 2 | 2 | 42 | 2 | 512 | 2064 | yes |
-| 29 | 7 | 4 | 1 | 3 | 218 | 30 | 128 | 2291 | yes |
-| 29 | 5 | 5 | 4 | 3 | 218 | **58** | 32 | 857 | yes |
-| 29 | 4 | 7 | 1 | 3 | 218 | 30 | 16 | 8609 | yes |
-| 31 | 15 | 2 | 1 | 2 | 42 | 2 | 32768 | 131080 | yes |
-| 31 | 10 | 3 | 1 | 2 | 42 | 2 | 1024 | 8208 | yes |
-| 31 | 7 | 4 | 3 | 3 | 218 | **64** | 128 | 755 | yes |
-| 31 | 6 | 5 | 1 | 3 | 218 | 33 | 64 | 2777 | yes |
-| 31 | 5 | 6 | 1 | 3 | 218 | **64** | 32 | 4235 | yes |
+| 23 | 11 | 2 | 1 | 2 | 56 | 2 | 2048 | 8200 | yes |
+| 23 | 7 | 3 | 2 | 3 | 248 | 24 | 128 | 593 | yes |
+| 23 | 5 | 4 | 3 | 3 | 248 | 24 | 32 | 371 | yes |
+| 23 | 4 | 5 | 3 | 3 | 248 | 25 | 16 | 857 | yes |
+| 23 | 3 | 7 | 2 | 3 | 248 | 2 | 8 | 7073 | yes |
+| 29 | 14 | 2 | 1 | 2 | 56 | 2 | 16384 | 65544 | yes |
+| 29 | 9 | 3 | 2 | 2 | 56 | 2 | 512 | 2064 | yes |
+| 29 | 7 | 4 | 1 | 3 | 248 | 30 | 128 | 2291 | yes |
+| 29 | 5 | 5 | 4 | 3 | 248 | **58** | 32 | 857 | yes |
+| 29 | 4 | 7 | 1 | 3 | 248 | 30 | 16 | 8609 | yes |
+| 31 | 15 | 2 | 1 | 2 | 56 | 2 | 32768 | 131080 | yes |
+| 31 | 10 | 3 | 1 | 2 | 56 | 2 | 1024 | 8208 | yes |
+| 31 | 7 | 4 | 3 | 3 | 248 | **64** | 128 | 755 | yes |
+| 31 | 6 | 5 | 1 | 3 | 248 | 33 | 64 | 2777 | yes |
+| 31 | 5 | 6 | 1 | 3 | 248 | **64** | 32 | 4235 | yes |
 
 The three bold cells exceed the record's "controlled null" prediction of at
 most 2n + 2 (two Frobenius orbits): at n = 31, a = 5, d0 = 3 the candidate
@@ -185,3 +185,27 @@ priced here without an engine.
   binding question and needs an engine this container lacks. This is the
   one proposal of the four whose ECDLP relevance is not yet settled by
   arithmetic, and it should be the next `/design-experiment`.
+
+## Corrections 2026-09-17 (after the first merge of this note)
+
+- **Parser overflow in `gf2rc.c`, found and fixed by a Cursor agent
+  (commit `eedbc6e09`, restored by merge `e7bf63c6b` after a lease push had
+  overwritten it).** The helper read each input line into a 64 KiB buffer
+  and the hex string into a 32 KiB buffer; the a >= 18 cells of
+  `shape_census_131.py` produce lines of 65536+ hex digits, so the a = 18
+  cell committed in `2fa3b19e9` ("max N = 2, 218 candidates") was computed
+  on truncated inputs and is **invalid**. It is superseded by the rerun
+  below. Cells with a <= 16 (lines under 16400 digits) and every audit in
+  `explore.json` (largest input: the Type 2 fixture at n = 31, 33 digits;
+  the toy census at a = 15, 16386 digits) were unaffected.
+- The same commit made the toy census enumerate constant coefficients
+  c, e in {0, 1} (the first version enumerated only 0 at degree 0), and
+  stopped classifying affine polynomials as linearized. `explore.json` and
+  the tables above were regenerated: the n = 131 census has 244 candidates
+  per n' (affine degree-4 lambda now included; same maxima 132 / 2 / 2), the
+  toy census has 248 or 56 candidates per cell (same maxima and the same
+  three positive cells), the sweep is unchanged (356 rows, 65 complete,
+  0 violations).
+- The rerun of `shape_census_131.py` with the fixed parser reproduces
+  a = 11, 13, 14, 16 exactly (max N = 2, 2, 133, 131); a = 18 and a = 21
+  results are recorded in `shape_census_131.json` when complete.
