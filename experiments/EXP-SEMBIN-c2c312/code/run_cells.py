@@ -72,6 +72,11 @@ def instance_id(n, m, t, k, subspace, B_mode, seed, draw, family="sem"):
     return f"{family}_n{n}_m{m}_t{t}_k{k}_{subspace[:3]}_{B_mode[:5]}_s{seed}_d{draw}"
 
 
+def closure_D_of(recs):
+    """closure_D from the closure record if the instrument ran, else None (records are not positional)."""
+    return next((r["closure_D"] for r in recs if r["instrument"] == "closure_certificate"), None)
+
+
 def measure(system, iid, out_dir, args, logf, s_hint=None, want_closure=True, want_single=True):
     """Run all instruments on one system; return the list of result records."""
     inst_dir = out_dir / "instances"
@@ -188,7 +193,7 @@ def main():
         emit(recs)
         controls["known_false"] = {"system_sha256": sha,
                                    "f4_d_F4_semaev": recs[0]["d_F4_semaev"], "f4_d_F4_naive": recs[0]["d_F4_naive"],
-                                   "closure_D": recs[1]["closure_D"] if len(recs) > 1 else None,
+                                   "closure_D": closure_D_of(recs),
                                    "expected": 2}
         log(logf, f"control known_false: {controls['known_false']}")
 
@@ -249,9 +254,9 @@ def main():
                         controls.setdefault("matched_null", {})[iid] = {
                             "null_sha256": sha3,
                             "f4_d_F4_semaev": recs3[0]["d_F4_semaev"], "f4_status": recs3[0]["status"],
-                            "closure_D": recs3[1]["closure_D"] if len(recs3) > 1 else None,
+                            "closure_D": closure_D_of(recs3),
                             "structured_f4_d_F4_semaev": recs[0]["d_F4_semaev"],
-                            "structured_closure_D": recs[1]["closure_D"] if len(recs) > 1 else None}
+                            "structured_closure_D": closure_D_of(recs)}
                         log(logf, f"control matched_null {iid}: {controls['matched_null'][iid]}")
                     (out / "controls.json").write_text(json.dumps(controls, indent=2, sort_keys=True))
     (out / "controls.json").write_text(json.dumps(controls, indent=2, sort_keys=True))
