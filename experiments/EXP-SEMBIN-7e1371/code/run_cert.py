@@ -396,6 +396,12 @@ def main():
                             required.add("macaulay_single_level")
                         if not args.no_closure:
                             required.add("closure_certificate")
+                        # Mirrors measure()'s own condition for emitting the exact
+                        # counter: a resume that skips it never writes |V(I)|, and on
+                        # the m = t = 2 window F4 does not finish, so s_known would
+                        # stay empty and every degree-4 verdict would stay undetermined.
+                        if family == "chained_S3_eq5" or (t == 2 and family == "single_S_eq4"):
+                            required.add("exhaustive_solution_count")
                         if args.resume and required <= {i for (j, i) in done if j == iid}:
                             log(logf, f"{iid} skipped (resume)")
                             continue

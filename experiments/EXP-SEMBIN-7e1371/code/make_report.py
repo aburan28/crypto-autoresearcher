@@ -85,22 +85,29 @@ def main():
           f"{c['closure_standard_monomials']} | {c['closure_D_values']} |")
     w("")
 
-    w("Per decided instance, which is where the verdict actually lives:")
+    w("Per decided instance, which is where the verdict actually lives. A cell decided")
+    w("below degree 4 stops the closure loop there (sufficiency is monotone upward in D,")
+    w("so a decision at D <= 4 forces degree 4), and the rank/columns/standard-monomials")
+    w("shown are the block that was actually built -- the deciding D, not literally D=4.")
     w("")
-    w("| instance | \\|V(I)\\| | source | D=4 rank / columns | standard monomials | verdict | wall s |")
-    w("| --- | --- | --- | --- | --- | --- | --- |")
+    w("| instance | \\|V(I)\\| | source | decided D | rank / columns | standard monomials | verdict | wall s |")
+    w("| --- | --- | --- | --- | --- | --- | --- | --- |")
     rows = json.loads((run / "results-table.json").read_text())
     counts = {r["instance_id"]: r.get("solutions") for r in rows
               if r["instrument"] == "exhaustive_solution_count"}
     for r in sorted(rows, key=lambda r: (r.get("n") or 0, str(r.get("instance_id")))):
         if r["instrument"] != "closure_certificate" or r.get("m") != 2:
             continue
-        p4 = next((x for x in (r.get("per_D") or []) if x.get("D") == 4), None)
-        if not p4 or p4.get("status") != "completed":
+        verdict4 = r.get("degree4_sufficiency_verdict")
+        if verdict4 not in ("sufficient", "not_determined_at_D4"):
+            continue
+        decided_D = r.get("closure_D") if r.get("closure_D") is not None else 4
+        p = next((x for x in (r.get("per_D") or []) if x.get("D") == decided_D), None)
+        if not p or p.get("status") != "completed":
             continue
         w(f"| `{r['instance_id']}` | {counts.get(r['instance_id'])} | {r.get('solutions_source')} | "
-          f"{p4.get('rank')} / {p4.get('ncols')} | {p4.get('standard_monomials')} | "
-          f"**{p4.get('verdict')}** | {p4.get('wall_s', 0):.0f} |")
+          f"{decided_D} | {p.get('rank')} / {p.get('ncols')} | {p.get('standard_monomials')} | "
+          f"**{verdict4}** | {p.get('wall_s', 0):.0f} |")
     w("")
     w("## Off-diagonal k sweeps (the monotonicity probe)")
     w("")

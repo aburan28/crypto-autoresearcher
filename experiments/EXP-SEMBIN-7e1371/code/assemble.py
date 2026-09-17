@@ -41,6 +41,22 @@ def load(run: Path):
     return recs, workers
 
 
+def _record_ok(r):
+    """Whether a record represents a completed measurement, for dedupe purposes.
+
+    closure_certificate (and generator/count records) carry their own top-level
+    status/closure_D. macaulay_single_level does not: its per_D status lives
+    only inside per_D, so it must be checked there or a capped/partial first
+    worker's row can never be replaced by a later completed one.
+    """
+    if r.get("status") in ("completed", "not_applicable") or r.get("closure_D"):
+        return True
+    if r.get("instrument") == "macaulay_single_level":
+        return any(p.get("D") == 4 and p.get("status") in REACHED_STATUSES
+                   for p in r.get("per_D", []))
+    return False
+
+
 def dedupe(recs):
     """First record wins for a repeated (instance, instrument); a later record is
     kept only if the earlier one did not complete."""
@@ -52,9 +68,7 @@ def dedupe(recs):
             continue
         dups += 1
         prev = best[key]
-        prev_ok = prev.get("status") in ("completed", "not_applicable") or prev.get("closure_D")
-        now_ok = r.get("status") in ("completed", "not_applicable") or r.get("closure_D")
-        if now_ok and not prev_ok:
+        if _record_ok(r) and not _record_ok(prev):
             best[key] = r
     return list(best.values()), dups
 
