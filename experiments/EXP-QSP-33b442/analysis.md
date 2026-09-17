@@ -407,8 +407,14 @@ headline.** It reads "**732 certificate-bearing exact counts at n = 131**". The
 archive carries 732 exact counts of which **546** bear a certificate; 186 rows
 have N = 0 and `certificate_path: null`. The contract contradicts itself here:
 its own `required_artifacts` defines the Stage-3 certificates as "one file per
-n = 131 candidate **with N > 0**". The overstatement is **186 rows, 34 % of the
-claimed set, in the direction that flatters the claim**. `RUN-QSP-33b442-S5/report.md`
+n = 131 candidate **with N > 0**". The overstatement is **186 rows — 732 claimed
+against 546 that exist, i.e. 34 % more than exist (732/546 = 1.3407) — in the
+direction that flatters the claim**. Stated precisely, because this is the one
+sentence whose whole purpose is to correct an overstated count: the 186 surplus
+rows are **25 %** of the 732 claimed and **34 %** of the 546 actual, and an
+earlier draft of this passage read "186 rows, 34 % of the claimed set", which
+glued a correct count to a percentage of the other denominator.
+`RUN-QSP-33b442-S5/report.md`
 §7 restates it more sharply still as "732 exact, independently re-verified
 counts", which contradicts the execution report, its own M4 section and
 `raw-result.json`, all three of which say 546. "Independently re-verified" is a
@@ -474,8 +480,9 @@ round produces:
 
 4. **The prior under-priced J5 and mislocated it.** It expected an over-reading
    in a downstream sentence at 0.45. What was found is an arithmetic
-   overstatement of 186 (34 %) **in the frozen contract's own success-criterion
-   headline** — the exact sentence the round was convened to evaluate — and a
+   overstatement of 186 rows — 732 claimed against 546 actual, 34 % more than
+   exist — **in the frozen contract's own success-criterion
+   headline**, the exact sentence the round was convened to evaluate, and a
    sharper restatement of it in the Stage 5 report that contradicts three of the
    run's own records.
 
@@ -624,7 +631,8 @@ which for a non-existence claim is the conservative direction.
 
 ### 3.6 The empirical headline overstates what was measured, in two independent ways
 
-- **"732 certificate-bearing exact counts at n = 131" is wrong by 186 (34 %).**
+- **"732 certificate-bearing exact counts at n = 131" is wrong by 186 rows —
+  732 claimed against 546 actual, 34 % more than exist.**
   732 exact counts exist; 546 bear a certificate; the 186 with N = 0 are
   precisely the subset the certificate architecture cannot check at all. The
   correct sentence is "732 exact counts at n = 131, 546 of them

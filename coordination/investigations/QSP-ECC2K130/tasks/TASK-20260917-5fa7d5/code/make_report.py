@@ -517,5 +517,6 @@ for e in d['attaining']:
             w(f'{v}  {h}')
         w('```')
         w('')
-open('../report.md', 'w').write('\n'.join(L) + '\n')
+att = open('attestation.md').read().rstrip('\n')     # appended review_attestation block
+open('../report.md', 'w').write('\n'.join(L) + '\n' + att + '\n')
 print('wrote report.md:', sum(len(x) for x in L), 'chars')
