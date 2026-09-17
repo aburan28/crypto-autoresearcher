@@ -43,7 +43,9 @@ mkdir -p /home/user/crypto-autoresearcher/coordination/investigations/QSP-ECC2K1
 mkdir -p <task-dir>/code  <task-dir>/out
 cp <scratchpad>/work/{gf2poly,method,gfk,rederive,smallcheck,pipeline_smalltest,
    crosschecks,sympy_sweep,verify_roots,structure}.py  <task-dir>/code/
-cat > <task-dir>/code/{k8_check.py,emit_roots.py,make_report.py}   (heredoc writes)
+cat > <task-dir>/code/{k8_check.py,emit_roots.py,nullmodel.py,
+                        sympy_verify_structs.py,orbit_minpoly_check.py,compare_sympy.py,
+                        make_report.py}   (heredoc writes)
 sed -i "s#open('rederivation_results.json')#open('../out/rederivation_results.json')#" \
     <task-dir>/code/structure.py
 mv <task-dir>/code/rederivation_results.json <task-dir>/out/rederivation_results.json
@@ -55,7 +57,13 @@ cd <task-dir>/code && python3 smallcheck.py          > ../out/smallcheck.out
 cd <task-dir>/code && python3 pipeline_smalltest.py  > ../out/pipeline_smalltest.out
 cd <task-dir>/code && python3 crosschecks.py         > ../out/crosschecks.out
 cd <task-dir>/code && python3 k8_check.py            > ../out/k8_check.out
+cd <task-dir>/code && python3 nullmodel.py            > ../out/nullmodel.out
+cd <task-dir>/code && python3 orbit_minpoly_check.py  > ../out/orbit_minpoly_check.out
+cd <task-dir>/code && python3 sympy_verify_structs.py > ../out/sympy_verify_structs.out
 cd <task-dir>/code && python3 emit_roots.py          (writes ../out/roots_lambda_*.txt)
+cp <scratchpad>/work/sympy_chunk_*.{log,json} <task-dir>/out/   (independent sweep logs)
+cd <task-dir>/code && python3 compare_sympy.py       > ../out/compare_sympy.out
+rm -rf <task-dir>/code/__pycache__
 cd <task-dir>/code && python3 make_report.py         (writes ../report.md)
 ls <task-dir>/out ; head/tail/cat/wc of files under <task-dir>/out only
 ```
@@ -65,6 +73,30 @@ ran in the session scratchpad
 (`/tmp/claude-0/-home-user/e81a22d1-1f7c-510b-8f41-1135db3c12f0/scratchpad/work/`),
 which is outside the repository; its code and logs are copied into this directory.
 No other repository path was read, written, listed, or searched.
+
+### Standing conventions I deliberately did NOT follow, and why
+
+Two routine obligations were suspended by the stronger blindness requirement. I am
+recording them as deviations rather than performing them quietly or omitting them
+silently:
+
+1. **I did not check the agent-bus inbox.** CLAUDE.md asks every agent to run
+   `agent_bus.py inbox --as <addr>` on wake and before reporting done. Two bus records,
+   `coordination/bus/messages/MSG-20260917-97a8d4.yaml` and `MSG-20260916-945e58.yaml`,
+   are named in `blind_from`, and an inbox render addressed to a review role could
+   surface exactly those. Reading them would have destroyed the check irreversibly, and
+   a bus message is in any case "a pointer, never a permission" and never evidence
+   (AGENTS.md). If a peer sent me something I needed, I have not seen it.
+2. **I ran no git command and consulted no merge digest or branch state.** The base-
+   commit/branch-sync convention would have me fetch and inspect origin/main; `git log`,
+   `git show` and a merge digest all render other agents' work, and the card forbids
+   reaching the answer by that route. Nothing in this task depends on repository state:
+   the statement is the whole input and the computation is self-contained.
+
+Relatedly, the breakthrough-tier instruction to "read only the Coordinator-committed
+snapshot named by the task card" has no object here: a blind re-derivation is given a
+statement, not an artifact, and there is nothing committed for me to read that is not
+also something I must not read.
 
 ## 1. The quantity, restated in my own terms
 
@@ -274,13 +306,13 @@ the maximizers the root sets are literal translates (`out/structure.out`).
 (mod 131), so P8(X) = lambda^(8)(X) + X^4 is an equally valid superset polynomial.
 Recounting with k=8 (deg P8 = d^8) agrees with k=4 for every exact-degree-3 and -4
 polynomial and for degree-5 spot checks. This is the check that exercises the reduction
-itself at n=131 on *non-linearized* lambdas. Last line: `  OK  lambda=  33 X^5 + 1                            deg=5 linearized=False  N(k=4)=   0  N(k=8)=   0   [296.0s]`
+itself at n=131 on *non-linearized* lambdas. Last line: `CHECK C PASSED`
 
 **(e) A full independent re-implementation of the sweep** (`out/sympy_sweep_summary.txt`,
 `out/sympy_chunk_*.log`). `code/sympy_sweep.py` recomputes N for all 244 candidates using
 sympy's GF(2) polynomial arithmetic throughout — different representation (dense lists,
 highest degree first), different multiplication, division and gcd, sharing no code with
-my bit-packed implementation. Result: NOT FINISHED AT WRITE TIME -- see out/sympy_sweep_summary.txt
+my bit-packed implementation. Result: agrees on all 244 candidates (0 mismatches); independently reproduces max N = 132, argmax [132, 161, 204, 251], and histogram {0: 62, 1: 118, 2: 60, 132: 4}.
 
 **(f) Two disjoint root checkers**, described in section 6.
 
@@ -289,6 +321,13 @@ own `gf_irreducible_p` confirms z^131+z^13+z^2+z+1 is irreducible over F_2, and 
 `gf_factor` confirms that each G splits as (degree 1) x (irreducible of degree 131),
 both factors squarefree, product equal to G, and the degree-131 factors identical to the
 minimal polynomials I report in section 5.
+
+**(h) Roots tied back to the certificate** (`out/orbit_minpoly_check.out`). Multiplying
+out prod over the published 131-orbit of (X - x), in K, with sympy arithmetic, gives a
+polynomial whose coefficients all lie in F_2 and which equals the reported degree-131
+minimal polynomial exactly, for each of the four lambdas. So the explicit root list of
+item (5) and the compact certificate of item (4) are the same object, checked from the
+published vectors.
 
 ## 9. Null-model control (controls before belief)
 
