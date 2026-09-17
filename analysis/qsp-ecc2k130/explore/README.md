@@ -207,5 +207,17 @@ priced here without an engine.
   three positive cells), the sweep is unchanged (356 rows, 65 complete,
   0 violations).
 - The rerun of `shape_census_131.py` with the fixed parser reproduces
-  a = 11, 13, 14, 16 exactly (max N = 2, 2, 133, 131); a = 18 and a = 21
-  results are recorded in `shape_census_131.json` when complete.
+  a = 11, 13, 14, 16 exactly (max N = 2, 2, 133, 131) and completes the two
+  remaining cells: **a = 18, d0 <= 3: 248 candidates, max N = 2 (994 s)**;
+  **a = 21, d0 <= 2: 56 candidates, max N = 2 (9242 s, about 165 s per
+  candidate at degree 2^22)**. Reading of the whole n = 131 census of the
+  conjugate-degree-2 shape with F_2 coefficients: at a = 14 two candidates
+  and at a = 16 four candidates carry exactly one Frobenius orbit (N = 133
+  and 131), which is what the Poisson(1/131) null predicts for 248 draws
+  (about 1.9 orbit-carrying candidates per cell); every other candidate at
+  every admissible a in {11, 13, 14, 16, 18, 21} has N <= 2. So no small-d0
+  member of the shape with F_2 coefficients has more than one orbit of roots
+  in F_{2^131} at any a this helper can reach; the toy positives at n = 29
+  and 31 (a = 5) did not reappear at n = 131 for a <= 21. The cells a in
+  {26, 32, 43, 65} (degree 2^27 to 2^66) remain out of reach of an O(deg^2)
+  gcd and are the honest open remainder of this audit.
