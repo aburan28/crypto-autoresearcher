@@ -68,6 +68,11 @@ def peak_rss_gb():
     return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / (1 << 20)
 
 
+def f4_profile(rec):
+    """Per-round algebraic profile of an F4 record, without msolve's printed timings."""
+    return [{k: v for k, v in r.items() if k not in ("real_s", "cpu_s")} for r in rec["rounds"]]
+
+
 def instance_id(n, m, t, k, subspace, B_mode, seed, draw, family="sem"):
     return f"{family}_n{n}_m{m}_t{t}_k{k}_{subspace[:3]}_{B_mode[:5]}_s{seed}_d{draw}"
 
@@ -77,7 +82,7 @@ def closure_D_of(recs):
     return next((r["closure_D"] for r in recs if r["instrument"] == "closure_certificate"), None)
 
 
-def measure(system, iid, out_dir, args, logf, s_hint=None, want_closure=True, want_single=True):
+def measure(system, iid, out_dir, args, logf, s_hint=None, want_closure=True, want_single=True, skip_f4_reason=None):
     """Run all instruments on one system; return the list of result records."""
     inst_dir = out_dir / "instances"
     inst_dir.mkdir(exist_ok=True)
@@ -97,12 +102,21 @@ def measure(system, iid, out_dir, args, logf, s_hint=None, want_closure=True, wa
     # --- instrument A: msolve F4 trace
     t0 = time.time()
     input_max_degree = max(max((bin(mm).count("1") for mm in e), default=0) for e in eqs)
-    tr = f4_trace.run_msolve(ms_path, inst_dir / f"{iid}.gb", args.wall_cap, args.mem_cap, threads=args.threads,
-                             input_max_degree=input_max_degree)
-    (inst_dir / f"{iid}.msolve.log").write_text(tr.pop("stdout"))
-    stderr = tr.pop("stderr")
-    if stderr.strip():
-        (inst_dir / f"{iid}.msolve.err").write_text(stderr)
+    if skip_f4_reason:
+        tr = {"engine": "msolve", "engine_version": f4_trace.msolve_version(), "command": None,
+              "field_equation_convention": "explicit_generators", "status": "unreached_declared",
+              "unreached_reason": skip_f4_reason, "exit_code": None, "wall_s": 0.0, "peak_rss_bytes": None,
+              "rounds": [], "f4_step_count": 0, "d_F4_semaev": None, "d_F4_last_productive_round": None,
+              "d_F4_naive": None, "input_max_degree": input_max_degree, "d_F4_partial_max_deg_seen": None,
+              "f4_empty_step_degrees": None, "quotient_dimension": None, "basis_length": None,
+              "ideal_is_unit": None, "stdout_sha256": None}
+    else:
+        tr = f4_trace.run_msolve(ms_path, inst_dir / f"{iid}.gb", args.wall_cap, args.mem_cap, threads=args.threads,
+                                 input_max_degree=input_max_degree)
+        (inst_dir / f"{iid}.msolve.log").write_text(tr.pop("stdout"))
+        stderr = tr.pop("stderr")
+        if stderr.strip():
+            (inst_dir / f"{iid}.msolve.err").write_text(stderr)
     recA = dict(base, instrument="f4_trace_msolve", input_sha256=sha, msolve_input_sha256=ms_sha, **tr)
     records.append(recA)
     log(logf, f"{iid} F4: {tr['status']} d_F4_semaev={tr['d_F4_semaev']} naive={tr['d_F4_naive']} quot={tr['quotient_dimension']} rounds={len(tr['rounds'])} {time.time()-t0:.1f}s")
@@ -159,6 +173,10 @@ def main():
     ap.add_argument("--controls", default="all", help="all|none")
     ap.add_argument("--cells", default="", help="override: comma list of n:m:t:k")
     ap.add_argument("--no-closure", action="store_true")
+    ap.add_argument("--f4-skip-cells", default="",
+                    help="comma list of n:m:t:k cells whose msolve F4 trace is NOT attempted in this worker "
+                         "(recorded as status unreached_declared with the reason); the closure and single-level "
+                         "instruments still run. Used to serialize cells that exceed the two-worker memory budget.")
     ap.add_argument("--closure-draws", type=int, default=None,
                     help="run the closure instrument only for draw < K (F4 trace and single-level run on every draw); "
                          "the identity-repeat and matched-null controls always run every instrument")
@@ -208,6 +226,9 @@ def main():
                 cells.append((g, c))
     subspaces = args.subspaces.split(",")
     b_modes = args.b_modes.split(",")
+    f4_skip = set()
+    for spec in filter(None, args.f4_skip_cells.split(",")):
+        f4_skip.add(tuple(int(x) for x in spec.split(":")))
     identity_done = set()
     null_done = set()
     # resume: skip an instance only if its F4 trace already COMPLETED (a cap hit
@@ -235,7 +256,9 @@ def main():
                         emit([{"instance_id": iid, "instrument": "structure", "status": "invalid", **sysd["structure"]}])
                         continue
                     want_cl = (not args.no_closure) and (args.closure_draws is None or draw < args.closure_draws)
-                    recs, sha = measure(sysd, iid, out, args, logf, want_closure=want_cl)
+                    skip_reason = (f"F4 trace deferred to the serialized heavy pass: N = {sysd['N']} exceeds the "
+                                   f"two-worker {args.mem_cap} GB msolve budget (declared by --f4-skip-cells)") if (n, m, t, k) in f4_skip else None
+                    recs, sha = measure(sysd, iid, out, args, logf, want_closure=want_cl, skip_f4_reason=skip_reason)
                     for r in recs:
                         r["group"] = group
                         r["structure"] = sysd["structure"]
@@ -243,12 +266,15 @@ def main():
                     # instrument identity + matched null on the first instance of each reproduction cell
                     if args.controls == "all" and group == "reproduction" and (n, m, t, k) not in identity_done and draw == 0:
                         identity_done.add((n, m, t, k))
-                        recs2, sha2 = measure(sysd, iid + "_repeat", out, args, logf, want_closure=not args.no_closure)
+                        # Propagate skip_f4_reason: the N=42 reproduction cell (13:4:4:4) is on the
+                        # skip list, and re-running F4 here would defeat the deferral (and OOM the worker).
+                        recs2, sha2 = measure(sysd, iid + "_repeat", out, args, logf,
+                                             want_closure=not args.no_closure, skip_f4_reason=skip_reason)
                         for r in recs2:
                             r["group"] = "instrument_identity_repeat"
                         emit(recs2)
                         ident = {"system_sha256_first": sha, "system_sha256_repeat": sha2,
-                                 "f4_rounds_equal": [x["rounds"] for x in recs if x["instrument"] == "f4_trace_msolve"] == [x["rounds"] for x in recs2 if x["instrument"] == "f4_trace_msolve"],
+                                 "f4_rounds_equal": [f4_profile(x) for x in recs if x["instrument"] == "f4_trace_msolve"] == [f4_profile(x) for x in recs2 if x["instrument"] == "f4_trace_msolve"],
                                  "closure_profiles_equal": [[(p.get("D"), p.get("rank"), p.get("basis_lm_sha256"), [(i["rows"], i["rank_after"]) for i in p.get("iterations", [])]) for p in x["per_D"]] for x in recs if x["instrument"] == "closure_certificate"]
                                                            == [[(p.get("D"), p.get("rank"), p.get("basis_lm_sha256"), [(i["rows"], i["rank_after"]) for i in p.get("iterations", [])]) for p in x["per_D"]] for x in recs2 if x["instrument"] == "closure_certificate"]}
                         controls.setdefault("instrument_identity", {})[iid] = ident
@@ -257,7 +283,9 @@ def main():
                         null_done.add((n, m, t, k, subspace, B_mode))
                         nul = boolsys.matched_null(sysd, seed)
                         nul["source_sha256"] = sha
-                        recs3, sha3 = measure(nul, iid.replace("sem_", "null_"), out, args, logf, want_closure=not args.no_closure)
+                        # Same-shape matched null inherits the cell's F4 skip (same N / table pressure).
+                        recs3, sha3 = measure(nul, iid.replace("sem_", "null_"), out, args, logf,
+                                             want_closure=not args.no_closure, skip_f4_reason=skip_reason)
                         for r in recs3:
                             r["group"] = "matched_null"
                             r["source_instance"] = iid
