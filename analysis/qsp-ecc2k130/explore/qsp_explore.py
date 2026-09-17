@@ -268,11 +268,7 @@ def injection_count_f2(lam: int, np_: int, n: int) -> dict:
     count = 0
     slack = 0
     orbits_pass = 0
-    # F_2 roots
-    for y in (0, 1):
-        if polymod(g, 0b10 ^ (y and 0b11 or 0)) == 0 if False else None:
-            pass
-    # evaluate g at 0 and 1 directly
+    # F_2 roots: evaluate g at 0 and 1 directly
     g_at_0 = g & 1
     g_at_1 = bin(g).count("1") & 1
     lin_roots = []
