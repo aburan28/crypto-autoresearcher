@@ -114,6 +114,12 @@ def measure(system, iid, out_dir, args, logf):
         {"meta": {k: v for k, v in system.items() if k not in ("equations", "var_names")},
          "system": json.loads(canon), "system_sha256": sha}, sort_keys=True).encode())
     gdeg = max_gen_degree(eqs)
+    # Both M4RI instruments carry monomials as 64-bit masks (closure_cert._csr packs
+    # them into array("Q")), so N > 64 is not representable at all -- an instrument
+    # limit, NOT a memory cap, and recorded as its own status so the two are never
+    # conflated. (12,6,6,3) at N = 66 and (12,6,6,4) at N = 72 are in the contract
+    # and fall here; widening the mask is a code change, not a bigger machine.
+    MASK_BITS = 64
     base = {"instance_id": iid, "system_sha256": sha, "N": N, "n_equations": len(eqs),
             "family": system.get("family"), "n": system.get("n"), "m": system.get("m"),
             "t": system.get("t"), "k": system.get("k"), "subspace": system.get("subspace"),
@@ -175,6 +181,22 @@ def measure(system, iid, out_dir, args, logf):
                       f"{tr['quotient_dimension']}")
         elif s_known is None:
             s_known, s_source = tr["quotient_dimension"], "f4_quotient_dimension"
+
+    if N > MASK_BITS:
+        reason = (f"N = {N} exceeds the {MASK_BITS}-bit monomial mask both M4RI instruments use "
+                  f"(closure_cert._csr); not representable, independent of memory")
+        records.append(dict(base, instrument="macaulay_single_level",
+                            per_D=[{"D": 4, "status": "not_representable_instrument_limit",
+                                    "cols": ncols_le(N, 4), "reason": reason}]))
+        records.append(dict(base, instrument="closure_certificate", closure_D=None,
+                            degree4_sufficiency_verdict=None,
+                            degree4_verdict_source="not_representable_instrument_limit",
+                            solutions_used=s_known, solutions_source=s_source,
+                            per_D=[{"D": 4, "status": "not_representable_instrument_limit",
+                                    "ncols": ncols_le(N, 4), "reason": reason}],
+                            status="not_representable_instrument_limit"))
+        log(logf, f"{iid} instrument limit: {reason}")
+        return records, sha
 
     # --- instrument C: single-level Macaulay block (the contract's literal certificate)
     single = []
