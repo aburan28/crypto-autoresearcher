@@ -293,6 +293,7 @@ int closure_run(int N, int D, long ngens, const long *gen_ptr, const u64 *gen_ma
                 write_product(S, rank_ + filled, nm[a], nc[a], mult[md][mi], tmp);
                 filled++; mi++;
             }
+            if (filled == 0) { mzd_free(S); break; }   /* products exhausted */
             double tb = now_sec();
             long rk2 = mzd_echelonize(S, 1);
             long old_rank = rank_;
