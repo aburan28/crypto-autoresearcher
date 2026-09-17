@@ -400,7 +400,11 @@ def main():
                         # counter: a resume that skips it never writes |V(I)|, and on
                         # the m = t = 2 window F4 does not finish, so s_known would
                         # stay empty and every degree-4 verdict would stay undetermined.
-                        if family == "chained_S3_eq5" or (t == 2 and family == "single_S_eq4"):
+                        # NOTE: `family` here is the CLI label ("chained_eq5"), NOT the
+                        # label the generator writes into the instance ("chained_S3_eq5").
+                        # measure() switches on the latter; this loop carries the former,
+                        # and comparing across the two namespaces silently never matches.
+                        if family == "chained_eq5" or (t == 2 and family == "single_eq4"):
                             required.add("exhaustive_solution_count")
                         if args.resume and required <= {i for (j, i) in done if j == iid}:
                             log(logf, f"{iid} skipped (resume)")
