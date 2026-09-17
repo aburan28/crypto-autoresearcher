@@ -37,7 +37,12 @@ static char *is_pivot_ = NULL;     /* per column */
 static char *pivot_new_ = NULL;    /* per column: pivot first appeared in the current iteration */
 static char *row_new_ = NULL;      /* per basis row: 1 if produced since last multiplication */
 static long *lm_col_ = NULL;       /* per basis row: leading column */
-static double last_wall_ = 0.0;
+static int verbose_ = -1;
+
+static int verbose(void) {
+    if (verbose_ < 0) verbose_ = getenv("CLOSURE_VERBOSE") ? 1 : 0;
+    return verbose_;
+}
 
 static double now_sec(void) {
     struct timespec ts; clock_gettime(CLOCK_MONOTONIC, &ts);
@@ -273,6 +278,7 @@ int closure_run(int N, int D, long ngens, const long *gen_ptr, const u64 *gen_ma
         for (long i = 0; i < rank_; i++) row_new_[i] = 0;
         memset(pivot_new_, 0, ncols_);
         /* stream products in batches */
+        int found_one = 0;
         long a = 0; int md = 1; long mi = 0;
         int dg_a = (n_new > 0) ? popc(nm[0][0]) : 0; /* leading mask is first (largest) */
         while (a < n_new) {
@@ -287,17 +293,22 @@ int closure_run(int N, int D, long ngens, const long *gen_ptr, const u64 *gen_ma
                 write_product(S, rank_ + filled, nm[a], nc[a], mult[md][mi], tmp);
                 filled++; mi++;
             }
+            double tb = now_sec();
             long rk2 = mzd_echelonize(S, 1);
             long old_rank = rank_;
+            if (verbose()) fprintf(stderr, "[closure D=%d it=%d] batch rows=%ld (basis %ld + %ld products) -> rank %ld (+%ld) echelon %.1fs\n",
+                                   D, it, rank_ + filled, rank_, filled, rk2, rk2 - old_rank, now_sec() - tb);
             /* install: keep previous new flags */
             install_basis(S, rk2);
             total_new_piv += (rk2 - old_rank);
             mzd_free(S);
+            if (is_pivot_[ncols_ - 1]) { found_one = 1; break; }
         }
         for (long b = 0; b < n_new; b++) free(nm[b]);
         free(nm); free(nc); free(newrows);
         iter_rows[it] = total_rows; iter_rank[it] = rank_; iter_newpiv[it] = total_new_piv; iter_wall[it] = now_sec() - t0;
         iters = it + 1;
+        if (found_one) break;   /* 1 in W_D: the closure is the whole space; verdict decided */
         if (total_new_piv == 0) break;
     }
     for (int d = 1; d <= D; d++) free(mult[d]);

@@ -152,6 +152,8 @@ def main():
     ap.add_argument("--controls", default="all", help="all|none")
     ap.add_argument("--cells", default="", help="override: comma list of n:m:t:k")
     ap.add_argument("--no-closure", action="store_true")
+    ap.add_argument("--closure-draws", type=int, default=None,
+                    help="run the closure instrument only for draw < K (F4 trace and single-level run on every draw)")
     args = ap.parse_args()
     out = Path(args.out_dir)
     out.mkdir(parents=True, exist_ok=True)
@@ -213,7 +215,8 @@ def main():
                         log(logf, f"{iid} STRUCTURE INVALID {sysd['structure']}")
                         emit([{"instance_id": iid, "instrument": "structure", "status": "invalid", **sysd["structure"]}])
                         continue
-                    recs, sha = measure(sysd, iid, out, args, logf, want_closure=not args.no_closure)
+                    want_cl = (not args.no_closure) and (args.closure_draws is None or draw < args.closure_draws)
+                    recs, sha = measure(sysd, iid, out, args, logf, want_closure=want_cl)
                     for r in recs:
                         r["group"] = group
                         r["structure"] = sysd["structure"]
