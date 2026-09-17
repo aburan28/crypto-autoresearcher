@@ -266,7 +266,10 @@ def main():
                     # instrument identity + matched null on the first instance of each reproduction cell
                     if args.controls == "all" and group == "reproduction" and (n, m, t, k) not in identity_done and draw == 0:
                         identity_done.add((n, m, t, k))
-                        recs2, sha2 = measure(sysd, iid + "_repeat", out, args, logf, want_closure=not args.no_closure)
+                        # Propagate skip_f4_reason: the N=42 reproduction cell (13:4:4:4) is on the
+                        # skip list, and re-running F4 here would defeat the deferral (and OOM the worker).
+                        recs2, sha2 = measure(sysd, iid + "_repeat", out, args, logf,
+                                             want_closure=not args.no_closure, skip_f4_reason=skip_reason)
                         for r in recs2:
                             r["group"] = "instrument_identity_repeat"
                         emit(recs2)
@@ -280,7 +283,9 @@ def main():
                         null_done.add((n, m, t, k, subspace, B_mode))
                         nul = boolsys.matched_null(sysd, seed)
                         nul["source_sha256"] = sha
-                        recs3, sha3 = measure(nul, iid.replace("sem_", "null_"), out, args, logf, want_closure=not args.no_closure)
+                        # Same-shape matched null inherits the cell's F4 skip (same N / table pressure).
+                        recs3, sha3 = measure(nul, iid.replace("sem_", "null_"), out, args, logf,
+                                             want_closure=not args.no_closure, skip_f4_reason=skip_reason)
                         for r in recs3:
                             r["group"] = "matched_null"
                             r["source_instance"] = iid
