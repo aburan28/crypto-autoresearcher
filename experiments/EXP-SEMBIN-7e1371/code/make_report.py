@@ -12,6 +12,25 @@ import argparse
 import json
 from pathlib import Path
 
+import yaml
+
+TABLES = Path(__file__).resolve().parents[3] / "inputs/SEMAEV-2015-310/tables.yaml"
+
+
+def published_d_f4() -> dict:
+    """{(n, m, t, k): sorted set of d_F4 values the paper prints for that cell}.
+
+    Read out of the frozen transcription rather than retyped, so the comparison
+    column cannot drift from the source. Table 1 is B = 1 and prints t = m only;
+    Table 2 is random B and prints m and t separately."""
+    d = yaml.safe_load(TABLES.read_text())
+    out: dict = {}
+    for r in d["table_1"]["rows"]:
+        out.setdefault((r["n"], r["t_eq_m"], r["t_eq_m"], r["k"]), set()).add(r["d_F4"])
+    for r in d["table_2"]["rows"]:
+        out.setdefault((r["n"], r["m"], r["t"], r["k"]), set()).add(r["d_F4"])
+    return {k: sorted(v) for k, v in out.items()}
+
 
 def cell_key(c):
     return tuple(c["cell"])
@@ -96,6 +115,30 @@ def main():
           f"{c['single_level_D4_rank']} | {c['single_level_D4_deficiency_vs_columns']} |")
     w("")
 
+    w("## Against what the paper publishes")
+    w("")
+    w("`d_F4` values transcribed from Tables 1 and 2 of the frozen source, for the cells")
+    w("this run measures. A cell the paper never published is new territory, not a")
+    w("disagreement, and is marked as such.")
+    w("")
+    w("| cell (n,m,t,k) | paper's d_F4 | this run's degree-4 verdict |")
+    w("| --- | --- | --- |")
+    pub = published_d_f4()
+    for key in sorted(cells, key=lambda k: (cells[k]["cell"][1] != 2, cells[k]["cell"][0], cells[k]["cell"][3])):
+        c = cells[key]
+        if c["family"] != "chained_S3_eq5":
+            continue
+        got = pub.get(tuple(c["cell"]))
+        w(f"| {tuple(c['cell'])} | {got if got else '*not published*'} | "
+          f"{c['degree4_sufficiency_verdicts'] or '*not reached in this run*'} |")
+    w("")
+    n_pub = sum(1 for key in cells if cells[key]["family"] == "chained_S3_eq5"
+                and tuple(cells[key]["cell"]) in pub)
+    n_tot = sum(1 for key in cells if cells[key]["family"] == "chained_S3_eq5")
+    w(f"{n_pub} of the {n_tot} chained cells measured here carry a published `d_F4`; the other")
+    w(f"{n_tot - n_pub} are cells the paper never reports -- every off-diagonal `k > ceil(n/m)`")
+    w("cell, and every `m = 2` cell above `n = 40`.")
+    w("")
     w("## Controls")
     w("")
     for worker, ctl in S["controls"].items():
