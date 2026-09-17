@@ -133,9 +133,34 @@ def main():
     identity = controls.get("instrument_identity", {})
     identity_ok = all((v.get("f4_rounds_equal") in (True, None)) and v.get("closure_profiles_equal", True) for v in identity.values()) if identity else None
     kf = controls.get("known_false", {})
+    if not kf:
+        # controls.json is flushed only at the end of a cell's first draw; recover the
+        # known-false outcome from the records themselves when a worker is mid-cell.
+        kfr = [r for r in table if r["instance_id"].startswith("ctrl_known_false")]
+        if kfr:
+            kf = {"system_sha256": kfr[0]["system_sha256"], "f4_d_F4_semaev": kfr[0]["d_F4_semaev"],
+                  "f4_d_F4_naive": kfr[0]["d_F4_naive"], "closure_D": kfr[0]["closure_D"], "expected": 2,
+                  "source": "recovered from results records (controls.json not flushed)"}
     kf_ok = (kf.get("f4_d_F4_semaev") == 2 and kf.get("closure_D") == 2) if kf else None
     inv = controls.get("invalid_input", {})
     inv_ok = all(str(v).startswith("rejected") for v in inv.values()) if inv else None
+    if not identity:
+        # same fallback: pair each *_repeat instance with its base by system bytes
+        base = {r["instance_id"]: r for r in table}
+        for r in reps:
+            b = base.get(r["instance_id"][: -len("_repeat")])
+            if not b:
+                continue
+            identity[b["instance_id"]] = {
+                "system_sha256_first": b["system_sha256"], "system_sha256_repeat": r["system_sha256"],
+                "f4_status_first": [b["f4_status"]], "f4_status_repeat": [r["f4_status"]],
+                "f4_rounds_equal": None if "completed" not in (b["f4_status"], r["f4_status"]) else
+                                   (b["d_F4_semaev"] == r["d_F4_semaev"] and b["f4_rounds"] == r["f4_rounds"]),
+                "closure_profiles_equal": [(p["D"], p["rank"], p["verdict"]) for p in b["closure_per_D"]]
+                                          == [(p["D"], p["rank"], p["verdict"]) for p in r["closure_per_D"]],
+                "source": "recovered from results records (controls.json not flushed)"}
+        identity_ok = all((v.get("f4_rounds_equal") in (True, None)) and v.get("closure_profiles_equal", True)
+                          for v in identity.values()) if identity else None
     null_ctrl = controls.get("matched_null", {})
     null_summary = {k: {"null_f4_d_F4": v.get("f4_d_F4_semaev"), "null_f4_status": v.get("f4_status"), "null_closure_D": v.get("closure_D"),
                         "structured_f4_d_F4": v.get("structured_f4_d_F4_semaev"), "structured_closure_D": v.get("structured_closure_D")} for k, v in null_ctrl.items()}
