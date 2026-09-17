@@ -33,11 +33,14 @@ proof_refs:
     m = 6 -> 2^42.85, m = 8 -> 2^35.61.
   - >-
     The target-side degree-2 vanishing ideal is EXACTLY TRIVIAL for all d >= 6
-    at both m = 3 and m = 4, by monotonicity: nested V_d implies nested D_d
-    implies a shrinking degree-2 ideal, so triviality at d = 6 forces
-    triviality above. Base case at m = 4: d = 5 gives dim 6967 over 1680
+    at m = 4, by monotonicity in d at that fixed arity: nested V_d implies
+    nested D_d implies a shrinking degree-2 ideal, so triviality at d = 6
+    forces triviality above. Base case at m = 4: d = 5 gives dim 6967 over 1680
     distinct points at rank 1680; d = 6 gives dim 0 over 140400 distinct points
-    at rank 8647.
+    at rank 8647. The same claim at m = 3 is UNPROVED on this argument:
+    monotonicity does not change arity, the m = 3 and m = 4 value sets are
+    different maps, and I_2 of the m = 4 set being zero does not imply I_2 of
+    the m = 3 set is zero.
 review_refs: []
 review_refs_note: >-
   None in this program. Two adversarial reviews did run in the producing
@@ -119,8 +122,10 @@ saturation at `d = 7` is likewise a resource for the converse question: it says
 first-fall-degree argument wants.
 
 Against that, one route is now closed by derivation rather than fatigue: the
-target-side degree-2 vanishing ideal is exactly trivial for all `d >= 6` at both
-`m = 3` and `m = 4`. Do not re-propose a low-degree target-side certificate.
+target-side degree-2 vanishing ideal is exactly trivial for all `d >= 6` at
+`m = 4`. Do not re-propose a low-degree target-side certificate at `m = 4`.
+The same statement at `m = 3` is not proved here: the only exact-kernel base
+case is `m = 4`, and d-monotonicity cannot carry it across arities.
 
 ## What this does not say
 
