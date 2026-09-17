@@ -521,7 +521,7 @@ def audit_splitting_sweep(out: dict) -> None:
             if np_ >= n or n % np_ == 0:
                 continue
             q, r = divmod(n, np_)
-            for d in range(2, 9):
+            for d in range(2, min(8, (1 << np_) - 1) + 1):   # deg lambda < 2^n' (the QSP shape)
                 lams = list(polys_of_degree(d))
                 Ns = root_count_batch(n, [(np_, lam) for lam in lams])
                 for lam, N in zip(lams, Ns):

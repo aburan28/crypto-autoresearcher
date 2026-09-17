@@ -96,6 +96,9 @@ int main(void) {
             int c = hex[len - 1 - i]; int v = (c >= 'a') ? c - 'a' + 10 : (c >= 'A') ? c - 'A' + 10 : c - '0';
             for (int b = 0; b < 4; b++) if (v >> b & 1) { if (nl < 64) lexp[nl++] = 4L * i + b; }
         }
+        int bad = 0;
+        for (int k = 0; k < nl; k++) if (lexp[k] >= np2) bad = 1;
+        if (bad) { printf("%d %d %s -1\n", n, np, hex); fflush(stdout); continue; }   /* deg lam must be < 2^np */
         u64 *x = calloc(2 * nw + 2, sizeof(u64)), *tmp = calloc(2 * nw + 2, sizeof(u64));
         x[0] = 2; /* X */
         for (int k = 0; k < n; k++) {
