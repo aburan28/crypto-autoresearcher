@@ -73,7 +73,13 @@ def read_d_f4(rounds: list, input_max_degree: int | None):
 
 def run_msolve(ms_path: Path, out_path: Path, wall_cap_s: float, mem_cap_gb: float,
                threads: int = 1, input_max_degree: int | None = None) -> dict:
-    cmd = ["msolve", "-v", "2", "-g", "2", "-t", str(threads), "-f", str(ms_path), "-o", str(out_path)]
+    # -u 1: regenerate the basis hash table after every F4 step.  Without it
+    # msolve keeps every monomial ever hashed (exponent vectors of length N),
+    # and on the N = 40 cell (19,3,3,7) the table grew past 2^26 entries under a
+    # 6 GB cap and msolve segfaulted ("Enlarging hash table failed").  The
+    # regeneration is garbage collection only: the pair selection, the
+    # per-round matrices and the step degrees are unchanged.
+    cmd = ["msolve", "-v", "2", "-g", "2", "-t", str(threads), "-u", "1", "-f", str(ms_path), "-o", str(out_path)]
     t0 = time.time()
     status = "completed"
     stdout = ""
@@ -98,7 +104,11 @@ def run_msolve(ms_path: Path, out_path: Path, wall_cap_s: float, mem_cap_gb: flo
         stderr = repr(exc)
     wall = time.time() - t0
     if status == "completed" and rc not in (0,):
-        status = "unreached_memory_cap" if ("alloc" in (stderr + stdout).lower() or rc in (-9, 134, 137)) else f"failed_rc_{rc}"
+        blob = (stderr + stdout).lower()
+        if ("alloc" in blob or "hash table failed" in blob or "enlarging" in blob or rc in (-9, -11, 134, 137)):
+            status = "unreached_memory_cap"
+        else:
+            status = f"failed_rc_{rc}"
     rounds = []
     for line in stdout.splitlines():
         m = ROUND_RE.match(line)
