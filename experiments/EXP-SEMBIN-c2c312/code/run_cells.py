@@ -153,7 +153,8 @@ def main():
     ap.add_argument("--cells", default="", help="override: comma list of n:m:t:k")
     ap.add_argument("--no-closure", action="store_true")
     ap.add_argument("--closure-draws", type=int, default=None,
-                    help="run the closure instrument only for draw < K (F4 trace and single-level run on every draw)")
+                    help="run the closure instrument only for draw < K (F4 trace and single-level run on every draw); "
+                         "the identity-repeat and matched-null controls always run every instrument")
     args = ap.parse_args()
     out = Path(args.out_dir)
     out.mkdir(parents=True, exist_ok=True)
