@@ -98,6 +98,30 @@ def main():
     envs = {w: json.loads((run / w / "environment.json").read_text()) for w in workers if (run / w / "environment.json").exists()}
     env0 = next(iter(envs.values()), {})
 
+    # The run-directory schema (tools/validate_ledger.py check_run) requires these
+    # five files AT THE RUN ROOT. This run was produced by several worker
+    # processes, each with its own copy; the root files aggregate them verbatim,
+    # labelled by worker, and never replace them.
+    def _aggregate(name: str, header: str) -> str:
+        parts = [f"# {header}", f"# Assembled from {len(workers)} worker directories; "
+                 f"each worker's own file is retained unchanged at <worker>/{name}.", ""]
+        for w in workers:
+            f = run / w / name
+            parts.append(f"===== {w}/{name} =====")
+            parts.append(f.read_text().rstrip() if f.exists() else "(absent)")
+            parts.append("")
+        return "\n".join(parts) + "\n"
+
+    (run / "command.txt").write_text(_aggregate(
+        "command.txt", "Commands run for this run package, one block per worker process."))
+    (run / "stdout.log").write_text(_aggregate("stdout.log", "stdout of each worker process."))
+    (run / "stderr.log").write_text(_aggregate("stderr.log", "stderr of each worker process."))
+    (run / "environment.json").write_text(json.dumps(
+        {"note": "per-worker environment captures; each worker's own file is retained at "
+                 "<worker>/environment.json", "workers": envs}, indent=2, sort_keys=True) + "\n")
+    primary_command = next((( run / w / "command.txt").read_text().splitlines()[0]
+                            for w in workers if (run / w / "command.txt").exists()), None)
+
     sem = [r for r in table if r["group"] in ("reproduction", "separation", "off_diagonal", "override")]
     nulls = [r for r in table if r["group"] == "matched_null"]
     reps = [r for r in table if r["group"] == "instrument_identity_repeat"]
@@ -154,7 +178,8 @@ def main():
             identity[b["instance_id"]] = {
                 "system_sha256_first": b["system_sha256"], "system_sha256_repeat": r["system_sha256"],
                 "f4_status_first": [b["f4_status"]], "f4_status_repeat": [r["f4_status"]],
-                "f4_rounds_equal": None if "completed" not in (b["f4_status"], r["f4_status"]) else
+                # None when either F4 instrument was skipped, as in run_cells.py: a stub is not a measurement.
+                "f4_rounds_equal": None if "unreached_declared" in (b["f4_status"], r["f4_status"]) else
                                    (b["d_F4_semaev"] == r["d_F4_semaev"] and b["f4_rounds"] == r["f4_rounds"]),
                 "closure_profiles_equal": [(p["D"], p["rank"], p["verdict"]) for p in b["closure_per_D"]]
                                           == [(p["D"], p["rank"], p["verdict"]) for p in r["closure_per_D"]],
@@ -164,6 +189,13 @@ def main():
     null_ctrl = controls.get("matched_null", {})
     null_summary = {k: {"null_f4_d_F4": v.get("f4_d_F4_semaev"), "null_f4_status": v.get("f4_status"), "null_closure_D": v.get("closure_D"),
                         "structured_f4_d_F4": v.get("structured_f4_d_F4_semaev"), "structured_closure_D": v.get("structured_closure_D")} for k, v in null_ctrl.items()}
+
+    # raw-result.json: the run's observations in one file, as the schema expects
+    (run / "raw-result.json").write_text(json.dumps({
+        "run_id": args.run_id, "experiment_id": "EXP-SEMBIN-c2c312",
+        "note": "per-instance measurements (both instruments) and per-cell aggregation; "
+                "the immutable per-record source is worker*/cells/results.jsonl",
+        "per_instance": table, "per_cell": summary}, indent=1, default=str) + "\n")
 
     digests = {}
     for p in sorted(run.rglob("*")):
@@ -186,8 +218,12 @@ def main():
                        "left unreached are listed with their matrix dimensions and are not evidence."),
             "failure_class": None},
         "code": {"commit": env0.get("git_commit"), "dirty": env0.get("git_dirty"), "branch": env0.get("git_branch"),
-                 "code_sha256": env0.get("code_sha256"), "commands": {w: (run / w / "command.txt").read_text().splitlines()[0] if (run / w / "command.txt").exists() else None for w in workers},
-                 "working_directory": "experiments/EXP-SEMBIN-c2c312/code", "recorded_in": "worker*/command.txt"},
+                 "code_sha256": env0.get("code_sha256"),
+                 "command": primary_command,
+                 "command_note": "this run was produced by several worker processes; every command is in "
+                                 "command.txt at the run root and in each worker's own command.txt",
+                 "commands": {w: (run / w / "command.txt").read_text().splitlines()[0] if (run / w / "command.txt").exists() else None for w in workers},
+                 "working_directory": "experiments/EXP-SEMBIN-c2c312/code", "recorded_in": "command.txt, worker*/command.txt"},
         "environment": {"operating_system": env0.get("operating_system"), "architecture": env0.get("architecture"),
                         "python_version": env0.get("python_version"), "processor_count": env0.get("processor_count"),
                         "msolve": env0.get("msolve_version"), "libm4ri_dev": env0.get("m4ri_package"),

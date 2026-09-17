@@ -92,6 +92,10 @@ def main():
             w("the smallest degree cap at which the degree-capped Boolean closure is already a")
             w("Groebner basis equals the maximal F4 step degree before termination, on every")
             w("instance where both were reached. The map is the identity on this set.")
+        elif len(seps) == 1:
+            (s,) = seps
+            w(f"The separation is a constant offset of {s} on this set: `closure_D = d_F4 + {s}` on")
+            w("every instance where both were reached.")
         else:
             w("The separation is NOT constant on this set; see the per-instance table.")
     else:
@@ -99,9 +103,16 @@ def main():
     w("")
     w("What this does and does not establish:")
     w("")
+    n_strict = sum(n for s, n in seps.items() if s > 0)
+    if not both:
+        strict_note = "no instance has both statistics, so strictness could not be assessed here."
+    elif n_strict:
+        strict_note = f"strictness (`closure_D > d_F4`) was observed on {n_strict} of {len(both)} instance(s) here."
+    else:
+        strict_note = "strictness was not observed here."
     w("- It is a statement about **these instances**, not about the quantities in general.")
     w("  The contract's prediction was `d_F4 <= closure_D` with strictness expected on")
-    w("  some instance; strictness was not observed here.")
+    w(f"  some instance; {strict_note}")
     w("- The instances measured are small: the cells reach n <= 21 and N <= 60 Boolean")
     w("  variables. Semaev's own experimental range is n <= 21 plus one cell at n = 40,")
     w("  and his conclusion needs n = 409 and 571.")
