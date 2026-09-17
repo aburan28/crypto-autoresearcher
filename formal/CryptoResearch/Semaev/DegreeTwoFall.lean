@@ -127,6 +127,7 @@ variable {K : Type*} [Field K] [CharP K 2]
 taken from an API: `z + z^2 + z^4 + ... + z^(2^(n-1))`. -/
 def absTrace (n : ℕ) (z : K) : K := ∑ i ∈ Finset.range n, z ^ 2 ^ i
 
+omit [CharP K 2] in
 @[simp] lemma absTrace_zero (n : ℕ) : absTrace n (0 : K) = 0 :=
   Finset.sum_eq_zero fun i _ => zero_pow (Nat.two_pow_pos i).ne'
 
@@ -144,7 +145,9 @@ def absTraceHom (n : ℕ) : K →+ K where
   map_zero' := absTrace_zero n
   map_add' := absTrace_add n
 
-/-- **`hT` discharged, from the field-order fact alone.** Squaring shifts the
+omit [CharP K 2] in
+/-- **`hT` discharged, from the field-order fact alone.** Characteristic is not
+needed here: the telescoping is valid in any commutative ring. Squaring shifts the
 sum by one place; `z ^ 2 ^ n = z` closes the cycle, so the shifted sum and the
 original differ by nothing. -/
 lemma absTrace_sq_of_pow {n : ℕ} (hpow : ∀ w : K, w ^ 2 ^ n = w) (z : K) :
@@ -166,6 +169,7 @@ section FiniteInstance
 
 variable {K : Type*} [Field K] [Fintype K] [CharP K 2]
 
+omit [CharP K 2] in
 /-- The only place the ORDER of the field is used: in a field of order `2 ^ n`
 every element satisfies `z ^ 2 ^ n = z`. -/
 lemma pow_two_pow_card {n : ℕ} (hcard : Fintype.card K = 2 ^ n) (z : K) :
