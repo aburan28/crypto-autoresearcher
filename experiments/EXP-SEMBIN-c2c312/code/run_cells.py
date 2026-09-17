@@ -128,7 +128,7 @@ def measure(system, iid, out_dir, args, logf, s_hint=None, want_closure=True, wa
         per_D = []
         for D in range(max_gen_deg, args.d_max + 1):
             t0 = time.time()
-            cc = closure_cert.closure_certificate(N, eqs, D, args.mem_cap, s_known=s_known, standard_cap=args.standard_cap)
+            cc = closure_cert.closure_certificate(N, eqs, D, args.closure_mem_cap, s_known=s_known, standard_cap=args.standard_cap)
             per_D.append(cc)
             log(logf, f"{iid} closure D={D}: {cc.get('status')} verdict={cc.get('verdict')} rank={cc.get('rank')} ncols={cc.get('ncols')} iters={len(cc.get('iterations', []))} {time.time()-t0:.1f}s")
             if cc.get("verdict") == "sufficient":
@@ -149,7 +149,7 @@ def measure(system, iid, out_dir, args, logf, s_hint=None, want_closure=True, wa
             if cols > args.single_max_cols:
                 single.append({"D": D, "status": "unreached_declared", "cols": cols})
                 continue
-            ml = closure_cert.macaulay_single_level(N, eqs, D, args.mem_cap)
+            ml = closure_cert.macaulay_single_level(N, eqs, D, args.closure_mem_cap)
             single.append(ml)
         recC = dict(base, instrument="macaulay_single_level_DREG", input_sha256=sha, per_D=single)
         records.append(recC)
@@ -165,7 +165,10 @@ def main():
     ap.add_argument("--subspaces", default=",".join(SUBSPACES))
     ap.add_argument("--b-modes", default=",".join(B_MODES))
     ap.add_argument("--wall-cap", type=float, default=3600.0)
-    ap.add_argument("--mem-cap", type=float, default=8.0)
+    ap.add_argument("--mem-cap", type=float, default=8.0, help="msolve RLIMIT_AS cap in GB")
+    ap.add_argument("--closure-mem-cap", type=float, default=None,
+                    help="closure/single-level dense-matrix estimate cap in GB (M4RI's working memory is about "
+                         "twice the estimate); defaults to --mem-cap")
     ap.add_argument("--threads", type=int, default=1)
     ap.add_argument("--d-max", type=int, default=5)
     ap.add_argument("--standard-cap", type=int, default=100000)
@@ -181,6 +184,8 @@ def main():
                     help="run the closure instrument only for draw < K (F4 trace and single-level run on every draw); "
                          "the identity-repeat and matched-null controls always run every instrument")
     args = ap.parse_args()
+    if args.closure_mem_cap is None:
+        args.closure_mem_cap = args.mem_cap
     out = Path(args.out_dir)
     out.mkdir(parents=True, exist_ok=True)
     logf = open(out / "progress.log", "a")
@@ -273,8 +278,13 @@ def main():
                         for r in recs2:
                             r["group"] = "instrument_identity_repeat"
                         emit(recs2)
+                        f4_first = [x for x in recs if x["instrument"] == "f4_trace_msolve"]
+                        f4_repeat = [x for x in recs2 if x["instrument"] == "f4_trace_msolve"]
+                        f4_measured = all(x["status"] != "unreached_declared" for x in f4_first + f4_repeat)
                         ident = {"system_sha256_first": sha, "system_sha256_repeat": sha2,
-                                 "f4_rounds_equal": [f4_profile(x) for x in recs if x["instrument"] == "f4_trace_msolve"] == [f4_profile(x) for x in recs2 if x["instrument"] == "f4_trace_msolve"],
+                                 "f4_status_first": [x["status"] for x in f4_first], "f4_status_repeat": [x["status"] for x in f4_repeat],
+                                 # None when the F4 instrument was skipped: [] == [] on two stubs is not a measurement.
+                                 "f4_rounds_equal": ([f4_profile(x) for x in f4_first] == [f4_profile(x) for x in f4_repeat]) if f4_measured else None,
                                  "closure_profiles_equal": [[(p.get("D"), p.get("rank"), p.get("basis_lm_sha256"), [(i["rows"], i["rank_after"]) for i in p.get("iterations", [])]) for p in x["per_D"]] for x in recs if x["instrument"] == "closure_certificate"]
                                                            == [[(p.get("D"), p.get("rank"), p.get("basis_lm_sha256"), [(i["rows"], i["rank_after"]) for i in p.get("iterations", [])]) for p in x["per_D"]] for x in recs2 if x["instrument"] == "closure_certificate"]}
                         controls.setdefault("instrument_identity", {})[iid] = ident
