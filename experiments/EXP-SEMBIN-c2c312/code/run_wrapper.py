@@ -14,7 +14,9 @@ from pathlib import Path
 
 CODE = Path(__file__).resolve().parent
 REPO = CODE.parents[2]
-RUN = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else REPO / "experiments/EXP-SEMBIN-c2c312/runs/RUN-SEMBIN-595308"
+# argv[1]: this worker's directory inside the run package (e.g. runs/RUN-.../workerA);
+# the remaining arguments are passed through to run_cells.py.
+RUN = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else REPO / "experiments/EXP-SEMBIN-c2c312/runs/RUN-SEMBIN-595308/workerA"
 EXTRA = sys.argv[2:]
 RUN.mkdir(parents=True, exist_ok=True)
 

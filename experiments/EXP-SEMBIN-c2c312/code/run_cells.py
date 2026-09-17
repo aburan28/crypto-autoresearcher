@@ -91,7 +91,9 @@ def measure(system, iid, out_dir, args, logf, s_hint=None, want_closure=True, wa
     records = []
     # --- instrument A: msolve F4 trace
     t0 = time.time()
-    tr = f4_trace.run_msolve(ms_path, inst_dir / f"{iid}.gb", args.wall_cap, args.mem_cap, threads=args.threads)
+    input_max_degree = max(max((bin(mm).count("1") for mm in e), default=0) for e in eqs)
+    tr = f4_trace.run_msolve(ms_path, inst_dir / f"{iid}.gb", args.wall_cap, args.mem_cap, threads=args.threads,
+                             input_max_degree=input_max_degree)
     (inst_dir / f"{iid}.msolve.log").write_text(tr.pop("stdout"))
     stderr = tr.pop("stderr")
     if stderr.strip():
@@ -153,7 +155,8 @@ def main():
     ap.add_argument("--cells", default="", help="override: comma list of n:m:t:k")
     ap.add_argument("--no-closure", action="store_true")
     ap.add_argument("--closure-draws", type=int, default=None,
-                    help="run the closure instrument only for draw < K (F4 trace and single-level run on every draw)")
+                    help="run the closure instrument only for draw < K (F4 trace and single-level run on every draw); "
+                         "the identity-repeat and matched-null controls always run every instrument")
     args = ap.parse_args()
     out = Path(args.out_dir)
     out.mkdir(parents=True, exist_ok=True)

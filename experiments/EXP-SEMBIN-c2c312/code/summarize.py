@@ -12,8 +12,33 @@ from collections import defaultdict
 from pathlib import Path
 
 
+from f4_trace import read_d_f4  # noqa: E402
+
+
+def reread(r):
+    """Re-derive the d_F4 readings from the stored raw rounds with the
+    input-degree floor (records written before the floor existed carry
+    input_max_degree = None; the floor is then the structure's max_degree,
+    or 2 for the planted-point control whose generators are quadratic)."""
+    if r.get("instrument") != "f4_trace_msolve" or r.get("status") != "completed":
+        return r
+    deg = r.get("input_max_degree")
+    if deg is None:
+        deg = (r.get("structure") or {}).get("max_degree")
+    if deg is None and r.get("family") == "known_false_planted_point":
+        deg = 2
+    if deg is None and r.get("family") == "matched_null":
+        deg = (r.get("structure") or {}).get("max_degree")
+    d_sem, d_lpr, d_naive, tail = read_d_f4(r.get("rounds", []), deg)
+    r["d_F4_semaev_reread"] = d_sem
+    r["d_F4_last_productive_round"] = d_lpr
+    r["d_F4_semaev"] = d_sem
+    r["reread_floor_degree"] = deg
+    return r
+
+
 def load(path):
-    recs = [json.loads(l) for l in open(path) if l.strip()]
+    recs = [reread(json.loads(l)) for l in open(path) if l.strip()]
     by_inst = defaultdict(dict)
     for r in recs:
         by_inst[r["instance_id"]][r["instrument"]] = r
