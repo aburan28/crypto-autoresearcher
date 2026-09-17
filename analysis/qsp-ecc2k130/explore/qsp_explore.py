@@ -161,6 +161,27 @@ def root_count_gcd(np_: int, lam: int, n: int) -> int:
     return deg(gcd(L, h)) if h else np2
 
 
+import os
+import subprocess
+
+_GF2RC = os.path.join(os.path.dirname(os.path.abspath(__file__)), "gf2rc")
+
+
+def root_count_batch(n: int, items: list[tuple[int, int]]) -> list[int]:
+    """Batch root counts through the C helper gf2rc (same quantity as
+    root_count_gcd; word-level arithmetic).  items = [(n', lam), ...]."""
+    if not items:
+        return []
+    inp = "".join(f"{n} {np_} {lam:x}\n" for np_, lam in items)
+    out = subprocess.run([_GF2RC], input=inp, capture_output=True, text=True, check=True).stdout.split("\n")
+    res = []
+    for line in out:
+        if line.strip():
+            res.append(int(line.split()[-1]))
+    assert len(res) == len(items), (len(res), len(items))
+    return res
+
+
 def is_irreducible(f: int) -> bool:
     n = deg(f)
     x = 0b10
@@ -418,7 +439,7 @@ def audit_proves_too_much(out: dict) -> None:
                        "injection": injection_count_f2(0b110, 3, 7)}
     # Type 2 at n = 31: L = X^{2^15} + X^{2^7} + X^{2^3} + X^2 + X -> 2^15 roots
     lam31 = (1 << 128) | (1 << 8) | (1 << 2) | (1 << 1)
-    res["type2_n31"] = {"expected": 1 << 15, "gcd_count": root_count_gcd(15, lam31, 31)}
+    res["type2_n31"] = {"expected": 1 << 15, "gcd_count_c": root_count_batch(31, [(15, lam31)])[0]}
     # subfield: n = 12, n' = 6, lambda = X -> 64 roots
     res["subfield_n12"] = {"expected": 64, "gcd_count": root_count_gcd(6, 0b10, 12)}
     # linearized trinomial Theorem 1 equality: X^{p^2} + X^p + X over F_{p^3}, p = 2: n=3, n'=2 -> 4 roots
@@ -461,18 +482,22 @@ def audit_brute_cross_check_131(out: dict, np_list=(11, 12), dmax=7) -> None:
         cand = 0
         t0 = time.time()
         maxN = 0
-        for d in range(3, dmax + 1):
-            for lam in polys_of_degree(d):
-                if is_linearized(lam):
-                    continue
-                cand += 1
-                brute = root_count_gcd(np_, lam, 131)
-                inj = injection_count_f2(lam, np_, 131)
-                maxN = max(maxN, brute)
-                if inj.get("N") != brute:
-                    mism.append({"lambda": poly_str(lam), "brute": brute, "injection": inj})
+        lams = [lam for d in range(3, dmax + 1) for lam in polys_of_degree(d) if not is_linearized(lam)]
+        brutes = root_count_batch(131, [(np_, lam) for lam in lams])
+        for lam, brute in zip(lams, brutes):
+            cand += 1
+            inj = injection_count_f2(lam, np_, 131)
+            maxN = max(maxN, brute)
+            if inj.get("N") != brute:
+                mism.append({"lambda": poly_str(lam), "brute": brute, "injection": inj})
         res[f"np{np_}"] = {"q": q, "r": r, "candidates": cand, "mismatches": len(mism), "rows": mism[:5],
-                           "max_N_brute": maxN, "seconds": round(time.time() - t0, 1)}
+                           "max_N_brute": maxN, "seconds": round(time.time() - t0, 1), "method": "gf2rc (C) vs injection (Python)"}
+    # spot check at n' = 22 (deg L = 2^22), three candidates
+    t0 = time.time()
+    spot = [0b1011, 0b10000011, 0b11010111]
+    brutes = root_count_batch(131, [(22, lam) for lam in spot])
+    res["np22_spot"] = {"q": 131 // 22, "r": 131 % 22, "rows": [{"lambda": poly_str(l), "brute": b, "injection": injection_count_f2(l, 22, 131)} for l, b in zip(spot, brutes)],
+                        "seconds": round(time.time() - t0, 1)}
     out["brute_cross_check_n131"] = res
 
 
@@ -488,8 +513,9 @@ def audit_splitting_sweep(out: dict) -> None:
                 continue
             q, r = divmod(n, np_)
             for d in range(2, 9):
-                for lam in polys_of_degree(d):
-                    N = root_count_gcd(np_, lam, n)
+                lams = list(polys_of_degree(d))
+                Ns = root_count_batch(n, [(np_, lam) for lam in lams])
+                for lam, N in zip(lams, Ns):
                     if N >= (1 << (np_ - 1)):
                         ell = math.log2(d)
                         beta = ell * n / (np_ * np_)
@@ -525,7 +551,7 @@ def audit_a17f43_census(out: dict) -> None:
     # Type 2 fixtures: n=7: L = X^8 + X^2 + X -> a = 2, c = 0, e = X^2 + X, expect 8
     fixtures["type2_n7"] = {"expected": 8, "count": root_count_gcd(3, 0b110, 7)}
     lam31 = (1 << 128) | (1 << 8) | (1 << 2) | (1 << 1)
-    fixtures["type2_n31_a14"] = {"expected": 1 << 15, "count": root_count_gcd(15, lam31, 31)}
+    fixtures["type2_n31_a14"] = {"expected": 1 << 15, "count_c": root_count_batch(31, [(15, lam31)])[0]}
     res["fixtures"] = fixtures
     cells = {23: [(11, 2), (7, 3), (5, 3), (4, 3), (3, 3)], 29: [(14, 2), (9, 2), (7, 3), (5, 3), (4, 3)],
              31: [(15, 2), (10, 2), (7, 3), (6, 3), (5, 3)]}
@@ -538,6 +564,7 @@ def audit_a17f43_census(out: dict) -> None:
             hist = {}
             top = []
             cand = 0
+            items = []
             for dc in range(0, d0 + 1):
                 for c in (range(1 << dc) if dc == 0 else polys_of_degree(dc)):
                     for de in range(0, d0 + 1):
@@ -548,13 +575,15 @@ def audit_a17f43_census(out: dict) -> None:
                             # skip the linearized-trinomial slice (c constant, e linearized) -- decided by Prop 2
                             if deg(c) <= 0 and is_linearized(e):
                                 continue
-                            cand += 1
-                            N = root_count_gcd(a + 1, lam, n)
-                            hist[N] = hist.get(N, 0) + 1
-                            if N > maxN:
-                                maxN = N
-                            if N >= 2 * n:
-                                top.append({"c": poly_str(c) if c else "0", "e": poly_str(e) if e else "0", "N": N})
+                            items.append((c, e, lam))
+            Ns = root_count_batch(n, [(a + 1, lam) for _, _, lam in items])
+            for (c, e, lam), N in zip(items, Ns):
+                cand += 1
+                hist[N] = hist.get(N, 0) + 1
+                if N > maxN:
+                    maxN = N
+                if N >= 2 * n:
+                    top.append({"c": poly_str(c) if c else "0", "e": poly_str(e) if e else "0", "N": N})
             bound = d0 ** (q + 1) + (2 ** (q + 1)) * (1 << (a - r))
             res[f"n{n}_a{a}_d0{d0}"] = {"q": q, "r": r, "candidates": cand, "max_N": maxN, "needed": 1 << a,
                                         "correspondence_bound": bound, "bound_holds": maxN <= bound,
