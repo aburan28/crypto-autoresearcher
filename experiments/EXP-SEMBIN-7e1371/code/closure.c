@@ -119,6 +119,14 @@ static void setup_columns(int N, int D) {
 static inline long blk_start(int d) { return deg_off_[d]; }
 static inline long blk_end(int d) { return (d == 0) ? ncols_ : deg_off_[d - 1]; }
 
+/* COLUMN ORDER IS DESCENDING BY DEGREE: block D starts at index 0 and degree 0
+ * (the constant monomial 1) is the LAST column, which is why contains_one is
+ * is_pivot_[ncols_ - 1]. Consequence, easy to get backwards and worth stating:
+ * a row's leading monomial under this order is its HIGHEST-degree term, so
+ * bounding a multiplier by D - deg(leading) keeps the whole product inside
+ * degree D and write_product never needs to truncate. A reader who assumes an
+ * ascending order concludes the opposite and blames truncation for anything
+ * that goes wrong; that mistake has already been made once and published. */
 static long col_of2(u64 m) {
     int d = popc(m);
     if (d > D_) return -1;
