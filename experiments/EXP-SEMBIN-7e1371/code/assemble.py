@@ -220,6 +220,15 @@ def main():
             "branch": sh(["git", "rev-parse", "--abbrev-ref", "HEAD"]),
             "code_sha256": {p.name: sha256_file(p) for p in sorted(HERE.iterdir())
                             if p.is_file() and p.suffix in (".py", ".c", ".so")},
+            "code_sha256_by_worker": {k: v.get("code_sha256") for k, v in envs.items()},
+            "code_changed_during_run": len({json.dumps(v.get("code_sha256"), sort_keys=True)
+                                            for v in envs.values()}) > 1,
+            "code_change_note": ("run_cert.py gained options while the run was in flight "
+                                 "(--draw-list, --no-single, and the chained-system exact counter). "
+                                 "Each worker's environment.json records the hash of the code it "
+                                 "actually ran; a worker launched before a change did not see it. "
+                                 "The changes are additive -- no instrument's arithmetic was altered "
+                                 "-- but the per-worker hashes are published rather than flattened."),
             "command": next(iter(commands.values()), "see command.txt"),
             "command_note": "this run was produced by several worker processes; every command is in "
                             "command.txt at the run root and in each worker's own command.txt",

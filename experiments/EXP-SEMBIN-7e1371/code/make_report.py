@@ -66,6 +66,23 @@ def main():
           f"{c['closure_standard_monomials']} | {c['closure_D_values']} |")
     w("")
 
+    w("Per decided instance, which is where the verdict actually lives:")
+    w("")
+    w("| instance | \\|V(I)\\| | source | D=4 rank / columns | standard monomials | verdict | wall s |")
+    w("| --- | --- | --- | --- | --- | --- | --- |")
+    rows = json.loads((run / "results-table.json").read_text())
+    counts = {r["instance_id"]: r.get("solutions") for r in rows
+              if r["instrument"] == "exhaustive_solution_count"}
+    for r in sorted(rows, key=lambda r: (r.get("n") or 0, str(r.get("instance_id")))):
+        if r["instrument"] != "closure_certificate" or r.get("m") != 2:
+            continue
+        p4 = next((x for x in (r.get("per_D") or []) if x.get("D") == 4), None)
+        if not p4 or p4.get("status") != "completed":
+            continue
+        w(f"| `{r['instance_id']}` | {counts.get(r['instance_id'])} | {r.get('solutions_source')} | "
+          f"{p4.get('rank')} / {p4.get('ncols')} | {p4.get('standard_monomials')} | "
+          f"**{p4.get('verdict')}** | {p4.get('wall_s', 0):.0f} |")
+    w("")
     w("## Off-diagonal k sweeps (the monotonicity probe)")
     w("")
     w("| cell (n,m,t,k) | N | deg-4 columns | exact \\|V(I)\\| | closure verdict at D=4 | standard monomials | single-level D4 rank | deficiency vs columns |")
