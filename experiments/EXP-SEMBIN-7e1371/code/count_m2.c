@@ -118,3 +118,62 @@ long long count_m2_reference(int n, uint64_t modulus, int k, const uint64_t *bas
     }
     return total;
 }
+
+/* Debug/verification variant of count_m2: writes the solution pairs themselves
+ * into out[] (as consecutive x1, x2 field elements) so they can be substituted
+ * back into the descended Boolean system independently. Returns the number of
+ * pairs written, or -1 if cap would be exceeded. */
+long long list_m2(int n, uint64_t modulus, int k, const uint64_t *basis,
+                  uint64_t z, uint64_t B, uint64_t *out, long cap) {
+    NBITS = n;
+    MODP = modulus;
+    uint64_t z2 = gfmul(z, z);
+    uint64_t colc[64], cD[64], D[64][64], col[64], bas[64], tagb[64];
+    for (int j = 0; j < k; j++) {
+        uint64_t vj = basis[j];
+        colc[j] = gfmul(z2, gfmul(vj, vj));
+        cD[j] = colc[j];
+        for (int i = 0; i < k; i++) {
+            uint64_t p = gfmul(basis[i], vj);
+            D[i][j] = gfmul(p, p) ^ gfmul(z, p);
+        }
+    }
+    for (int j = 0; j < k; j++) col[j] = colc[j];
+    uint64_t cvec = B;
+    long long found = 0;
+    unsigned long long limit = 1ULL << k;
+    for (unsigned long long g = 0; g < limit; g++) {
+        if (g) {
+            int i = __builtin_ctzll(g);
+            for (int j = 0; j < k; j++) col[j] ^= D[i][j];
+            cvec ^= cD[i];
+        }
+        memset(bas, 0, sizeof(uint64_t) * (size_t)(n + 1));
+        memset(tagb, 0, sizeof(uint64_t) * (size_t)(n + 1));
+        int rank = 0;
+        for (int j = 0; j < k; j++) {
+            uint64_t v = col[j], tg = 1ULL << j;
+            while (v) {
+                int r = __builtin_ctzll(v);
+                if (!bas[r]) { bas[r] = v; tagb[r] = tg; rank++; break; }
+                v ^= bas[r]; tg ^= tagb[r];
+            }
+        }
+        uint64_t v = cvec, tg = 0;
+        while (v) {
+            int r = __builtin_ctzll(v);
+            if (!bas[r]) break;
+            v ^= bas[r]; tg ^= tagb[r];
+        }
+        if (v == 0 && rank == k) {           /* unique x2 for this x1 */
+            uint64_t gray = g ^ (g >> 1), x1 = 0, x2 = 0;
+            for (int i = 0; i < k; i++) if ((gray >> i) & 1) x1 ^= basis[i];
+            for (int i = 0; i < k; i++) if ((tg >> i) & 1) x2 ^= basis[i];
+            if (found * 2 + 1 >= cap) return -1;
+            out[found * 2] = x1;
+            out[found * 2 + 1] = x2;
+            found++;
+        }
+    }
+    return found;
+}
