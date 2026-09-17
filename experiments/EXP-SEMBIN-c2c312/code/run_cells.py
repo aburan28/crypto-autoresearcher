@@ -77,6 +77,11 @@ def instance_id(n, m, t, k, subspace, B_mode, seed, draw, family="sem"):
     return f"{family}_n{n}_m{m}_t{t}_k{k}_{subspace[:3]}_{B_mode[:5]}_s{seed}_d{draw}"
 
 
+def closure_D_of(recs):
+    """closure_D from the closure record if the instrument ran, else None (records are not positional)."""
+    return next((r["closure_D"] for r in recs if r["instrument"] == "closure_certificate"), None)
+
+
 def measure(system, iid, out_dir, args, logf, s_hint=None, want_closure=True, want_single=True):
     """Run all instruments on one system; return the list of result records."""
     inst_dir = out_dir / "instances"
@@ -96,7 +101,9 @@ def measure(system, iid, out_dir, args, logf, s_hint=None, want_closure=True, wa
     records = []
     # --- instrument A: msolve F4 trace
     t0 = time.time()
-    tr = f4_trace.run_msolve(ms_path, inst_dir / f"{iid}.gb", args.wall_cap, args.mem_cap, threads=args.threads)
+    input_max_degree = max(max((bin(mm).count("1") for mm in e), default=0) for e in eqs)
+    tr = f4_trace.run_msolve(ms_path, inst_dir / f"{iid}.gb", args.wall_cap, args.mem_cap, threads=args.threads,
+                             input_max_degree=input_max_degree)
     (inst_dir / f"{iid}.msolve.log").write_text(tr.pop("stdout"))
     stderr = tr.pop("stderr")
     if stderr.strip():
@@ -158,7 +165,8 @@ def main():
     ap.add_argument("--cells", default="", help="override: comma list of n:m:t:k")
     ap.add_argument("--no-closure", action="store_true")
     ap.add_argument("--closure-draws", type=int, default=None,
-                    help="run the closure instrument only for draw < K (F4 trace and single-level run on every draw)")
+                    help="run the closure instrument only for draw < K (F4 trace and single-level run on every draw); "
+                         "the identity-repeat and matched-null controls always run every instrument")
     args = ap.parse_args()
     out = Path(args.out_dir)
     out.mkdir(parents=True, exist_ok=True)
@@ -190,7 +198,7 @@ def main():
         emit(recs)
         controls["known_false"] = {"system_sha256": sha,
                                    "f4_d_F4_semaev": recs[0]["d_F4_semaev"], "f4_d_F4_naive": recs[0]["d_F4_naive"],
-                                   "closure_D": recs[1]["closure_D"] if len(recs) > 1 else None,
+                                   "closure_D": closure_D_of(recs),
                                    "expected": 2}
         log(logf, f"control known_false: {controls['known_false']}")
 
@@ -207,13 +215,24 @@ def main():
     b_modes = args.b_modes.split(",")
     identity_done = set()
     null_done = set()
+    # resume: skip an instance only if its F4 trace already COMPLETED (a cap hit
+    # under an earlier cap is re-measured; the earlier record stays in the file)
+    done_f4 = set()
+    if (out / "results.jsonl").exists():
+        for line in open(out / "results.jsonl"):
+            try:
+                r = json.loads(line)
+            except Exception:
+                continue
+            if r.get("instrument") == "f4_trace_msolve" and r.get("status") == "completed":
+                done_f4.add(r["instance_id"])
     for group, (n, m, t, k) in cells:
         for subspace in subspaces:
             for B_mode in b_modes:
                 for draw in range(args.draws):
                     seed = SEEDS[draw % len(SEEDS)]
                     iid = instance_id(n, m, t, k, subspace, B_mode, seed, draw)
-                    if (out / "instances" / f"{iid}.json").exists() and any(iid in line for line in open(out / "results.jsonl")):
+                    if iid in done_f4:
                         continue  # resume
                     sysd = boolsys.generate(n, m, t, k, B_mode, subspace, seed, draw)
                     if not sysd["structure"]["valid"]:
@@ -251,9 +270,9 @@ def main():
                         controls.setdefault("matched_null", {})[iid] = {
                             "null_sha256": sha3,
                             "f4_d_F4_semaev": recs3[0]["d_F4_semaev"], "f4_status": recs3[0]["status"],
-                            "closure_D": recs3[1]["closure_D"] if len(recs3) > 1 else None,
+                            "closure_D": closure_D_of(recs3),
                             "structured_f4_d_F4_semaev": recs[0]["d_F4_semaev"],
-                            "structured_closure_D": recs[1]["closure_D"] if len(recs) > 1 else None}
+                            "structured_closure_D": closure_D_of(recs)}
                         log(logf, f"control matched_null {iid}: {controls['matched_null'][iid]}")
                     (out / "controls.json").write_text(json.dumps(controls, indent=2, sort_keys=True))
     (out / "controls.json").write_text(json.dumps(controls, indent=2, sort_keys=True))
