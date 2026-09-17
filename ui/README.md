@@ -34,6 +34,7 @@ Three differences remain, and they are the ones that cannot be otherwise:
 | `data/meta.json` `mode` | `live` | `static`, with commit and build time |
 | record source text | loaded on demand from disk | bundled per record, loaded on demand |
 | refresh | `POST api/refresh` re-reads the corpus | rebuilt by CI on the next push |
+| `data/ops.json` | CloudWatch, cached ~45s; refresh forces a new sample | taken once at build time |
 
 **The published site is a snapshot and says so.** A banner on every view
 names the commit and the build time and links to it. A reader comparing
@@ -113,7 +114,10 @@ scroll inside their panel, which is what `.scroll-x` is for.
 
 ## The views, in the order a reader asks
 
-- **Home** — current research, recent work, and recent findings. Three active
+- **Home** — current research, recent work, and recent findings. The
+  distinguished-point database panel (writes/s, reads, storage) sits under
+  the snapshot metrics when CloudWatch credentials were present at build
+  or on the live server. Three active
   goals show their objective and recorded next action, with ECC first and
   recent updates first within each group. An active goal is not a claim that
   an experiment is running. Flags and impediments display as “Needs attention”.
@@ -325,6 +329,7 @@ browser does.
 | `data/meta.json` | mode, commit, build time, counts, ECC area set, facets |
 | `data/index.json` | every record as a positional row — see `meta.columns` |
 | `data/overview.json` | portfolio summary, ECC-first goals, recent records |
+| `data/ops.json` | CloudWatch snapshot of the rho distinguished-point database (`rho-dp`): write/read IOPS, throughput, storage. `available: false` when the build has no AWS credentials — the page omits the panel instead of showing a naked 0 |
 | `data/goals.json` | the goal board |
 | `data/goals/<id>.json` | one goal: checkpoints, criteria, impediments, bound records |
 | `data/records/<id>.json` | parsed body, link ids, source URL; a knowledge entry also carries `markdown` |
@@ -343,6 +348,38 @@ The local server binds to loopback by default. There is no
 authentication because there is nothing to authenticate: every handler
 reads.
 
+## Database load (`rho-dp`)
+
+The home page shows write IOPS, read IOPS, throughput and storage for the
+rho distinguished-point Postgres instance (`rho-dp` in `us-west-2`).
+Those numbers come from CloudWatch, not from ledger record counts.
+
+`ui/ops.py` is stdlib-only (no boto3). It:
+
+- prefers the wall-clock last hour when the newest sample is in it;
+- otherwise reports the hour *ending at the latest sample*, labelled as
+  such, instead of painting LAST HOUR as 0 because the series is stale;
+- never invents a rate of zero for an empty window (`null` → em dash);
+- names the instance, never the hostname.
+
+Locally, put `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` in `.env`
+(gitignored) or the shell, then:
+
+```sh
+set -a && source .env && set +a
+python3 -m ui.ops          # JSON snapshot; exit 1 if unavailable
+make ui                   # live panel, refresh re-queries CloudWatch
+```
+
+The Pages build takes the same snapshot when those names are set as
+repository Actions secrets (`Settings → Secrets and variables → Actions`).
+Without them the site still publishes; the panel is omitted.
+
+IAM needs `cloudwatch:GetMetricStatistics` (CloudWatch does not support
+resource-level ARNs for that call) and `rds:DescribeDBInstances` on
+`rho-dp`. S3 bucket-size metrics are tried in `us-west-2` (this bucket's
+region) then `us-east-1`.
+
 ## Layout
 
 ```
@@ -350,21 +387,24 @@ ui/
   scan.py      shallow header scanner; the identifier grammar
   index.py     the in-memory index: records, links, goals, experiments, integrity
   payloads.py  the data contract, shared by the server and the builder
+  ops.py       CloudWatch snapshot of rho-dp (optional; silent without keys)
   server.py    stdlib HTTP server; computes the contract live
   build.py     writes the same contract out as a static site
   static/      index.html, app.css, app.js — vanilla, no dependencies
 tests/test_ui_index.py
+tests/test_ui_ops.py
 .github/workflows/pages.yml
 ```
 
 ### Reader regression checks
 
 ```sh
-python3 -m pytest tests/test_ui_index.py -q
+python3 -m pytest tests/test_ui_index.py tests/test_ui_ops.py -q
 npm ci --prefix ui --ignore-scripts
 npm test --prefix ui
 ```
 
 jsdom is a development-only dependency for testing lazy source loading,
 project-Pages base paths, safe text rendering, source copy, keyboard tabs,
-deep links, and retry after failed requests. It is not shipped in the site.
+deep links, retry after failed requests, and the database-load panel. It is
+not shipped in the site.

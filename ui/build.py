@@ -38,7 +38,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from . import payloads
+from . import ops, payloads
 from .index import ResearchIndex
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
@@ -149,6 +149,8 @@ def build(repo: Path, out: Path, clean: bool = True,
     total += write_json(data / "experiments.json", payloads.experiments_payload(index))
     total += write_json(data / "findings.json", payloads.findings_payload(index))
     total += write_json(data / "integrity.json", index.integrity)
+    say("  ops snapshot")
+    total += write_json(data / "ops.json", ops.collect_payload())
 
     say("  goals")
     for goal in index.goals:

@@ -5,7 +5,7 @@ const path = require('node:path');
 const { JSDOM } = require('../ui/node_modules/jsdom');
 const root = path.resolve(__dirname, '..');
 const app = fs.readFileSync(path.join(root, 'ui/static/app.js'), 'utf8')
-  .replace(/initChrome\(\);\s*renderNav\(\);\s*route\(\);\s*boot\(\);\s*$/, 'window.ui = {viewRecord, state};');
+  .replace(/initChrome\(\);\s*renderNav\(\);\s*route\(\);\s*boot\(\);\s*$/, 'window.ui = {viewRecord, state, opsPanel, fmtIops, fmtCount, fmtBytes};');
 const raw = '---\nid: KN-FIND-test\n---\n# Finding\n<script>alert(1)</script>\n';
 const detail = {
   summary: { id: 'KN-FIND-test', kind: 'KN', area: 'FIND', title: 'A scoped finding', path: 'knowledge/findings/KN-FIND-test.md' },
@@ -81,5 +81,76 @@ test('a network failure is recoverable and is not labelled a missing record', as
   assert.match(alert.textContent, /Could not load this record/);
   assert.match(alert.textContent, /Try again/);
   assert.doesNotMatch(alert.textContent, /not included in this snapshot/);
+  dom.window.close();
+});
+
+test('ops panel is omitted when the snapshot has no AWS credentials', () => {
+  const {dom} = setup();
+  assert.equal(dom.window.ui.opsPanel({
+    available: false, reason: 'no AWS credentials in this environment',
+  }), null);
+  assert.equal(dom.window.ui.fmtIops(null), '—');
+  assert.equal(dom.window.ui.fmtIops(0), '0/s');
+  assert.equal(dom.window.ui.fmtBytes(null), '—');
+  dom.window.close();
+});
+
+test('an empty last-hour window shows an em dash, never a naked zero', () => {
+  const {dom} = setup();
+  const latest = new Date(Date.now() - 3 * 3600 * 1000).toISOString();
+  const el = dom.window.ui.opsPanel({
+    available: true,
+    stale: true,
+    latest_point: latest,
+    database: {id: 'rho-dp', engine: 'postgres', engine_version: '16.13',
+               class: 'db.r7g.xlarge', region: 'us-west-2'},
+    last_hour: {basis: 'latest_sample', empty: true, samples: 0,
+                write_iops: null, read_iops: null,
+                write_bytes_per_sec: null, read_bytes_per_sec: null},
+    last_24h: {write_iops: 502.4, read_iops: 11600, write_ops: 43406068,
+               read_ops: 1000000000, samples: 288,
+               write_bytes_per_sec: 25e6, read_bytes_per_sec: 134e6},
+    storage: {used_bytes: 50.9 * (1024 ** 3), free_bytes: 349.1 * (1024 ** 3),
+              allocated_bytes: 400 * (1024 ** 3)},
+    object_store: {bucket: 'crypto-autoresearcher', bytes: 850e9, objects: 12,
+                   as_of: latest},
+    cpu_percent: 41.2,
+    connections: 18,
+  });
+  assert.equal(el.getAttribute('aria-label'), 'Database load');
+  assert.match(el.textContent, /Hour at latest sample/);
+  assert.match(el.textContent, /No samples in this window/);
+  assert.match(el.textContent, /hour ending at that sample/);
+  assert.doesNotMatch(el.textContent, /No samples in this window[\s\S]*0\/s/);
+  assert.match(el.textContent, /43\.41M/);
+  assert.match(el.textContent, /writes/);
+  assert.match(el.textContent, /reads/);
+  assert.match(el.textContent, /Storage/);
+  assert.match(el.textContent, /crypto-autoresearcher/);
+  assert.doesNotMatch(el.textContent, /\.rds\.amazonaws\.com/);
+  dom.window.close();
+});
+
+test('a live hour shows writes and reads per second, not a zero placeholder', () => {
+  const {dom} = setup();
+  const el = dom.window.ui.opsPanel({
+    available: true,
+    stale: false,
+    latest_point: new Date().toISOString(),
+    database: {id: 'rho-dp', engine: 'postgres', region: 'us-west-2'},
+    last_hour: {basis: 'wall', empty: false, samples: 60,
+                write_iops: 1720, read_iops: 11600,
+                write_bytes_per_sec: 25 * 1024 * 1024,
+                read_bytes_per_sec: 134 * 1024 * 1024},
+    last_24h: {write_iops: 500, read_iops: 10000, write_ops: 40000000,
+               read_ops: 800000000, samples: 288,
+               write_bytes_per_sec: 20e6, read_bytes_per_sec: 100e6},
+    storage: {used_bytes: 50 * (1024 ** 3), free_bytes: 350 * (1024 ** 3),
+              allocated_bytes: 400 * (1024 ** 3)},
+  });
+  assert.match(el.textContent, /Last hour/);
+  assert.match(el.textContent, /1\.7k\/s/);
+  assert.match(el.textContent, /11\.6k\/s/);
+  assert.doesNotMatch(el.textContent, /No samples in this window/);
   dom.window.close();
 });
