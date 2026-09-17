@@ -474,30 +474,39 @@ def audit_census_131(out: dict, np_list=(33, 44, 66), dmax=7) -> None:
 
 
 def audit_brute_cross_check_131(out: dict, np_list=(11, 12), dmax=7) -> None:
-    """Direct deg gcd(X^{2^131} - X, L) at deg L = 2^11, 2^12 versus the injection count."""
+    """Direct deg gcd(X^{2^131} - X, L) at deg L = 2^11, 2^12 (C helper) for every
+    F_2 candidate, with the pure-Python gcd on a subset as the instrument
+    cross-check.  NOTE: at these n' the injection polynomial H has degree
+    d^{q+1} = d^12 (q = 11 or 10), far above deg L, so the bound of
+    IDEA-20260916-3f7a1c (A) is VACUOUS there and its Stage 3 as written
+    ("H-based versus brute at n' in {11, 22}") cannot compare the two methods:
+    the method is cross-checked at toy n (Stage 1) instead, and here only the
+    two brute instruments are compared.  The n' = 22 spot check (q = 5, H of
+    degree d^6) compares the injection count with the C brute count at d = 3."""
     res = {}
     for np_ in np_list:
         q, r = divmod(131, np_)
-        mism = []
-        cand = 0
         t0 = time.time()
-        maxN = 0
         lams = [lam for d in range(3, dmax + 1) for lam in polys_of_degree(d) if not is_linearized(lam)]
         brutes = root_count_batch(131, [(np_, lam) for lam in lams])
-        for lam, brute in zip(lams, brutes):
-            cand += 1
-            inj = injection_count_f2(lam, np_, 131)
-            maxN = max(maxN, brute)
-            if inj.get("N") != brute:
-                mism.append({"lambda": poly_str(lam), "brute": brute, "injection": inj})
-        res[f"np{np_}"] = {"q": q, "r": r, "candidates": cand, "mismatches": len(mism), "rows": mism[:5],
-                           "max_N_brute": maxN, "seconds": round(time.time() - t0, 1), "method": "gf2rc (C) vs injection (Python)"}
-    # spot check at n' = 22 (deg L = 2^22), three candidates
+        hist = {}
+        for b in brutes:
+            hist[b] = hist.get(b, 0) + 1
+        sub = lams[::41][:6]
+        py = [root_count_gcd(np_, lam, 131) for lam in sub]
+        cb = [brutes[lams.index(lam)] for lam in sub]
+        res[f"np{np_}"] = {"q": q, "r": r, "candidates": len(lams), "max_N_brute": max(brutes),
+                           "histogram": dict(sorted(hist.items())),
+                           "python_gcd_vs_c_on_subset": [{"lambda": poly_str(l), "python": p, "c": c} for l, p, c in zip(sub, py, cb)],
+                           "instruments_agree": py == cb,
+                           "injection_bound_here": f"d^{q+1} (vacuous: exceeds deg L = 2^{np_})",
+                           "seconds": round(time.time() - t0, 1)}
     t0 = time.time()
-    spot = [0b1011, 0b10000011, 0b11010111]
+    spot = [0b1011, 0b1101]
     brutes = root_count_batch(131, [(22, lam) for lam in spot])
-    res["np22_spot"] = {"q": 131 // 22, "r": 131 % 22, "rows": [{"lambda": poly_str(l), "brute": b, "injection": injection_count_f2(l, 22, 131)} for l, b in zip(spot, brutes)],
-                        "seconds": round(time.time() - t0, 1)}
+    res["np22_spot_d3"] = {"q": 131 // 22, "r": 131 % 22,
+                           "rows": [{"lambda": poly_str(l), "brute_c": b, "injection": injection_count_f2(l, 22, 131)} for l, b in zip(spot, brutes)],
+                           "seconds": round(time.time() - t0, 1)}
     out["brute_cross_check_n131"] = res
 
 
