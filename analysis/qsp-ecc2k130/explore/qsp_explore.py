@@ -340,7 +340,8 @@ def is_linearized(lam: int) -> bool:
     i = 0
     l = lam
     while l:
-        if l & 1 and (i & (i - 1)) != 0:
+        # exponents must be powers of two: 1, 2, 4, ...; a constant term (X^0) is not one
+        if l & 1 and (i == 0 or (i & (i - 1)) != 0):
             return False
         l >>= 1
         i += 1
@@ -571,9 +572,9 @@ def audit_a17f43_census(out: dict) -> None:
             cand = 0
             items = []
             for dc in range(0, d0 + 1):
-                for c in (range(1 << dc) if dc == 0 else polys_of_degree(dc)):
+                for c in (range(2) if dc == 0 else polys_of_degree(dc)):
                     for de in range(0, d0 + 1):
-                        for e in (range(1 << de) if de == 0 else polys_of_degree(de)):
+                        for e in (range(2) if de == 0 else polys_of_degree(de)):
                             lam = (clmul(c, 1 << (1 << a))) ^ e if c else e
                             if lam == 0:
                                 continue
