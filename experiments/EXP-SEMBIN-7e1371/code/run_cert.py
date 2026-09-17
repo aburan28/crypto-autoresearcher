@@ -203,6 +203,7 @@ def measure(system, iid, out_dir, args, logf):
     # --- instrument B: degree-capped closure -> the sufficiency verdict
     if not args.no_closure:
         per_D, closure_D, verdict4 = [], None, None
+        verdict4_source = "not_reached"
         for D in range(max(gdeg, 2), args.d_max + 1):
             if gdeg > D:
                 continue
@@ -222,14 +223,23 @@ def measure(system, iid, out_dir, args, logf):
                       f"rank={cc.get('rank')}/{cc.get('ncols')} std={cc.get('standard_monomials')} "
                       f"{time.time()-t0:.1f}s")
             if D == 4:
-                verdict4 = cc.get("verdict")
+                verdict4, verdict4_source = cc.get("verdict"), "measured_at_D4"
             if cc.get("verdict") == "sufficient":
                 closure_D = D
+                if verdict4 is None:
+                    # Decided below 4, and the loop stops there rather than paying for a
+                    # degree-4 closure whose answer is already fixed: W_D is contained in
+                    # W_{D'} for D <= D', so the standard monomial count is non-increasing
+                    # in D, and it is bounded below by |V(I)|. Equal to |V(I)| at D forces
+                    # equal at every D' >= D. The inference is recorded as an inference --
+                    # the D = 4 block was not built.
+                    verdict4 = "sufficient"
+                    verdict4_source = f"implied_by_sufficiency_at_D{D}"
                 break
             if cc.get("status") != "completed":
                 break
         if gdeg > args.d_max:
-            verdict4 = "not_applicable"
+            verdict4, verdict4_source = "not_applicable", "generators_exceed_D4"
             per_D.append({"D": args.d_max, "status": "not_applicable",
                           "reason": f"max generator degree {gdeg} exceeds D = {args.d_max}: the "
                                     f"degree-{args.d_max} block contains no product of the generators"})
@@ -242,7 +252,8 @@ def measure(system, iid, out_dir, args, logf):
         else:
             status = "unreached"
         records.append(dict(base, instrument="closure_certificate", closure_D=closure_D,
-                            degree4_sufficiency_verdict=verdict4, solutions_used=s_known,
+                            degree4_sufficiency_verdict=verdict4,
+                            degree4_verdict_source=verdict4_source, solutions_used=s_known,
                             solutions_source=s_source, per_D=per_D, status=status))
     return records, sha
 

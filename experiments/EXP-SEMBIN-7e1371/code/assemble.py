@@ -59,6 +59,15 @@ def dedupe(recs):
     return list(best.values()), dups
 
 
+# A per-D row is "reached" only in these states. Everything else -- including
+# closure_cert's own unreached_memory_cap, which the C library returns when M4RI
+# hits the cap -- is unreached and must appear in the rollup with its column
+# count. Listed by EXCLUSION on purpose: a whitelist of failure strings drops any
+# status added later, and a capped cell silently missing from the unreached table
+# is the one reporting error this contract cannot tolerate (invalidation rule 5).
+REACHED_STATUSES = ("completed", "not_applicable", "empty_block")
+
+
 def cell_of(r):
     return (r.get("n"), r.get("m"), r.get("t"), r.get("k"))
 
@@ -94,9 +103,10 @@ def summarize(recs):
             for p in cl.get("per_D", []):
                 if p.get("D") == 4 and p.get("standard_monomials") is not None:
                     c["closure_standard_monomials"].append(p["standard_monomials"])
-                if p.get("status") in ("unreached_declared", "hit_cap", "unreached"):
+                if p.get("status") not in REACHED_STATUSES:
                     c["unreached"].append({"instrument": "closure", "D": p.get("D"),
-                                           "ncols": p.get("ncols"), "reason": p.get("reason")})
+                                           "status": p.get("status"), "ncols": p.get("ncols"),
+                                           "reason": p.get("reason")})
                 if p.get("wall_s") is not None:
                     c["wall_seconds_closure"].append(round(p["wall_s"], 1))
         sl = insts.get("macaulay_single_level")
@@ -112,9 +122,10 @@ def summarize(recs):
                     c["single_level_D4_deficiency_vs_columns"].append(p["deficiency_vs_columns"])
                 if p.get("deficit_vs_semiregular") is not None:
                     c["single_level_D4_deficit_vs_semiregular"].append(p["deficit_vs_semiregular"])
-                if p.get("status") in ("unreached_declared",):
+                if p.get("status") not in REACHED_STATUSES:
                     c["unreached"].append({"instrument": "single_level", "D": 4,
-                                           "ncols": p.get("cols"), "reason": p.get("reason")})
+                                           "status": p.get("status"), "ncols": p.get("cols"),
+                                           "reason": p.get("reason")})
         sc = insts.get("exhaustive_solution_count")
         if sc and sc.get("solutions") is not None:
             c["exact_solution_counts"].append(sc["solutions"])
