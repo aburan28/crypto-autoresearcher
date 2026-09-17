@@ -48,6 +48,38 @@ static void kpow(const int*a,long long e,int*out){
     while(e){ if(e&1){ kmul(r,b,t); memcpy(r,t,NN*sizeof(int)); } kmul(b,b,t); memcpy(b,t,NN*sizeof(int)); e>>=1; }
     memcpy(out,r,NN*sizeof(int));
 }
+/* ---- F_p[X] gcd, for the RIGOROUS irreducibility criterion --------------
+   Added after the review round by the orchestrating session in response to
+   Cursor Bugbot's finding on PR #1265 (comment 4039393557).  The original
+   test checked only that the indeterminate z satisfies z^{p^n} = z and
+   z^{p^{n/ell}} != z for primes ell | n.  That is the order of ONE element,
+   which is weaker than irreducibility: it asks whether z lies in a proper
+   subfield, not whether every root does.  A reducible f whose factor degrees
+   all divide n and have lcm exactly n passes it -- e.g. over F_p with n = 6,
+   a product (linear)(quadratic)(cubic).  The failure needs n with two
+   distinct prime factors.  The correct criterion (Rabin) replaces the second
+   test with gcd(X^{p^{n/ell}} - X, f) = 1.
+   NO REPORTED NUMBER CHANGES: of the ten cells run, only (p,n) = (5,6) has n
+   with two distinct prime factors, and its selected modulus X^6 + X + 2 is
+   genuinely irreducible over F_5; all ten selected moduli were independently
+   confirmed irreducible by sympy factorisation, and re-running with this
+   corrected test reproduces out/j1_kcoef_oddp.txt byte for byte. */
+static int fp_deg(const int*a,int len){ int d=len-1; while(d>=0 && a[d]==0) d--; return d; }
+static int fp_pw(int a,int e){ long long r=1,b=a%P; while(e){ if(e&1) r=r*b%P; b=b*b%P; e>>=1; } return (int)r; }
+static int fp_inv(int a){ return fp_pw(a,P-2); }
+/* destructive; returns deg gcd(A,B) */
+static int fp_gcd_deg(int*A,int*B,int la,int lb){
+    int da=fp_deg(A,la), db=fp_deg(B,lb);
+    for(;;){
+        if(da<0) return db;
+        if(db<0) return da;
+        if(db<da){ int*t=A;A=B;B=t; int u=da;da=db;db=u; u=la;la=lb;lb=u; }
+        int c=(int)((long long)B[db]*fp_inv(A[da])%P);
+        for(int i=0;i<=da;i++) B[db-da+i]=md((long long)B[db-da+i]-(long long)c*A[i]);
+        db=fp_deg(B,lb);
+    }
+}
+
 static long long ipow(long long b,int e){ long long r=1; while(e--) r*=b; return r; }
 
 /* ---- K[X] : poly stored as (deg+1) blocks of NN ints, index 0 = constant ---- */
@@ -112,8 +144,14 @@ int main(int argc,char**argv){
                 int isp=1; for(int k2=2;k2*k2<=ell;k2++) if(ell%k2==0) isp=0;
                 if(!isp) continue;
                 kpow(z,ipow(P,n/ell),o);
-                int same=1; for(int j=0;j<n;j++) if(o[j]!=z[j]) same=0;
-                if(same) ok=0; } }
+                /* RIGOROUS: gcd(X^{p^{n/ell}} - X, f) must be 1.  Testing only
+                   o != z would test one element's order, not irreducibility. */
+                int A[2*MAXN],B[2*MAXN];
+                for(int j=0;j<2*MAXN;j++){ A[j]=0; B[j]=0; }
+                for(int j=0;j<n;j++) A[j]=o[j];
+                A[1]=md((long long)A[1]-1);
+                for(int j=0;j<=n;j++) B[j]=md(FM[j]);
+                if(fp_gcd_deg(A,B,n+1,n+1)!=0) ok=0; } }
         if(ok) found=1;
     }
     if(!found){ fprintf(stderr,"no irreducible\n"); return 1; }
