@@ -94,11 +94,14 @@ def load(paths):
             continue
         slot[key] = r
     # heavy-pass records are keyed by the same instance_id with suffix "_heavy": fold their F4 into the base instance
+    # and drop the "_heavy" key so the same system is not counted twice in its cell
     for iid in list(by_inst):
         if iid.endswith("_heavy"):
             base = iid[: -len("_heavy")]
+            if base not in by_inst:
+                continue
             hv = by_inst[iid].get("f4_trace_msolve")
-            if hv and base in by_inst:
+            if hv:
                 b = by_inst[base].get("f4_trace_msolve")
                 if not b or b.get("status") != "completed":
                     hv = dict(hv, heavy_pass=True)
@@ -106,6 +109,7 @@ def load(paths):
             for k in ("closure_certificate",):
                 if k in by_inst[iid] and (k not in by_inst[base] or by_inst[base][k].get("closure_D") is None):
                     by_inst[base][k] = dict(by_inst[iid][k], heavy_pass=True)
+            del by_inst[iid]
     for iid, ins in by_inst.items():
         if "closure_certificate" in ins:
             ins["closure_certificate"] = posthoc_closure(ins["closure_certificate"], ins.get("f4_trace_msolve"))
