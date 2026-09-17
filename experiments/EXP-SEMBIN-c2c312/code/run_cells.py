@@ -331,8 +331,8 @@ def main():
                         r["group"] = group
                         r["structure"] = sysd["structure"]
                     emit(recs)
-                    if args.remeasure_unreached:
-                        continue  # heavy pass re-runs F4 traces only; the workers already ran the controls
+                    if args.remeasure_unreached or args.closure_only_missing:
+                        continue  # heavy passes run one instrument only; the workers already ran the controls
                     # instrument identity + matched null on the first instance of each reproduction cell
                     if args.controls == "all" and group == "reproduction" and (n, m, t, k) not in identity_done and draw == 0 and iid not in done_repeat:
                         identity_done.add((n, m, t, k))
