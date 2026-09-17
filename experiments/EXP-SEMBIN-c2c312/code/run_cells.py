@@ -128,6 +128,13 @@ def measure(system, iid, out_dir, args, logf, s_hint=None, want_closure=True, wa
         per_D = []
         for D in range(max_gen_deg, args.d_max + 1):
             t0 = time.time()
+            ncols_D = sum(__import__("math").comb(N, d) for d in range(D + 1))
+            if ncols_D > args.closure_max_cols:
+                cc = {"D": D, "instrument": "closure", "status": "unreached_declared", "ncols": ncols_D,
+                      "reason": f"column count {ncols_D} exceeds --closure-max-cols {args.closure_max_cols}"}
+                per_D.append(cc)
+                log(logf, f"{iid} closure D={D}: unreached_declared ncols={ncols_D} > cap {args.closure_max_cols}")
+                break
             cc = closure_cert.closure_certificate(N, eqs, D, args.closure_mem_cap, s_known=s_known, standard_cap=args.standard_cap)
             per_D.append(cc)
             log(logf, f"{iid} closure D={D}: {cc.get('status')} verdict={cc.get('verdict')} rank={cc.get('rank')} ncols={cc.get('ncols')} iters={len(cc.get('iterations', []))} {time.time()-t0:.1f}s")
@@ -173,6 +180,16 @@ def main():
     ap.add_argument("--d-max", type=int, default=5)
     ap.add_argument("--standard-cap", type=int, default=100000)
     ap.add_argument("--single-max-cols", type=int, default=200000)
+    ap.add_argument("--closure-max-cols", type=int, default=200000,
+                    help="do not attempt the closure at a degree D whose squarefree-monomial count sum_{d<=D} C(N,d) "
+                         "exceeds this; recorded as unreached_declared with the column count (M4RI needs several "
+                         "times the dense estimate, and the D=5 closure at N=42 (975k columns) OOM-killed a worker)")
+    ap.add_argument("--resume-from", default="",
+                    help="comma list of other workers' results.jsonl files whose records also count for resume "
+                         "(the heavy pass reads the workers' files to find the unreached F4 traces)")
+    ap.add_argument("--remeasure-unreached", action="store_true",
+                    help="heavy-pass mode: for instances whose F4 trace exists but did not complete, run ONLY the F4 "
+                         "trace again (under this process's caps); instances with a completed F4 are skipped")
     ap.add_argument("--controls", default="all", help="all|none")
     ap.add_argument("--cells", default="", help="override: comma list of n:m:t:k")
     ap.add_argument("--no-closure", action="store_true")
@@ -224,7 +241,8 @@ def main():
     if args.cells:
         for spec in args.cells.split(","):
             n, m, t, k = (int(x) for x in spec.split(":"))
-            cells.append(("override", (n, m, t, k)))
+            grp = next((g for g, cs in CELLS.items() if (n, m, t, k) in cs), "override")
+            cells.append((grp, (n, m, t, k)))
     else:
         for g in args.groups.split(","):
             for c in CELLS[g]:
@@ -238,15 +256,42 @@ def main():
     null_done = set()
     # resume: skip an instance only if its F4 trace already COMPLETED (a cap hit
     # under an earlier cap is re-measured; the earlier record stays in the file)
-    done_f4 = set()
-    if (out / "results.jsonl").exists():
-        for line in open(out / "results.jsonl"):
+    done_f4 = set()          # instances not to touch again
+    unreached_f4 = set()     # instances whose F4 trace exists but did not complete
+    seen_single = set()
+    seen_f4_status = {}
+    seen_ids = set()
+    resume_files = [out / "results.jsonl"] + [Path(p) for p in filter(None, args.resume_from.split(","))]
+    for rf in resume_files:
+        if not rf.exists():
+            continue
+        for line in open(rf):
             try:
                 r = json.loads(line)
             except Exception:
                 continue
-            if r.get("instrument") == "f4_trace_msolve" and r.get("status") == "completed":
-                done_f4.add(r["instance_id"])
+            seen_ids.add(r.get("instance_id"))
+            if r.get("instrument") == "macaulay_single_level_DREG":
+                seen_single.add(r["instance_id"])
+            if r.get("instrument") == "f4_trace_msolve":
+                st = r.get("status")
+                prev = seen_f4_status.get(r["instance_id"])
+                if prev != "completed":
+                    seen_f4_status[r["instance_id"]] = st
+    for iid_, st in seen_f4_status.items():
+        # measure() emits all of an instance's records together, so a single-level record means the
+        # instance's measurement completed; an F4 that completed, or was declared deferred, or hit a cap
+        # under the same configuration, is not re-run by a plain relaunch. --remeasure-unreached re-runs
+        # exactly the uncompleted F4 traces (heavy pass).
+        if iid_ in seen_single or st == "completed":
+            if st == "completed":
+                done_f4.add(iid_)
+            elif args.remeasure_unreached:
+                unreached_f4.add(iid_)
+            else:
+                done_f4.add(iid_)
+    done_repeat = {i[: -len("_repeat")] for i in seen_ids if i and i.endswith("_repeat")}
+    done_null = {i.replace("null_", "sem_", 1) for i in seen_ids if i and i.startswith("null_")}
     for group, (n, m, t, k) in cells:
         for subspace in subspaces:
             for B_mode in b_modes:
@@ -255,6 +300,8 @@ def main():
                     iid = instance_id(n, m, t, k, subspace, B_mode, seed, draw)
                     if iid in done_f4:
                         continue  # resume
+                    if args.remeasure_unreached and iid not in unreached_f4:
+                        continue  # heavy pass touches only instances whose F4 did not complete
                     sysd = boolsys.generate(n, m, t, k, B_mode, subspace, seed, draw)
                     if not sysd["structure"]["valid"]:
                         log(logf, f"{iid} STRUCTURE INVALID {sysd['structure']}")
@@ -263,13 +310,17 @@ def main():
                     want_cl = (not args.no_closure) and (args.closure_draws is None or draw < args.closure_draws)
                     skip_reason = (f"F4 trace deferred to the serialized heavy pass: N = {sysd['N']} exceeds the "
                                    f"two-worker {args.mem_cap} GB msolve budget (declared by --f4-skip-cells)") if (n, m, t, k) in f4_skip else None
-                    recs, sha = measure(sysd, iid, out, args, logf, want_closure=want_cl, skip_f4_reason=skip_reason)
+                    if args.remeasure_unreached:
+                        want_cl, skip_reason = False, None
+                        recs, sha = measure(sysd, iid, out, args, logf, want_closure=False, want_single=False, skip_f4_reason=None)
+                    else:
+                        recs, sha = measure(sysd, iid, out, args, logf, want_closure=want_cl, skip_f4_reason=skip_reason)
                     for r in recs:
                         r["group"] = group
                         r["structure"] = sysd["structure"]
                     emit(recs)
                     # instrument identity + matched null on the first instance of each reproduction cell
-                    if args.controls == "all" and group == "reproduction" and (n, m, t, k) not in identity_done and draw == 0:
+                    if args.controls == "all" and group == "reproduction" and (n, m, t, k) not in identity_done and draw == 0 and iid not in done_repeat:
                         identity_done.add((n, m, t, k))
                         # Propagate skip_f4_reason: the N=42 reproduction cell (13:4:4:4) is on the
                         # skip list, and re-running F4 here would defeat the deferral (and OOM the worker).
@@ -289,7 +340,7 @@ def main():
                                                            == [[(p.get("D"), p.get("rank"), p.get("basis_lm_sha256"), [(i["rows"], i["rank_after"]) for i in p.get("iterations", [])]) for p in x["per_D"]] for x in recs2 if x["instrument"] == "closure_certificate"]}
                         controls.setdefault("instrument_identity", {})[iid] = ident
                         log(logf, f"control instrument_identity {iid}: {ident}")
-                    if args.controls == "all" and group == "reproduction" and (n, m, t, k, subspace, B_mode) not in null_done:
+                    if args.controls == "all" and group == "reproduction" and (n, m, t, k, subspace, B_mode) not in null_done and iid not in done_null:
                         null_done.add((n, m, t, k, subspace, B_mode))
                         nul = boolsys.matched_null(sysd, seed)
                         nul["source_sha256"] = sha
