@@ -73,7 +73,7 @@ bound holds for every `lambda in F_{2^n}[X]`, and complete splitting
 |---|---|
 | K-coefficient fixture, random `lambda in F_{2^11}[X]`: (n', d) = (6, 3) 60 draws, (6, 5) 40 draws, (4, 3) 40 draws | max N = 5, 4, 4 against bounds 9, 25, 27; bound holds on every draw |
 | bound table at n = 131 | `beta >= 131/(131 + n' - r)`: 0.992 at every n' with 131 = -1 mod n', minimum 0.504 at n' = 130; Prop. 8 exponent at the bound >= 0.898, i.e. >= 2^117.7 at every n'; `alpha_beta > 1` would need `kappa < 0.992` |
-| complete-splitting sweep, prime n <= 31, n' <= 15, d <= 8 | PENDING (see below) |
+| complete-splitting sweep, prime n in {7..31}, n' <= 15, 2 <= d <= min(8, 2^n' - 1), n' not dividing n | 356 candidates with N >= 2^{n'-1}, 65 complete (N = 2^n'), **0 violations** of beta >= n(n'-1)/(n'(n+n'-r)); complete splittings occur only at (n, n') = (7, 3) [36, tight: X^2+X at beta = 7/9 = bound], (7, 4) [3, tight], (31, 5) [24, min beta 2.48 vs bound 0.886], (31, 6) [2, min beta 1.72 vs 0.861]; the largest n' with any complete splitting at prime n <= 31 and d <= 8 is 6 |
 
 The corollary inverts premise (4) of `RQ-QSP-f9bbdb` (already recorded in
 `CORR-20260916-8d0b81` for F_2 coefficients; the K-coefficient form is this
@@ -108,11 +108,65 @@ Two audits, one re-derived and one run.
   curve was not checked; a lower total degree lowers this count.
 - **Toy census of the shape** `L_R = X^{2^{a+1}} + c(X) X^{2^a} + e(X)`,
   `c, e in F_2[X]` of degree <= d0, at prime n in {23, 29, 31} and the
-  admissible a (r <= q), with the Type 2 fixtures: PENDING (see below).
+  admissible a (r <= q), with the Type 2 fixtures: **run, and it returned the
+  outcome the record calls the surprise** (its falsification condition 4). See
+  the slow-stage table.
 
 ## Slow stages
 
-PENDING: filled in when the sweep and the a17f43 census finish.
+Fixtures through the same instrument: Type 2 at n = 7 gives 8, Type 2 at
+n = 31 (a = 14, d0 = 128) gives 32768. Both as forced.
+
+Census of `L_R = X^{2^{a+1}} + c(X) X^{2^a} + e(X)`, `c, e in F_2[X]` of degree
+<= d0, the linearized-trinomial slice (c constant, e linearized) excluded
+because Proposition 2 decides it; `needed` is 2^a (half the shape's 2^{a+1}
+roots), `bound` is the record's correspondence bound `d0^{q+1} + 2^{q+1} 2^{a-r}`:
+
+| n | a | q | r | d0 | candidates | max N | needed 2^a | bound | holds |
+|---|---|---|---|---|---|---|---|---|---|
+| 23 | 11 | 2 | 1 | 2 | 42 | 2 | 2048 | 8200 | yes |
+| 23 | 7 | 3 | 2 | 3 | 218 | 24 | 128 | 593 | yes |
+| 23 | 5 | 4 | 3 | 3 | 218 | 24 | 32 | 371 | yes |
+| 23 | 4 | 5 | 3 | 3 | 218 | 25 | 16 | 857 | yes |
+| 23 | 3 | 7 | 2 | 3 | 218 | 2 | 8 | 7073 | yes |
+| 29 | 14 | 2 | 1 | 2 | 42 | 2 | 16384 | 65544 | yes |
+| 29 | 9 | 3 | 2 | 2 | 42 | 2 | 512 | 2064 | yes |
+| 29 | 7 | 4 | 1 | 3 | 218 | 30 | 128 | 2291 | yes |
+| 29 | 5 | 5 | 4 | 3 | 218 | **58** | 32 | 857 | yes |
+| 29 | 4 | 7 | 1 | 3 | 218 | 30 | 16 | 8609 | yes |
+| 31 | 15 | 2 | 1 | 2 | 42 | 2 | 32768 | 131080 | yes |
+| 31 | 10 | 3 | 1 | 2 | 42 | 2 | 1024 | 8208 | yes |
+| 31 | 7 | 4 | 3 | 3 | 218 | **64** | 128 | 755 | yes |
+| 31 | 6 | 5 | 1 | 3 | 218 | 33 | 64 | 2777 | yes |
+| 31 | 5 | 6 | 1 | 3 | 218 | **64** | 32 | 4235 | yes |
+
+The three bold cells exceed the record's "controlled null" prediction of at
+most 2n + 2 (two Frobenius orbits): at n = 31, a = 5, d0 = 3 the candidate
+`c = X^2 + X`, `e = X^3 + X^2 + X`, i.e.
+`L_R = X^64 + X^34 + X^33 + X^3 + X^2 + X`, has all 64 of its roots in
+F_{2^31} (a non-linearized, completely splitting polynomial of the shape
+with d0 = 3 at prime n, which the sweep above could not see because its
+degree 34 exceeds the sweep's d <= 8); the same (c, e) at a = 7 gives 64 of
+128; at n = 29, a = 5 the candidate `c = X^2 + X + 1`, `e = X^3 + X^2 + 1`
+has 58 roots (two full orbits) against 32 needed. Whether these are
+instances of a family (both positives sit at a = 5 with d0 = 3; 31 is a
+Mersenne prime, 29 is not) was not investigated here. By the record's own
+falsification condition 4, the n = 131 census at the admissible a is now
+mandatory; its feasible part (a in {11, 13, 14, 16, 18} at d0 <= 3, a = 21
+at d0 <= 2, via the O(deg^2) gcd) is `shape_census_131.py`, results in
+`shape_census_131.json` when complete. The cells that matter most for the
+cost surface (a = 32, i.e. n' = 33) need a sub-quadratic GF(2)[x] gcd at
+degree 2^33 and are out of reach of this helper.
+
+Important caveat on relevance: existence at a = 32 would make the cell
+`(n' = 33, m = 4)` "alive on the factor base" but not on cost. The record's
+own m-homogeneous Bezout floor for its layered decomposition system is
+2^38.6 at d0 = 2 and 2^42.1 at d0 = 3 per attempt against a 2^31.3 budget,
+and no mixed-volume routine exists in this container to lower it. The
+positive existence outcome moves the question from "does the shape exist
+at small d0" (yes, at toy n) to "what does its decomposition system cost",
+which is exactly what b84e2d-style measurement would price and cannot be
+priced here without an engine.
 
 ## What this changes in the ranking of the four proposals
 
@@ -123,6 +177,11 @@ PENDING: filled in when the sweep and the a17f43 census finish.
   numerical check here. The next step is a validator/red-team review of the
   derivation, not compute.
 - b84e2d: blocked by tooling and no longer load-bearing.
-- a17f43: see the slow-stage results; the Bezout gap of 2^7.3 at the only
-  rho-competitive cell stands unless a mixed-volume computation lowers it,
-  and no mixed-volume routine is available here either.
+- a17f43: **promoted by its own audit.** The toy census found small-d0
+  members of the shape that split completely at prime n, which the record
+  predicted would not happen; its Stage 3 (the n = 131 census) is therefore
+  mandatory by its own terms, and the feasible part is running. The cost
+  half (mixed volume at (33, 4) against the 2^31.3 budget) remains the
+  binding question and needs an engine this container lacks. This is the
+  one proposal of the four whose ECDLP relevance is not yet settled by
+  arithmetic, and it should be the next `/design-experiment`.
