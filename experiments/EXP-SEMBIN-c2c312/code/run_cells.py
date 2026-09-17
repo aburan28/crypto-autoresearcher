@@ -68,6 +68,11 @@ def peak_rss_gb():
     return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / (1 << 20)
 
 
+def f4_profile(rec):
+    """Per-round algebraic profile of an F4 record, without msolve's printed timings."""
+    return [{k: v for k, v in r.items() if k not in ("real_s", "cpu_s")} for r in rec["rounds"]]
+
+
 def instance_id(n, m, t, k, subspace, B_mode, seed, draw, family="sem"):
     return f"{family}_n{n}_m{m}_t{t}_k{k}_{subspace[:3]}_{B_mode[:5]}_s{seed}_d{draw}"
 
@@ -229,7 +234,7 @@ def main():
                             r["group"] = "instrument_identity_repeat"
                         emit(recs2)
                         ident = {"system_sha256_first": sha, "system_sha256_repeat": sha2,
-                                 "f4_rounds_equal": [x["rounds"] for x in recs if x["instrument"] == "f4_trace_msolve"] == [x["rounds"] for x in recs2 if x["instrument"] == "f4_trace_msolve"],
+                                 "f4_rounds_equal": [f4_profile(x) for x in recs if x["instrument"] == "f4_trace_msolve"] == [f4_profile(x) for x in recs2 if x["instrument"] == "f4_trace_msolve"],
                                  "closure_profiles_equal": [[(p.get("D"), p.get("rank"), p.get("basis_lm_sha256"), [(i["rows"], i["rank_after"]) for i in p.get("iterations", [])]) for p in x["per_D"]] for x in recs if x["instrument"] == "closure_certificate"]
                                                            == [[(p.get("D"), p.get("rank"), p.get("basis_lm_sha256"), [(i["rows"], i["rank_after"]) for i in p.get("iterations", [])]) for p in x["per_D"]] for x in recs2 if x["instrument"] == "closure_certificate"]}
                         controls.setdefault("instrument_identity", {})[iid] = ident
