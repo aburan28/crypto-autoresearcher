@@ -30,6 +30,12 @@ experiment:
     relation_transport: >-
       If sum_i P_i = R, then sum_i phi(P_i) = phi(R). After factor-base orbit
       folding, the transported linear row is lambda times the original row.
+    factor_base_rule: >-
+      The shared factor base is a union of complete length-3 phi-orbits only.
+      B is divisible by 3. Prefix truncation that splits an orbit is forbidden.
+      ARM_CAN back-maps a cached decomposition of the canonical target by
+      applying phi^j to each factor-base point; every image must remain in the
+      factor base.
     canonical_target: >-
       Choose one deterministic representative of the target orbit using a fixed,
       frozen byte encoding order. Record orientation j in {0,1,2} such that
@@ -51,20 +57,28 @@ experiment:
         only when emitting a relation to the caller.
     - id: NULL_SHUFFLE
       description: >-
-        Deterministically shuffle target identifiers while preserving the same
-        number of requests. Cache reuse should disappear; this validates that
-        measured savings come from GLV-equivalent requests rather than generic
-        memoization.
+        Same request count and generic cache machinery as the orbit-expanded
+        stream, but each request is a frozen target that is not GLV-equivalent
+        to any other request in the stream (no two requests share a phi-orbit).
+        Canonical-target cache reuse must vanish; residual hits are accidental
+        collisions, not orbit reuse. Identifier permutation or request-order
+        shuffle of the expanded stream is not this control.
 
   inputs:
     procedure: >-
       Generate a frozen set of base targets, then expand each into the three GLV
       orientations. Submit the identical expanded request stream to ARM_RAW and
-      ARM_CAN in the same order. Use the same factor base, solver, timeout, seed,
-      and decomposition arity. ARM_CAN records a canonical-target key before any
-      solver call. Every cache hit must reconstruct a verified relation in the
-      requested orientation. Relation storage deduplicates only after exact
-      canonicalization; raw pre-dedup rows are retained for accounting.
+      ARM_CAN in the same order. Independently construct NULL_SHUFFLE as a frozen
+      same-length replacement stream of pairwise non-GLV-equivalent targets and
+      submit that stream to the ARM_CAN pipeline with the same generic cache
+      machinery. Identifier permutation or request-order shuffle of the expanded
+      stream is not NULL_SHUFFLE. Use the same complete length-3 GLV-closed
+      factor base, solver, timeout, seed, and decomposition arity. ARM_CAN
+      records a canonical-target key before any solver call. Every cache hit
+      must reconstruct a verified relation in the requested orientation, and
+      every back-mapped point must remain in the factor base. Relation storage
+      deduplicates only after exact canonicalization; raw pre-dedup rows are
+      retained for accounting.
     parameter_grid:
       bit_sizes: [12, 14, 16, 18]
       arities: [2, 3]
@@ -77,15 +91,23 @@ experiment:
       Orbit identity gate: phi^3(R)=R for every submitted target and the chosen
       canonical representative is identical for all three orientations.
     - >-
+      Complete-orbit gate: the shared factor base is a union of complete
+      length-3 phi-orbits; phi^3 is identity on every base point; no prefix
+      truncation may split an orbit.
+    - >-
       Exact back-map gate: every cached or canonical relation is transformed
-      back to the submitted orientation and independently verified on the curve.
+      back to the submitted orientation by applying phi^j to each factor-base
+      point. Every image must remain in the factor base, and the back-mapped
+      tuple must independently add to the submitted target on the curve.
     - >-
       Rank-preservation gate: after expanding canonical rows back to all observed
       orientations, the informative row span must equal the raw pipeline's span
       on the same verified relation set.
     - >-
-      NULL_SHUFFLE preserves request count and generic cache machinery but removes
-      GLV orbit collisions.
+      NULL_SHUFFLE preserves request count and generic cache machinery but
+      replaces orbit-expanded requests with pairwise non-GLV-equivalent targets,
+      so GLV orbit collisions are absent and canonical-target cache reuse must
+      vanish.
     - >-
       Canonicalization time, hash time, cache lookup time, and serialization time
       are charged; they may not be hidden as preprocessing.
@@ -140,14 +162,22 @@ experiment:
       solver savings depend on workload duplication. Results describe this
       pipeline and request distribution, not ECDLP asymptotics.
 
+  budget:
+    wall_clock_seconds_per_run: 900
+    total_cpu_hours: 0.5
+    maximum_memory_gb: 8
+    maximum_runs: 20
+
   stopping_rules:
-    - Stop immediately on any failed orbit-identity or back-map verification.
+    - Stop immediately on any failed orbit-identity, complete-orbit, or back-map verification.
     - Retain failed targets and solver timeouts; do not remove them from denominators.
     - Freeze target order and cache policy before the first timed invocation.
     - Do not increase the fraction of orbit-expanded targets after observing results.
 
   invalidation_rules:
     - Any cache hit that returns an unverified relation invalidates the run.
+    - Any back-mapped factor-base point that leaves the shared factor base invalidates the run.
+    - Any shared factor base that is not a union of complete length-3 phi-orbits invalidates the run.
     - Any canonical key collision between non-GLV-equivalent targets invalidates the run.
     - Any comparison using different target streams or solver settings is invalid.
     - Any rank comparison that counts phi-transforms as independent is invalid.
