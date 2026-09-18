@@ -383,6 +383,33 @@ long closure_count_deg(int d) {
     return c;
 }
 
+/* DIAGNOSTIC: evaluate every basis row at a Boolean assignment and report how
+ * many do NOT vanish, plus the index of the first such row. Every element of the
+ * ideal vanishes at every common zero of the generators, so a nonzero count on a
+ * genuine solution proves the row space has left the ideal. In C because the
+ * Python equivalent is ~10^8 interpreter operations at N = 44. */
+long closure_eval_rows(u64 assign, long *first_bad, long *first_cnt) {
+    if (first_bad) *first_bad = -1;
+    if (first_cnt) *first_cnt = 0;
+    u64 *buf = malloc(sizeof(u64) * (size_t)ncols_);
+    if (!buf) return -1;
+    long offenders = 0;
+    for (long i = 0; i < rank_; i++) {
+        long cnt = row_masks(B_, i, buf);
+        int v = 0;
+        for (long j = 0; j < cnt; j++) if ((buf[j] & assign) == buf[j]) v ^= 1;
+        if (v) {
+            if (offenders == 0) {
+                if (first_bad) *first_bad = i;
+                if (first_cnt) *first_cnt = cnt;
+            }
+            offenders++;
+        }
+    }
+    free(buf);
+    return offenders;
+}
+
 /* masks of basis row i; returns count; out must hold ncols entries */
 long closure_row_masks(long i, u64 *out) {
     if (i < 0 || i >= rank_) return 0;
