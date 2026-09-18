@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import resource
 import statistics
 import subprocess
 import sys
@@ -246,6 +247,13 @@ def stage1(run: Run) -> dict:
     }
 
 
+def peak_rss_bytes() -> int:
+    """High-water RSS after the work, matching runlib: max(self, children)."""
+    ru = resource.getrusage(resource.RUSAGE_SELF)
+    ruc = resource.getrusage(resource.RUSAGE_CHILDREN)
+    return max(ru.ru_maxrss, ruc.ru_maxrss) * 1024
+
+
 def measure_pair(s0, s1, n):
     t0 = time.time()
     i1 = i1_resultant(s0, s1)
@@ -254,7 +262,7 @@ def measure_pair(s0, s1, n):
     i3 = None
     if i1[1] or i2[1]:
         i3 = has_nonconstant_common_factor(s0, s1)
-    return i1, i2, i3, wall
+    return i1, i2, i3, wall, peak_rss_bytes()
 
 
 def g1_g2(med2, med3, rows_n):
@@ -273,11 +281,11 @@ def g1_g2(med2, med3, rows_n):
 
 
 def stage2(run: Run) -> dict:
-    import resource
     rows = []
     opened_n = []
     stop_reason = None
     disagreements = []
+    unexplained_zeros = []
     for n in (17, 23):
         opened_n.append(n)
         batch = []
@@ -285,14 +293,14 @@ def stage2(run: Run) -> dict:
             for bits, poly in lst:
                 s0 = S0_Y
                 s1 = compose_lambda_y(s0, bits)
-                ru = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss * 1024
-                i1, i2, i3, wall = measure_pair(s0, s1, n)
-                row = cell_row(n, d, bits, poly, s0, s1, i1, i2, i3, wall, ru)
+                i1, i2, i3, wall, rss = measure_pair(s0, s1, n)
+                row = cell_row(n, d, bits, poly, s0, s1, i1, i2, i3, wall, rss)
                 row["object_class"] = "chain"
                 if not agree(i1, i2):
                     disagreements.append(row)
                 if row["identically_zero"] and not i3:
                     row["invalid_zero_without_I3"] = True
+                    unexplained_zeros.append(row)
                 batch.append(row)
                 rows.append(row)
                 run.log("cell", n, d, poly, "I1", i1[0], i1[1], "I2", i2[0], i2[1], "I3", i3)
@@ -305,6 +313,16 @@ def stage2(run: Run) -> dict:
             stop_reason = "G1" if g1 else "G2"
             run.log("STOP further n:", stop_reason, "at n", n)
             break
+    # Invalidation: a zero without I3 invalidates that cell (S4/M7) and, if
+    # it recurs, the stage. Other lambdas are still measured before the gate.
+    if disagreements:
+        gate, reason = "fail", "C3 disagreement"
+    elif len(unexplained_zeros) >= 2:
+        gate, reason = "fail", "identically-zero without I3 recurred; stage invalid"
+    elif unexplained_zeros:
+        gate, reason = "fail", "identically-zero without I3; cell invalid"
+    else:
+        gate, reason = "pass", "chain cells measured"
     return {
         "rows": rows,
         "opened_n": opened_n,
@@ -315,12 +333,16 @@ def stage2(run: Run) -> dict:
              "I1": r["I1_deg_elim"], "I2": r["I2_deg_elim"]}
             for r in disagreements
         ],
-        "gate": "fail" if disagreements else "pass",
+        "invalid_zeros_without_I3": [
+            {"n": r["n"], "d": r["d"], "lambda": r["lambda"]}
+            for r in unexplained_zeros
+        ],
+        "gate": gate,
+        "reason": reason,
     }
 
 
 def stage3(run: Run, opened_n: list[int]) -> dict:
-    import resource
     rows = []
     disagreements = []
     # C2a, C2b at opened n
@@ -328,9 +350,8 @@ def stage3(run: Run, opened_n: list[int]) -> dict:
         for bits, poly, d, label in ((0b10, "X", 1, "C2a"), (0b11, "X + 1", 1, "C2b")):
             s0 = S0_Y
             s1 = compose_lambda_y(s0, bits)
-            ru = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss * 1024
-            i1, i2, i3, wall = measure_pair(s0, s1, n)
-            row = cell_row(n, d, bits, poly, s0, s1, i1, i2, i3, wall, ru)
+            i1, i2, i3, wall, rss = measure_pair(s0, s1, n)
+            row = cell_row(n, d, bits, poly, s0, s1, i1, i2, i3, wall, rss)
             row["object_class"] = label
             if label == "C2a":
                 row["forced_zero"] = True
@@ -348,9 +369,8 @@ def stage3(run: Run, opened_n: list[int]) -> dict:
             while g == phi and tries < 100:
                 g, j = random_bivariate(2 * d, 2 * d, stream + ":g", j)
                 tries += 1
-            ru = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss * 1024
-            i1, i2, i3, wall = measure_pair(f, g, n)
-            row = cell_row(n, d, None, "C1-null", f, g, i1, i2, i3, wall, ru)
+            i1, i2, i3, wall, rss = measure_pair(f, g, n)
+            row = cell_row(n, d, None, "C1-null", f, g, i1, i2, i3, wall, rss)
             row["object_class"] = "C1"
             row["C1_stream"] = stream
             row["S0_deg_X"], row["S0_deg_Y"] = per_variable_degrees(f)
@@ -451,10 +471,16 @@ def main() -> int:
              "python3 experiments/EXP-QSP-82a906/implementation/driver.py",
              {"stage": 2, "n": [17, 23], "d": [2, 3]})
     s2 = stage2(r2)
-    st2 = "completed_invalid" if s2.get("disagreements") else "completed_valid"
-    r2.finish(s2, st2, "C3 disagreement" if s2.get("disagreements") else "chain cells measured")
-    if s2.get("disagreements"):
-        _write_exec_report("C3 disagreement: run invalid (F5).", s0, s1, s2, None)
+    st2 = "completed_valid" if s2.get("gate") == "pass" else "completed_invalid"
+    r2.finish(s2, st2, s2.get("reason", ""))
+    if s2.get("gate") != "pass":
+        if s2.get("disagreements"):
+            msg = "C3 disagreement: run invalid (F5)."
+        else:
+            msg = "identically-zero without I3: cell invalid" + (
+                "; stage invalid (recurred)." if len(s2.get("invalid_zeros_without_I3") or []) >= 2
+                else ".")
+        _write_exec_report(msg, s0, s1, s2, None)
         return 2
 
     r3 = Run(RUN_IDS[3], "stage_3",
