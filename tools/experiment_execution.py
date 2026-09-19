@@ -382,7 +382,8 @@ def execute_trial(root: Path, path: Path, plan: dict[str, Any], trial: dict[str,
         stream.write(json.dumps(argv) + "\n")
     write_once(directory / "environment.json", {"python": sys.version, "platform": sys.platform,
                "source_sha256": plan["source_sha256"], "specification_sha256": plan["specification_sha256"],
-               "commit": authority["commit"]})  # never dump credential-bearing environment variables
+               "commit": authority["commit"], "runtime_lock": plan.get("runtime_lock"),
+               "runtime_lock_sha256": plan.get("runtime_lock_sha256")})  # never dump credential-bearing environment variables
     status, returncode, check_returncode = "infrastructure_error", None, None
     detail = None
     interrupted = False
