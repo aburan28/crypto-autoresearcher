@@ -14,24 +14,24 @@ a hash it cannot is an assertion by the session that recorded it.
 
 | Class | Count |
 |---|---|
-| Frozen source packages (`SRC-*`) | 22 |
-| — of those with the artifact committed | 21 |
-| Per-URL retrieval attempts | 38 |
-| — succeeded | 24 |
+| Frozen source packages (`SRC-*`) | 24 |
+| — of those with the artifact committed | 23 |
+| Per-URL retrieval attempts | 42 |
+| — succeeded | 28 |
 | — failed or blocked | 14 |
-| Source artifacts under `inputs/` | 43 |
-| — hash recomputed and matching | 39 |
+| Source artifacts under `inputs/` | 47 |
+| — hash recomputed and matching | 43 |
 | — hash MISMATCH | 0 |
 | — present but carrying no `.sha256` | 3 |
 | — sought and never retrieved | 1 |
 | Seed bibliography entries | 10 |
-| Literature entries (`KN-LIT-*`) | 7885 |
-| — with a resolvable external identifier | 2272 |
+| Literature entries (`KN-LIT-*`) | 7887 |
+| — with a resolvable external identifier | 2274 |
 | — with no identifier recorded | 5613 |
 
-Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1330, doi 152, eprint 752, url 38. Every identifier an entry carries is kept in `sources.json`.
+Primary identifier kinds — one per entry, chosen in eprint > arXiv > DOI > ISBN > URL order, so an entry carrying both an ePrint number and a URL counts once, under ePrint: arxiv 1331, doi 152, eprint 753, url 38. Every identifier an entry carries is kept in `sources.json`.
 
-`citation_verified` distribution: `False` 23, `True` 10, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `metadata` 1, `partial` 5, `read` 7507, `secondary_only` 1, `transcription_of_full_text_at_recorded_sha256` 2, `web` 329.
+`citation_verified` distribution: `False` 23, `True` 10, `body_read_from_user_provided_text` 1, `full_text` 4, `full_text_supplied` 2, `metadata` 1, `partial` 5, `read` 7509, `secondary_only` 1, `transcription_of_full_text_at_recorded_sha256` 2, `web` 329.
 
 ## 1. Frozen source packages
 
@@ -46,9 +46,11 @@ decides whether a later session can re-read what was read here.
 | SRC-DCP-SIMON-2026 | A Polynomial-Time Quantum Algorithm for the Dihedral Coset Problem [Preliminary Draft] | Daniel R. Simon | 2026 | `inputs/DCP-SIMON-2026` | yes | package_contents |  |  |
 | SRC-ECMASFP5-HACKMD-2025 | Elliptic Curves over Goldilocks (EcMasFp5 design note) |  | 2025 | `inputs/ECMASFP5-HACKMD-2025` | yes | frozen_path |  |  |
 | SRC-EULER-PETIT-2019-QSP | New Results on Quasi-Subfield Polynomials |  | 2020 | `inputs/EULER-PETIT-2019-QSP` | yes | frozen_path |  |  |
+| SRC-GORLA-MASSIERER-2014-1403 | Point compression for the trace zero subgroup over a small degree extension field |  | 2014 | `inputs/GORLA-MASSIERER-2014-1403` | yes | frozen_path |  |  |
 | SRC-HUANG-2020-JMC-QSP | Quasi-subfield Polynomials and the Elliptic Curve Discrete Logarithm Problem |  | 2020 | `inputs/HUANG-2020-JMC-QSP` | yes | frozen_path |  |  |
 | SRC-ICPERF-TRIMOSKA-ECICB-2024 | EC Index Calculus Benchmarks (instance generator and benchmark set for the point-decomposition problem from a Weil descent of the fourth summation polynomial) | Monika Trimoska |  | `inputs/TRIMOSKA-ECICB-2024` | yes | package_contents |  |  |
 | SRC-ICPERF-TRIMOSKA-WDSAT-2024 | WDSat -- a SAT solver dedicated to instances derived from a Weil descent | Monika Trimoska (with Sorina Ionica and Gilles Dequen, per the README) |  | `inputs/TRIMOSKA-WDSAT-2024` | yes | package_contents |  |  |
+| SRC-JOUX-VITSE-2010-157 | Elliptic Curve Discrete Logarithm Problem over Small Degree Extension Fields — Application to the static Diffie-Hellman problem on E(F_{q^5}) |  | 2010 | `inputs/JOUX-VITSE-2010-157` | yes | frozen_path |  |  |
 | SRC-KARABINA-PDP-2015 | Point Decomposition Problem in Binary Elliptic Curves | Koray Karabina | 2015 | `inputs/KARABINA-PDP-2015` | yes | declared |  |  |
 | SRC-NAGAO-2013-548 | Decomposition formula of the Jacobian group of plane curve | Koh-ichi Nagao | 2013 | `inputs/NAGAO-2013-548` | yes | declared | https://eprint.iacr.org/2013/548.pdf | 9406f2f7f01ae933 |
 | SRC-NAGAO-2013-549 | Equations System coming from Weil descent and subexponential attack for algebraic curve cryptosystem | Koh-ichi Nagao | 2013 | `inputs/NAGAO-2013-549` | yes | declared | https://eprint.iacr.org/2013/549.pdf | 5971667527aad7af |
@@ -92,6 +94,8 @@ not the same as never having looked.
 | ellipticnews-2015-04-13-ecdlp-char-two | https://ellipticnews.wordpress.com/2015/04/13/elliptic-curve-discrete-logarithm-problem-in-characteristic-two/ | retrieved | 200 | 2026-09-05T22:45:26Z |  |
 | arxiv-abs | https://arxiv.org/abs/1909.11326v2 | retrieved | 200 | 2026-09-16T19:49:49Z | `inputs/EULER-PETIT-2019-QSP/arxiv-1909.11326-abs.html` |
 | arxiv-pdf-v2 | https://arxiv.org/pdf/1909.11326v2 | retrieved | 200 | 2026-09-16T19:49:49Z | `inputs/EULER-PETIT-2019-QSP/arxiv-1909.11326v2.pdf` |
+| arxiv-abs | https://arxiv.org/abs/1403.0126 | retrieved | 200 | 2026-09-20T07:48:26Z | `inputs/GORLA-MASSIERER-2014-1403/arxiv-1403.0126-abs.html` |
+| arxiv-pdf | https://arxiv.org/pdf/1403.0126 | retrieved | 200 | 2026-09-20T07:48:26Z | `inputs/GORLA-MASSIERER-2014-1403/arxiv-1403.0126.pdf` |
 | arxiv-search | https://export.arxiv.org/api/query?search_query=all:%22quasi-subfield%22&max_results=20 | retrieved_not_vendored | 200 | 2026-09-16T19:44:00Z |  |
 | bham-landing | https://research.birmingham.ac.uk/en/publications/quasi-subfield-polynomials-and-the-elliptic-curve-discrete-logari/ | retrieved | 200 | 2026-09-16T19:51:49Z | `inputs/HUANG-2020-JMC-QSP/bham-landing.html` |
 | bham-pure-pdf | https://pure-oai.bham.ac.uk/ws/files/97895891/Huang_et_al_Quasi_subfield_polynomials_Journal_of_Mathematical_Cryptology_2020.pdf | retrieved | 200 | 2026-09-16T19:51:48Z | `inputs/HUANG-2020-JMC-QSP/huang-et-al-jmc-2020-qsp.pdf` |
@@ -103,6 +107,8 @@ not the same as never having looked.
 | local-artifact |  | local_artifact |  | 2026-09-07T21:07:57Z | `inputs/JMV-0411378-20260907/sources/jmv-math-0411378v3.pdf.sha256` |
 | local-artifact |  | local_artifact |  | 2026-09-07T21:07:57Z | `inputs/JMV-0411378-20260907/sources/jmv-math-0411378v3.txt` |
 | local-artifact |  | local_artifact |  | 2026-09-07T21:07:57Z | `inputs/JMV-0411378-20260907/sources/jmv-math-0411378v3-layout.txt` |
+| eprint-abs | https://eprint.iacr.org/2010/157 | retrieved | 200 | 2026-09-20T07:48:26Z | `inputs/JOUX-VITSE-2010-157/eprint-2010-157-abs.html` |
+| eprint-pdf | https://eprint.iacr.org/2010/157.pdf | retrieved | 200 | 2026-09-20T07:48:26Z | `inputs/JOUX-VITSE-2010-157/eprint-2010-157.pdf` |
 | eprint-2013-548-landing | https://eprint.iacr.org/2013/548 | retrieved | 200 | 2026-09-13T19:02:41Z |  |
 | eprint-2013-548-pdf | https://eprint.iacr.org/2013/548.pdf | retrieved | 200 | 2026-09-13T19:02:41Z | `inputs/NAGAO-2013-548/eprint-2013-548.pdf` |
 | eprint-2013-549-landing | https://eprint.iacr.org/2013/549 | retrieved | 200 | 2026-09-13T19:02:41Z |  |
@@ -158,12 +164,16 @@ records that some fetch failed, and says nothing about the file that is here.
 | `inputs/EULER-PETIT-2019-QSP/arxiv-1909.11326-abs.html` | 40822 | match | 6405189206f2c680 |  |
 | `inputs/EULER-PETIT-2019-QSP/arxiv-1909.11326v2.pdf` | 350817 | match | f080c3ab72a2a553 |  |
 | `inputs/EULER-PETIT-2019-QSP/paper_fulltext.md` | 67096 | match | 7f7c88574961189b |  |
+| `inputs/GORLA-MASSIERER-2014-1403/arxiv-1403.0126.pdf` | 334485 | match | a2304df39b4c59ab |  |
+| `inputs/GORLA-MASSIERER-2014-1403/paper_fulltext.md` | 74241 | match | 9aed23dacb161831 |  |
 | `inputs/HUANG-2020-JMC-QSP/bham-landing.html` | 53651 | match | b33cb5336d996c78 |  |
 | `inputs/HUANG-2020-JMC-QSP/huang-et-al-jmc-2020-qsp.pdf` | 531843 | match | e1ba608354a67c1b |  |
 | `inputs/HUANG-2020-JMC-QSP/paper_fulltext.md` | 48073 | match | 558a8704783957d6 |  |
 | `inputs/JMV-0411378-20260907/sources/jmv-math-0411378v3-layout.txt` | 70308 | **present_unhashed** |  |  |
 | `inputs/JMV-0411378-20260907/sources/jmv-math-0411378v3.pdf` | 320392 | match | c80586caaa2e4129 |  |
 | `inputs/JMV-0411378-20260907/sources/jmv-math-0411378v3.txt` | 59315 | **present_unhashed** |  |  |
+| `inputs/JOUX-VITSE-2010-157/eprint-2010-157.pdf` | 246715 | match | eb993025cb38eb26 |  |
+| `inputs/JOUX-VITSE-2010-157/paper_fulltext.md` | 54750 | match | a2869c55af89b8e8 |  |
 | `inputs/KARABINA-PDP-2015/eprint-2015-319-v3.pdf` | 352621 | match | ad23de5bfdb5fada |  |
 | `inputs/KARABINA-PDP-2015/paper_fulltext.md` | 41941 | match | c4fcc7c94ad9fca4 |  |
 | `inputs/NAGAO-2013-548/eprint-2013-548.pdf` | 167931 | match | 9406f2f7f01ae933 |  |
@@ -199,7 +209,7 @@ records that some fetch failed, and says nothing about the file that is here.
 
 ## 5. Literature citations with a resolvable identifier
 
-2272 of 7885 `KN-LIT-*` entries carry an
+2274 of 7887 `KN-LIT-*` entries carry an
 eprint, arXiv, DOI, ISBN or URL identifier.
 
 | ID | Title | Year | Identifier | Verified |
@@ -1928,6 +1938,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-671 | ENDOMORPHISM RINGS OF SUPERSINGULAR ELLIPTIC CURVES | 2019 | `arxiv:1907.12185` | read |
 | KN-LIT-672 | EXCEPTIONAL JUMPS OF PICARD RANKS OF REDUCTIONS OF K3 SURFACES OVER NUMBER FIELDS | 2019 | `arxiv:1909.07473` | read |
 | KN-LIT-673 | Extended Truncated-differential Distinguishers on Round-reduced AES | 2019 | `eprint:2019/622` | read |
+| KN-LIT-673219 | Elliptic Curve Discrete Logarithm Problem over Small Degree Extension Fields (read at source) | 2010 | `eprint:2010/157` | read |
 | KN-LIT-674 | Flexible Authenticated and Confidential Channel Establishment (fACCE): Analyzing the Noise Protocol Framework? | 2019 | `eprint:2019/436` | read |
 | KN-LIT-675 | Genus 2 Supersingular Isogeny Oblivious Transfer arXiv:1907.00475v4 [cs.CR] 27 Jul 2019 Ramsès Fernàndez-València[0000−0002−8959−636X] | 2019 | `arxiv:1907.00475` | read |
 | KN-LIT-676 | GLOBAL METHODS FOR THE SYMPLECTIC TYPE OF CONGRUENCES BETWEEN ELLIPTIC CURVES | 2019 | `arxiv:1910.12290` | read |
@@ -2459,6 +2470,7 @@ eprint, arXiv, DOI, ISBN or URL identifier.
 | KN-LIT-e8eaf8 | A designer's guide to KEMs | 2003 | `eprint:2002/174` | web |
 | KN-LIT-eb2b9b | NIST IR 8545: Status Report on the Fourth Round of the NIST Post-Quantum Cryptography Standardization Process | 2025 | `doi:10.6028/nist.ir.8545` | web |
 | KN-LIT-ebd657 | Decomposition formula of the Jacobian group of plane curve (Draft) | 2013 | `eprint:2013/548` | read |
+| KN-LIT-edd7ba | Point compression for the trace zero subgroup over a small degree extension field (read at source) | 2014 | `arxiv:1403.0126` | read |
 | KN-LIT-ef4327 | Concrete time/memory trade-offs in generalised Stern's ISD algorithm | 2023 | `eprint:2023/1940` | web |
 | KN-LIT-f1073f | On breaking McEliece keys using brute force | 2025 | `eprint:2025/632` | web |
 | KN-LIT-f1eb40 | Algebraic key-recovery side-channel attack on Classic McEliece | 2025 | `doi:10.1007/978-3-032-10536-3_20` | web |
@@ -8116,6 +8128,7 @@ corpus may hold a true duplicate. Resolving it is a `/curate-knowledge` job.
 | `doi:10.1007/pl00003816` | KN-LIT-012, KN-LIT-73f7e1 |
 | `doi:10.1515/jmc-2015-0049` | KN-LIT-0a321c, KN-LIT-7414 |
 | `eprint:2009/541` | KN-LIT-096, KN-LIT-661e97 |
+| `eprint:2010/157` | KN-LIT-022, KN-LIT-673219 |
 | `eprint:2010/331` | KN-LIT-13a01d, KN-LIT-3c9f21 |
 | `eprint:2015/310` | KN-LIT-009, KN-LIT-fa346d |
 | `eprint:2015/573` | KN-LIT-475, KN-LIT-7607 |
