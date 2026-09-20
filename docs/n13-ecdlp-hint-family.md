@@ -262,7 +262,7 @@ that is invertible but **not recognizable** — the `D_w` side of the duality,
 reached by a longer road. Route 2 is not a new idea that failed; it is §7's
 right-hand column.
 
-### Route 3 — generic search plus endomorphisms. **Capped by a one-line argument.**
+### Route 3 — generic search plus endomorphisms. **Blocked by the missing coordinates-to-exponent dictionary.**
 
 GLV/GLS and Q-curve decompositions write the scalar over a rank-`d` lattice
 with short vectors of norm `n^{1/d}`, which looks like it should shorten the
