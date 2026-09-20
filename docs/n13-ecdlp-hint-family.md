@@ -106,9 +106,18 @@ Two independent walls, either of which alone is fatal:
 
 Take the two walls seriously and the design space collapses:
 
-- The storage wall forces **`S = O(polylog n)`** — no table at all.
-- The `P·T = n` wall forces **`P = O(polylog n)`** — no preprocessing at all.
+- The storage wall makes **`S = O(polylog n)`** the only physically realizable
+  regime — no table at all.
+- The `P·T = n` identity makes a large `P` *useless* for a single target rather
+  than impossible: by §3 it never lowers total cost, so a preprocessing-based
+  algorithm worth having must have **`P = O(polylog n)`**.
 - The requirement is still **`T ≈ n^{1/3}`**.
+
+**This is a design argument, not a theorem** (corrected 2026-09-20; see §13).
+In particular it does **not** follow from Corrigan-Gibbs–Kogan: their model
+gives the preprocessor unbounded power and charges only `(S, T)`, so in that
+model `P` is not a resource at all and nothing forces it small. §12 S1 names
+the model in which the corresponding theorem does hold.
 
 So the object being speculated about is not a better *table*. With `S` and `P`
 both degenerate, the advice stops being data and becomes a **decision
@@ -259,16 +268,34 @@ GLV/GLS and Q-curve decompositions write the scalar over a rank-`d` lattice
 with short vectors of norm `n^{1/d}`, which looks like it should shorten the
 search. It does not, and the reason generalizes:
 
-Wagner's k-tree algorithm attains `2^{b/3}` on 4-sums only because `b`-bit
-strings admit a **homomorphic** projection onto their low `b/3` bits, which is
-what lets partial matches be merged. **`⟨g⟩` has prime order `n`, so every
-group homomorphism onto a group of order `< n` is trivial.** There is no
-partial match to merge on. Any algorithm restricted to forming group elements
-and testing equality is therefore back under Shoup's `√n`, improved by at most
-`√|Aut|` (Gallant–Lambert–Vanstone; Duursma–Gaudry–Morain) — a constant.
+It is tempting to argue that Wagner's k-tree attains `2^{b/3}` on 4-sums only
+because `b`-bit strings admit a **homomorphic** projection onto their low
+`b/3` bits, and that `⟨g⟩`, having prime order, admits no nontrivial
+homomorphism onto anything smaller — so there is no partial match to merge on.
 
-**This kills the entire generalized-birthday-on-a-curve family at once,** and
-it is the kind of negative result worth having: one line, no experiment.
+**That argument is wrong** (corrected 2026-09-20; see §13). Wagner's algorithm
+runs on modular k-SUM in `Z_N` for arbitrary `N`, primes included. The merge
+matches on an *interval* of representatives rather than on a subgroup, and
+interval membership is not a homomorphism — it is a set-valued rule with
+bounded branching (a single `−N` correction). **A merge consumes bounded
+branching, not a homomorphism.** Prime order forbids nothing here.
+
+The real obstruction is the one §7 and §12 S3 already name. A k-tree merge
+needs its partial-match predicate computable **from the data the algorithm
+actually holds**. In k-SUM over `Z_N` that data is the summands themselves, so
+the interval test is free. In DLP the intermediate objects are *group
+elements*, the target `log_g h` is unknown, and the filtration that would
+support partial matching lives in the exponent — precisely what cannot be read
+off a point. The family is blocked by the missing coordinates-to-exponent
+dictionary, not by prime order.
+
+What survives: any algorithm restricted to forming group elements and testing
+equality is under Shoup's `√n`, improved by at most `√|Aut|`
+(Gallant–Lambert–Vanstone; Duursma–Gaudry–Morain) — a constant. What does
+**not** survive is the claim that this is a one-line kill of the whole
+generalized-birthday-on-a-curve family. The live question is quantitative —
+how much branching a coordinate projection may carry before the merge stops
+paying — and it belongs to `RQ-ECDLP-160d89`.
 
 It also yields a sanity check that the §5–§7 framework is not vacuous. On a
 `j = 0` curve the automorphism acts as `(x,y) ↦ (βx, y)`, so `D_x` is not
@@ -297,10 +324,22 @@ density `≥ 1/T` *in whatever space you are sampling*. Enlarging the space from
 
 > **Representation multiplicity is not a resource unless it changes density.**
 
-The corollary closes the route completely. Locating a hypothetical "special"
-curve inside the class costs `√p / #special`; if special curves are sparse
-that is `≈ 2^128` for P-256, and if they are dense you never needed the walk.
-Worse, transfer is pointless in both directions: an online point on any `E'`
+The corollary needs restating; the version first written here was wrong
+(corrected 2026-09-20; see §13). Locating a "special" curve inside the class
+does **not** cost `√p / #special` — `j`-invariants are read for free, so
+location costs nothing. The correct obstruction is stronger, and is an
+*invariance* statement rather than a density one: **every exploitable
+specialness is a class invariant.** All curves in an ordinary isogeny class
+share the Frobenius order, hence the endomorphism algebra, hence `|Aut| = 2`
+unless the discriminant is `−3` or `−4`, hence the group order and the
+embedding degree. The extra automorphisms behind the `j = 0` factor-3 gain are
+a property of the *class*, decided at zero cost from the starting curve, and
+absent from a random curve's class; walking the graph cannot manufacture them.
+What genuinely varies within a class is the `j`-invariant and the curve model,
+and whether either changes a charged stage cost is a measurement, not a
+corollary.
+
+Transfer is pointless in both directions regardless: an online point on any `E'`
 can be pulled back to `E` through the chain at polylog cost, so **the class
 offers no new instances, only new coordinates, and you may as well stay on
 `E`.**
@@ -409,19 +448,80 @@ Ordered by strength, and none of it is claimed here:
 
 ## 12. Open statements
 
-- **S1.** Is `P·T = Ω(n)` provable in the generic group model, i.e. is the
-  *precomputation* barrier of §2 a theorem and not only a property of known
-  constructions? Corrigan-Gibbs–Kogan bound `(S,T)` and leave `P` unbounded.
-  A generic `P·T` lower bound would make §4's collapse rigorous rather than
-  heuristic, and would be a clean, self-contained result.
+- **S1.** *(restated 2026-09-20; see §13.)* As first posed — "is `P·T = Ω(n)`
+  provable in the generic group model?" — the question is malformed, because
+  it names no preprocessing model. In Corrigan-Gibbs–Kogan's **non-uniform**
+  model the preprocessor is unbounded and `P` is not charged at all, so
+  `P·T = Ω(n)` is **false** there. The well-posed form is: **in a
+  query-bounded preprocessing model**, where phase 1 makes at most `P` group
+  queries, is `P·T = Ω(n)`? That version looks provable by a lazy-sampling
+  argument and would make §4's collapse rigorous. Naming the model is not a
+  technicality: §4's design argument and this theorem live in different
+  models, and any record in this lane must say which one it means.
 - **S2.** Is there any subset of `E(F_p)` of density `n^{-1/3}` that is
   natively both recognizable and invertible — §7's escape — or is the duality
   itself provable?
-- **S3.** Does `E(F_p)` of prime order admit *any* group-compatible size
-  function? Index calculus works in `F_p^*` because `G_m` is rational and `Z`
-  filters multiplicatively by size; in function fields, degree does the same.
-  Genus 1 forbids a rational parametrization, so no coordinates-to-exponent
-  size dictionary is available. Making that intuition precise would be the
-  sharpest available statement of *why* prime-field ECDLP resists index
-  calculus — and, by §6, the sharpest available statement of why §3.2's
-  algorithm would be hard to find.
+- **S3.** *(restated 2026-09-20; see §13.)* As first posed — "does prime-order
+  `E(F_p)` admit *any* group-compatible size function?" — this has a trivial
+  affirmative answer and is the wrong question: the word metric with respect
+  to any generating set `S` is group-compatible, so such a function always
+  exists. The sharp form is about **descent**, not existence: is there a
+  generating set `S` and an efficiently computable map sending `Q` to a short
+  `S`-word for `Q`, beating the meet-in-the-middle cost `|S|^{L/2}`? Counting
+  kills the *search* route for every generating set at once — non-negligible
+  density of elements of word length `≤ L` forces `|S|^L ≈ n`, hence `n^{1/2}`,
+  with no design freedom. So index calculus does **not** work in `F_p^*`
+  because a size function exists there; the same count gives `n^{1/2}` there
+  too. It works because `Z` carries an **algebraic** descent — integer
+  factorization — that bypasses search entirely. S3 therefore reduces to: *is
+  there an algebraic descent on `E(F_p)`?*, which routes into `KN-OPEN-020`'s
+  three open classes and into §8 Route 1.
+
+---
+
+## 13. Corrections, 2026-09-20
+
+This note was merged in #1293 and then adversarially reviewed during ideation
+against `RQ-ECDLP-bc7a54`. The review found four defects. They are corrected
+in place above, each marked at the point of correction, and recorded here so
+the change is visible rather than silent. **Three of the four are errors in
+arguments this note asserted; every affected conclusion survives, but two of
+them survive for different reasons than the ones originally given, and one
+"one-line kill" is downgraded to an open quantitative question.**
+
+1. **§8 Route 3 — the homomorphism ceiling was an invalid argument.** Wagner's
+   k-tree runs on modular k-SUM in `Z_N` for arbitrary `N`, primes included,
+   matching on intervals rather than subgroups; a merge consumes bounded
+   branching, not a homomorphism. Prime order forbids nothing. The conclusion
+   (no generalized-birthday speedup on a curve) still holds, but because the
+   partial-match predicate must be computable from the data held — group
+   elements — while the filtration lives in the unreadable exponent. The
+   claim that this kills the family "in one line" is withdrawn; the live
+   question is how much branching a coordinate projection may carry, and it
+   belongs to `RQ-ECDLP-160d89`.
+
+2. **§12 S1 was malformed.** It asked for `P·T = Ω(n)` "in the generic group
+   model" without naming a preprocessing model. In the non-uniform model of
+   `KN-LIT-013` the preprocessor is unbounded and `P` is uncharged, so the
+   statement is false there. Restated for a query-bounded model.
+
+3. **§4 overstated a design argument as a theorem.** "The two walls force
+   `S = P = O(polylog)`" does not follow from `KN-LIT-013`. Large `P` is
+   *useless* for a single target, by §3 — not impossible. Note that
+   `RQ-ECDLP-bc7a54`'s `motivation` reproduces the original inference; as an
+   immutable ledger record it is not edited here, and correcting it is a
+   separate Coordinator act under AGENTS.md rule 2 (corrections supersede,
+   never overwrite).
+
+4. **§8 Route 4's corollary was wrong.** Locating a "special" curve does not
+   cost `√p / #special`, because `j`-invariants are free to read. Replaced by
+   the stronger and correct statement that every exploitable specialness is a
+   *class invariant*. The density no-go itself — *representation multiplicity
+   is not a resource unless it changes density* — is unaffected.
+
+One further caution, not a correction but a scoping limit on §10 Experiment B:
+enumerating the promise class `{Q : x(Q) < p^β}` is free but yields **points,
+not logs**, so a `β`-sweep run without naming which mechanism it tests —
+additive structure in the log-image, or Route 1 relation yield — will produce
+a flat curve and a null that discriminates nothing. If run, it should be run
+as the Route 1 arm against the `ICPERF` instrument.
