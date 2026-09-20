@@ -1,87 +1,68 @@
-# THM_QUOTIENT_DESCENT1 — Translations through a degree-2 quotient
+# THM_QUOTIENT_DESCENT1 — Only 2-torsion translations descend through a degree-2 quotient of E
 
-- **ID:** THM-QUOTIENT-DESCENT1
-- **Filed with:** IDEA-20260920-0490f5 / GOAL-GFPN-380702
-- **Author:** top-level session, 2026-09-20
-- **Lean stub:** `research/THM_QUOTIENT_DESCENT1.lean` (statement only; not yet checked in a Lean toolchain — coordinator mints the formal goal)
-- **Status:** elementary lemma recorded for Galbraith's "larger group actions" thread. Closes the question of which translations descend through the canonical degree-2 (negation) quotient. Does **not** by itself yield an ECDLP algorithm.
+- **Status:** PROVED (elementary); not yet formalized. Companion to `IDEA-20260920-0490f5`.
+- **Closes:** the "Larger group actions?" question on Galbraith's ECC 2015 slides, for every
+  x-type coordinate.
+- **Reads:** none required; the proof uses only the group law. Kohel (INDOCRYPT 2012) and
+  FGHR (J. Cryptology 2014) are not frozen and may already state this; until they are read
+  the note claims only "formalized here", not novelty.
 
-## 0. Statement
+## Setting
 
-Let `E` be an elliptic curve over a field `k` of characteristic not 2, with
-identity `O`. Write `[-1]` for the negation automorphism and
+Let E be an elliptic curve over a field k, char k ≠ 2. For S ∈ E[2](k) let
+ι_S = [−1] ∘ τ_S, i.e. ι_S(P) = −P − S = −(P + S). Every ι_S is an involution of E
+(as a curve, not as a group), and every degree-2 map φ: E → P^1 defined over k is the
+quotient by some involution of this form up to an automorphism of P^1 (the x-coordinate is
+the case S = O; the "x-coordinate on the translate" is the general case).
 
-```
-x : E \ {O} → A^1
-```
+Write τ_T for translation by T ∈ E(k̄).
 
-for the degree-2 quotient morphism identifying `P ~ -P` (equivalently: the
-geometric quotient `E / ⟨[-1]⟩`). Extend in the usual way to a morphism
-`E → P^1`.
+## Lemma
 
-**Lemma (translation descent through the degree-2 negation quotient).**
-For `T ∈ E(k̄)`, the translation `τ_T : P ↦ P + T` descends through `x`
-— that is, there exists a rational map `ψ : P^1 ⇢ P^1` with
+τ_T descends through φ = E/⟨ι_S⟩ — i.e. there is a map ψ: P^1 → P^1 with φ ∘ τ_T = ψ ∘ φ —
+**if and only if 2T = O.**
 
-```
-x ∘ τ_T = ψ ∘ x
-```
+## Proof
 
-on a Zariski-open set — **if and only if** `2T = O`.
+τ_T descends through the quotient by ι_S iff τ_T permutes the fibres of φ, iff
+τ_T ∘ ι_S = ι_S ∘ τ_T (for a degree-2 quotient the fibre of P is {P, ι_S P}, so
+"permutes fibres" is exactly "commutes with ι_S"). Compute both sides on P:
 
-When the condition holds, `ψ` is a Möbius transformation of `P^1`
-(an element of `PGL_2`), recovering the classical 2-torsion action on the
-x-line.
+    τ_T ∘ ι_S (P) = −(P + S) + T
+    ι_S ∘ τ_T (P) = −(P + T + S) = −P − T − S
 
-## 1. Proof
+Equal for all P iff −S + T = −T − S iff 2T = O. ∎
 
-Fibres of `x` (away from the branch locus) are sets of the form `{P, -P}`
-with `P ≠ -P`.
+## Corollary (acting group for x-type summation polynomials)
 
-(`⇒`) Suppose `x ∘ τ_T = ψ ∘ x`. Then `τ_T` sends fibres to fibres:
-`{P+T, -P+T}` equals `{Q, -Q}` for `Q = P+T`. So
+Let f_m be any summation-type polynomial built on φ-values (f_m(φ(P_1),…,φ(P_m)) = 0 iff
+Σ ±P_i ∈ {O} up to the fibre ambiguity). The group of translations acting on solutions
+of f_m is E[2](k)^{m} ∩ {Σ T_i = O}, of order at most 4^{m−1} when full 2-torsion is
+rational, so the full symmetry group from translations and permutations is a subgroup of
+E[2](k)^{m−1} ⋊ S_m, order ≤ 4^{m−1}·m!. In particular:
 
-```
-{P+T, -P+T} = {P+T, -(P+T)} = {P+T, -P-T}.
-```
+- rational 2-torsion of rank 1 (double-odd curves, Montgomery form): (Z/2)^{m−1} ⋊ S_m;
+- full rational 2-torsion: (Z/2)^{2(m−1)} ⋊ S_m;
+- no rational 2-torsion (prime-order curves such as EcMasFp5): S_m only.
 
-Hence `-P+T = -P-T` or `-P+T = P+T`.
+Anything larger — the (Z/4)^{m−1} of FGHR for curves with a rational 4-torsion point — must
+come from a quotient of degree > 2, or from a curve automorphism, not from a translation
+acting on a degree-2 coordinate. The trade this forces (higher quotient degree ⇒ higher
+summation-polynomial degree) is what `IDEA-20260918-7a11c2` measures.
 
-- If `-P+T = P+T` then `-P = P`, so `2P = O` for a generic `P`, impossible.
-- If `-P+T = -P-T` then `T = -T`, so `2T = O`.
+## Sage check (to run before minting the formal target)
 
-(`⇐`) Suppose `2T = O`. Then `-T = T`, and
+    p = 1009; F = GF(p)
+    E = EllipticCurve(F, [0, 2, 0, 5, 0])      # y^2 = x(x^2 + 2x + 5), T2 = (0,0)
+    T2 = E(0, 0)
+    P = E.random_point()
+    assert (-(P + T2)).xy()[0] == (-P + T2).xy()[0]      # 2-torsion: commutes on x
+    # pick T of order 3 (if present) and check the x-coordinates differ
+    T3 = [Q for Q in E.torsion_subgroup() if Q.order() == 3]  # may be empty for this curve
 
-```
--(P+T) = -P - T = -P + T,
-```
+## Formal target (for the Coordinator to mint)
 
-so `{P+T, -P+T} = {P+T, -(P+T)}` is again an `x`-fibre. The induced map on
-`P^1` is regular outside a finite set and extends to an automorphism of
-`P^1`.
+    theorem_name: CryptoResearch.Quotient.translation_descends_iff_two_torsion
+    statement: ∀ (S T : E), 2•S = 0 → ((∀ P, -(P+S)+T = -(P+T+S)) ↔ 2•T = 0)
 
-## 2. "Any" degree-2 quotient
-
-The same fibre argument applies to any degree-2 quotient morphism
-`φ : E → C` that is Galois with deck transformation `[-1]` (i.e. any
-coordinate in the `PGL_2`-orbit of `x`). Translation by `T` descends through
-**every** such quotient if and only if it descends through `x`, hence if and
-only if `2T = O`.
-
-This is the precise sense in which 2-torsion — and only 2-torsion — supplies
-"larger group actions" beyond `±1` on the x-line. Translations by points of
-order `> 2` do not descend.
-
-## 3. What this does not claim
-
-- It does not give a new factor-base construction. Coset bases and torsion
-  quotients remain the already-opened proposals `IDEA-20260918-c05e71` and
-  `IDEA-20260918-7a11c2`.
-- It does not change Gaudry/PDP cost on EcGFp5 or EcMasFp5 by itself.
-- It does not assert anything about Weil descent, GHS, or oracle-assisted DH.
-
-## 4. Lean statement (for the coordinator to mint)
-
-See `research/THM_QUOTIENT_DESCENT1.lean`. The stub names the objects and the
-biconditional; a checked proof is a separate formalization task, not part of
-this intake.
+The statement needs only the abelian-group structure of E(k̄); no scheme theory.
