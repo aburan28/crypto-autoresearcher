@@ -500,6 +500,14 @@ them survive for different reasons than the ones originally given, and one
    question is how much branching a coordinate projection may carry, and it
    belongs to `RQ-ECDLP-160d89`.
 
+   **A structural consequence worth stating explicitly:** once Route 3 rests on
+   "the partial-match predicate must be computable from the data held", it is no
+   longer an independent argument — it is the §7 duality applied to a merge
+   predicate. So this note does **not** contain three independent closures. It
+   contains two: the duality (§7), of which Routes 2 and 3 are instances, and
+   the density no-go (§8 Route 4). The apparent independence of the first three
+   was an artifact of stating each in its own vocabulary.
+
 2. **§12 S1 was malformed.** It asked for `P·T = Ω(n)` "in the generic group
    model" without naming a preprocessing model. In the non-uniform model of
    `KN-LIT-013` the preprocessor is unbounded and `P` is uncharged, so the
