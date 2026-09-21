@@ -921,6 +921,44 @@ EXECUTED = {
              "content_first and that one binds content_at_commit."),
         ])),
     ]),
+    RULING: od([
+        ("state", "completed"),
+        ("outcome",
+         "Completed 2026-09-21. Both declared artifacts filed and landed at 757ac827f. Zero runs. "
+         "THREE OF SIX PRIORS REFUTED, and one of the three confirmations was not a live "
+         "prediction: P-1's answer was already in the goal head's own criterion-4 status line "
+         "before the plan was written. P-4 -- the prior the predecessor Coordinator named as "
+         "load-bearing and said it would rather lose -- is REFUTED on three independently "
+         "sufficient grounds, the sharpest being that the distinction it is built on does not "
+         "exist, so as written it asserts that one statement is both licensed and not licensed. "
+         "P-5 refuted: the Semaev quantifier order is the STRONGEST available, the opposite of "
+         "what the plan guessed, and the real gap is quantity and coverage. No joint went "
+         "unowned. J-5 SPLITS -- the Nagao half's proves-too-much control passes and the Semaev "
+         "half FAILS. Inertness ruled established. EV-SEMBIN-1ca3c8 is produced, resting only on "
+         "the counterexample certificates and the inertness measurement and explicitly NOT on the "
+         "textual reads."),
+        ("escalation_honoured_without_softening",
+         "The card's escalation condition fired, and the ruling records the finding at full "
+         "strength while leaving the CLAIM un-promoted: review-breakthrough at max is undegradable "
+         "and unservable in this checkout, and no servable tier was substituted for it. The GOAL "
+         "stays active with IMP-SEMBIN-FCB7A2-LEMMA4-TIER recorded against the claim rather than "
+         "the campaign, drafted as text for the ledger archive to apply. The ruling also states "
+         "concretely what a session with a second resolvable backend must do to promote it."),
+        ("completion_gate_reported_NOT_satisfied",
+         "RECORDED AS COMPLETED WITH ITS GATE OPEN, deliberately, and the distinction matters. The "
+         "gate item `tools/check_review_independence.py raises no problem against the round` is "
+         "UNSATISFIABLE for this round: of the six problems the checker reports, two are properties "
+         "of an IMMUTABLE plan -- J-5 double-owned, and proves_too_much.objects left empty -- so no "
+         "fix to the tool and no permitted edit can ever turn them green. The ruling adjudicated all "
+         "six, classified four as checker limitations and two as genuine procedure deviations, "
+         "specified the checker fix WITH the negative tests that must keep failing, and declined to "
+         "apply it. It recommends leaving the empty control field exactly as it is: an unfilled "
+         "required control is the thing that check exists to find, and it found it. The task is "
+         "complete in substance -- every deliverable filed, every joint and prior scored, every "
+         "checker problem adjudicated -- and reporting the gate as met would have destroyed the only "
+         "information the failure carries. Its successor is NOT unblocked on a pretence: "
+         "TASK-20260916-d4fb62 inherits an open gate and must say so."),
+    ]),
 }
 
 REVISIONS = [
