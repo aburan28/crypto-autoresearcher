@@ -1,0 +1,69 @@
+{
+  "schema": "crypto.autoresearch.hardware_fairness_amendment.v1",
+  "status": "approved_prospective",
+  "recorded_by": "coordinator",
+  "applies_to_handoff": "TASK-20260921-362caa",
+  "parent_approval": "DEC-20260921-dc6134",
+  "binds_admission": "research/cold_single_ic_20260921/conformance_attempt3_admission.json",
+  "purpose": "Correct an implementation-level hardware asymmetry discovered by source inspection before any scientific timing: current aarch64 PMULL acceleration exists in rho but not in the Stage99 rank examples. The common port makes the known available carryless-product acceleration available to both IC variants and rho.",
+  "evidence": {
+    "provenance": "internal",
+    "inspected_source_commit": "09cd8ce98457e2d7b36ad81bc7e7ff53a52b2921",
+    "observations": [
+      "The Stage99 rank examples expose only an x86 PCLMUL path.",
+      "The rho source includes guarded aarch64 carryless_product_pmull using vmull_p64 with #[target_feature(enable=\"aes\")] and is_aarch64_feature_detected!(\"aes\") at the inspected raw field multiplication and squaring paths.",
+      "On the current Darwin arm64 host, allowing that acceleration only to rho would make the planned goal comparison hardware-asymmetric."
+    ],
+    "source_pointers": [
+      "examples/rank lines 520-551",
+      "rho lines 164-203"
+    ],
+    "basis": "This amendment follows code inspection before a scientific outcome. It is not selected from a timing result."
+  },
+  "approved_common_port": {
+    "new_baseline_source": "research/cold_single_ic_20260921/source_arm",
+    "new_allocation_source": "research/cold_single_ic_20260921/source_arm_allocation",
+    "immutable_parent_source": "research/cold_single_ic_20260921/source",
+    "permitted_change": "Add the guarded aarch64 PMULL carryless-product helper to both rank examples and route mul_raw_dispatched and square_raw_dispatched through it on available ARM hardware. Route rho raw_mul_field and raw_square through the same PMULL backend on available ARM hardware. Preserve existing portable and x86 fallback behavior.",
+    "required_guard": "The ARM PMULL path is compiled and called only under the equivalent aarch64 target-feature and runtime is_aarch64_feature_detected!(\"aes\") guards. A host that does not satisfy the guard uses the existing portable or x86 path.",
+    "backend_reporting": "Every build, preflight receipt, and scientific receipt must report the actual field-arithmetic backend selected for its process, including whether PMULL was available and used.",
+    "mathematical_invariants": [
+      "Stage99 mathematical algorithms, CLI forms, target construction, dataflow, reduction, relation logic, rank logic, and receipt semantics remain unchanged.",
+      "The baseline IC and allocation-only IC sources receive the identical common ARM port.",
+      "source_arm_allocation differs from source_arm only by the already approved conditional unused full_pairs allocation: retain historical capacity for PairMode::Full and use capacity zero otherwise.",
+      "No source/old timing is a decisive rho baseline and no prior generic build, candidate, control, or failed-attempt artifact is deleted, replaced, or pooled into a result."
+    ]
+  },
+  "pre_timing_admission_gate": {
+    "source_custody": [
+      "Root freezes the donor file paths, immutable parent source hash, exact common-port diff, source_arm hash, source_arm_allocation hash, generated dependency lockfiles, compiler/toolchain closure, and all binary hashes before an untimed or scientific process is launched.",
+      "The executor may write only source_arm/ and source_arm_allocation/ after this amendment is committed; the immutable original source and all earlier generic sources/builds remain read-only evidence."
+    ],
+    "correctness_controls": [
+      "For every common-ported multiplication and squaring entry point, compare PMULL output with an independent software carryless-product reference on edge values, including zero, one, all-one limb patterns, single-bit limbs, maximal field representatives, and cross-limb carries.",
+      "Run deterministic n=13 and n=53 field inputs through both PMULL and independent software references for multiplication and squaring, and retain input/output/digest records.",
+      "Run the existing mathematical self-tests and record both passed tests and architecture-gated exclusions without claiming excluded x86-only tests ran on arm64.",
+      "Audit that x86 PCLMUL and portable fallback code is unchanged except for mechanically necessary shared backend-dispatch plumbing, and record that audit against the exact diff."
+    ],
+    "failure_rule": "Any arithmetic mismatch, backend-reporting absence, source-closure mismatch, altered algorithm/dataflow finding, or failed mathematical self-test refuses both attempt-3 and all scientific execution. It is an implementation finding, not evidence about the ECDLP or the IC mechanism."
+  },
+  "attempt_3_binding": {
+    "logical_cases_added": 0,
+    "physical_processes_added": 0,
+    "rule": "The already admitted three attempt-3 logical controls do not launch against the older generic sources. After this amendment's pre-timing admission gate passes, those same three controls run once in their existing fresh attempt3 directories using source_arm baseline IC, source_arm_allocation IC, and source_arm rho respectively.",
+    "unchanged_case": "N=13, a=0, eta=1/2, seed=13001, explicit public scalar=17, serial one-thread execution, disabled direct support-expansion paths, full proof checks, and no timing/CPU/RSS/profiling/winner analysis.",
+    "equivalence_requirement": "The ARM baseline/candidate IC control receipts must meet the existing exact mathematical receipt-equivalence requirement. The rho control must independently verify the same public known answer."
+  },
+  "scientific_boundary": {
+    "scientific_children_executed_at_amendment": 0,
+    "frozen_scientific_children": 96,
+    "unchanged": [
+      "all 96 targets, scalar list, seed derivation, order, calibration/held-out split, eta panel, selection rule, threshold, cold-start boundary, process seriality, and resource rules",
+      "public-synthetic explicit-scalar known-answer-only scope",
+      "no shared logs/state, batching, imported/public-unknown/private targets, private-key recovery, or cryptanalytic claim",
+      "finite claim ceiling and independent review requirement"
+    ],
+    "science_hold": "All 96 scientific children remain refused until this common-port source closure and correctness gate, the ARM-bound attempt-3 receipts, and all existing committed admission requirements are complete."
+  },
+  "claim_effect": "None. The amendment authorizes a common correctness-gated hardware implementation port only. It makes no performance, mathematical, asymptotic, security, or cryptanalytic assertion."
+}
