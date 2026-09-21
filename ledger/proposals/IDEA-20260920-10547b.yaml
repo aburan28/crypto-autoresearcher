@@ -1,0 +1,135 @@
+idea:
+  id: IDEA-20260920-10547b
+  question_id: RQ-GFPN-c01af8
+  added: '2026-09-20'
+  status: proposed
+  approved_by: null
+  title: Odd-characteristic cover (GHS/Diem) applicability check for EcGFp5, EcMasFp5 and their isogeny classes at n = 5
+  class: audit
+  claim: >-
+    The EcGFp5 design note dismisses Weil-descent cover attacks by citing Diem's
+    theorem that prime extension degree n >= 11 is safe. n = 5 is not covered by
+    that theorem. Gorla-Massierer note that for some curves over F_{q^5} the DLP
+    maps to the Picard group of a genus-5 curve over F_q, solvable in O~(q^{4/3})
+    -- at q = 2^64 that is ~2^85, a break -- while only a very small proportion
+    of curves is affected. Vulnerability is a deterministic property of the
+    curve (and, via Galbraith-Hess-Smart, of its isogeny class), so the owed
+    result is a computed cover genus per curve, not a citation. Expected outcome:
+    not vulnerable; the value is closing the gap the design note left open.
+  mechanism: >-
+    Diem's odd-characteristic GHS construction builds a cover C -> E over F_q from
+    the Weil restriction of E/F_{q^n} using the x-coordinate map and the
+    2-torsion; the genus of C is determined by the Frobenius orbit structure of
+    the 2-torsion x-coordinates (the "magic number" m). Compute m and g for each
+    named curve; then walk the isogeny class (ENDO/ISOU machinery) for isogenous
+    curves with smaller g, charging the isogeny search. A genus g cover transfers
+    the DLP to Jac(C)(F_p) where Gaudry/Diem index calculus costs ~p^{2-2/g}
+    (hyperelliptic) or O~(p^{4/3}) for genus-5 non-hyperelliptic (Diem 2006).
+  novelty_status: unverified
+  origin:
+    kind: user_supplied_idea
+    date: '2026-09-20'
+    scope: Closes the cover-attack gap in the EcGFp5 security argument; companion to a639a1.
+    overlap_review: >-
+      GOAL-ECDLP2M-001 and H-FROB-* mention GHS in characteristic 2 and on subfield
+      curves; H-ECDLP-ed5162 / H-ECTD-001 mention covers on prime-field targets.
+      None computes the odd-characteristic n = 5 cover genus for a named deployed
+      curve. Coordinator to confirm.
+  citations:
+    - ref: https://eprint.iacr.org/2022/274.pdf
+      provenance: recalled
+      claim: The design note cites Diem "if k is prime and not lower than 11, then such attacks cannot work" and moves on.
+    - ref: https://arxiv.org/pdf/1403.0126
+      provenance: recalled
+      claim: >-
+        Gorla-Massierer (trace-zero point compression, F_{q^5}): cover attacks can
+        sometimes map the DLP from T_5 into the Picard group of a genus-5 curve,
+        solvable with probabilistic complexity O~(q^{4/3}); only a very small
+        proportion of curves is affected.
+    - ref: Diem, The GHS attack in odd characteristic, J. Ramanujan Math. Soc. 18 (2003)
+      provenance: recalled
+      claim: Odd-characteristic GHS construction and the genus formula in terms of the 2-torsion Frobenius structure. Not frozen.
+    - ref: Galbraith-Hess-Smart, Extending the GHS Weil descent attack, EUROCRYPT 2002
+      provenance: recalled
+      claim: Vulnerability extends over the isogeny class; the attacker searches for an isogenous weak curve. Not frozen.
+  citation_note: All recalled; freeze Diem 2003 and GHS-2002 before any genus is quoted.
+  assumptions:
+    - Public parameters only.
+    - EcGFp5 has the rational 2-torsion point (0,0) with the other two 2-torsion x-coordinates in F_{p^10} (a^2 - 4b non-square by the double-odd condition); EcMasFp5 has no rational 2-torsion.
+    - Isogeny-class walk is charged and bounded; the class is large (CM discriminant ~2^323 per the Hermez note for EcMasFp5).
+  proof_search_map:
+    bottleneck: Computing the cover genus exactly for n = 5 in odd characteristic and deciding what "small enough" is at p = 2^64.
+    baseline_embedding:
+      parameter_slice: A known-vulnerable toy curve over F_{q^5} from the literature (or constructed with m minimal) where the genus-5 transfer is known to exist.
+      reproduction_check: The instrument must find the small genus on that curve before being run on the named curves.
+    observation_collision:
+      observable: m, g, and the transferred DLP cost bits per curve; minimal g found over the charged isogeny walk.
+      distinct_preimage_search: Random curves of both torsion types at toy p and at p = 2^64 (genus computation is cheap).
+    constructive_transforms:
+      - transform: weil_descent_cover
+        proposed_object: Cover C/F_p of the Weil restriction of E/F_{p^5}
+        predicted_gain: None expected for the named curves; a small g would be a transfer to ~p^{4/3}
+    quantifier_order: For each named curve there exists a computed (m, g); the isogeny-class arm reports the minimum g over a bounded, charged walk.
+    method_ceiling:
+      strongest_certifiable_claim: An exact genus and a transferred-cost bit count per curve, plus a bounded-walk minimum over the isogeny class.
+      nearby_object_control: Random curves; the constructed vulnerable toy.
+    proof_obligations:
+      - claim: The cover is a genuine cover (function-field inclusion verified in Magma/Sage).
+        responsibility: correctness
+      - claim: The isogeny walk cost is charged and its bound stated.
+        responsibility: cost-model
+  predictions:
+    - metric: cover_genus_named_curves
+      direction: higher
+      minimum_effect: g large enough that p^{2-2/g} exceeds 2^128 for both named curves (expected).
+    - metric: min_genus_over_charged_isogeny_walk
+      direction: higher
+      minimum_effect: No isogenous curve with g <= 8 within the charged walk budget.
+  minimal_test:
+    design: >-
+      Implement Diem's odd-characteristic cover genus computation; validate on a
+      constructed vulnerable toy over F_{q^5}; run on EcGFp5, EcMasFp5, and 20
+      random curves; then a bounded isogeny walk (degree <= 2^20 total) reporting
+      the minimum genus reached.
+    controls:
+      - Constructed vulnerable toy detected.
+      - Random-curve baseline of genus distribution.
+    required_metrics:
+      - magic_number_m
+      - cover_genus_g
+      - transferred_dlp_cost_bits
+      - isogeny_walk_degree_charged
+      - min_genus_reached
+  falsification_conditions:
+    - The instrument fails to detect the constructed vulnerable toy.
+    - A named curve or a cheaply reachable isogenous curve has g small enough that the transferred cost is below 2^128 (then this is the lane's headline, not a falsification of the method).
+  confounders:
+    - Wrong 2-torsion field structure (a^2 - 4b square/non-square) read from the wrong model.
+    - Counting hyperelliptic-genus cost for a non-hyperelliptic cover.
+  interpretation_limits:
+    - Proposal only.
+    - A verdict of not vulnerable within the charged walk is bounded by the walk budget.
+  heuristic_assumptions: []
+  heuristic_note: The genus computation is exact; only the isogeny-walk budget is a choice.
+  target_complexity:
+    time_exponent: Transfer target ~p^{4/3} if genus 5; otherwise not applicable.
+    memory_exponent: Not applicable.
+    best_known: No published cover-genus computation for these curves located.
+    hidden_overhead: Isogeny walk.
+    tradeoff_note: A deterministic check with a tiny prior of success and a large payoff if positive; cheap either way.
+  estimated_cost:
+    implementation: low
+    compute: low
+    qualification: Needs Magma or a Sage/PARI function-field implementation of the cover.
+  dominated_by: unchecked
+  sota_delta:
+    time: Unmeasured.
+    memory: Unmeasured.
+    data_queries: Not applicable.
+  frontier_check:
+    status: pending
+    note: Check Momose-Chao and Diem-Scholten style n = 5 odd-characteristic cover results before coding.
+  recommended_priority: medium
+  priority_rationale: Deterministic, cheap, closes an explicit gap in a deployed curve's security argument.
+  first_deliverable: Validated cover-genus instrument and the two named-curve numbers.
+  next_gate: Coordinator literature check, then a contract.

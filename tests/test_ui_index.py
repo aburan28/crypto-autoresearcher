@@ -33,6 +33,14 @@ from ui import payloads, scan                          # noqa: E402
 from ui.index import ResearchIndex                     # noqa: E402
 
 
+@pytest.fixture(autouse=True)
+def _no_aws_in_ui_tests(monkeypatch):
+    """The dashboard's CloudWatch snapshot is optional. Tests that build a
+    fixture site must not inherit a developer's keys and phone AWS."""
+    monkeypatch.delenv("AWS_ACCESS_KEY_ID", raising=False)
+    monkeypatch.delenv("AWS_SECRET_ACCESS_KEY", raising=False)
+
+
 # ---------------------------------------------------------------------------
 # Shallow parsing, one test per record shape found in this corpus.
 # ---------------------------------------------------------------------------
@@ -627,11 +635,14 @@ def _json(path: Path):
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def test_build_emits_every_file_the_client_boots_from(built_site):
+def test_ops_json_is_present_and_silent_without_credentials(built_site):
+    payload = _json(built_site / "data" / "ops.json")
+    assert payload["available"] is False
+    assert "credentials" in payload["reason"]
     for required in ("index.html", "app.js", "app.css", ".nojekyll",
                      "data/meta.json", "data/index.json", "data/overview.json",
                      "data/goals.json", "data/experiments.json", "data/findings.json",
-                     "data/integrity.json"):
+                     "data/integrity.json", "data/ops.json"):
         assert (built_site / required).is_file(), required
 
 

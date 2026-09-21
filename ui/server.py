@@ -35,7 +35,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import unquote, urlparse
 
-from . import payloads
+from . import ops, payloads
 from .build import resolve_repo_url
 from .index import ResearchIndex
 
@@ -65,6 +65,8 @@ class IndexHolder:
         self.started_at = 0.0
         self.repo_url = resolve_repo_url(repo)
         self._lock = threading.Lock()
+        self._ops: dict[str, Any] | None = None
+        self._ops_at = 0.0
 
     def start(self) -> None:
         with self._lock:
@@ -104,6 +106,17 @@ class IndexHolder:
             "deep_scan_seconds": round(index.deep_scan_seconds, 1),
         }
 
+    def ops(self, *, force: bool = False) -> dict[str, Any]:
+        """CloudWatch snapshot, cached briefly so a refresh is not a stampede."""
+        now = time.time()
+        with self._lock:
+            if not force and self._ops is not None and now - self._ops_at < 45:
+                return self._ops
+        snapshot = ops.collect_payload()
+        with self._lock:
+            self._ops, self._ops_at = snapshot, time.time()
+            return self._ops
+
 
 class Handler(BaseHTTPRequestHandler):
     server_version = "autoresearch-ui"
@@ -136,6 +149,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:
         if urlparse(self.path).path.rstrip("/").endswith("/api/refresh"):
             self.holder.start()
+            self.holder.ops(force=True)
             self._json(self.holder.meta())
             return
         self._json({"error": "not found"}, HTTPStatus.NOT_FOUND)
@@ -157,6 +171,9 @@ class Handler(BaseHTTPRequestHandler):
         rel = unquote(rel)
         if rel == "meta.json":
             self._json(self.holder.meta())
+            return
+        if rel == "ops.json":
+            self._json(self.holder.ops())
             return
 
         index = self.holder.index
