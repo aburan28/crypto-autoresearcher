@@ -15,6 +15,22 @@ that an attestation is truthful; it verifies that the round is internally
 consistent and that no declared rule was declared and then broken -- which is
 the part that goes wrong silently.
 
+A PLAN IS THE PLAN PLUS ITS ADDENDA, and this tool composes them before
+checking. A round's setup is declared before it runs, and the plan file is
+immutable once committed -- so the only honest way to add a joint or move one
+between reviewers is a companion file that `extends` the plan (an addendum), and
+the base plan can never name the addenda that will later extend it. A checker
+that reads only `--plan` therefore holds every reviewer to a pre-addendum
+assignment. That is not a cosmetic gap: on 2026-09-15 it reported that
+`TASK-20260913-6c5729` failed to claim a joint an addendum had reassigned away
+from it, and the only way to turn the check green was for the reviewer to claim
+an ownership it did not have and invent a verdict on a joint it could not
+evaluate -- precisely the fabrication this tool exists to catch. So addenda are
+discovered beside the plan, ordered by `written_at`, and applied; what was
+applied is printed, because a composed check that looks identical to a bare one
+is its own trap. `--no-addenda` restores the old behaviour for auditing a round
+against its original plan.
+
 WHAT IT CHECKS.
   * every joint in the plan has exactly one owner, and that owner attested;
   * no reviewer read a sibling report unless `blindness.lifted_for` names it;
@@ -74,6 +90,92 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 VERDICTS = {"holds", "breaks", "inconclusive"}
 
 
+def _joint_label(name: str) -> str:
+    """The short label a reviewer will actually write, e.g. 'J1'.
+
+    Plan joints are named with a label and a full statement of the joint
+    ('J1 -- SEMAEV'S MEMORY MODEL. That the peak memory ...'), because the
+    statement is what makes the assignment reviewable. A reviewer then refers
+    to it as `J1`, or paraphrases the statement. Requiring the exact string
+    back made this tool unrunnable on every round it was written for.
+    """
+    head = re.split(r"\s+--\s+|\s+—\s+|:\s+|\.\s+", str(name).strip(), 1)[0]
+    return head.strip().rstrip(".").strip()
+
+
+def _joint_name(entry: dict) -> str:
+    """A plan joint's label under either spelling.
+
+    The ICPERF plans name a joint `joint:` and its owner `assigned_to:`; the
+    SEMBIN plans name them `id:` and `owner:`. Both are committed and immutable,
+    so the tool reads both rather than holding one round to the other's keys --
+    an addendum that matched only `joint` silently reassigned nothing on a plan
+    written with `id`.
+    """
+    return str(entry.get("joint") or entry.get("id") or "")
+
+
+def _owner_key(entry: dict) -> str:
+    return "owner" if "owner" in entry and "assigned_to" not in entry else "assigned_to"
+
+
+def _joint_owner(entry: dict) -> str:
+    return str(entry.get(_owner_key(entry)) or "").strip()
+
+
+def _claims_joint(owned: list, name: str) -> bool:
+    """Does this attestation's `joints_owned` name the plan's joint?"""
+    label = _joint_label(name).casefold()
+    full = str(name).strip().casefold()
+    for entry in owned:
+        entry = str(entry).strip().casefold()
+        if entry == full or _joint_label(entry).casefold() == label:
+            return True
+    return False
+
+
+def _verdict_for(attestation: dict, name: str) -> tuple[str | None, str | None]:
+    """This reviewer's verdict on one joint, and why it could not be read.
+
+    A reviewer that owns several joints reports one verdict PER JOINT -- the
+    contract is explicit that a whole-claim verdict from a blinded reviewer is
+    an opinion formed from a fraction of the evidence. So the compliant shape
+    is a mapping keyed by joint label, and `verdict: holds` is only meaningful
+    for a single-joint reviewer. This accepts both, under either `verdict` or
+    `verdicts`, and returns a readable problem for anything else rather than
+    raising on it.
+    """
+    raw = attestation.get("verdict")
+    if raw is None:
+        raw = attestation.get("verdicts")
+    if isinstance(raw, str):
+        value = raw.strip()
+        if value in VERDICTS:
+            return value, None
+        return None, (f"verdict '{value}' must be "
+                      f"{'|'.join(sorted(VERDICTS))}")
+    if isinstance(raw, dict):
+        label = _joint_label(name).casefold()
+        for key, value in raw.items():
+            key = str(key).strip().casefold()
+            if key == label or key == str(name).strip().casefold():
+                value = str(value).strip()
+                if value in VERDICTS:
+                    return value, None
+                return None, (f"verdict on '{_joint_label(name)}' is "
+                              f"'{value}', which must be "
+                              f"{'|'.join(sorted(VERDICTS))}")
+        return None, (f"per-joint verdict mapping carries no entry for "
+                      f"'{_joint_label(name)}' (has "
+                      f"{', '.join(sorted(str(k) for k in raw))})")
+    if raw is None:
+        return None, ("neither verdict nor verdicts is set; every owned joint "
+                      "carries an explicit verdict")
+    return None, (f"verdict must be a {'|'.join(sorted(VERDICTS))} string or a "
+                  f"mapping from joint label to one, not "
+                  f"{type(raw).__name__}")
+
+
 def _load(path: str):
     try:
         with open(path, encoding="utf-8") as handle:
@@ -82,16 +184,168 @@ def _load(path: str):
         return {"__error__": str(exc).splitlines()[0]}
 
 
+#: A round's plan is spelled `review_plan` by the template and `read_plan` by
+#: zero-compute rounds whose joints are readings of external sources. The two are
+#: the same object and this tool checks the same things of both; the alias exists
+#: because a committed plan is immutable, so a round that chose the other spelling
+#: cannot be brought into line by editing it. Refusing it reported a naming
+#: difference as "no review_plan block", which is the least informative failure
+#: available and which no reader of that message would diagnose.
+PLAN_KEYS = ("review_plan", "read_plan")
+ADDENDUM_KEYS = ("review_plan_addendum", "read_plan_addendum")
+
+
 def _plan_of(doc) -> dict | None:
-    """A plan may be given as a handoff record or as a bare review_plan."""
+    """A plan may be given as a handoff record or as a bare plan."""
     if not isinstance(doc, dict):
         return None
-    if isinstance(doc.get("review_plan"), dict):
-        return doc["review_plan"]
+    for key in PLAN_KEYS:
+        if isinstance(doc.get(key), dict):
+            return doc[key]
     handoff = doc.get("handoff")
-    if isinstance(handoff, dict) and isinstance(handoff.get("review_plan"), dict):
-        return handoff["review_plan"]
+    if isinstance(handoff, dict):
+        for key in PLAN_KEYS:
+            if isinstance(handoff.get(key), dict):
+                return handoff[key]
     return None
+
+
+def _addendum_of(doc) -> dict | None:
+    if not isinstance(doc, dict):
+        return None
+    for key in ADDENDUM_KEYS:
+        if isinstance(doc.get(key), dict):
+            return doc[key]
+    return None
+
+
+def _same_file(declared: str, plan_path: str) -> bool:
+    """Does an addendum's `extends` value point at this plan?
+
+    Compared by resolved path, so a repo-relative declaration and a path given
+    on the command line agree. Falls back to basename: an addendum sitting in
+    the round's own directory that names the plan by file name is unambiguous
+    there, and refusing it would push a Coordinator toward editing the plan.
+    """
+    declared = str(declared or "").strip()
+    if not declared:
+        return False
+    plan_abs = os.path.abspath(plan_path)
+    for candidate in (declared, os.path.join(REPO, declared),
+                      os.path.join(os.path.dirname(plan_abs), declared)):
+        if os.path.abspath(candidate) == plan_abs:
+            return True
+    return os.path.basename(declared) == os.path.basename(plan_abs)
+
+
+def find_addenda(plan_path: str) -> list[tuple[str, dict]]:
+    """Addenda beside the plan that extend it, oldest declaration first.
+
+    Ordered by `written_at` so a later addendum's reassignment wins over an
+    earlier one's, with the file name as a stable tiebreak. An addendum that
+    declares no `written_at` sorts first: it cannot claim to supersede anything.
+    """
+    directory = os.path.dirname(os.path.abspath(plan_path)) or "."
+    found = []
+    for path in sorted(glob.glob(os.path.join(directory, "*.yaml"))
+                       + glob.glob(os.path.join(directory, "*.yml"))):
+        if os.path.abspath(path) == os.path.abspath(plan_path):
+            continue
+        addendum = _addendum_of(_load(path))
+        if addendum is None:
+            continue
+        targets = [addendum.get("extends")] + list(
+            addendum.get("also_extends") or []
+            if isinstance(addendum.get("also_extends"), list)
+            else [addendum.get("also_extends")])
+        if any(_same_file(target, plan_path) for target in targets):
+            found.append((path, addendum))
+    found.sort(key=lambda item: (str(item[1].get("written_at") or ""), item[0]))
+    return found
+
+
+def compose_plan(plan: dict, addenda: list[tuple[str, dict]]) -> tuple[dict, list[str]]:
+    """The plan as the round actually stands, plus a line per change applied.
+
+    Four things an addendum may do, and nothing else: add joints, reassign the
+    owner of a joint, declare further proves-too-much objects, and WIDEN
+    `blind_rederivation.blind_from`. It may not remove a joint or weaken a
+    control -- an addendum that tried would be a silent narrowing of a declared
+    review, so unknown keys are simply not acted on and the plan they extend
+    keeps its own values.
+
+    `blind_from_additions` was the fourth for a while only on paper. Two addenda
+    on BATCH-cbb416 declared it -- ADD2 over the collision audit's disclosed
+    fall-degree integers, ADD3 over a Coordinator prior stating the very value
+    being re-derived -- and neither reached the leak check below, because an
+    unknown key is left alone and `blind_from` was therefore always the parent
+    plan's. That is the worst failure mode available to this file: a protection
+    that reads as in force, is cited in a receipt as in force, and is enforced
+    nowhere. Honouring it cannot let an addendum weaken anything, because the
+    only permitted direction is wider -- a longer `blind_from` can add leak
+    findings and can never remove one.
+
+    Accepted at two spellings, `what_changes.blind_from_additions` and a
+    top-level `blind_from_additions`, because both are already committed in the
+    corpus and neither is more canonical than the other.
+    """
+    import copy
+
+    composed = copy.deepcopy(plan)
+    notes: list[str] = []
+    joints = composed.get("joints")
+    composed["joints"] = list(joints) if isinstance(joints, list) else []
+
+    for path, addendum in addenda:
+        label = _rel(path)
+        added = addendum.get("joints_added")
+        if isinstance(added, list):
+            for entry in added:
+                if isinstance(entry, dict):
+                    composed["joints"].append(entry)
+                    notes.append(f"{label}: added joint "
+                                 f"'{_joint_label(entry.get('joint') or '?')}'")
+        changes = addendum.get("what_changes")
+        owners = (changes or {}).get("owners") if isinstance(changes, dict) else None
+        if isinstance(owners, dict):
+            for joint_label, owner in owners.items():
+                wanted = _joint_label(str(joint_label)).casefold()
+                owner = str(owner).strip()
+                for entry in composed["joints"]:
+                    if not isinstance(entry, dict):
+                        continue
+                    name = _joint_name(entry)
+                    if _joint_label(name).casefold() != wanted:
+                        continue
+                    if _joint_owner(entry) != owner:
+                        notes.append(
+                            f"{label}: joint '{_joint_label(name)}' reassigned "
+                            f"{_joint_owner(entry)} -> {owner}")
+                    entry[_owner_key(entry)] = owner
+        extra = addendum.get("proves_too_much_objects_added")
+        if isinstance(extra, list) and extra:
+            control = composed.get("proves_too_much")
+            control = dict(control) if isinstance(control, dict) else {}
+            control["objects"] = list(control.get("objects") or []) + list(extra)
+            composed["proves_too_much"] = control
+            notes.append(f"{label}: added {len(extra)} proves-too-much object(s)")
+
+        widened = (changes or {}).get("blind_from_additions") \
+            if isinstance(changes, dict) else None
+        if not isinstance(widened, list):
+            widened = addendum.get("blind_from_additions")
+        if isinstance(widened, list) and widened:
+            rederivation = composed.get("blind_rederivation")
+            rederivation = dict(rederivation) if isinstance(rederivation, dict) else {}
+            existing = [str(p).strip() for p in (rederivation.get("blind_from") or [])]
+            added = [str(p).strip() for p in widened
+                     if str(p).strip() and str(p).strip() not in existing]
+            if added:
+                rederivation["blind_from"] = existing + added
+                composed["blind_rederivation"] = rederivation
+                notes.append(f"{label}: widened blind_from by {len(added)} path(s) "
+                             f"-- {', '.join(added)}")
+    return composed, notes
 
 
 def _attestation_of(doc) -> dict | None:
@@ -165,8 +419,8 @@ def check(plan: dict, reports: list[tuple[str, dict]]) -> list[str]:
         if not isinstance(entry, dict):
             problems.append(f"review_plan.joints[{index}] must be a mapping")
             continue
-        name = str(entry.get("joint") or "").strip() or f"joints[{index}]"
-        owner = str(entry.get("assigned_to") or "").strip()
+        name = _joint_name(entry).strip() or f"joints[{index}]"
+        owner = _joint_owner(entry)
         if not owner:
             problems.append(f"joint '{name}' has no assigned_to; an unowned "
                             f"joint is the coverage gap this plan exists to "
@@ -183,12 +437,12 @@ def check(plan: dict, reports: list[tuple[str, dict]]) -> list[str]:
             continue
         _, attestation = by_task[owner]
         owned = attestation.get("joints_owned") or []
-        if name not in [str(j).strip() for j in owned]:
-            problems.append(f"{owner} does not claim joint '{name}' in "
-                            f"joints_owned")
-        if attestation.get("verdict") not in VERDICTS:
-            problems.append(f"{owner}: review_attestation.verdict must be "
-                            f"holds|breaks|inconclusive")
+        if not _claims_joint(owned, name):
+            problems.append(f"{owner} does not claim joint "
+                            f"'{_joint_label(name)}' in joints_owned")
+        _, problem = _verdict_for(attestation, name)
+        if problem:
+            problems.append(f"{owner}: {problem}")
     for name, assigned in owners.items():
         if len(assigned) > 1:
             problems.append(f"joint '{name}' has {len(assigned)} owners "
@@ -357,6 +611,10 @@ def main() -> int:
     parser.add_argument("--reports", nargs="*", default=[],
                         help="report files or directories to scan")
     parser.add_argument("--batch", help="batch directory holding both")
+    parser.add_argument("--no-addenda", action="store_true",
+                        help="check against the plan file alone, ignoring any "
+                             "review_plan_addendum beside it (for auditing a "
+                             "round against its ORIGINAL setup)")
     parser.add_argument("--blind-history", metavar="REF",
                         help="git ref whose reachable commit messages must not "
                              "state any protected literal")
@@ -397,6 +655,20 @@ def main() -> int:
     if plan is None:
         print(f"{plan_path}: no review_plan block", file=sys.stderr)
         return 2
+
+    composition: list[str] = []
+    if not args.no_addenda:
+        addenda = find_addenda(plan_path)
+        if addenda:
+            plan, composition = compose_plan(plan, addenda)
+            print(f"composed {len(addenda)} addendum/addenda into "
+                  f"{_rel(plan_path)}:")
+            for path, _ in addenda:
+                print(f"  extends: {_rel(path)}")
+            for note in composition:
+                print(f"  {note}")
+            if not composition:
+                print("  (no joint added or reassigned)")
 
     reports = _collect_reports(report_targets)
     if not reports:

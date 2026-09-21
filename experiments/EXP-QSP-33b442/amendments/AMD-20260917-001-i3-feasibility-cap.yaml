@@ -1,0 +1,108 @@
+protocol_amendment:
+  id: AMD-20260917-001
+  experiment_id: EXP-QSP-33b442
+  amends_specification_version: 1
+  amendment_version: 1
+  authored_by: executor
+  authored_at: '2026-09-17'
+  authored_before_runs:
+    - RUN-QSP-33b442-S1
+    - RUN-QSP-33b442-S2
+  status: recorded_by_executor_awaiting_coordinator_ratification
+  status_note: >-
+    The Executor of TASK-20260917-892420 authored this amendment under the
+    write scope granted by that handoff (amendments/, new files only) and
+    BEFORE the affected runs, as the handoff's frozen-contract constraint
+    requires. It is NOT a Coordinator approval. It narrows the coverage of one
+    instrument on one stage for a stated, measured technical impediment; it
+    changes no cell, no candidate set, no seed, no threshold, no metric
+    definition, no pre-registered value and no success or falsification
+    criterion. The Coordinator may ratify, reject, or replace it on review;
+    every candidate it excludes is listed by name with its exact deg D in the
+    run output, so the exclusion is auditable and reversible on a machine with
+    a sub-quadratic GF(2)[X] reduction.
+
+  what_the_contract_says:
+    stage_2_instrument: >-
+      specification.yaml stage_2.instrument: "I2 for the sweep; I3 on every
+      candidate with N >= 2^{n'-1}; I1 where 2^n enumeration is affordable".
+    controls: >-
+      specification.yaml controls C1-C4 require "the instrument" to return the
+      forced count; they do not name which of I1/I2/I3 must run on each.
+
+  impediment:
+    statement: >-
+      I3 requires the K-roots of D(Y) = Lambda_{q+1}(Y) - Y^{2^{n'-r}}, obtained
+      as gcd(D, Y^{2^n} - Y). The available implementation computes Y^{2^n} mod D
+      by n modular squarings with a schoolbook GF(2)[X] reduction, whose cost
+      grows superlinearly in deg D = max(d^{q+1}, 2^{n'-r}). In Stage 2,
+      q = floor(n/n') reaches 15 (n = 31, n' = 2) and d reaches 8, so deg D
+      reaches d^{q+1} = 8^16; on the 356 near-complete candidates deg D ranges
+      from 8 to 43046721.
+    measured_calibration: >-
+      Measured on this host (4 cores, 15 GB, CPython 3.11.15, no external CAS)
+      during implementation smoke tests, NOT reported as an experimental result
+      and not used to fill any cell: one I3 evaluation costs about 2.8 s at
+      deg D = 78125 and about 16 s at deg D = 262144, i.e. roughly
+      deg D^1.55. Extrapolating that calibration, deg D = 2097152 costs of
+      order 400 s per candidate (10 such candidates) and deg D = 43046721 of
+      order 10^4 s per candidate. No engine with sub-quadratic GF(2)[X]
+      reduction (NTL, Flint, Sage, Magma) is installed in this container; the
+      only compiled helper available is the word-level schoolbook routine
+      gf2rc.c, whose asymptotics are the same.
+    why_not_stop_the_stage: >-
+      The impediment affects ONE instrument on a declared, enumerable subset of
+      ONE stage. Stage 2's primary instrument I2 (the direct gcd, via the
+      compiled helper) runs on every one of the 42244 candidates including all
+      356 near-complete and all 65 complete splitters, so M3 -- the metric the
+      stage exists to produce, and the metric P-B and F2 are decided on -- is
+      unaffected and complete. Stopping the whole stage would discard M3
+      entirely to protect a redundancy check on 4% of its rows.
+
+  change:
+    id: A1
+    text: >-
+      In Stage 2, and on control C3, instrument I3 is run on a candidate only
+      when deg D <= 1000000 (one million). Candidates with deg D above that cap
+      are listed EXHAUSTIVELY in the Stage 2 raw result with their (n, n', d,
+      lambda, N, deg D) and the field `i3_run: false` with
+      `i3_skip_reason: deg_D_above_declared_cap`; their N rests on I2 alone and
+      is reported as such. The cap is a fixed constant declared here BEFORE the
+      runs, not a timeout: the set of candidates it excludes is a deterministic
+      function of the contract's own candidate set and is reproducible bit for
+      bit on any machine.
+    cap_value: 1000000
+    cap_units: degree of D over F_2
+    predicted_exclusions_from_the_contract_s_own_candidate_set: >-
+      Deterministic and therefore stateable in advance: of the near-complete
+      candidates (N >= 2^{n'-1}) the excluded ones are exactly those with
+      deg D in {2097152, 14348907, 43046721}; control C3 (n = 31, n' = 15,
+      lambda = X^{2^7} + X^{2^3} + X^2 + X) has deg D = d^{q+1} = (2^7)^3 =
+      2^21 = 2097152 and is therefore also above the cap. The run output states
+      the realised count and the full list; this line is arithmetic on the
+      contract's own cell definitions, not a measurement.
+
+  instrument_coverage_of_the_forced_fixtures_after_this_amendment:
+    C1: 'n = 12, n'' = 6, lambda = X: I1 (4096 elements), I2, I3 (deg D = 64), C6.'
+    C2: 'n = 7, n'' = 3, lambda = X^2 + X: I1 (128 elements), I2, I3 (deg D = 8), C6.'
+    C3: >-
+      n = 31, n' = 15, lambda = X^{2^7} + X^{2^3} + X^2 + X: I2 and the C6
+      Proposition-2 decision procedure only. I1 is not run because K has 2^31
+      elements ("I1 where 2^n enumeration is affordable"); I3 is not run because
+      deg D = 2097152 exceeds the cap declared above. The forced value 32768 is
+      therefore measured by I2 and independently re-decided by C6, two
+      procedures with no shared code path.
+    C4: 'n = 3, n'' = 2, lambda = X^2 + X: I1 (8 elements), I2, I3 (deg D = 4), C6.'
+
+  what_is_NOT_changed:
+    - The five Stage 1 cells, their 1260 candidates and the requirement that all three instruments agree on every one of them (every Stage 1 deg D is at most 343).
+    - The Stage 1b cells, 1200 draws, seed 20260917 and instrument assignment.
+    - The Stage 2 cell set, candidate set, thresholds, and the requirement that every complete splitter be checked against BOTH corollary values.
+    - The Stage 3 census, its 244 candidates per cell, its certificates and their independent re-verification (Stage 3 deg D is at most 2401).
+    - The Stage 4 cells, draws, seed and conjectured bound.
+    - Every pre-registered value, success criterion, falsification branch and stopping rule.
+  effect_on_success_criterion: >-
+    None on S1-S5 as written. S2 (M2 = 0) is quantified over the 1260 Stage 1
+    candidates "and wherever else more than one was run"; this amendment
+    reduces the set where more than one instrument was run in Stage 2 and on
+    C3, and does not relax the agreement requirement anywhere it applies.

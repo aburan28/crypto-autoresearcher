@@ -7,6 +7,8 @@ on:
       - 'tests/test_lean_live.py'
       - 'tests/test_formal*.py'
       - 'tests/test_mathcode_formalizer.py'
+      - 'tests/test_verify_formal_targets.py'
+      - 'tools/verify_formal_targets.py'
       - '.github/workflows/lean-verification.yml'
   push:
     branches: [main]
@@ -16,6 +18,8 @@ on:
       - 'tests/test_lean_live.py'
       - 'tests/test_formal*.py'
       - 'tests/test_mathcode_formalizer.py'
+      - 'tests/test_verify_formal_targets.py'
+      - 'tools/verify_formal_targets.py'
       - '.github/workflows/lean-verification.yml'
   workflow_dispatch:
 permissions:
@@ -32,7 +36,13 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: python -m pip install pytest PyYAML
+      # Installs the package itself so the dependency set lives in
+      # pyproject.toml rather than being duplicated per workflow. The
+      # research-loop extra carries pydantic, which
+      # tests/test_mathcode_formalizer.py needs transitively via
+      # orchestration.formal.pipeline -> orchestration.routing.models; without
+      # it pytest aborts at COLLECTION, so no Lean control test runs at all.
+      - run: python -m pip install -e '.[research-loop,dev]'
       - uses: leanprover/lean-action@v1
         with:
           lake-package-directory: formal/smoke
@@ -55,3 +65,66 @@ jobs:
         with:
           name: lean-controls
           path: lean-controls.xml
+
+  # The job above builds formal/smoke -- a pinned, dependency-free control
+  # project -- and never formal/, where theorem files live. That is what it is
+  # for: it is fast and it proves the harness's Lean plumbing works. It is NOT
+  # a proof gate, and for a while it was the only Lean job, so the lane's first
+  # machine-checked theorem reached main with no CI having built it.
+  #
+  # This job is the proof gate. It costs a Mathlib cache fetch (minutes, not
+  # the hours a from-source Mathlib build would take), which is why it is
+  # separate: kernel-controls stays fast and still gates every PR that touches
+  # the harness, while this one gates the mathematics.
+  formal-workspace:
+    name: formal workspace (lake build + axiom audit)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      # Mathlib's oleans are several GB extracted. The runner has room, but not
+      # so much of it that the preinstalled toolchains are worth keeping.
+      - name: Reclaim disk before fetching Mathlib
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc || true
+          df -h /
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install -e '.[research-loop,dev]'
+      # CryptoResearch.lean is derived from the directory and gitignored, so it
+      # does not exist in a fresh checkout and lake cannot build the library
+      # without it. `formal verify` regenerates it too; doing it here as well
+      # keeps the cache fetch below from being the step that discovers it.
+      - name: Generate the workspace root module
+        run: python3 tools/rebuild_formal_root.py --workspace formal
+      - uses: leanprover/lean-action@v1
+        with:
+          lake-package-directory: formal
+          build: 'false'
+          test: 'false'
+          lint: 'false'
+          use-mathlib-cache: 'false'
+      # Explicit rather than lean-action's use-mathlib-cache, to mirror
+      # formal/setup.sh step for step: whatever CI does here is what a
+      # contributor reproduces locally.
+      - name: Fetch prebuilt Mathlib oleans
+        working-directory: formal
+        run: lake exe cache get
+      # setup.sh's next step, and its own step here on purpose: when lake fails
+      # this prints lake's error where someone triaging a red build will read
+      # it, instead of only inside the verifier's receipt artifact.
+      - name: Build the workspace
+        working-directory: formal
+        run: lake build
+      # The gate: forbidden-construct scan, lake build, project axiom audit,
+      # and a per-theorem audit confirming the named theorem was in what got
+      # audited. Exit 3 means the toolchain fell over and is reported as
+      # infrastructure, never as a proof that failed to check.
+      - name: Machine-check every discharged formal target
+        run: python3 tools/verify_formal_targets.py --artifact-dir formal-receipts
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: formal-verification-receipts
+          path: formal-receipts

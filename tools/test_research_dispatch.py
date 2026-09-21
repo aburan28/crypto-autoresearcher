@@ -6,6 +6,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -658,6 +659,109 @@ class DispatchPlannerTests(unittest.TestCase):
                 plan["content_only_archives"],
             )
 
+    def test_content_at_commit_survives_a_later_legitimate_transition(self) -> None:
+        """Reproduce TASK-20260913-f8bdec: the snapshot's own record moved on.
+
+        A pre-execution snapshot pins an experiment contract as the executor
+        read it. When that contract later advances to `analyzed`, `content_first`
+        reports the snapshot as corrupt because it hashes HEAD -- punishing the
+        archive for the record doing exactly what a record is supposed to do.
+        `content_at_commit` reads its own commit and is unaffected; the byte
+        binding is not weakened, only asked about the right tree.
+        """
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+
+            def git(*arguments: str) -> str:
+                return subprocess.run(
+                    ["git", "-C", str(root), *arguments], check=True,
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                ).stdout.strip()
+
+            def write(path: str, content: bytes) -> None:
+                destination = root / path
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                destination.write_bytes(content)
+
+            git("init")
+            git("config", "user.email", "dispatch@example.test")
+            git("config", "user.name", "Dispatch Test")
+            write("README.md", b"base\n")
+            git("add", "README.md")
+            git("commit", "-m", "base")
+
+            source = task("WORK", 1, state="completed")
+            archive = archive_task("ARCHIVE", [source], state="completed",
+                                   record_ids=["REC-ARCHIVE"])
+            contract = source["artifact_paths"][0]
+            receipt = archive["artifact_paths"][0]
+            payloads = {contract: b"status: approved\n", receipt: b"snapshot receipt\n"}
+            for path, content in payloads.items():
+                write(path, content)
+            git("add", ".")
+            git("commit", "-m", "ARCHIVE REC-ARCHIVE snapshot")
+            commit = git("rev-parse", "HEAD")
+
+            # The archived contract legitimately advances after the snapshot.
+            write(contract, b"status: analyzed\n")
+            git("add", contract)
+            git("commit", "-m", "contract advances to analyzed")
+
+            binding = {
+                "commit_sha": commit,
+                "parent_sha": git("rev-parse", "HEAD~2"),
+                "path_sha256": {
+                    path: hashlib.sha256(content).hexdigest()
+                    for path, content in payloads.items()
+                },
+            }
+            verifier = dispatch.GitRepositoryVerifier
+            at_head = copy.deepcopy(queue(source, archive))
+            at_head["tasks"][1]["archive"].update({**binding, "binding_mode": "content_first"})
+            with self.assertRaisesRegex(dispatch.DispatchError, "content hash mismatch"):
+                dispatch.validate_queue(at_head, repository_verifier=verifier(root))
+
+            at_commit = copy.deepcopy(queue(source, archive))
+            at_commit["tasks"][1]["archive"].update(
+                {**binding, "binding_mode": "content_at_commit"})
+            plan = dispatch.select(at_commit, repository_verifier=verifier(root))
+            self.assertEqual(
+                [{
+                    "task_id": "ARCHIVE",
+                    "reason": "declared content_at_commit binding mode",
+                    "paths_verified": 2,
+                    "generated_paths_skipped": [],
+                    "verified_against": commit,
+                }],
+                plan["content_only_archives"],
+            )
+
+            # The mode moves which tree is read; it relaxes nothing else.
+            corrupt = copy.deepcopy(at_commit)
+            corrupt["tasks"][1]["archive"]["path_sha256"][receipt] = "0" * 64
+            with self.assertRaisesRegex(dispatch.DispatchError, "content hash mismatch"):
+                dispatch.validate_queue(corrupt, repository_verifier=verifier(root))
+
+            unreachable = copy.deepcopy(at_commit)
+            unreachable["tasks"][1]["archive"]["commit_sha"] = "f" * 40
+            with self.assertRaisesRegex(
+                dispatch.DispatchError, "content_at_commit binding requires"
+            ):
+                dispatch.validate_queue(unreachable, repository_verifier=verifier(root))
+
+            wrong_ids = copy.deepcopy(at_commit)
+            wrong_ids["tasks"][1]["archive"]["record_ids"] = ["REC-MISSING"]
+            with self.assertRaisesRegex(dispatch.DispatchError, "commit message is missing IDs"):
+                dispatch.validate_queue(wrong_ids, repository_verifier=verifier(root))
+
+    def test_binding_mode_must_be_one_of_the_three_declared_modes(self) -> None:
+        worker = task("WORK", 1)
+        archive = archive_task("ARCHIVE", [worker])
+        archive["archive"]["binding_mode"] = "content_whenever"
+        with self.assertRaisesRegex(dispatch.DispatchError, "binding_mode must be commit"):
+            dispatch.validate_queue(queue(worker, archive))
+
     def test_content_first_rejects_mismatch_partial_hashes_and_missing_commit(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -990,6 +1094,106 @@ class InferencePolicyTests(unittest.TestCase):
     def test_worker_may_not_take_a_state_changing_policy(self) -> None:
         with self.assertRaisesRegex(dispatch.DispatchError, "may change official"):
             self.check("coordinator-orchestration", "executor")
+
+
+class InferenceAdvisoryTests(unittest.TestCase):
+    """`fallback_allowed: false` is a claim, and a machine can be unable to keep it.
+
+    The advisory exists because that claim was repaired twice on one batch AFTER the
+    work had already run. These tests pin the two properties that make it worth
+    reading -- it fires exactly when the bound backend is uncredentialed, and it
+    never counsels degrading the one policy that may not be degraded -- and the two
+    that keep it from becoming noise: it is silent on cards already amended, and
+    silent on cards no longer dispatchable.
+    """
+
+    def card(self, identifier: str, *, policy: str, state: str = "queued",
+             role: str = "validator", **inference: Any) -> dict[str, Any]:
+        item = task(identifier, 50, state=state, role=role)
+        item["handoff"]["inference"] = {"policy": policy, "fallback_allowed": False,
+                                       **inference}
+        return item
+
+    def advise(self, *tasks: dict[str, Any], env: dict[str, str]) -> list[dict[str, Any]]:
+        # `clear=True`: the point of the check is which credentials are ABSENT, and a
+        # developer machine that happens to export ANTHROPIC_API_KEY would otherwise
+        # silently invert every assertion below.
+        with mock.patch.dict(os.environ, env, clear=True):
+            return dispatch.inference_advisories(list(tasks))
+
+    def test_fires_when_the_bound_backend_has_no_credentials(self) -> None:
+        found = self.advise(self.card("R", policy="review-adversarial"), env={})
+        self.assertEqual([item["id"] for item in found], ["R"])
+        self.assertEqual(found[0]["unservable_backend"], "anthropic")
+        self.assertIn("fallback_used: true", found[0]["advisory"])
+
+    def test_silent_when_the_bound_backend_is_credentialed(self) -> None:
+        self.assertEqual(
+            self.advise(self.card("R", policy="review-adversarial"),
+                        env={"ANTHROPIC_API_KEY": "present"}),
+            [])
+
+    def test_silent_on_a_card_that_permits_a_fallback(self) -> None:
+        self.assertEqual(
+            self.advise(self.card("R", policy="review-adversarial", fallback_allowed=True),
+                        env={}),
+            [])
+
+    def test_silent_on_a_card_the_coordinator_has_already_amended(self) -> None:
+        amended = self.card("R", policy="review-adversarial",
+                            inference_amendment="DEC-20260916-7b2235")
+        self.assertEqual(self.advise(amended, env={}), [])
+
+    def test_silent_on_terminal_tasks(self) -> None:
+        for state in sorted(dispatch.TERMINAL_STATES):
+            with self.subTest(state=state):
+                self.assertEqual(
+                    self.advise(self.card("R", policy="review-adversarial", state=state),
+                                env={}),
+                    [])
+
+    def test_never_counsels_degrading_a_non_degradable_policy(self) -> None:
+        """The remedy diverges here, and the wrong remedy is worse than none.
+
+        `review-breakthrough` may not be degraded under any amendment, so an
+        advisory telling a Coordinator to record one against it would counsel the
+        exact act the contract forbids.
+        """
+        breakthrough = self.advise(self.card("B", policy="review-breakthrough"), env={})
+        self.assertEqual(len(breakthrough), 1)
+        self.assertFalse(breakthrough[0]["degradable"])
+        text = breakthrough[0]["advisory"]
+        self.assertNotIn("record an inference_amendment", text)
+        self.assertIn("degraded_allowed is NOT", text)
+        self.assertIn("claim stays un-promoted", text)
+
+        ordinary = self.advise(self.card("R", policy="review-adversarial"), env={})
+        self.assertTrue(ordinary[0]["degradable"])
+        self.assertIn("record an inference_amendment", ordinary[0]["advisory"])
+
+    def test_advisory_does_not_block_a_dispatch(self) -> None:
+        """Advisory means advisory: an unkeepable claim is a paperwork defect.
+
+        Refusing here would stop research in exactly the environments where the
+        runtime-native binding is the legitimate route.
+        """
+        worker = self.card("R", policy="review-adversarial")
+        archive = archive_task("ARCHIVE", [worker])
+        with mock.patch.dict(os.environ, {}, clear=True):
+            plan = dispatch.select(queue(worker, archive), now=datetime.now())
+        self.assertEqual([item["id"] for item in plan["dispatches"]], ["R"])
+        self.assertEqual([item["id"] for item in plan["inference_advisories"]], ["R"])
+        self.assertTrue(all(plan["gates"].values()))
+
+    def test_report_names_the_task_and_the_remedy(self) -> None:
+        worker = self.card("R", policy="review-adversarial")
+        archive = archive_task("ARCHIVE", [worker])
+        with mock.patch.dict(os.environ, {}, clear=True):
+            plan = dispatch.select(queue(worker, archive), now=datetime.now())
+        report = dispatch.markdown(plan)
+        self.assertIn("Inference Advisories", report)
+        self.assertIn("`R` (validator)", report)
+        self.assertIn("AN ADVISORY IS NOT PERMISSION", report)
 
 
 class TerminalSnapshotTests(unittest.TestCase):
@@ -1416,3 +1620,125 @@ class ForwardQueueTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class UnlandedProducerOutputTests(unittest.TestCase):
+    """The report added after CORR-20260921-942a62.
+
+    Producer deliverables live in one working tree until a later archival task
+    commits them, and that task runs in a later turn of a session that may not
+    exist. Two blind source reads and a run at `completed_valid` were lost that
+    way. The exposure is now named in the plan while the machine still exists.
+    """
+
+    def _repo(self, temporary: str):
+        root = Path(temporary)
+
+        def git(*arguments: str) -> str:
+            return subprocess.run(
+                ["git", "-C", str(root), *arguments],
+                check=True, stdout=subprocess.PIPE, text=True,
+            ).stdout.strip()
+
+        git("init", "-q", "-b", "main")
+        git("config", "user.email", "t@example.com")
+        git("config", "user.name", "Test")
+        (root / "seed.txt").write_text("seed\n")
+        git("add", "seed.txt")
+        git("commit", "-q", "-m", "seed")
+        return root, git
+
+    def test_reports_a_producer_artifact_that_exists_but_is_not_at_head(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root, _ = self._repo(temporary)
+            worker = task("WORK", 50)
+            archive = archive_task("ARCHIVE", [worker])
+            path = root / worker["artifact_paths"][0]
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("produced but never committed\n")
+            plan = dispatch.select(
+                queue(worker, archive),
+                repository_verifier=dispatch.GitRepositoryVerifier(root),
+            )
+            rows = plan.get("unlanded_producer_output")
+            self.assertEqual([row["id"] for row in rows], ["WORK"])
+            self.assertEqual(rows[0]["unlanded"], [worker["artifact_paths"][0]])
+            self.assertIn("producer_landing.py", rows[0]["remedy"])
+            self.assertIn("Unlanded producer output", dispatch.markdown(plan))
+
+    def test_silent_when_the_artifact_is_committed(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root, git = self._repo(temporary)
+            worker = task("WORK", 50)
+            archive = archive_task("ARCHIVE", [worker])
+            rel = worker["artifact_paths"][0]
+            path = root / rel
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("landed\n")
+            git("add", rel)
+            git("commit", "-q", "-m", "land WORK")
+            plan = dispatch.select(
+                queue(worker, archive),
+                repository_verifier=dispatch.GitRepositoryVerifier(root),
+            )
+            self.assertNotIn("unlanded_producer_output", plan)
+            self.assertNotIn("Unlanded producer output", dispatch.markdown(plan))
+
+    def test_silent_when_the_producer_has_written_nothing_yet(self) -> None:
+        """An unstarted producer is not an exposure and must not be reported."""
+        with tempfile.TemporaryDirectory() as temporary:
+            root, _ = self._repo(temporary)
+            worker = task("WORK", 50)
+            plan = dispatch.select(
+                queue(worker, archive_task("ARCHIVE", [worker])),
+                repository_verifier=dispatch.GitRepositoryVerifier(root),
+            )
+            self.assertNotIn("unlanded_producer_output", plan)
+
+    def test_archive_receipts_are_not_reported(self) -> None:
+        """An archive's own receipt is committed BY the archive; it is not a leak."""
+        with tempfile.TemporaryDirectory() as temporary:
+            root, _ = self._repo(temporary)
+            worker = task("WORK", 50)
+            archive = archive_task("ARCHIVE", [worker])
+            for rel in (worker["artifact_paths"][0], archive["artifact_paths"][0]):
+                path = root / rel
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("x\n")
+            plan = dispatch.select(
+                queue(worker, archive),
+                repository_verifier=dispatch.GitRepositoryVerifier(root),
+            )
+            self.assertEqual(
+                [row["id"] for row in plan["unlanded_producer_output"]], ["WORK"]
+            )
+
+    def test_tree_state_does_not_perturb_the_plan_hash(self) -> None:
+        """The reason the report sits OUTSIDE the digest.
+
+        Run manifests record `dispatch_plan_sha256`. If unlanded output changed
+        the hash, re-deriving it later would mismatch for reasons unrelated to
+        the plan -- a false integrity alarm of the kind CORR-20260915-654160
+        records.
+        """
+        with tempfile.TemporaryDirectory() as temporary:
+            root, _ = self._repo(temporary)
+            worker = task("WORK", 50)
+            archive = archive_task("ARCHIVE", [worker])
+            verifier = dispatch.GitRepositoryVerifier(root)
+            clean = dispatch.select(queue(worker, archive), repository_verifier=verifier)
+            path = root / worker["artifact_paths"][0]
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("now dirty\n")
+            dirty = dispatch.select(
+                queue(worker, archive),
+                repository_verifier=dispatch.GitRepositoryVerifier(root),
+            )
+            self.assertEqual(clean["plan_sha256"], dirty["plan_sha256"])
+            self.assertIn("unlanded_producer_output", dirty)
+
+    def test_a_verifier_without_the_capability_reports_nothing(self) -> None:
+        """Backwards compatible: FakeGitVerifier and None must keep working."""
+        worker = task("WORK", 50)
+        plan = dispatch.select(queue(worker, archive_task("ARCHIVE", [worker])))
+        self.assertNotIn("unlanded_producer_output", plan)

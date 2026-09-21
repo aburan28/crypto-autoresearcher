@@ -1,0 +1,194 @@
+experiment:
+  id: EXP-GLVCAN-468fb2
+  hypothesis_id: null
+  hypothesis_id_note: >-
+    Engineering measurement of duplicate algebraic work under the known order-3
+    GLV action. No new independence claim is made for phi-transformed relations.
+  question_id: RQ-EQIC-8cb959
+  related_question_ids:
+    - RQ-EQLA-0d3f40
+    - RQ-ICPERF-94c86e
+  version: 1
+  status: draft
+  frozen: false
+  execution_authorized: false
+  evidence_eligible: false
+
+  title: >-
+    GLV-canonical relation generation: eliminate repeated solver work across
+    target and relation orbits while preserving exact orientation metadata
+
+  objective: >-
+    Measure how much solver, cache, database, and verification work can be
+    removed by canonicalizing the order-3 GLV orbit of each target before point
+    decomposition and canonicalizing each resulting relation before insertion.
+    The experiment explicitly treats phi(R) and phi^2(R) as transformed versions
+    of one algebraic instance, never as new independent equations.
+
+  mathematical_setup:
+    target_orbit: [R, phi(R), phi^2(R)]
+    relation_transport: >-
+      If sum_i P_i = R, then sum_i phi(P_i) = phi(R). After factor-base orbit
+      folding, the transported linear row is lambda times the original row.
+    canonical_target: >-
+      Choose one deterministic representative of the target orbit using a fixed,
+      frozen byte encoding order. Record orientation j in {0,1,2} such that
+      R = phi^j(R_canonical).
+    canonical_relation: >-
+      Canonicalize the multiset of factor-base orbit representatives together
+      with their orientations. Preserve enough metadata to reconstruct the
+      original relation and right-hand side exactly.
+
+  arms:
+    - id: ARM_RAW
+      description: >-
+        Run the existing decomposition pipeline independently on each submitted
+        target and store relations in their submitted orientation.
+    - id: ARM_CAN
+      description: >-
+        Canonicalize target orbits before solving, memoize by canonical target,
+        canonicalize relation orbits before storage, and back-map orientation
+        only when emitting a relation to the caller.
+    - id: NULL_SHUFFLE
+      description: >-
+        Deterministically shuffle target identifiers while preserving the same
+        number of requests. Cache reuse should disappear; this validates that
+        measured savings come from GLV-equivalent requests rather than generic
+        memoization.
+
+  inputs:
+    procedure: >-
+      Generate a frozen set of base targets, then expand each into the three GLV
+      orientations. Submit the identical expanded request stream to ARM_RAW and
+      ARM_CAN in the same order. Use the same factor base, solver, timeout, seed,
+      and decomposition arity. ARM_CAN records a canonical-target key before any
+      solver call. Every cache hit must reconstruct a verified relation in the
+      requested orientation. Relation storage deduplicates only after exact
+      canonicalization; raw pre-dedup rows are retained for accounting.
+    parameter_grid:
+      bit_sizes: [12, 14, 16, 18]
+      arities: [2, 3]
+      base_targets_per_cell: [64, 256]
+      target_orbit_expansion: 3
+      seeds: [20260918, 20260919, 20260920]
+
+  controls:
+    - >-
+      Orbit identity gate: phi^3(R)=R for every submitted target and the chosen
+      canonical representative is identical for all three orientations.
+    - >-
+      Exact back-map gate: every cached or canonical relation is transformed
+      back to the submitted orientation and independently verified on the curve.
+    - >-
+      Rank-preservation gate: after expanding canonical rows back to all observed
+      orientations, the informative row span must equal the raw pipeline's span
+      on the same verified relation set.
+    - >-
+      NULL_SHUFFLE preserves request count and generic cache machinery but removes
+      GLV orbit collisions.
+    - >-
+      Canonicalization time, hash time, cache lookup time, and serialization time
+      are charged; they may not be hidden as preprocessing.
+    - >-
+      No phi-transported row is counted as an independent rank increment after
+      orbit folding.
+
+  metrics:
+    primary:
+      - solver_invocations
+      - solver_invocations_per_submitted_target
+      - solver_seconds
+      - canonicalization_seconds
+      - cache_lookup_seconds
+      - cache_hit_rate
+      - raw_relation_rows
+      - canonical_relation_rows
+      - duplicate_relation_fraction
+      - verified_relations_returned
+      - total_seconds
+      - peak_cache_bytes
+      - peak_relation_store_bytes
+    secondary:
+      - canonical_target_count
+      - target_orbit_histogram
+      - relation_orbit_histogram
+      - decomposition_success_rate
+      - rank_before_canonicalization
+      - informative_rank_after_orbit_folding
+      - bytes_written_raw
+      - bytes_written_canonical
+      - charged_ratio_ARM_CAN_over_ARM_RAW
+
+  benchmark_contract:
+    incumbent: >-
+      Existing decomposition pipeline with no GLV target canonicalization and no
+      orbit-aware relation-store key.
+    icperf_reference: RQ-ICPERF-94c86e
+    decision_metric: >-
+      Total charged seconds per submitted target and per verified relation, plus
+      solver-invocation reduction. A cache-hit percentage alone is not a result.
+    success_threshold: >-
+      ARM_CAN must reduce solver invocations by at least 50% on the explicitly
+      orbit-expanded request stream and reduce total charged time by at least 20%
+      without changing the set of verified relations obtainable after back-map.
+      This threshold is an engineering target, not a cryptanalytic claim.
+
+  scale_relevance:
+    tier: toy
+    transfer_note: >-
+      The equivalence phi^3=1 is exact at secp256k1 scale, but measured cache and
+      solver savings depend on workload duplication. Results describe this
+      pipeline and request distribution, not ECDLP asymptotics.
+
+  stopping_rules:
+    - Stop immediately on any failed orbit-identity or back-map verification.
+    - Retain failed targets and solver timeouts; do not remove them from denominators.
+    - Freeze target order and cache policy before the first timed invocation.
+    - Do not increase the fraction of orbit-expanded targets after observing results.
+
+  invalidation_rules:
+    - Any cache hit that returns an unverified relation invalidates the run.
+    - Any canonical key collision between non-GLV-equivalent targets invalidates the run.
+    - Any comparison using different target streams or solver settings is invalid.
+    - Any rank comparison that counts phi-transforms as independent is invalid.
+    - Timeout, crash, or memory exhaustion is failed infrastructure, never negative evidence.
+
+  success_criterion: >-
+    Produce a complete paired accounting of solver calls, cache hits, relation
+    deduplication, exact back-mapping, rank preservation, time, and storage.
+    Scientific success is a valid discrimination between useful workload
+    deduplication and overhead; the treatment need not be faster.
+
+  falsification_criterion:
+    - >-
+      Canonicalization overhead consumes the solver calls saved, so charged
+      total time does not improve.
+    - >-
+      Real target streams contain too few GLV-equivalent requests for the cache
+      to matter outside the synthetic orbit-expanded control.
+    - >-
+      Relation canonicalization reduces bytes but does not reduce any dominant
+      compute stage.
+
+  required_artifacts:
+    - specification.yaml
+    - manifest.yaml
+    - command.txt
+    - environment.json
+    - raw-result.json
+    - request-stream.jsonl
+    - canonicalization-map.jsonl
+    - cache-events.jsonl
+    - relation-verification.jsonl
+    - rank-equivalence.json
+
+  source_refs:
+    - EXP-EQLA-164b34
+    - RQ-EQIC-8cb959
+    - RQ-EQLA-0d3f40
+    - RQ-ICPERF-94c86e
+    - coordination/intake/cm-factor-base-20260905/source-context.md
+    - research/ideas/glv_index_calculus_experiment_matrix.md
+
+  assigned_to: executor
+  approved_by: null

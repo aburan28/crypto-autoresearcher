@@ -7,6 +7,7 @@ import argparse
 import copy
 import hashlib
 import json
+import os
 import re
 import subprocess
 import sys
@@ -56,7 +57,7 @@ INDEPENDENT_REVIEW_ROLES = {"reviewer", "validator", "red-team"}
 TERMINAL_STATES = {"completed", "failed", "invalid", "cancelled"}
 STATES = {"queued", "running", "blocked"} | TERMINAL_STATES
 ARCHIVE_KINDS = {"snapshot", "ledger"}
-ARCHIVE_BINDING_MODES = {"commit", "content_first"}
+ARCHIVE_BINDING_MODES = {"commit", "content_first", "content_at_commit"}
 FAILURE_PROVENANCE_ARCHIVE_KIND = "terminal_failure_provenance_archive"
 TERMINAL_SNAPSHOT_ARCHIVE_KIND = "terminal_failure_snapshot_archive"
 SHA_PATTERN = re.compile(r"^[0-9a-fA-F]{7,64}$")
@@ -473,6 +474,152 @@ def validate_inference(handoff: dict[str, Any], role: str | None,
             f"state, which role {role!r} may not")
 
 
+def inference_advisories(tasks: Sequence[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Report cards whose `fallback_allowed: false` this machine cannot honour.
+
+    `false` is the safe default in AGENTS.md's handoff template, and it is the
+    RIGHT default: it forbids silently substituting a model for the one a policy
+    binds. But a checkout with no credentials for the bound backend cannot serve
+    that binding at all, so `false` there is not a safeguard -- it is a claim
+    every dispatch breaks, discovered when a returning agent reports
+    `fallback_used: true` against a card that forbade it.
+
+    That is not hypothetical. It happened twice on BATCH-a33cda within a day, for
+    two different causes -- an exhausted billing quota (TASK-20260915-4f4027) and
+    absent API keys (the two reviewer cards, DEC-20260916-7b2235) -- and both were
+    repaired by amending a card AFTER the work had run. Two amendments for one
+    root cause is the tell that the default was wrong for the machine rather than
+    that the dispatches were unlucky.
+
+    THIS IS ADVISORY AND MUST STAY ADVISORY. Refusing the dispatch would block
+    every open card in exactly the environments where the runtime-native binding
+    is the legitimate route (AGENTS.md core rule 16 permits it), which would turn
+    a paperwork defect into a research stoppage. What the dispatching Coordinator
+    needs is to see it BEFORE launching, so the card can declare the binding up
+    front instead of being amended afterwards.
+
+    An advisory is not permission either: it does not authorize a substitution.
+    Only a Coordinator `inference_amendment` on the card does that, and a card
+    already carrying one is not reported.
+    """
+    try:
+        from orchestration.adapter import load as load_inference_config
+    except Exception:                      # adapter unavailable: nothing to check
+        return []
+    try:
+        config = load_inference_config()
+    except Exception:
+        return []
+
+    def servable(backend_name: str) -> bool:
+        """Same test `adapter doctor` prints as OK / 'backend unusable'.
+
+        Deliberately NOT a network probe. This runs on every plan render, and a
+        render that reaches out to eight vendors would be both slow and a new
+        failure mode. Credentials present is a NECESSARY condition, so its
+        absence is enough to know the binding cannot be served -- while its
+        presence proves only configuration, never that the backend serves the
+        model (`adapter doctor --probe` is the check for that, and
+        `model_verified` is where its result belongs).
+        """
+        try:
+            backend = config.backend(backend_name)
+        except Exception:
+            return True                    # unknown backend: not ours to judge
+        if backend.get("api_key_optional"):
+            return True
+        return bool(os.environ.get(backend.get("api_key_env") or ""))
+
+    try:
+        candidate_backends = [config.default_backend()] + list(
+            config.backend_fallback_order() or [])
+    except Exception:
+        return []
+
+    out: list[dict[str, Any]] = []
+    for task in tasks:
+        # A finished task cannot be dispatched, so an advisory about how it WOULD
+        # be dispatched is noise -- and noise in an advisory section is how the
+        # section stops being read. Whatever its inference block claimed is now
+        # history, correctable only by a record.
+        if task.get("state") in TERMINAL_STATES:
+            continue
+        handoff = task.get("handoff")
+        if not isinstance(handoff, dict):
+            continue
+        inference = handoff.get("inference")
+        if not isinstance(inference, dict):
+            continue
+        if inference.get("fallback_allowed"):
+            continue
+        if inference.get("inference_amendment"):
+            continue
+        policy_id = inference.get("policy")
+        if not policy_id:
+            continue
+        try:
+            canonical = config.canonical_policy(policy_id)
+        except Exception:
+            continue                       # validate_inference already reports this
+
+        # Which backends could serve this policy at all, and are any of them
+        # credentialed here? `fallback_allowed: false` pins the card to the
+        # DEFAULT backend, so that is the one whose absence makes the card's
+        # claim unhonourable -- but a policy with no servable binding anywhere
+        # is worth saying more loudly, and the two are reported differently.
+        bound = [b for b in candidate_backends
+                 if ((config.binding_table.get(b) or {}).get(canonical) or {}).get("model")]
+        if not bound:
+            continue                       # unbound everywhere: a config gap, not this check's business
+        default_backend = bound[0]
+        if servable(default_backend):
+            continue
+        anywhere = [b for b in bound if servable(b)]
+        try:
+            degradable = bool(config.policy(canonical).get("degradable", True))
+        except Exception:
+            degradable = True
+
+        observation = (
+            f"card sets fallback_allowed: false, but policy {canonical!r} binds on "
+            f"{default_backend!r}, which is not credentialed here"
+            + (f" (servable instead: {', '.join(anywhere)})" if anywhere else
+               " -- and NO backend bound to this policy is credentialed here, so the only "
+               "route is the runtime-native binding permitted by core rule 16")
+            + ". A session run here will report fallback_used: true against a card that "
+              "forbids it.")
+
+        # The remedy DIVERGES on `degradable`, and getting that wrong is worse
+        # than saying nothing: `review-breakthrough` is the one policy no
+        # amendment may degrade, so advising "record an inference_amendment"
+        # against it would counsel exactly the act AGENTS.md forbids. Moving to
+        # a backend that FULLY meets its floor is not degrading, so a permitted
+        # fallback is still the right card edit -- what may never be signed for
+        # is `degraded_allowed`.
+        if degradable:
+            remedy = ("Declare the binding on the card now, or record an "
+                      "inference_amendment, rather than amending after the work has run.")
+        else:
+            remedy = (
+                f"{canonical!r} is degradable: false. Permitting a cross-backend fallback to a "
+                "binding that FULLY meets its floor is legitimate and is the card edit to make; "
+                "degraded_allowed is NOT, here or under any amendment. If no binding meets the "
+                "floor, the claim stays un-promoted and the goal stays active -- never amend "
+                "this tier down to get a claim moving.")
+
+        out.append({
+            "id": task.get("id"),
+            "role": task.get("role"),
+            "policy": policy_id,
+            "canonical_policy": canonical,
+            "unservable_backend": default_backend,
+            "servable_alternatives": anywhere,
+            "degradable": degradable,
+            "advisory": observation + " " + remedy,
+        })
+    return out
+
+
 def validate_handoff(task: dict[str, Any], location: str) -> None:
     handoff = task.get("handoff")
     if not isinstance(handoff, dict):
@@ -539,10 +686,22 @@ def validate_archive_shape(task: dict[str, Any], location: str) -> None:
     # opt-in: it is for source packages committed before their archive task
     # ran, where one exact changed-path commit cannot express intact custody.
     # Never infer this from a failed commit-scope check.
+    #
+    # `content_at_commit` is the third mode and differs from `content_first` in
+    # WHICH TREE the declared bytes are read from: its own commit, not HEAD.
+    # A `content_first` archive silently forbids its records from ever changing
+    # again -- and an archived experiment contract legitimately does change,
+    # every time its status advances. EXP-ICPERF-66fd51's move to `analyzed`
+    # broke TASK-20260913-f8bdec's pre-execution snapshot for exactly that
+    # reason, on a record that snapshot is supposed to be pinning the PAST
+    # state of. Use this mode when the archived package contains a record with
+    # a life after the archive, and `content_first` when the declared bytes are
+    # genuinely terminal.
     binding_mode = archive.get("binding_mode", "commit")
     if binding_mode not in ARCHIVE_BINDING_MODES:
         raise DispatchError(
-            f"{location}.archive.binding_mode must be commit or content_first"
+            f"{location}.archive.binding_mode must be commit, content_first, "
+            "or content_at_commit"
         )
     require_text_list(archive, "source_task_ids", f"{location}.archive")
     if len(archive["source_task_ids"]) != len(set(archive["source_task_ids"])):
@@ -1159,6 +1318,7 @@ def select(
             for task in expired
         ] + expired_claims,
         "claims": claim_report,
+        "inference_advisories": inference_advisories(queue["tasks"]),
         "gates": {
             "claimed_tasks_are_not_offered_to_others": all(
                 task["state"] == "running" or task["id"] not in claim_report
@@ -1228,7 +1388,60 @@ def select(
     if content_only:
         plan["content_only_archives"] = content_only
     plan["plan_sha256"] = digest(plan)
+    # DELIBERATELY AFTER THE DIGEST. Unlanded output is a fact about one working
+    # tree, not about the queue, and run manifests record `dispatch_plan_sha256`
+    # (tools/experiment_execution.py). Folding tree state into the hash would
+    # make a later re-derivation of that hash differ for reasons having nothing
+    # to do with the plan, which is a false integrity alarm of exactly the kind
+    # CORR-20260915-654160 records. It is reported, not hashed.
+    unlanded = unlanded_producer_output(queue, repository_verifier)
+    if unlanded:
+        plan["unlanded_producer_output"] = unlanded
     return plan
+
+
+def unlanded_producer_output(
+    queue: dict[str, Any], repository_verifier: Any
+) -> list[dict[str, Any]]:
+    """Producer artifacts that exist on disk and are absent from `HEAD`.
+
+    Such a file exists on exactly one machine. When that machine goes away the
+    file goes with it, which is what happened to two blind source reads and a
+    completed run on 2026-09-21 (`CORR-20260921-942a62`). Binding an archival
+    owner before dispatch -- which the contract requires and which had been done
+    for all three -- does not help: an owner is not a commit.
+
+    Reported rather than enforced. A producer that is still running legitimately
+    has unlanded output, so refusing the plan over it would block the normal
+    case; the point is that the exposure should be VISIBLE while the machine
+    still exists, because previously it was visible only afterwards.
+    """
+    tracked = getattr(repository_verifier, "paths_tracked_at_head", None)
+    repo_root = getattr(repository_verifier, "repo_root", None)
+    if tracked is None or repo_root is None:
+        return []
+    rows: list[dict[str, Any]] = []
+    for task in queue["tasks"]:
+        if is_archive(task):
+            continue
+        declared = [p for p in task["artifact_paths"] if not _is_generated_path(p)]
+        if not declared:
+            continue
+        on_disk = [p for p in declared if (repo_root / p).exists()]
+        if not on_disk:
+            continue
+        missing_from_head = sorted(set(on_disk) - set(tracked(on_disk)))
+        if missing_from_head:
+            rows.append({
+                "id": task["id"],
+                "role": task["role"],
+                "state": task["state"],
+                "unlanded": missing_from_head,
+                "remedy": (
+                    f"python3 tools/producer_landing.py <queue> {task['id']} --push"
+                ),
+            })
+    return rows
 
 
 def markdown(plan: dict[str, Any]) -> str:
@@ -1283,19 +1496,61 @@ def markdown(plan: dict[str, Any]) -> str:
             )
     degraded = plan.get("content_only_archives") or []
     if degraded:
-        lines.extend(["", "## Archives verified on CONTENT only", "",
-                      "These archives' commit bindings could not be reached, so they were",
-                      "verified against their declared `path_sha256` instead. The content",
-                      "binding held in every case below -- a mismatch would have failed.",
-                      "This is the expected state after a squash merge; see",
-                      "`ledger/corrections/CORR-20260802-a1f151.yaml`.", ""])
+        lines.extend(["", "## Archives verified on CONTENT", "",
+                      "These archives were verified against their declared `path_sha256`",
+                      "rather than by a changed-path comparison. The content binding held",
+                      "in every case below -- a mismatch would have failed. Entries with no",
+                      "`verified_against` were checked at HEAD, which is the expected state",
+                      "after a squash merge (see `ledger/corrections/CORR-20260802-a1f151.yaml`)",
+                      "and is also what `content_first` asks for. An entry naming a commit was",
+                      "checked in THAT tree, under `content_at_commit`, because its package",
+                      "contains a record allowed to change after the archive.", ""])
         for item in degraded:
+            against = item.get("verified_against")
+            where = f" at `{against[:12]}`" if isinstance(against, str) else ""
             lines.append(f"- `{item['task_id']}`: {item['reason']} "
-                         f"({item['paths_verified']} path hashes verified)")
+                         f"({item['paths_verified']} path hashes verified{where})")
 
+    advisories = plan.get("inference_advisories") or []
+    if advisories:
+        lines.extend([
+            "", "## Inference Advisories (ADVISORY -- these do not block dispatch)", "",
+            "Each card below sets `fallback_allowed: false` while its policy binds to a backend",
+            "this machine has no credentials for. That is not a safeguard here, it is a claim the",
+            "dispatch will break: the returning session reports `fallback_used: true` against a",
+            "card that forbade it, and the card gets amended AFTER the work ran. Declare the",
+            "binding on the card now, or record an `inference_amendment`.",
+            "",
+            "AN ADVISORY IS NOT PERMISSION. It does not authorize a substitution -- only a",
+            "Coordinator `inference_amendment` on the card does, and a card carrying one is not",
+            "listed. A `degradable: false` policy is listed too, with a different remedy: moving",
+            "to a binding that fully meets its floor is fine, degrading it is not, and if nothing",
+            "meets the floor the CLAIM stays un-promoted while the campaign stays active.", ""])
+        for item in advisories:
+            lines.append(f"- `{item['id']}` ({item['role']}): {item['advisory']}")
     lines.extend(["", "## Dispatch Gates", ""])
     for gate, passed in plan["gates"].items():
         lines.append(f"- `{gate}`: {'passed' if passed else 'failed'}")
+    unlanded = plan.get("unlanded_producer_output") or []
+    if unlanded:
+        lines.extend([
+            "",
+            "## Unlanded producer output",
+            "",
+            "These declared artifacts exist in this working tree and are ABSENT",
+            "from `HEAD`. They exist on one machine. When it goes away they go with",
+            "it, which is what happened to two blind source reads and a completed",
+            "run on 2026-09-21 (`ledger/corrections/CORR-20260921-942a62.yaml`).",
+            "",
+            "A running producer legitimately appears here, so this is a report and",
+            "not a gate. Land anything whose producer has already returned.",
+            "",
+        ])
+        for row in unlanded:
+            lines.append(f"- `{row['id']}` ({row['role']}, {row['state']}):")
+            for path in row["unlanded"]:
+                lines.append(f"  - `{path}`")
+            lines.append(f"  - remedy: `{row['remedy']}`")
     lines.extend(["", f"Plan SHA-256: `{plan['plan_sha256']}`", ""])
     return "\n".join(lines)
 
@@ -1336,6 +1591,24 @@ class GitRepositoryVerifier:
                 f"git archive verification failed ({' '.join(arguments)}): {detail or 'unknown error'}"
             )
         return result.stdout
+
+    def paths_tracked_at_head(self, paths: Sequence[str]) -> list[str]:
+        """Which of these repository-relative paths exist in the `HEAD` tree?
+
+        One `ls-tree` for the whole set rather than one per path: this runs on
+        every plan render, and a per-path subprocess turns a cheap report into a
+        visible cost on large queues.
+        """
+        if not paths:
+            return []
+        try:
+            out = self._run(["ls-tree", "-r", "--name-only", "HEAD", "--", *paths])
+        except DispatchError:
+            # No HEAD yet, or an unreadable tree. Absence of an answer is not an
+            # answer: report nothing rather than claim everything is unlanded.
+            return list(paths)
+        listed = {line for line in out.decode("utf-8", "replace").splitlines() if line}
+        return [p for p in paths if p in listed]
 
     def _resolve_commit(self, reference: str, task_id: str, field: str) -> str:
         try:
@@ -1417,6 +1690,7 @@ class GitRepositoryVerifier:
         *,
         expected_paths: Sequence[str] | None = None,
         allow_generated_skip: bool = True,
+        tree_ref: str = "HEAD",
     ) -> None:
         """Verify an archive against CONTENT when its commit binding is gone.
 
@@ -1434,6 +1708,15 @@ class GitRepositoryVerifier:
         and records the degradation instead of raising. A CONTENT MISMATCH IS
         STILL FATAL -- what is relaxed is the binding to a commit, never the
         binding to bytes.
+
+        `tree_ref` chooses WHICH tree those bytes are read from, and the choice
+        is the whole difference between the `content_first` and
+        `content_at_commit` binding modes. Reading HEAD asks "does the record
+        still say what the archive said it said", which is the right question
+        for a squash-merge recovery and the wrong one for a record that is
+        allowed to change afterwards. Reading the archive's own commit asks
+        "did the archive commit these bytes", which no later legitimate
+        transition can falsify.
         """
 
         hashes = archive.get("path_sha256")
@@ -1444,18 +1727,18 @@ class GitRepositoryVerifier:
             )
         if expected_paths is not None and set(hashes) != set(expected_paths):
             raise DispatchError(
-                f"archive task {task_id} declared content_first binding must provide "
+                f"archive task {task_id} declared content binding must provide "
                 "path_sha256 for every archive and source artifact"
             )
         skipped: list[str] = []
         for path in sorted(hashes):
-            # Read the COMMITTED content at HEAD, not the working tree. A dirty
-            # tree is not evidence about an archive, and generated files in
-            # particular are rebuilt locally on demand -- comparing against them
-            # would fail an archive for a file the repository deliberately no
-            # longer tracks.
+            # Read COMMITTED content, never the working tree. A dirty tree is
+            # not evidence about an archive, and generated files in particular
+            # are rebuilt locally on demand -- comparing against them would
+            # fail an archive for a file the repository deliberately no longer
+            # tracks.
             blob = subprocess.run(
-                ["git", "-C", str(self.repo_root), "show", f"HEAD:{path}"],
+                ["git", "-C", str(self.repo_root), "show", f"{tree_ref}:{path}"],
                 stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, check=False)
             if blob.returncode != 0:
                 if allow_generated_skip and _is_generated_path(path):
@@ -1466,7 +1749,7 @@ class GitRepositoryVerifier:
                     continue
                 raise DispatchError(
                     f"archive task {task_id} commit binding is unverifiable ({reason}) and "
-                    f"declared artifact {path} is absent from HEAD"
+                    f"declared artifact {path} is absent from {tree_ref}"
                 )
             observed = hashlib.sha256(blob.stdout).hexdigest()
             if observed != hashes[path]:
@@ -1474,13 +1757,16 @@ class GitRepositoryVerifier:
                     skipped.append(path)
                     continue
                 raise DispatchError(
-                    f"archive task {task_id} content hash mismatch for {path}: "
+                    f"archive task {task_id} content hash mismatch for {path} at {tree_ref}: "
                     f"expected {hashes[path]}, observed {observed}"
                 )
-        self.content_only_archives.append({
+        entry = {
             "task_id": task_id, "reason": reason,
             "paths_verified": len(hashes) - len(skipped),
-            "generated_paths_skipped": skipped})
+            "generated_paths_skipped": skipped}
+        if tree_ref != "HEAD":
+            entry["verified_against"] = tree_ref
+        self.content_only_archives.append(entry)
 
     def verify_archive(self, task: dict[str, Any], expected_paths: Sequence[str]) -> None:
         archive = task["archive"]
@@ -1492,9 +1778,9 @@ class GitRepositoryVerifier:
         try:
             commit_sha = self._resolve_commit(declared_commit, task_id, "archive.commit_sha")
         except DispatchError:
-            if binding_mode == "content_first":
+            if binding_mode in {"content_first", "content_at_commit"}:
                 raise DispatchError(
-                    f"archive task {task_id} declared content_first binding requires "
+                    f"archive task {task_id} declared {binding_mode} binding requires "
                     "archive.commit_sha to resolve to a commit"
                 )
             self._verify_content_only(
@@ -1511,9 +1797,9 @@ class GitRepositoryVerifier:
         except OSError as error:
             raise DispatchError(f"unable to execute git for archive verification: {error}") from error
         if ancestor.returncode == 1:
-            if binding_mode == "content_first":
+            if binding_mode in {"content_first", "content_at_commit"}:
                 raise DispatchError(
-                    f"archive task {task_id} declared content_first binding requires "
+                    f"archive task {task_id} declared {binding_mode} binding requires "
                     "archive.commit_sha to be an ancestor of HEAD"
                 )
             self._verify_content_only(
@@ -1543,17 +1829,24 @@ class GitRepositoryVerifier:
                     f"archive task {task_id} parent_sha does not match first parent {parents[0]}"
                 )
 
-        if binding_mode == "content_first":
-            # This mode deliberately binds every declared artifact byte at HEAD
-            # instead of insisting that one commit changed the entire source
-            # package. A real, reachable commit, its declared parent, and the
-            # archival message IDs remain mandatory.
+        if binding_mode in {"content_first", "content_at_commit"}:
+            # Both modes deliberately bind every declared artifact byte instead
+            # of insisting that one commit changed the entire source package. A
+            # real, reachable commit, its declared parent, and the archival
+            # message IDs remain mandatory for either. They differ only in the
+            # tree the bytes are read from: HEAD for `content_first`, so the
+            # archive keeps asserting the records still say this; the archive's
+            # own commit for `content_at_commit`, so a record that is ALLOWED to
+            # move later -- an experiment contract advancing to `analyzed`, a
+            # hypothesis to `weakened` -- does not retroactively break custody
+            # of a package that correctly captured its earlier state.
             self._verify_content_only(
                 task_id,
                 archive,
-                "declared content_first binding mode",
+                f"declared {binding_mode} binding mode",
                 expected_paths=expected_paths,
                 allow_generated_skip=False,
+                tree_ref=commit_sha if binding_mode == "content_at_commit" else "HEAD",
             )
             message = self._run(["log", "-1", "--format=%B", commit_sha]).decode(
                 "utf-8", "replace"

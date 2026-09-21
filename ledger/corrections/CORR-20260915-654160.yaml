@@ -1,0 +1,132 @@
+# =====================================================================
+# CORRECTION -- CORR-20260915-654160
+# Discloses a TOOL DEFECT that makes a correctly-built archive report
+# itself as corrupt, and the third binding mode added to fix it.
+# WRITE-ONCE.
+#
+# This corrects infrastructure, not mathematics. It changes no research
+# status, and it is not evidence for or against any hypothesis.
+# =====================================================================
+
+correction:
+  id: CORR-20260915-654160
+  recorded_at: '2026-09-15'
+  recorded_by: coordinator
+  goal_id: GOAL-ICPERF-e6b6a4
+  batch_id: BATCH-51e2aa
+  archived_by: null
+  archived_by_note: >-
+    Written by the Coordinator session and committed directly on the research
+    branch as a disclosure, following CORR-20260915-d46636's pattern. It
+    changes no research status and promotes nothing.
+
+  record_type: tooling
+  record_id: tools/research_dispatch.py
+  corrects:
+    - TASK-20260913-f8bdec
+    - TASK-20260913-e74a82
+
+  nature: >-
+    A `content_first` archive verifies its declared `path_sha256` against
+    **HEAD**. That makes the archive assert, forever, that every record it
+    bound still says what it said at archive time -- which is true of a run
+    receipt and false of a state record. So the moment DEC-20260915-87360d
+    advanced EXP-ICPERF-66fd51 to `analyzed` and H-ICPERF-cc4847 to
+    `weakened`, the PRE-EXECUTION snapshot TASK-20260913-f8bdec began failing
+    with `content hash mismatch for
+    experiments/EXP-ICPERF-66fd51/specification.yaml`, and the hypothesis was
+    queued to break next. The snapshot was not damaged and no byte of it was
+    lost: it was failing because the records it exists to pin the EARLIER
+    state of had moved on, which is what records are supposed to do.
+
+  why_the_obvious_repair_was_refused: >-
+    Earlier the same day the same failure was met on
+    ledger/goals/GOAL-ICPERF-e6b6a4/goal.yaml and repaired by REMOVING the
+    file from the bound set (recorded in this batch's queue under
+    TASK-20260913-e74a82.artifact_paths_note). That is a real remedy for a
+    living head whose `next_action` is rewritten at every rerank, but as a
+    general answer it is corrosive: applied to the specification and the
+    hypothesis it would have emptied the snapshot of exactly the records the
+    snapshot exists for, one legitimate transition at a time, and each removal
+    would have looked locally reasonable. An archive that drops whatever
+    changes is not an archive.
+
+  remedy_applied:
+    change: >-
+      tools/research_dispatch.py gains a THIRD archive binding mode,
+      `content_at_commit`, beside `commit` and `content_first`. It verifies the
+      declared path hashes in the archive's OWN commit rather than at HEAD.
+      Everything else is unchanged and still mandatory: the commit must
+      resolve, be an ancestor of HEAD, carry its declared first parent, and
+      name the task and record IDs in its message, and a byte mismatch inside
+      that commit is still fatal. The dispatch plan discloses which tree was
+      read (`verified_against`).
+    scope_of_the_change: >-
+      Purely additive. `commit` and `content_first` behave exactly as before,
+      including `content_first`'s HEAD reading, which remains correct for the
+      squash-merge recovery it was written for (CORR-20260802-a1f151). No
+      existing archive changes mode except the two named below.
+    archives_rebound:
+      - >-
+        TASK-20260913-f8bdec: content_first -> content_at_commit, hashes
+        recomputed in its own commit 90b518384, and
+        ledger/goals/GOAL-ICPERF-e6b6a4/goal.yaml RESTORED to the bound set
+        together with TASK-20260913-e74a82's ownership of it, since the reason
+        for removing it no longer exists.
+      - >-
+        TASK-20260915-5e4617: declared content_at_commit from the outset, at
+        commit 4548e89d0.
+    tests: >-
+      tools/test_research_dispatch.py::test_content_at_commit_survives_a_later_legitimate_transition
+      reproduces the f8bdec failure -- the same package failing under
+      content_first and passing under content_at_commit after its contract
+      advances -- and pins that the new mode still fails on a corrupted hash,
+      an unresolvable commit, and a commit whose message omits a record ID.
+      test_binding_mode_must_be_one_of_the_three_declared_modes pins the
+      declared set. Full suite: 81 tests, passing.
+
+  what_this_does_and_does_not_change:
+    provenance_is_not_weakened: >-
+      `content_at_commit` binds MORE than the repair it replaces, not less:
+      f8bdec now binds 19 paths where it bound 17, including the goal head it
+      had been forced to disown. The question the mode asks -- did this commit
+      contain these bytes -- is the question a snapshot was always making, and
+      unlike the HEAD reading it cannot be falsified by anything that happens
+      afterwards.
+    latent_elsewhere: >-
+      561 of this repository's 1919 archive tasks are completed
+      `content_first` archives. Every one of them that bound a record with a
+      life after the archive carries this same time bomb, and it fires only
+      when that record legitimately moves -- so the absence of failures today
+      is not evidence of soundness. The remedy for each is the one applied
+      here, taken when the archive is next open, and NEVER by dropping the
+      record from the bound set to make a red check green.
+    no_research_status_moves: >-
+      H-ICPERF-cc4847 is `weakened` and EXP-ICPERF-66fd51 is `analyzed` on
+      DEC-20260915-87360d's evidence, decided before this defect was found and
+      unaffected by it. This record neither supports nor weakens any
+      hypothesis, and an archive verifying is a custody fact rather than a
+      scientific one.
+
+  lesson: >-
+    An archive binds a package as it was. A verifier that reads the CURRENT
+    tree cannot express that, and the failure it produces is maximally
+    misleading -- it names a hash mismatch, which reads as corruption, when
+    the bytes are intact and the tree simply moved. When a check fails because
+    a record did something legitimate, suspect the check.
+
+  evidence_artifacts:
+    - tools/research_dispatch.py
+    - tools/test_research_dispatch.py
+    - coordination/goals/GOAL-ICPERF-e6b6a4/batches/BATCH-51e2aa/dispatch_queue.json
+    - coordination/goals/GOAL-ICPERF-e6b6a4/batches/BATCH-51e2aa/archives/TASK-20260915-5e4617/ledger-receipt.json
+    - ledger/corrections/CORR-20260802-a1f151.yaml
+
+  interpretation_limits:
+    - >-
+      This is a tooling correction. It is not a research result, and no
+      conclusion anywhere in the ledger changes because of it.
+    - >-
+      The new mode is not a licence to bind fewer paths or to skip commit
+      binding. `commit` remains the default and the strictest mode; content
+      binding stays opt-in and is declared with its reason in the queue.

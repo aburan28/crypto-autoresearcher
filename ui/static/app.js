@@ -184,7 +184,7 @@ const state = {
   meta: null,
   records: [],                 // decoded index rows, in file order
   byId: new Map(),
-  overview: null, goals: null, experiments: null, experimentsPayload: null, findings: null,
+  overview: null, goals: null, experiments: null, experimentsPayload: null, findings: null, ops: null,
   searchShards: new Map(),     // kind -> Map(id -> excerpt)
   ready: false,
   fatal: null,
@@ -313,6 +313,112 @@ function fmtDuration(seconds) {
 function clip(text, n) {
   const s = String(text ?? '');
   return s.length <= n ? s : `${s.slice(0, n).replace(/\s+\S*$/, '')}…`;
+}
+
+function fmtCount(n) {
+  if (n === null || n === undefined || !Number.isFinite(n)) return '—';
+  const abs = Math.abs(n);
+  if (abs >= 1e9) return `${(n / 1e9).toFixed(2)}B`;
+  if (abs >= 1e6) return `${(n / 1e6).toFixed(2)}M`;
+  return Math.round(n).toLocaleString();
+}
+function fmtIops(n) {
+  if (n === null || n === undefined || !Number.isFinite(n)) return '—';
+  if (Math.abs(n) >= 1000) return `${(n / 1000).toFixed(1)}k/s`;
+  return `${Math.round(n).toLocaleString()}/s`;
+}
+function fmtBytes(n) {
+  if (n === null || n === undefined || !Number.isFinite(n)) return '—';
+  const abs = Math.abs(n);
+  const units = [['TiB', 1024 ** 4], ['GiB', 1024 ** 3], ['MiB', 1024 ** 2], ['KiB', 1024]];
+  for (const [unit, size] of units) {
+    if (abs >= size) return `${(n / size).toFixed(abs >= size * 10 ? 1 : 2)} ${unit}`;
+  }
+  return `${Math.round(n)} B`;
+}
+function fmtBytesPerSec(n) {
+  if (n === null || n === undefined || !Number.isFinite(n)) return '—';
+  return `${fmtBytes(n)}/s`;
+}
+
+function latestPointNote(ops) {
+  if (!ops?.latest_point) return 'no samples';
+  const age = relative(ops.latest_point);
+  if (ops.last_hour?.basis === 'latest_sample') {
+    return `latest point ${age} · hour ending at that sample`;
+  }
+  return `latest point ${age}`;
+}
+
+function opsWindow(title, rates, extra, note, empty) {
+  const value = (n, unit) => h('div', { class: 'ops-line' },
+    h('strong', {}, empty ? '—' : n), h('span', {}, unit));
+  return h('div', { class: `ops-window${empty ? ' empty' : ''}` },
+    h('div', { class: 'kicker' }, title),
+    empty
+      ? h('p', { class: 'ops-empty' }, 'No samples in this window.')
+      : h('div', { class: 'ops-rates' },
+          value(fmtIops(rates.write_iops), 'writes'),
+          value(fmtIops(rates.read_iops), 'reads'),
+          value(fmtBytesPerSec(rates.write_bytes_per_sec), 'write throughput'),
+          value(fmtBytesPerSec(rates.read_bytes_per_sec), 'read throughput'),
+          extra),
+    h('div', { class: 'ops-note faint' }, note));
+}
+
+function opsPanel(ops) {
+  if (!ops || !ops.available) {
+    if (ops && ops.reason && !/no AWS credentials/i.test(ops.reason)) {
+      return h('div', { class: 'banner warn' },
+        'Database metrics unavailable · ', ops.reason);
+    }
+    return null;
+  }
+  const hour = ops.last_hour || {};
+  const day = ops.last_24h || {};
+  const storage = ops.storage || {};
+  const usedPct = storage.allocated_bytes && storage.used_bytes != null
+    ? Math.min(100, (storage.used_bytes / storage.allocated_bytes) * 100) : null;
+  const db = ops.database || {};
+  const dayExtra = h('div', { class: 'ops-line ops-total' },
+    h('strong', {}, fmtCount(day.write_ops)), h('span', {}, 'write ops'),
+    h('strong', {}, fmtCount(day.read_ops)), h('span', {}, 'read ops'));
+  return h('section', { class: 'ops-board', 'aria-label': 'Database load' },
+    h('div', { class: 'ops-head' },
+      h('div', {},
+        h('div', { class: 'kicker' }, 'Distinguished-point database'),
+        h('h2', {}, db.id || 'rho-dp'),
+        h('p', { class: 'faint' },
+          [db.engine, db.engine_version, db.class, db.region].filter(Boolean).join(' · '))),
+      ops.stale ? tag('stale', 'warn', latestPointNote(ops)) : tag('live', 'ok', latestPointNote(ops))),
+    h('div', { class: 'ops-windows' },
+      opsWindow(hour.basis === 'latest_sample' ? 'Hour at latest sample' : 'Last hour',
+        hour, null, latestPointNote(ops), hour.empty),
+      opsWindow('Last 24 hours', day, dayExtra, `${(day.samples || 0).toLocaleString()} samples`,
+        day.samples === 0)),
+    h('div', { class: 'ops-storage' },
+      h('div', {},
+        h('div', { class: 'kicker' }, 'Storage'),
+        h('div', { class: 'ops-storage-values' },
+          h('strong', {}, fmtBytes(storage.used_bytes)), ' used · ',
+          fmtBytes(storage.free_bytes), ' free · ',
+          fmtBytes(storage.allocated_bytes), ' allocated')),
+      usedPct === null ? null : h('div', { class: 'ops-bar', title: `${usedPct.toFixed(1)}% used` },
+        h('i', { style: `width:${usedPct.toFixed(1)}%` }))),
+    ops.object_store ? h('p', { class: 'ops-store faint' },
+      'Object store ', h('span', { class: 'mono' }, ops.object_store.bucket), ' · ',
+      fmtBytes(ops.object_store.bytes),
+      ops.object_store.objects != null ? ` · ${fmtCount(ops.object_store.objects)} objects` : '',
+      ops.object_store.as_of ? ` · as of ${relative(ops.object_store.as_of)}` : '') : null,
+    h('p', { class: 'ops-meta faint' },
+      cpuLine(ops.cpu_percent, ops.connections)));
+}
+
+function cpuLine(cpu, connections) {
+  const parts = [];
+  if (cpu != null) parts.push(`CPU ${cpu.toFixed(1)}%`);
+  if (connections != null) parts.push(`${connections.toFixed(0)} connection${connections === 1 ? '' : 's'}`);
+  return parts.join(' · ');
 }
 const sum = (map) => Object.values(map || {}).reduce((a, b) => a + (b || 0), 0);
 const split = (v) => (v || '').split(',').filter(Boolean);
@@ -990,7 +1096,11 @@ async function viewOverview() {
   setCrumb('Research overview');
   const root = fill(view(), loading('Reading the latest research…'));
   if (!state.ready) return;
-  state.overview ??= await getJSON('overview.json');
+  if (!state.overview) state.overview = await getJSON('overview.json');
+  if (state.ops === null) {
+    try { state.ops = await getJSON('ops.json'); }
+    catch { state.ops = { available: false, reason: 'ops.json was not in this snapshot' }; }
+  }
   const o = state.overview;
   const findings = o.findings || { current: 0, latest: [] };
   const work = o.current_work || o.ecc_first || [];
@@ -1015,6 +1125,7 @@ async function viewOverview() {
       metric(o.goals.active, 'active research goals', '#/goals?status=active'),
       metric(findings.current, 'current findings', '#/findings'),
       metric(o.experiments.total, 'experiments recorded', '#/experiments')),
+    opsPanel(state.ops),
     homeSection('What we’re working on',
       'Recently updated active goals, with elliptic-curve research first. An active goal may be waiting on a next step.',
       '#/goals', 'All research',
@@ -2383,7 +2494,7 @@ function initChrome() {
 
   $('#refresh').addEventListener('click', async () => {
     state.ready = false;
-    state.overview = state.goals = state.experiments = state.findings = null;
+    state.overview = state.goals = state.experiments = state.findings = state.ops = null;
     state.experimentsPayload = null;
     state.searchShards.clear();
     cache.clear();
