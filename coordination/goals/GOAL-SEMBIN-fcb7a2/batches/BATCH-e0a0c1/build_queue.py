@@ -1171,6 +1171,157 @@ EXECUTED = {
          "information the failure carries. Its successor is NOT unblocked on a pretence: "
          "TASK-20260916-d4fb62 inherits an open gate and must say so."),
     ]),
+    LEDGER: od([
+        ("state", "completed"),
+        ("outcome",
+         "Completed 2026-09-21 at commit 80242e204f9c393ec4353ad9dde5409c930c1665. Staged six "
+         "paths: its own receipt, the three ledger and knowledge records it declared, the "
+         f"write-once closing checkpoint shard {BATCH}.closing.yaml, and an additive rerank of the "
+         "goal head. Zero runs, zero measurements. The ruling is now official: three of six priors "
+         "refuted, the campaign's inside-versus-outside residual dead in both halves, and the "
+         "mathematics recorded at full strength with the derived CLAIM un-promoted."),
+        ("archive_binding", od([
+            ("commit_sha", "80242e204f9c393ec4353ad9dde5409c930c1665"),
+            ("parent_sha", "fbf611c2970b5259e548695c782a81c48db430c9"),
+            ("path_sha256", od([
+                # The receipt's own hash, which it cannot contain itself.
+                (f"{BASE}/archives/{LEDGER}/ledger-receipt.json",
+                 "4ab3cc460785addc958cb2cb7ef0f5705e736eb2aaf1dacf9bdc6192fadf88dc"),
+                (f"ledger/decisions/{CLOSING}.yaml",
+                 "1f81d806f8b764635fe990d2ea425ada210e16662301ac14e1af67e3ff2d45d8"),
+                (f"ledger/evidence/{EVIDENCE}.yaml",
+                 "d8b443001514beeca1978e79d7d30d624199925450c016d7a9a7fd2ba615cf80"),
+                (f"knowledge/findings/{KNOWLEDGE}.md",
+                 "a17623ab3189cba00089ce095950dd182e165c3be545af97869b49720af96a13"),
+                (f"{RULING_DIR}/composition.md",
+                 "a86e2efad24ec2992deed652907f8004093d9faa2f5092cd53aeeb7ed1658299"),
+                (f"{RULING_DIR}/scored-priors.json",
+                 "7df17d92d898988e83dc212a4033bdd587ce57652a06f5f8a869ac00fd3ee3a2"),
+            ])),
+            ("path_sha256_note",
+             "SIX entries: the receipt, the three declared records, and the ruling's two source "
+             "artifacts. Computed by the dispatching session from the blobs in commit 80242e204 "
+             "with `git show <commit>:<path>`, NOT from the working tree, and the three ledger "
+             "hashes agree with the ones the archivist reported independently. content_at_commit "
+             "rather than content_first because this commit stages the goal head, which every "
+             "later checkpoint reranks: binding it at HEAD would report this archive corrupt at "
+             "the next rerank of a file it is allowed to change."),
+        ])),
+        ("two_staged_paths_are_NOT_in_this_binding_and_that_is_a_CARD_DEFECT", od([
+            ("what",
+             "The commit also staged "
+             f"ledger/goals/{GOAL}/checkpoints/{BATCH}.closing.yaml (sha256 ddbc94532f1b86a221e932"
+             "2406cdb65c00a30bc9d6d91029d89e216250405603) and "
+             f"ledger/goals/{GOAL}/goal.yaml (sha256 673f18cb81b9864b523d8fb5d5caadba63a76837e2b4e"
+             "55397ec05a511a9d8b5). Both were required by the card's own write_scope and "
+             "deliverables, and neither was ever in its artifact_paths."),
+            ("why_they_are_not_added_to_path_sha256",
+             "research_dispatch.py restricts path_sha256 to artifact_paths union the source tasks' "
+             "artifact_paths, so adding them would fail the render as `paths outside its commit "
+             "scope`. Widening artifact_paths instead would mean editing a card AFTER its agent "
+             "acted on it, to make the dispatch look more completely declared than it was. That is "
+             "the edit AGENTS.md forbids by name, and the fact that both files were genuinely "
+             "produced does not convert a post-hoc declaration into a pre-dispatch one."),
+            ("whose_defect",
+             "MINE, as the dispatching session. The card's artifact_paths was narrower than its own "
+             "deliverables from the day it was written, and I HAD IT OPEN on 2026-09-21 to widen it "
+             "for the evidence record and the knowledge entry. I widened it for the two records the "
+             "ruling had just assigned and did not notice the two the card had always under-"
+             "declared. The lesson is narrower than `read the card`: a card's artifact_paths and "
+             "its deliverables are two lists that must agree, and nothing checks that they do."),
+            ("where_the_hashes_are_durable",
+             "The receipt's own `staged_but_not_declared_artifacts` block, written by the archivist "
+             "before the commit and committed inside it, and the lane release record. Both hashes "
+             "above were recomputed by this session from commit 80242e204 and agree. So the full "
+             "staged set IS verifiable; what it is not is verifiable BY THE DISPATCHER, which is a "
+             "real loss of automated coverage and not a bookkeeping quibble."),
+            ("successor_check_this_earns",
+             "Before dispatching TASK-20260921-d61759 or TASK-20260921-d3d13a, diff each card's "
+             "artifact_paths against its deliverables and write_scope and reconcile them in the "
+             "card, not afterwards."),
+        ])),
+        ("the_hold_lapsed_before_this_commit_landed", od([
+            ("what",
+             "The lane claim's expires_at was 2026-09-21T18:01:55Z; the commit is timestamped "
+             "18:02:52Z. For its final 57 seconds this archive held its write scope under an "
+             "EXPIRED claim, and the dispatcher now reads that claim file as "
+             "`expired -> queued_after_expiry`."),
+            ("what_was_actually_at_risk",
+             "Nothing was contested: no competing claim file exists at any epoch, the tree was "
+             "clean, and the push was a fast-forward. An expired claim does not make a commit "
+             "wrong; it makes the interval unprotected, which is a different and smaller thing."),
+            ("and_it_is_still_a_defect",
+             "A precondition is not waived by the work turning out fine. Judging a hold by whether "
+             "anyone happened to collide with it is how the hold stops being a hold."),
+            ("whose_defect",
+             "MINE, not the agent's. I set a 45-minute TTL on a card declaring wall_clock_seconds "
+             "1800, which left fifteen minutes of headroom over a budget the task then overran "
+             "anyway, and I did not watch the clock. The agent could not renew it: claims/ is "
+             "outside its write scope, correctly, because renewing a hold is the dispatching "
+             "session's job. It flagged the imminent expiry in its receipt, which predates the "
+             "lapse."),
+            ("budget_overrun_recorded_separately",
+             "The task ran roughly 46 minutes against a declared wall_clock_seconds of 1800. Zero "
+             "runs and zero measurements, so this is budget accounting and is categorically NOT "
+             "evidence about anything mathematical. It is recorded because an exhausted budget is "
+             "reported as such rather than absorbed, and because it is the direct cause of the "
+             "lapse above: the TTL was sized against a budget the work did not fit in."),
+            ("remedy",
+             "For both successor cards: size the TTL above the card's own wall_clock budget with "
+             "real headroom, and renew rather than assume. Recorded here and in the lane release "
+             "record; not recorded as a correction, because a CORR-* is a ledger record needing an "
+             "archival owner and this is a scheduling fact about a coordination side file, fully "
+             "carried by the two committed records that already describe it."),
+        ])),
+        ("divergences_from_the_drafts_the_archivist_disclosed", od([
+            ("three_standing",
+             "DIV-1 added `decided_by: coordinator`, a required field of coordinator_decision the "
+             "draft omitted, so the draft as written could not have validated. DIV-2 added "
+             "`knowledge_promotion.promoted: [KN-FIND-936151]` beside the draft's verbatim "
+             "`entry_id`, because validate_ledger.py reads `promoted` as the list and a decision "
+             "that does promote an entry would otherwise have validated as one that does not. Both "
+             "are schema repairs that assert nothing new and are disclosed in the record itself. "
+             "DIV-4 is the one that is judgement: the knowledge entry's own title carries `under "
+             "the equality reading of condition (1)`, which the draft's title does not, because "
+             "the title is the only part of the entry that reaches knowledge/INDEX.md and is read "
+             "there with no body -- and the entry's own body says the inequality HOLDS under the "
+             "literal `>=`. The decision's copy of the title was left exactly as composed, so the "
+             "two records differ visibly rather than being quietly reconciled. A reviewer may "
+             "legitimately object to that and the disagreement is recoverable from the records."),
+            ("three_reverted_before_the_commit_and_why_that_is_recorded",
+             "DIV-R1 invented a `discharged_by` field on NA-3 that no drafted next_action carries. "
+             "DIV-R2 copied four bookkeeping fields onto the evidence record from a sibling record "
+             "-- house style is not a schema, and none was required. DIV-R3 is the serious one: the "
+             "closing shard's prior_scores had binned P-6 into BOTH the confirmed and refuted "
+             "lists, reflecting its genuine consequent/mechanism split, inside a block that "
+             "declares itself a POINTER to scored-priors.json. Re-binning a prior in a pointer is a "
+             "re-adjudication of the composition's scoring, which this task may not perform, even "
+             "though the headline `three of six refuted` came out the same either way. Replaced "
+             "with the canonical lists verbatim plus the composition's own split_headline_vs_"
+             "mechanism block. Recorded because a divergence caught and removed says as much about "
+             "the failure mode as one that stands, and the receipt is now the only place these "
+             "three exist."),
+        ])),
+        ("what_this_archive_did_NOT_do",
+         "It moved no hypothesis and no experiment: H-SEMBIN-a7e721 and EXP-SEMBIN-4fa22c are "
+         "unchanged, and EXP-SEMBIN-4fa22c is still `approved` and unrun. It discharged no "
+         "completion criterion -- criterion 4 remains the only one met, by DEC-20260913-8d19e5 -- "
+         "and it did not close the goal, whose status stays `active`. It did not promote the claim: "
+         "review-breakthrough at max is undegradable and unservable here, no servable tier was "
+         "substituted, and nothing in the finding was softened to fit one. It did not close the "
+         "independence gate, which it inherits NOT SATISFIED with two permanent deviations, "
+         "recorded in three places. It did not touch the frozen contract, the read plan, the "
+         "opening report, the opening checkpoint, either reader's package, current_batch_id, "
+         "dispatch_queue_path, or any BATCH-cbb416 field."),
+        ("one_inconsistency_left_standing_deliberately",
+         f"The goal head's open_batches entry for {BATCH} still reads `status: open` while the "
+         "closing shard committed alongside it records closed_at 2026-09-21. The card forbade "
+         "touching existing open_batches entries and that prohibition is right -- it is the one "
+         "field two concurrent lanes both write. The shard is the authority, the goal head's new "
+         "amendment_history entry states the mismatch and names the shard so a later reader finds "
+         "the reason rather than inferring a defect, and nothing schedules work off the stale flag "
+         "because current_batch_id still names BATCH-cbb416. Clearing it is a successor edit."),
+    ]),
 }
 
 REVISIONS = [
@@ -1305,7 +1456,41 @@ REVISIONS = [
          "malformed record blocks all four. The alternative, splitting into separate archives per "
          "tree, would leave the decision official while the evidence record it cites in "
          "`evidence_refs` did not yet exist, which is the window the ledger-archive split exists "
-         "to close in the first place."),
+             "to close in the first place."),
+    ]),
+    od([
+        ("at", "2026-09-21T18:20:00Z"),
+        ("task_id", LEDGER),
+        ("from_state", "queued"),
+        ("to_state", "completed"),
+        ("what_changed",
+         "The ledger archive recorded as executed at 80242e204, with parent and six path hashes "
+         "bound under content_at_commit. BATCH-e0a0c1's ruling is now official."),
+        ("reason",
+         f"Four records committed in one isolated commit: {CLOSING}, {EVIDENCE}, {KNOWLEDGE}, and "
+         f"the write-once closing shard {BATCH}.closing.yaml, plus an additive goal-head rerank "
+         "carrying IMP-SEMBIN-FCB7A2-LEMMA4-TIER. validate_ledger.py's output is byte-identical "
+         "before and after the commit -- 94 pre-existing errors, none on any path it touches -- "
+         "established by stashing exactly the staged paths rather than by reading the count."),
+        ("two_defects_this_revision_records_rather_than_absorbs",
+         "The lane claim expired 57 seconds before the commit landed, and the task overran its "
+         "declared wall_clock_seconds of 1800 by roughly sixteen minutes. Both are mine as the "
+         "dispatching session: I sized a 45-minute TTL against a 30-minute budget and did not "
+         "renew. Nothing was contested and no run or measurement is affected, and neither fact is "
+         "waived by that. See the EXECUTED entry's own blocks, which state the cause and the "
+         "remedy for the two successor cards."),
+        ("what_this_revision_does_not_do",
+         "It does not promote the claim, close the independence gate, move a hypothesis or an "
+         "experiment, discharge a completion criterion, or close the goal. It also does not add the "
+         "closing shard or the goal head to the card's artifact_paths, though both were staged and "
+         "both were in its deliverables: editing a card after its agent acted on it, to make the "
+         "dispatch look better declared than it was, is forbidden by name. The under-declaration is "
+         "recorded as a card defect instead, with the hashes carried in the receipt and the release "
+         "record so the full staged set stays verifiable by hand -- but NOT by the dispatcher, "
+         "which is a genuine loss of automated coverage."),
+        ("what_is_now_ready",
+         "TASK-20260921-d61759, the ruling's NA-1 amendment, unblocked by this commit because it "
+         f"cites {EVIDENCE} and {EVIDENCE} now exists at a committed path."),
     ]),
 ]
 
