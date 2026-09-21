@@ -537,7 +537,7 @@ object, same denominator shift).
   coincidence needing separate explanation, GIVEN that C4's `distinct_targets`
   matches the object's on BOTH ok partitions (zero collisions on both,
   matching the object): the only difference from the object is the constant
-  factor `(N-1)/(N'-1)` applied identically to numerator AND argmin
+  factor `(N'-1)/(N-1)` applied identically to numerator AND argmin
   partitions, which cancels exactly in any max/min spread ratio. The
   antecedent (matching `distinct_targets`, i.e. matching collision
   behaviour) IS the empirical fact under test, not something this algebra
@@ -644,7 +644,7 @@ slot at EXACTLY the object's cardinality by design
 ratio is IDENTICAL to the object's by construction, in every cell,
 regardless of any structural difference** — no measurement could ever have
 shown otherwise. C4's m=1 ratio differs from the object's only by the
-constant factor `(N-1)/(N'-1)` (same numerator cardinality, different
+constant factor `(N'-1)/(N-1)` (same numerator cardinality, different
 denominator), which cancels exactly in any max/min spread ratio. **This
 means the entire load-bearing content of whether C3 or C4 CAN show a
 strictly smaller spread than the object, on these two-point-spread cells,

@@ -175,9 +175,9 @@ assert not all(verdicts.values())
 assert split_c3_m1 == split_object_m1
 assert eqdeg_c3_m1 == eqdeg_object_m1
 # For C4, the m=1 ratio differs from the object's only by the constant
-# factor (N-1)/(N'-1) (same numerator cardinality, different denominator):
-assert split_c4_m1 / split_object_m1 == Fraction(10060, 10078)
-assert eqdeg_c4_m1 / eqdeg_object_m1 == Fraction(117990, 123832)
+# factor (N'-1)/(N-1) (same numerator cardinality, different denominator):
+assert split_c4_m1 / split_object_m1 == Fraction(10078, 10060)
+assert eqdeg_c4_m1 / eqdeg_object_m1 == Fraction(123832, 117990)
 # This constant cancels exactly in the spread ratio, so C3's and C4's
 # capacity to show a strictly smaller spread reduces entirely to whether
 # the ONE finest (argmin) partition collides more on the object than on
