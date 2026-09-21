@@ -60,6 +60,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as _dt
+import hashlib
 import json
 import os
 import re
@@ -575,6 +576,26 @@ def cmd_claim(args: argparse.Namespace) -> int:
     return 0
 
 
+def declared_artifact_hashes(root: Path, queue_path: Path, task_id: str) -> tuple[dict[str, str], list[str]]:
+    """Hash every declared artifact of `task_id` that exists. Return (hashes, missing)."""
+    try:
+        queue = json.loads(queue_path.read_text())
+    except (OSError, json.JSONDecodeError):
+        return {}, []
+    task = next((t for t in queue.get("tasks", []) if t.get("id") == task_id), None)
+    if task is None:
+        return {}, []
+    hashes: dict[str, str] = {}
+    missing: list[str] = []
+    for rel in task.get("artifact_paths", []):
+        path = root / rel
+        if path.is_file():
+            hashes[rel] = hashlib.sha256(path.read_bytes()).hexdigest()
+        else:
+            missing.append(rel)
+    return hashes, missing
+
+
 def cmd_release(args: argparse.Namespace) -> int:
     queue = Path(args.queue).resolve()
     root = _root_for(queue)
@@ -582,10 +603,38 @@ def cmd_release(args: argparse.Namespace) -> int:
     for item in args.artifact or []:
         rel, _, digest = item.partition("=")
         hashes[rel] = digest
+
+    # A release recording `completed` is a claim that the work was DONE, so it
+    # binds what was produced. Before CORR-20260921-942a62 it could bind nothing:
+    # TASK-20260916-64a93b was released `completed` with an empty artifact_sha256
+    # and its artifacts were already only in one machine's working tree. Had the
+    # release carried hashes, the loss would have shown up as a MISMATCH the next
+    # time anyone looked, instead of as an absence nobody was looking for.
+    #
+    # So a completed release now hashes the task's declared artifacts itself, and
+    # refuses when one is missing. Explicit --artifact entries still win, for the
+    # case where the producer's own receipt is authoritative.
+    if args.outcome == "completed":
+        derived, missing = declared_artifact_hashes(root, queue, args.task)
+        if missing and not args.allow_missing_artifacts:
+            raise LaneError(
+                f"refusing to release {args.task} as completed: "
+                f"{len(missing)} declared artifact(s) do not exist:\n  "
+                + "\n  ".join(missing)
+                + "\n\nA completed release asserts the work was done. Either the "
+                "producer did not file these, or they were never landed -- see "
+                "tools/producer_landing.py. If the task genuinely completed without "
+                "them, pass --allow-missing-artifacts and say why in --note."
+            )
+        for rel, digest in derived.items():
+            hashes.setdefault(rel, digest)
+
     path = release_task(
         root, queue, args.task, owner=args.as_addr, outcome=args.outcome, note=args.note,
         artifact_sha256=hashes, include_refs=not args.local_only,
     )
+    if hashes:
+        print(f"  bound {len(hashes)} artifact hash(es)")
     print(f"released {args.task} as {args.outcome} -> {path.relative_to(root)}")
     if args.publish:
         sha = publish(root, [path], f"release({args.task}): {args.outcome} by {args.as_addr}", push=not args.no_push)
@@ -679,6 +728,9 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--outcome", choices=RELEASE_OUTCOMES, required=True)
     p.add_argument("--note")
     p.add_argument("--artifact", action="append", help="path=sha256, repeatable")
+    p.add_argument("--allow-missing-artifacts", action="store_true",
+                   help="release completed even though declared artifacts are absent; "
+                        "say why in --note")
     _common(p, needs_owner=True); p.set_defaults(func=cmd_release)
 
     p = sub.add_parser("claims", help="show every task's current claim status")

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import hashlib
 import json
 import subprocess
 import sys
@@ -388,3 +389,102 @@ class CliTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CompletedReleaseBindsArtifactsTests(unittest.TestCase):
+    """A completed release asserts the work was DONE, so it binds what was produced.
+
+    Before CORR-20260921-942a62 it could bind nothing. TASK-20260916-64a93b was
+    released `completed` with an empty artifact_sha256 while its artifacts existed
+    only in one machine's working tree; had the release carried hashes, the loss
+    would have surfaced as a MISMATCH the next time anyone looked instead of as an
+    absence nobody was looking for.
+    """
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.repo = Repo(Path(self._tmp.name))
+        self.root = self.repo.a
+        self.queue = Repo.queue(self.root)
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def _args(self, **overrides):
+        import argparse
+        base = dict(queue=str(self.queue), task=PRODUCER, outcome="completed",
+                    note=None, artifact=None, as_addr="coord-a", local_only=True,
+                    publish=False, no_push=True, allow_missing_artifacts=False)
+        base.update(overrides)
+        return argparse.Namespace(**base)
+
+    def _claim(self):
+        lanes.claim_task(self.root, self.queue, PRODUCER, owner="coord-a",
+                         ttl_minutes=30, now=T0)
+
+    def _produce(self):
+        path = self.root / BATCH_DIR / "tasks" / PRODUCER / "report.json"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text('{"finding": "real"}\n')
+        return path
+
+    def test_completed_release_records_the_declared_artifact_hash(self) -> None:
+        self._claim()
+        produced = self._produce()
+        lanes.cmd_release(self._args())
+        release = json.loads(
+            (self.root / BATCH_DIR / "claims" / f"{PRODUCER}.1.release.json").read_text()
+        )
+        expected = hashlib.sha256(produced.read_bytes()).hexdigest()
+        rel = f"{BATCH_DIR}/tasks/{PRODUCER}/report.json"
+        self.assertEqual(release["artifact_sha256"], {rel: expected})
+
+    def test_completed_release_is_refused_when_the_artifact_is_absent(self) -> None:
+        """The exact shape of the lost release: completed, binding nothing."""
+        self._claim()
+        with self.assertRaises(lanes.LaneError) as cm:
+            lanes.cmd_release(self._args())
+        message = str(cm.exception)
+        self.assertIn("refusing to release", message)
+        self.assertIn("producer_landing.py", message)
+
+    def test_the_refusal_can_be_overridden_deliberately(self) -> None:
+        self._claim()
+        lanes.cmd_release(self._args(allow_missing_artifacts=True,
+                                     note="zero-output task by design"))
+        release = json.loads(
+            (self.root / BATCH_DIR / "claims" / f"{PRODUCER}.1.release.json").read_text()
+        )
+        self.assertEqual(release["outcome"], "completed")
+        self.assertEqual(release["artifact_sha256"], {})
+        self.assertEqual(release["note"], "zero-output task by design")
+
+    def test_failed_and_abandoned_releases_are_not_gated(self) -> None:
+        """A failed task legitimately produced nothing; gating it would be wrong."""
+        for outcome in ("failed", "abandoned"):
+            with self.subTest(outcome=outcome):
+                tmp = tempfile.TemporaryDirectory()
+                repo = Repo(Path(tmp.name))
+                lanes.claim_task(repo.a, Repo.queue(repo.a), PRODUCER,
+                                 owner="coord-a", ttl_minutes=30, now=T0)
+                import argparse
+                lanes.cmd_release(argparse.Namespace(
+                    queue=str(Repo.queue(repo.a)), task=PRODUCER, outcome=outcome,
+                    note=None, artifact=None, as_addr="coord-a", local_only=True,
+                    publish=False, no_push=True, allow_missing_artifacts=False))
+                release = json.loads(
+                    (repo.a / BATCH_DIR / "claims" / f"{PRODUCER}.1.release.json").read_text()
+                )
+                self.assertEqual(release["outcome"], outcome)
+                tmp.cleanup()
+
+    def test_an_explicit_artifact_hash_wins_over_the_derived_one(self) -> None:
+        """The producer's own receipt stays authoritative where it is supplied."""
+        self._claim()
+        self._produce()
+        rel = f"{BATCH_DIR}/tasks/{PRODUCER}/report.json"
+        lanes.cmd_release(self._args(artifact=[f"{rel}=" + "f" * 64]))
+        release = json.loads(
+            (self.root / BATCH_DIR / "claims" / f"{PRODUCER}.1.release.json").read_text()
+        )
+        self.assertEqual(release["artifact_sha256"][rel], "f" * 64)
