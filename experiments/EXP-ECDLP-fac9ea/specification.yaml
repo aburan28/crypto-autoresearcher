@@ -59,11 +59,19 @@ experiment:
       FROZEN. No row may be added, removed, or redefined after any cell
       outcome. Every row is a function v: F_p -> C, L2-normalised
       (||v||_2 = 1) before the transform. The transform is the exact
-      additive Fourier transform over F_p,
-      vhat(k) = sum_{x in F_p} v(x) e^{-2*pi*i*k*x/p},
-      computed by Bluestein chirp-z over the prime p. A composite-length
-      surrogate DFT or a transform over the log coordinate INVALIDATES the
-      run (see invalidation_rules).
+      additive Fourier transform over F_p in the UNITARY normalisation,
+      vhat(k) = p^{-1/2} * sum_{x in F_p} v(x) e^{-2*pi*i*k*x/p},
+      so that Parseval gives ||vhat||_2 = ||v||_2 = 1 exactly and hence
+      ||vhat||_1^* <= sqrt(p) for every row (lambda in [0, 1/2]). This is
+      the normalisation in which an interval indicator reads O(log p),
+      random signs read ~ sqrt(p), and the KN-FIND-ffe1df digit-sum L1
+      (c_alpha = p^{-1} * sum_x g(x) e(-alpha*x/p) for unimodular g, i.e.
+      the same quantity for v = g/sqrt(p)) reads ~ p^{0.39}; the
+      unnormalised transform (no p^{-1/2} prefactor) would shift every
+      exponent by +1/2 and cannot satisfy the C02 and R03 bands below.
+      Computed by Bluestein chirp-z over the prime p. A composite-length
+      surrogate DFT, a transform over the log coordinate, or any other
+      prefactor convention INVALIDATES the run (see invalidation_rules).
     rows:
       - id: R01
         name: interval indicator
@@ -76,22 +84,34 @@ experiment:
           v(x) = 1/sqrt(L) for x in {a0 + j*d mod p : 0 <= j < L},
           a0 = 0, d = 3, L = p div 8.
       - id: R03
-        name: digit-sum base 2 (popcount) -- REPRODUCTION ROW
+        name: digit-sum base 2 (popcount parity) -- REPRODUCTION ROW
         construction: >-
-          v(x) = (popcount(canonical integer encoding of x) - mu_p) /
-          sigma_p where mu_p, sigma_p are the exact mean and standard
-          deviation of popcount over x in [0, p-1], so ||v||_2 = 1 exactly.
-          This is the reproduction row for the committed KN-FIND-ffe1df
-          L1-growth measurement (~ p^{0.39}); the manifest must record the
-          comparison against that record's stated construction.
+          v(x) = (-1)^{popcount(canonical integer encoding of x)} / sqrt(p),
+          the popcount-parity (Thue-Morse) character; unimodular, so
+          ||v||_2 = 1 exactly. This is the t = 8 term e(t*popcount(x)/16)
+          of the M = 16 popcount filter battery whose
+          max_{t != 0} sum_alpha |c_alpha^{(t)}| KN-FIND-ffe1df reports as
+          ~ p^{0.39} (section 4c of
+          analysis/o2-sum-compatible-filters/reviews/VALIDATION.md: 16.15,
+          27.79, 48.16, 85.33 at p = 1021, 4093, 16381, 65521), and under
+          the frozen unitary convention ||vhat||_1^* is that record's
+          quantity. The manifest
+          must record ||vhat||_1^* at those four primes beside the four
+          published values as the construction comparison. The linear
+          centred popcount (R04's recipe in base 2) is a DIFFERENT
+          statistic with a materially lower exponent and is not this row.
       - id: R04
         name: digit-sum base 3
         construction: >-
-          v(x) = (digitsum_3(x) - mu_p)/sigma_p, centred and normalised
-          exactly as R03.
+          v(x) = (digitsum_3(x) - mu_p)/sigma_p with mu_p the exact mean of
+          digitsum_3 over x in [0, p-1] and
+          sigma_p = sqrt(sum_x (digitsum_3(x) - mu_p)^2) the exact centred
+          root-sum-of-squares (sqrt(p) times the population standard
+          deviation), so ||v||_2 = 1 exactly in the same Euclidean norm as
+          every other row.
       - id: R05
         name: digit-sum base 10
-        construction: v(x) = (digitsum_10(x) - mu_p)/sigma_p, as R03.
+        construction: v(x) = (digitsum_10(x) - mu_p)/sigma_p, as R04.
       - id: R06
         name: multiplicative-coset indicator, index 3
         construction: >-
@@ -111,23 +131,27 @@ experiment:
       - id: R09
         name: low-bit mask
         construction: >-
-          v(x) = ((x mod 2^8) - mu_p)/sigma_p with exact mean/variance
-          over x in [0, p-1], normalised as R03.
+          v(x) = ((x mod 2^8) - mu_p)/sigma_p with exact mean and centred
+          root-sum-of-squares over x in [0, p-1], normalised as R04.
       - id: C01
         name: all-ones (analytic endpoint control)
         construction: >-
           v(x) = 1/sqrt(p) for all x. Only the k = 0 coefficient is
-          nonzero (|vhat(0)| = sqrt(p)), so under the frozen nontrivial
-          convention ||vhat||_1^* = 0 exactly and the row must read
-          lambda = 0 at every prime; any other reading voids the census.
+          nonzero (|vhat(0)| = 1 under the unitary transform), so under the
+          frozen nontrivial convention ||vhat||_1^* = 0 exactly and the row
+          must read lambda = 0 at every prime; any other reading voids the
+          census.
       - id: C02
         name: random-sign null (Parseval control)
         construction: >-
           v(x) = s_x/sqrt(p), s_x in {+1,-1} drawn from the frozen hash
-          stream SHA256(EXP-ECDLP-fac9ea:C02:sign:<counter>) with
-          rejection-free bit mapping; must read lambda ~ 1/2 + o(1).
-          Re-run with a second independent seed set (seed set B) as the
-          seed-insensitivity replication.
+          stream SHA256(EXP-ECDLP-fac9ea:C02:sign:<seedset>:<counter>) with
+          rejection-free bit mapping, where <seedset> is the literal token
+          A for the census run and B for the seed-insensitivity
+          replication (both streams frozen here; the two seed sets differ
+          only in that token). Under the unitary transform
+          |vhat(k)| ~ p^{-1/2} on the p - 1 nontrivial k, so the row must
+          read lambda ~ 1/2 + o(1) on both seed sets.
       - id: C03
         name: PGL_2 reparametrisation battery (per-statistic control)
         construction: >-
@@ -151,10 +175,12 @@ experiment:
       trial-division scan in canonical order; the found primes are frozen
       in the manifest before any transform runs.
     secondary: >-
-      1.5x-spaced ladder, at least 8 primes spanning 2^12..2^26, chosen as
-      the smallest prime >= 2^{12 + 1.7*j} for j = 0..7 (deterministic,
-      frozen in the manifest); includes the largest point 2^26-class prime
-      used for the jackknife tail check.
+      1.5x-spaced ladder, 10 primes spanning 2^12..2^26, chosen as the
+      smallest prime >= 2^{12 + 14*j/9} for j = 0..9 (exponent step 14/9
+      exactly, so j = 9 is 2^26 and no interior exponent coincides with the
+      primary list; deterministic, frozen in the manifest). Its j = 9 point
+      is the 2^26-class prime that the primary ladder borrows above and
+      that the jackknife tail check removes.
     curve_dependent_rows: >-
       Coset rows R06-R08 restricted to x(E(F_p)) (the curve-restriction
       variant logged beside the full-F_p variant): 3 curves per prime,
@@ -192,24 +218,30 @@ experiment:
     - statistic row (frozen registry)
     - prime p (frozen ladders)
     - ladder spacing (dyadic vs 1.5x) -- tests HEUR-1
-    - seed set (A vs B) on C02 and R03 -- seed-insensitivity replication
+    - seed set (A vs B) on C02 -- seed-insensitivity replication (R03 is
+      an exact deterministic row with no seed; its replication is the
+      checker re-derivation, not a seed-set re-run)
 
   primary_metrics:
     - >-
       FROZEN CONVENTION (fixed before any run, never switched): the
       measured quantity is the NONTRIVIAL additive L1 norm
       ||vhat||_1^* = sum over k != 0 of |vhat(k)|, where vhat is the exact
-      additive Fourier transform over F_p of the L2-normalised statistic v.
+      UNITARY additive Fourier transform over F_p (p^{-1/2} prefactor, as
+      frozen in statistic_registry.note) of the L2-normalised statistic v.
       Rationale, on record: the gate quantity eps of IDEA-20260920-b6ad24
       is a max over NONTRIVIAL characters, so the k = 0 term is outside the
-      gate; and under an all-k convention every positive-mean indicator
-      row would read lambda >= 1/2 from the k = 0 mass alone (|vhat(0)| =
-      sqrt(p)*mean(v)), collapsing the census. Under the frozen
-      convention the analytic endpoints are exact: C01 (all-ones) reads
-      lambda = 0 (every nontrivial coefficient is 0), C02 (random signs)
-      reads lambda = 1/2 + o(1) (Parseval level). The manifest reports
-      ||vhat(0)| separately per cell so the all-k value is reconstructible;
-      the gate column uses ONLY the frozen nontrivial convention.
+      gate; and the k = 0 coefficient is a pure mean term (|vhat(0)| =
+      sqrt(p)*mean(v) = <v, p^{-1/2}*1>, at most 1 by Cauchy-Schwarz and
+      exactly 1 for C01) that carries no information about the nontrivial
+      spectrum, so excluding it makes the all-ones endpoint exact rather
+      than a constant. Under the frozen convention the analytic endpoints
+      are exact: C01 (all-ones) reads lambda = 0 (every nontrivial
+      coefficient is 0), C02 (random signs) reads lambda = 1/2 + o(1)
+      (Parseval level: |vhat(k)| ~ p^{-1/2} on p - 1 nontrivial k). The
+      manifest reports |vhat(0)| separately per cell so the all-k value is
+      reconstructible; the gate column uses ONLY the frozen nontrivial
+      convention.
     - fitted lambda(v) with standard error, per row, from least squares of
       log||vhat||_1^* on log p over the primary ladder.
     - gate verdict per row: >-
@@ -223,19 +255,25 @@ experiment:
     - residuals and residual trend statistic per row; jackknife on the
       largest prime.
     - two-ladder agreement (dyadic vs 1.5x) per row.
-    - seed-set agreement (A vs B) on C02 and R03.
+    - seed-set agreement (A vs B) on C02.
     - per-cell transform wall time and peak RSS (the census's own charged
       cost, measured with the manifest instrumentation).
 
   seeds_and_replication:
     - >-
       Every stochastic element (C02 signs, C03 Moebius maps, curve
-      parameters) drawn from SHA256(EXP-ECDLP-fac9ea:<cell>:<purpose>:<counter>)
-      streams, frozen in this specification before any run; the census is
-      otherwise deterministic.
+      parameters) drawn from the
+      SHA256(EXP-ECDLP-fac9ea:<cell>:<purpose>[:<qualifier>...]:<counter>)
+      streams written out in the constructions above, where the qualifier
+      fields are exactly those each construction names (<seedset> = A|B
+      for C02, <row> for C03, <prime> for the curves); all streams,
+      including the C02 seed-set-B stream, are frozen in this specification
+      before any run, and the census is otherwise deterministic.
     - >-
       Replication plan: the full ladder runs once (maximum_runs: 1,
-      scientific cells frozen); C02 and R03 re-run with seed set B;
+      scientific cells frozen); C02 re-run with seed set B (R03 is
+      deterministic and has no seed, so it has no seed-set re-run; its
+      replication is the checker re-derivation below);
       checker.py re-derives 3 spot cells (one small-prime cell by naive
       O(p^2) DFT, one mid cell by a second independent chirp-z
       implementation, and the gate algebra blind from the two cited
@@ -291,8 +329,8 @@ experiment:
   invalidation_rules:
     - A composite-length surrogate DFT substituted for the exact
       prime-field additive transform.
-    - Unnormalised statistics, or a normalisation change after any cell
-      outcome.
+    - Unnormalised statistics, a transform prefactor other than the frozen
+      unitary p^{-1/2}, or a normalisation change after any cell outcome.
     - A convention switch on the L1 sum (all-k vs k!=0) after any cell
       outcome.
     - A PGL_2-artifactual row left in the gate table.
