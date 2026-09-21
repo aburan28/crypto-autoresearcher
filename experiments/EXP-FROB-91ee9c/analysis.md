@@ -426,3 +426,467 @@ Records this analysis relies on: `EXP-FROB-91ee9c`,
 `DEC-20260921-a72e4c` and `EV-FROB-b53a91` (the EXP-FROB-b8cf21 review this
 hypothesis's own falsification clause (c) names by name), `H-FROB-824aa8`
 (precedent hypothesis-status pattern for an inconclusive verdict).
+
+---
+
+# Round 2: combined evidence with RUN-FROB-91ee9c-51bc02 (TASK-20260921-1dba2a)
+
+This section is a new, self-contained round appended to this file per
+`ledger/handoffs/TASK-20260921-1dba2a.yaml`'s review_plan. It does not edit,
+remove, or renumber anything above (the first round's own
+Observation/Comparison/Inference/Limitation on `RUN-FROB-91ee9c-7119f2`
+remains exactly as recorded).
+
+## Section 0 — J5 blind_rederivation (written BEFORE opening report.md,
+cost-model.json, implementation.py, checker.py, aggregate.py, or
+work/checker-report.json under runs/TASK-20260921-51bc02/)
+
+**Order of operations actually followed, verbatim, for the record** (see
+`review-20260921-round2-attestation.yaml` for the machine-checkable form):
+
+1. Read `AGENTS.md` "Review architecture" and `agents/coordinator.md`.
+2. Read `ledger/handoffs/TASK-20260921-1dba2a.yaml` in full (this round's
+   frozen review_plan, `coordinator_prior`, `joints`, `proves_too_much`,
+   `blind_rederivation`).
+3. Read `ledger/hypotheses/H-FROB-d93575.yaml`,
+   `experiments/EXP-FROB-91ee9c/specification.yaml` in full (in particular
+   `metrics.primary`'s verbatim `cost_ratio_neg`/`p_m`/`U_neg` definitions,
+   `controls.C2/C3/C4`, `success_criterion`, `falsification_criterion`),
+   `experiments/EXP-FROB-91ee9c/amendments/DEC-20260921-e81e25.yaml`,
+   `experiments/EXP-FROB-91ee9c/analysis.md` (round 1's content above, for
+   context only, not altered), `ledger/evidence/EV-FROB-2fe225.yaml`,
+   `ledger/decisions/DEC-20260921-3678fc.yaml`,
+   `ledger/decisions/DEC-20260921-a72e4c.yaml`,
+   `ledger/evidence/EV-FROB-b53a91.yaml`, `templates/research-records.md`,
+   and `experiments/EXP-FROB-91ee9c/review-attestation-20260921.yaml` (round
+   1's attestation, read only as a pattern for this round's own attestation).
+4. Read `experiments/EXP-FROB-91ee9c/runs/TASK-20260921-51bc02/manifest.yaml`
+   (not in `blind_from`: run status, artifact hash table, command,
+   environment, timing) and `.../metrics.json` — this handoff's
+   `blind_rederivation` block explicitly names `metrics.json`'s `measured`
+   object as the joint's own authorized data source, not a `blind_from`
+   file. Read `measured.FROB-SPLIT-q11n5` and `measured.FROB-EQDEG-q19n5`
+   ONLY (raw `p_m`, `U_neg`, `block_sizes`, `prod_tuple_count`,
+   `distinct_targets` per partition per arm) before reading
+   `derived_from_measured` in the same file, and before opening any of
+   `report.md`, `cost-model.json`, `implementation.py`, `checker.py`,
+   `aggregate.py`, `work/checker-report.json`.
+5. Computed `cost_ratio_neg = (U_neg + 1 + extra)/p_m` at `extra=0` by hand,
+   for every `status: "ok"` partition, every arm (object, C2, C3 both seeds,
+   C4 both seeds), both cells, from the raw `(p_m, U_neg)` pairs alone,
+   exactly as `metrics.primary` defines it verbatim. Only after finishing
+   this arithmetic did I read `metrics.json`'s own `derived_from_measured`
+   object (same file, not `blind_from`, read second) as a same-source
+   cross-check. **No `blind_from` file was opened before this section was
+   written.**
+
+### (a) FROB-SPLIT-q11n5, curve A=1, B=2, N=10061
+
+`measured.FROB-SPLIT-q11n5.object_arm_partitions` records exactly two
+`status: "ok"` partitions (m=1 `[4]`, and m=2 `[2,2]` on blocks
+`{0,2},{1,3}`); the other 13 of 15 lattice-point partitions are
+`empty_base` for this specific curve instance — consistent with, but not
+re-derived from, the abstract 5-point partition-lattice
+`{(4),(3,1),(2,2),(2,1,1),(1,1,1,1)}` already independently re-derived in
+round 1's own Section 0 for this (q,n)=(11,5) cell; which SPECIFIC
+partitions are non-empty for THIS curve is a per-instance fact read directly
+off the raw `block_sizes`.
+
+**Object arm:**
+- m=1: `U_neg=[820,2]=410`, `p_m=[820,10060]`.
+  `cost_ratio_neg = (410+1)*10060/820 = 411*10060/820 = 4134660/820 =
+  206733/41` (reduce by 20).
+- m=2 `[2,2]`: `U_neg=[20,2]=10`, `p_m=[100,10060]`.
+  `cost_ratio_neg = 11*10060/100 = 110660/100 = 5533/5`.
+- `spread(object) = (206733/41)/(5533/5) = 2055/451` (cross-multiply and
+  reduce by hand: `206733*5=1033665`, `41*5533=226853`,
+  `gcd(1033665,226853)=453... ` — hand-checked directly against the known
+  identity `2055*451=926805` and `2055/451` reduces no further since
+  `gcd(2055,451)=1`; independently confirms round 1's own already-verified
+  `I(FROB-SPLIT-q11n5)=2055/451`, here recomputed from a DIFFERENT run's raw
+  data, curve A=1,B=2,N=10061).
+
+**C2 arm** (non-stable, matched dimension): ok partitions m=1
+(`U_neg=[968,2]=484`, `p_m=[968,10060]`) and m=2 `[2,2]` on `{0,2},{1,3}`
+(`U_neg=[6,2]=3`, `p_m=[18,10060]`; `block_sizes=[6,6]`,
+`prod_tuple_count=36` vs `distinct_targets=18` — a real 2x collision).
+- m=1: `485*10060/968 = 4879100/968 = 1219775/242`.
+- m=2: `4*10060/18 = 40240/18 = 20120/9`.
+- `spread(C2) = (1219775/242)/(20120/9) = 4365/1936` (hand
+  cross-multiplication and reduction).
+- `4365/1936 ≈ 2.255 < 2055/451 ≈ 4.557` → **C2 IS strictly smaller** on
+  this cell.
+
+**C3 arm** (random, matched cardinality; both seeds record identical
+values): ok partitions m=1 (`U_neg=[820,2]=410`, `p_m=[820,10060]` —
+IDENTICAL to the object's m=1) and m=2 `[2,2]` on `{0,2},{1,3}`
+(`U_neg=[20,2]=10`, `p_m=[100,10060]` — IDENTICAL to the object's m=2;
+`prod_tuple_count=100=distinct_targets`, i.e. zero collisions, matching the
+object's own zero collisions on this partition).
+- `spread(C3) = 2055/451` EXACTLY, both seeds — **a TIE, not smaller.**
+
+**C4 arm** (matched null curve, N'=10079; both seeds identical): ok
+partitions m=1 (`U_neg=[820,2]=410`, `p_m=[820,10078]` — same numerator
+`|B|=820` as the object, denominator `N'-1=10078` instead of `10060`) and m=2
+`[2,2]` (`U_neg=[20,2]=10`, `p_m=[100,10078]` — same numerator as the
+object, same denominator shift).
+- m=1: `411*10078/820 = 4142058/820 = 2071029/410`.
+- m=2: `11*10078/100 = 110858/100 = 55429/50`.
+- `spread(C4) = (2071029/410)/(55429/50) = 2055/451` EXACTLY, both seeds —
+  **a TIE, not smaller.** This is a NECESSARY algebraic consequence, not a
+  coincidence needing separate explanation, GIVEN that C4's `distinct_targets`
+  matches the object's on BOTH ok partitions (zero collisions on both,
+  matching the object): the only difference from the object is the constant
+  factor `(N'-1)/(N-1)` applied identically to numerator AND argmin
+  partitions, which cancels exactly in any max/min spread ratio. The
+  antecedent (matching `distinct_targets`, i.e. matching collision
+  behaviour) IS the empirical fact under test, not something this algebra
+  by itself establishes.
+
+### (b) FROB-EQDEG-q19n5, curve A=1, B=1, N=117991
+
+`measured.FROB-EQDEG-q19n5.object_arm_partitions` records exactly two `ok`
+partitions: m=1 `[4]` and m=2 `[2,2]` on blocks `{0},{1}` — consistent with
+this (q,n)=(19,5) cell's two-point achievable-dimension table
+`{0,2,4}` already independently confirmed in round 1.
+
+**Object arm:**
+- m=1: `U_neg=[6150,2]=3075`, `p_m=[6150,117990]`.
+  `cost_ratio_neg = 3076*117990/6150`. `117990/6150` reduces by `gcd=30` to
+  `3933/205`; `3076*3933 = 12097908`. Ratio = `12097908/205`.
+- m=2 `[2,2]`: `U_neg=[40,2]=20`, `p_m=[300,117990]`.
+  `cost_ratio_neg = 21*117990/300 = 2477790/300 = 82593/10`.
+- `spread(object) = (12097908/205)/(82593/10)`. By hand (Euclidean
+  algorithm on `120979080` and `16931565`): `gcd = 19665`;
+  `120979080/19665 = 6152`; `16931565/19665 = 861`. **`spread(object) =
+  6152/861`** — independently reproduces round 1's already-verified
+  `I(FROB-EQDEG-q19n5)=6152/861` from this run's own raw data.
+
+**C2 arm:** ok partitions m=1 (`U_neg=[6156,2]=3078`, `p_m=[6156,117990]`;
+non-stable subspace of dimension 4, cardinality 6156) and m=2
+(`U_neg=[24,2]=12`, `p_m=[288,117990]`; `block_sizes=[24,24]`,
+`prod_tuple_count=576` vs `distinct_targets=288` — a real 2x collision).
+- m=1: `3079*117990/6156`, reduces (dividing by 6, then 3, then 3, then 19)
+  to `354085/6`.
+- m=2: `13*117990/288 = 1533870/288`, reduces to `85215/16`.
+- `spread(C2) = (354085/6)/(85215/16) = (354085*16)/(6*85215) =
+  5665360/511290`; Euclidean-algorithm `gcd = 23`; `5665360/23=246... ` —
+  worked by hand: `566536/23=24632`, `51129/23=2223`. **`spread(C2) =
+  24632/2223 ≈ 11.08`.**
+- Compare to `spread(object) = 6152/861 ≈ 7.15`: **C2 is LARGER, not
+  smaller**, on this cell.
+
+**IMPORTANT CORRECTION TO THE DISPATCHING PROMPT'S OWN PREMISE, found here,
+before opening any `blind_from` file, not assumed beforehand:** this
+handoff's `coordinator_prior`/`uncertainty_reduced` text states C2's
+colliding `[2,2]` partition has "SMALLER block products than the
+object/C3/C4 ... on BOTH cells." Checking the raw `block_sizes` directly:
+true for FROB-SPLIT-q11n5 (`6×6=36 < 10×10=100`), but **FALSE for
+FROB-EQDEG-q19n5**: C2's colliding partition has `block_sizes=[24,24]`,
+product `576`, which is LARGER than the object/C3/C4's non-colliding
+partition's `block_sizes=[10,30]`, product `300` (`576 > 300`, not
+smaller). This is caught here, from the raw `measured` `block_sizes`
+alone, exactly as the handoff itself asked ("I record this as a
+prediction, not a finding: the review must verify the collision counts and
+this argument independently, not adopt it from this paragraph"). It
+changes how J4/PTM-2 must be read (below, after `blind_from` is opened): a
+naive "smaller construction collides more, so collisions are
+structure-dependent, not scale-dependent" reading does NOT hold uniformly
+across both cells; on EQDEG the pattern (larger product collides, smaller
+product does not) is instead consistent with the OPPOSITE, generic
+"collisions scale with relative cardinality" story.
+
+**C3 arm** (both seeds identical): ok partitions m=1 (`U_neg=[6150,2]=3075`,
+`p_m=[6150,117990]` — IDENTICAL to the object) and m=2
+(`U_neg=[40,2]=20`, `p_m=[300,117990]` — IDENTICAL to the object;
+`block_sizes=[10,30]`, zero collisions, matching the object exactly).
+- `spread(C3) = 6152/861` EXACTLY, both seeds — **a TIE.**
+
+**C4 arm** (N'=123833; both seeds identical): ok partitions m=1
+(`U_neg=[6150,2]=3075`, `p_m=[6150,123832]` — same numerator as the object,
+larger denominator) and m=2 (`U_neg=[40,2]=20`, `p_m=[300,123832]` — same
+numerator, same denominator shift; `block_sizes=[10,30]` matching the
+object, zero collisions).
+- Because `distinct_targets` matches the object on both partitions (zero
+  collisions both), the same constant-scalar-cancellation as SPLIT applies:
+  **`spread(C4) = 6152/861` EXACTLY, both seeds — a TIE, not smaller.**
+
+### Blind verdict table (derived from `measured` alone, before opening any `blind_from` file)
+
+| cell | arm | spread | strictly smaller than object? |
+|---|---|---|---|
+| SPLIT (N=10061) | object | 2055/451 | — |
+| SPLIT | C2 | 4365/1936 | YES |
+| SPLIT | C3 (both seeds) | 2055/451 | NO (exact tie) |
+| SPLIT | C4 (both seeds) | 2055/451 | NO (exact tie) |
+| EQDEG (N=117991) | object | 6152/861 | — |
+| EQDEG | C2 | 24632/2223 | NO (larger) |
+| EQDEG | C3 (both seeds) | 6152/861 | NO (exact tie) |
+| EQDEG | C4 (both seeds) | 6152/861 | NO (exact tie) |
+
+Success_criterion clause (6), read verbatim, requires ALL of C2, C3, C4
+STRICTLY SMALLER, in EVERY completed cell. On this blind table alone:
+**FAILS on both cells** (SPLIT: C3/C4 tie; EQDEG: C2 larger AND C3/C4 tie).
+Falsification_criterion clause (c), read verbatim, fires if ANY control arm
+shows spread >= the object's, in the same cell: **fires in BOTH cells** (via
+C3/C4 ties at minimum on SPLIT; via C2 and C3/C4 on EQDEG).
+
+### A structural observation, derived here from the raw numbers and specification.yaml's own text alone, before any blind_from file was opened
+
+For BOTH C3 (matched cardinality) and C4 (matched null curve), in BOTH
+cells, the m=1 (single-slot, coarsest) endpoint ratio is a PURE function of
+`|B|` and `N` alone: with a single slot, `p_1 = |B_1|/(N-1)` directly (no
+combining of multiple `B_j`'s is possible, hence no collision can reduce
+`distinct_targets` below the raw cardinality). C3 constructs its single
+slot at EXACTLY the object's cardinality by design
+(specification.yaml's own text: "Replace each `B_j` by a uniformly seeded
+... random subset ... of cardinality EXACTLY `|B_j|`"), so **C3's m=1
+ratio is IDENTICAL to the object's by construction, in every cell,
+regardless of any structural difference** — no measurement could ever have
+shown otherwise. C4's m=1 ratio differs from the object's only by the
+constant factor `(N'-1)/(N-1)` (same numerator cardinality, different
+denominator), which cancels exactly in any max/min spread ratio. **This
+means the entire load-bearing content of whether C3 or C4 CAN show a
+strictly smaller spread than the object, on these two-point-spread cells,
+reduces entirely to whether the argmin (finest) partition shows MORE
+collisions on the object arm than on the matched control** — exactly the
+quantity J4 (below) checks directly. This is derived from
+specification.yaml's own text and the raw numbers alone, before opening any
+`blind_from` file; it is a fact about how the `spread` metric interacts
+with the C3/C4 constructions specifically, not a report-derived reading.
+
+### J5 outcome, after opening blind_from
+
+`report.md` sections 1-5 and `work/checker-report.json` were opened only
+after Section 0 above was complete. Every value in the blind verdict table
+above matches EXACTLY: `report.md` section 5's summary table
+(`FROB-SPLIT-q11n5`: object 2055/451, C2 TRUE/4365/1936, C3 FALSE(equal)
+both seeds, C4 FALSE(equal) both seeds; `FROB-EQDEG-q19n5`: object 6152/861,
+C2 FALSE(larger)/24632/2223, C3 FALSE(equal) both seeds, C4 FALSE(equal)
+both seeds) and `work/checker-report.json`'s
+`independent_spreads`/`independent_strictly_smaller_than_object_verdicts`
+blocks for both cells, with zero discrepancy in any of the 8 spread values
+or 10 strictly-smaller verdicts. **J5 holds fully** this round (a complete,
+not partial, independent rederivation: unlike round 1, no group-enumeration
+step was required, because this joint's authorized data source
+(`metrics.json`'s `measured` object) already contains the raw `(p_m,
+U_neg)` pairs directly, so the blind computation could be carried through
+to the exact final rational numbers by hand, not merely to a closed-form
+formula with an unresolved integer). The block-product correction found in
+Section 0 (`FROB-EQDEG-q19n5`'s C2 collision occurring at a LARGER, not
+smaller, block product than the object/C3/C4) is not contradicted by
+anything in `report.md` or `work/checker-report.json`; neither artifact
+states the block-product comparison explicitly in either direction, so this
+finding is genuinely new, not merely a re-read.
+
+## Observation (Round 2)
+
+- **J1 (holds).** Both cells' object-arm recompute matches
+  `RUN-FROB-91ee9c-7119f2`'s recorded curve-index-1 values exactly
+  (`manifest.yaml` `result.object_arm_consistency_check`: PASS both cells;
+  `report.md` section 1's table; independently reproduced in Section 0
+  above from the raw `measured` pairs before `report.md` was opened, not
+  merely re-read from its prose). `checker.py` is pure stdlib
+  (`import sys, os, json, itertools` / `from fractions import Fraction`
+  only; grep-confirmed, no `implementation.py`/`core.py`/`lattice.py`
+  import) and its own independent recomputation agrees with the driver's on
+  every check (`work/checker-report.json`:
+  `cost_ratio_all_match: true`, `C3_C4_U_neg_matched_cardinality_ok: true`,
+  `consistency_checks_agree: true`, both cells; 0 mismatches out of 12
+  reverifications per cell). The disclosed skip
+  (`skipped_too_large_for_pure_python_full_reenumeration_this_session` for
+  FROB-EQDEG-q19n5's full order recount) matches the same disclosed-limit
+  pattern already accepted in round 1's own C8 scope note.
+- **J2 (holds, exactly).** Every `cost_ratio_neg` and every `spread`
+  independently recomputed in Section 0 above, from the raw `(p_m, U_neg)`
+  pairs, BEFORE opening `report.md`/`cost-model.json`/
+  `work/checker-report.json`, matches those artifacts' own stated numbers
+  in every one of the 24 checks (12 per cell) performed. Zero discrepancy.
+- **J4.** Collision counts confirmed directly from `metrics.json`'s raw
+  `block_sizes`/`prod_tuple_count`/`distinct_targets`, for every `ok`
+  partition, every arm, both cells (Section 0 above). `FROB-SPLIT-q11n5`:
+  C2's `[2,2]` partition (block product `6*6=36`) shows a 2x collision
+  (`36->18`); the object/C3/C4's `[2,2]` partition (block product
+  `10*10=100`, LARGER) shows zero collisions. `FROB-EQDEG-q19n5`: C2's
+  `[2,2]` partition (block product `24*24=576`) shows a 2x collision
+  (`576->288`); the object/C3/C4's `[2,2]` partition (block product
+  `10*30=300`, SMALLER) shows zero collisions. **This corrects this
+  handoff's own `coordinator_prior`**, which stated C2's colliding
+  partition has "SMALLER block products than the object/C3/C4 ... on BOTH
+  cells" — true for `FROB-SPLIT-q11n5` (`36 < 100`) but **false** for
+  `FROB-EQDEG-q19n5` (`576 > 300`).
+- **J3 (the load-bearing joint).** Success_criterion clause (6), read
+  verbatim, requires ALL of C2, C3, C4 strictly smaller, in EVERY completed
+  cell. Measured: `FROB-SPLIT-q11n5`: C2 smaller (yes), C3 tie (no), C4 tie
+  (no) ⇒ FAILS. `FROB-EQDEG-q19n5`: C2 larger (no), C3 tie (no), C4 tie (no)
+  ⇒ FAILS. **Clause (6) is NOT MET, unambiguously, on real, non-degenerate
+  data** (every arm's spread is genuinely `> 1` in both cells — this is not
+  round 1's vacuous `spread=1` case). Falsification clause (c) ("any of C2,
+  C3 or C4 shows a spread greater than or equal to the object's") is
+  **literally TRIGGERED in both cells**, via the C3/C4 ties (`>=` includes
+  equality) and additionally via C2 on `FROB-EQDEG-q19n5`.
+- **PTM-2(i)** (does C2 also trivially match the object on both cells,
+  which would mean the instrument has no general discriminating power?):
+  **does not fire.** C2 diverges genuinely on BOTH cells (smaller on SPLIT:
+  `4365/1936 < 2055/451`; larger on EQDEG: `24632/2223 > 6152/861`).
+- **PTM-2(ii)** (does the collision-count pattern reverse so that smaller
+  constructions collide LESS, consistent with a pure scale-artifact story —
+  the review plan's own named firing condition?): **MIXED, cell-dependent.**
+  On `FROB-SPLIT-q11n5`, the SMALLER construction (C2, product 36) collides
+  MORE than the LARGER construction (object/C3/C4, product 100, zero
+  collisions) — this argues AGAINST a pure scale-artifact reading. On
+  `FROB-EQDEG-q19n5`, the pattern REVERSES: the LARGER construction (C2,
+  product 576) collides while the SMALLER construction (object/C3/C4,
+  product 300) does not — this IS the reversal the review plan's own
+  `failure_signature` names as a PTM-2 firing condition. **PTM-2(ii)
+  therefore fires on `FROB-EQDEG-q19n5` specifically, but not on
+  `FROB-SPLIT-q11n5`.**
+- **A structural fact, independent of PTM-2**, derived directly from
+  specification.yaml's own C3 design text (Section 0 above): the m=1
+  (coarsest) endpoint of the spread ratio is ALGEBRAICALLY FORCED to equal
+  the object's for any cardinality-matched control (exactly for C3; up to a
+  canceling scalar for C4), in every cell, regardless of any structural
+  difference. This means BOTH C3's and C4's capacity to show a strictly
+  smaller spread than the object, on these two-achievable-partition cells,
+  reduces entirely to whether the SINGLE finest (argmin) partition shows
+  more collisions on the object than on the control — a single
+  collide/don't-collide comparison per (cell, control, seed), not a richer
+  statistic.
+
+## Comparison (Round 2)
+
+- **J3, two readings, as the plan requires.** (i) *Literal reading of
+  clause (c):* the C3/C4 ties and, on EQDEG, C2's excess, literally satisfy
+  "greater than or equal to" — on REAL, non-degenerate data (spreads `>1`
+  for every arm, both cells; NOT round 1's vacuous `1>=1` case). (ii)
+  *Proves-too-much-qualified reading:* PTM-2(i) does not fire (the
+  instrument retains general discriminating power); PTM-2(ii) fires
+  PARTIALLY, specifically on `FROB-EQDEG-q19n5` (the collision pattern
+  there is consistent with a pure scale-artifact explanation for the tie),
+  while NOT firing on `FROB-SPLIT-q11n5` (there the pattern argues against a
+  scale-artifact reading). **This is a genuinely mixed, cell-dependent
+  proves-too-much outcome**, unlike round 1's clean, uniform PTM-2 pass —
+  and it CORRECTS, not confirms, this handoff's own `coordinator_prior`,
+  which predicted a uniform pass on both cells from a premise that is
+  factually wrong on `FROB-EQDEG-q19n5` (Section 0 above).
+- Because PTM-2 does not cleanly clear on both cells, the honest reading is
+  neither "clause (6)/(c) fires cleanly and is fully attributable to
+  structure" (the `coordinator_prior`'s predicted outcome) nor round 1's
+  "not evaluable, no informative data exists" (this round's data is real,
+  non-degenerate, and the comparison the recheck existed to make WAS
+  exercised, on the correct informative curve, in both cells). The middle
+  reading — a genuine but qualified, partially metric-limited adverse
+  signal — is what the combined evidence actually supports.
+- Compared against round 1 (`EV-FROB-2fe225`): round 1 could not evaluate
+  clause (6)/(c) at all (no data existed on the informative curve). This
+  round supplies exactly that missing data (`DEC-20260921-3678fc`'s NA-1,
+  executed via `DEC-20260921-e81e25`'s amendment) and the answer is adverse
+  to clause (6)/(c) being MET, qualified as above — not a repeat of round
+  1's "not evaluable" finding.
+
+## Inference (Round 2)
+
+- J1 holds; J2 holds exactly; J4's collision counts are confirmed and
+  materially correct this handoff's own `coordinator_prior` premise on
+  `FROB-EQDEG-q19n5`.
+- **J3 resolves as follows.** Success_criterion clause (6) is **NOT MET**,
+  unambiguously, in both completed cells, on real (non-degenerate) data —
+  this conclusion does not depend on PTM-2's mixed outcome, since the C3/C4
+  ties (and, on EQDEG, C2's excess) hold regardless of the collision-count
+  interpretation. Falsification_criterion clause (c) is **TRIGGERED** in
+  both cells under a literal reading, and the review's required
+  proves-too-much check does NOT uniformly undermine that reading the way
+  it did in round 1 (where PTM-2 cleanly broke the ONLY reading that would
+  fire clause (c), on truly vacuous data): here PTM-2 undermines the
+  reading only PARTIALLY and only on `FROB-EQDEG-q19n5`, while leaving
+  `FROB-SPLIT-q11n5`'s trigger comparatively less qualified by the
+  collision-count check specifically — though still qualified, on BOTH
+  cells, by the independent, uniform structural fact that C3/C4's coarse
+  endpoint can never differ from the object's by construction, which bounds
+  how much information any tie here can carry to "the ONE tested fine
+  partition's collision behaviour," not a broader structural claim.
+- Given (a) a genuine, non-vacuous falsification-clause trigger on real
+  data (materially different from round 1), (b) a partial, cell-dependent
+  proves-too-much complication that prevents treating the trigger as
+  cleanly, uniformly attributable to Frobenius structure on both cells, and
+  (c) AGENTS.md's binding rule that `reject_scoped` is forbidden on a
+  single, unreplicated, `empirical_only` run regardless of signal
+  cleanliness — the correct, disciplined decision is **WEAKEN**, not
+  `reject_scoped`, `support`, or `inconclusive`. Calling this
+  `inconclusive` a second time would mischaracterize what was measured:
+  unlike round 1, the recheck's target comparison WAS exercised, on the
+  correct curve, in both cells, and it did NOT confirm clause (6); treating
+  that as merely "impediment, no verdict" a second time would understate an
+  available honest verdict (AGENTS.md rule 9), not exercise appropriate
+  caution.
+- `claim_tier`: toy. `strength`: **preliminary**, capped by
+  specification.yaml's own `replication.plan` text ("Cross-curve replication
+  is a declared secondary; its absence caps the evidence strength of any
+  resulting record at `preliminary`") — only ONE informative object curve
+  per cell was tested against the control battery (curve index 0 remains
+  degenerate for this comparison in both cells). `proof_status`:
+  `empirical_only` — no counterexample certificate or derivation note is
+  constructed; the structural forced-tie argument above derives a
+  limitation of the SPREAD METRIC, not a proof that the underlying
+  Frobenius-vs-cardinality distinction is false, so it explains why the
+  observed tie is WEAK evidence, not why it is NO evidence.
+- Per this handoff's constraints and `DEC-20260921-3678fc`'s own NA-5/PD-1:
+  because this decision does not reach `reject_scoped` or `support` at
+  strength `replicated`/`strong`, the plan's own formal escalation trigger
+  is not met. Given the corrected `coordinator_prior` premise and the
+  load-bearing, non-obvious structural argument above, an independent
+  adversarial pass on this specific finding is recommended as a
+  next_action out of caution, not as a required escalation.
+
+## Limitation (Round 2)
+
+- **Zero claims ceiling**, binding regardless of this decision:
+  specification.yaml's own text ("no attack, no speedup, no solve-cost
+  ranking, no security consequence"). This decision asserts nothing beyond
+  the tested cells/curves under the frozen combinatorial cost model.
+- **Toy scale only** (field sizes ≈2^17–2^21 for the two tested (cell,
+  curve) pairs); no transfer or extrapolation.
+- **Single, unreplicated additional run** for this amendment's scope
+  (`maximum_runs` extended by exactly one, not per-cell replication),
+  combined with round 1's single aggregate run. Evidence strength is capped
+  at `preliminary` by specification.yaml's own text, independent of this
+  review's own findings.
+- The **m=1-forced-tie structural argument** (Section 0) is a new,
+  review-derived observation about how the `spread` metric interacts with
+  the C3/C4 constructions on these specific two-achievable-partition cells;
+  it is not itself independently checked by a second reviewer in this round
+  (PD-1 below: single coordinator-subagent session, joints owned as
+  sequenced steps, matching this experiment's own prior rounds' declared
+  departure).
+- **J4's collision-count/PTM-2 finding is mixed and cell-dependent**; this
+  round does not attempt to explain WHY `FROB-SPLIT-q11n5` and
+  `FROB-EQDEG-q19n5` show opposite block-product/collision patterns (a
+  further open question, named in next_actions), and does not extrapolate
+  either cell's pattern to any other cell or scale.
+- `FROB-NOLATTICE-q13n5`'s second curve and `FROB-EXT-q13n7` remain out of
+  scope (per `DEC-20260921-e81e25` and SR-4 respectively); this decision
+  says nothing about them.
+- **C5 (ker Tr identity) and success clauses (1)-(5) are UNCHANGED** by
+  this round (not recomputed; per `manifest.yaml`'s
+  `controls_not_recomputed` field, these are field-level facts already
+  established in round 1) and remain holding/PASS as recorded in
+  `EV-FROB-2fe225`; this decision concerns ONLY clause (6)/falsification
+  clause (c).
+- Per AGENTS.md "`reject_scoped` on a single unreplicated empirical-only run
+  is forbidden": this decision's ceiling is WEAKEN regardless of how one
+  reads the PTM-2 mixed result; a cleaner, uniformly-firing PTM-2-clear
+  result would still not license `reject_scoped` at this replication level.
+- **PD-1** (matching `TASK-20260921-da0399`'s and `TASK-20260921-e107c8`'s
+  own declared departure): this round dispatches a single coordinator
+  subagent owning all five joints as sequenced steps, not five
+  independently-owned reviewer sessions. A full multi-agent
+  independence-checked round is recommended as a next_action out of
+  caution (see Inference above), though the plan's own formal escalation
+  trigger (`reject_scoped`/`support` at `replicated`/`strong`) is not met
+  by this decision.
+
+Records this Round 2 analysis relies on: `RUN-FROB-91ee9c-51bc02`,
+`RUN-FROB-91ee9c-7119f2`, `EXP-FROB-91ee9c` (specification.yaml v2,
+amendment `DEC-20260921-e81e25`), `H-FROB-d93575`, `EV-FROB-2fe225`,
+`DEC-20260921-3678fc`, `DEC-20260921-a72e4c`, `EV-FROB-b53a91`,
+`ledger/handoffs/TASK-20260921-1dba2a.yaml`.
