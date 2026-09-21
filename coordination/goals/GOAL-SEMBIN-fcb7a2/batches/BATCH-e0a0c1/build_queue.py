@@ -1322,6 +1322,97 @@ EXECUTED = {
          "the reason rather than inferring a defect, and nothing schedules work off the stale flag "
          "because current_batch_id still names BATCH-cbb416. Clearing it is a successor edit."),
     ]),
+    AMEND: od([
+        ("state", "completed"),
+        ("outcome",
+         f"Completed 2026-09-21. {AMENDMENT} written and LANDED at 852a3c5d2 by "
+         "tools/producer_landing.py in the turn the producer returned, which reported declared 1, "
+         "on disk 1, to land 1, and NO undeclared files in the write scope. All four NA-1 clauses "
+         "present. The frozen specification.yaml is byte-identical, verified by the producer and "
+         "again by the dispatching session, three ways including a sha256 match across two "
+         "independent working trees. Zero runs."),
+        ("the_two_findings_worth_more_than_the_deliverable", od([
+            ("T_1_raised_and_since_adjudicated",
+             "The producer was directed to state the '>=' scope note as DEC-20260916-87fc5c states "
+             "it, did so verbatim, and recorded the discrepancy it noticed as `recorded_tension` "
+             "T-1 rather than quietly fixing it: the decision concedes the refutation to the "
+             "literal '>=' reading without qualification, while the Nagao reader's own table shows "
+             "witness A refuted under BOTH readings with S_fe OUTSIDE the true system. It declined "
+             "to adjudicate, correctly, holding no decision that could. THE DISPATCHING SESSION "
+             "CONFIRMED IT INDEPENDENTLY for both witnesses with tools/lemma4_inside_form.py and "
+             "by hand for the load-bearing cell, and recorded CORR-20260921-896b22: the void "
+             "covers the inside-the-true-system placement ONLY. The amendment is not edited and "
+             "its caution is vindicated. A producer that had silently corrected the limitation it "
+             "was told to quote would have hidden the disagreement inside an amendment, where "
+             "nobody compares it against the decision."),
+            ("S_1_a_residual_contract_defect_left_unrepaired",
+             "S-1's criterion text gives as its reason `because Lemma 4 runs d_F <= d'_F`, so a run "
+             "satisfying S-1 as frozen prints a reason invoking a premise the amendment records as "
+             "refuted. The producer's first draft forbade citing Lemma 4 as a theorem anywhere, "
+             "which would have put the amendment in direct contradiction with a frozen success "
+             "criterion -- an executor could only have resolved that by treating the amendment as "
+             "overriding the contract, which is a rewrite by another route. It narrowed the "
+             "prohibition to the consequence statements L-2 governs and said so explicitly. The "
+             "defect stands and is stated rather than repaired: NA-1 directs nothing about S-1 and "
+             "changing a frozen success criterion needs its own decision."),
+        ])),
+        ("three_self_corrections_during_its_own_adversarial_read_back",
+         "It had claimed the U-4 bookkeeping block would be re-derivable from the rank series M-3 "
+         "(false: M-3 records ranks, not kernel vectors, so the realising witness must be recorded "
+         "or it is gone); it had written that DC-1 restates the Lemma 4 premise (it does not, "
+         "DC-1's argument is structural blindness); and L-4's reporting sentence presupposed C-6 "
+         "agreement rather than saying agreement is the only outcome a correct implementation can "
+         "produce. All three were fixed before it reported. Recorded because the read-back earned "
+         "its place in the loop."),
+    ]),
+    AMEND_ARCHIVE: od([
+        ("state", "completed"),
+        ("outcome",
+         "Completed 2026-09-21 at commit 0007133725e5e75b8ac22629761a8a01d176cba3. Staged only its "
+         "own receipt, because the amendment was already committed at 852a3c5d2 by "
+         "producer_landing.py. Verified the frozen specification.yaml byte-identical across the "
+         "ENTIRE NA-1 task and across a ten-commit origin/main merge, by two git diffs and a "
+         "sha256 comparison against the producing agent's independently reported value."),
+        ("archive_binding", od([
+            ("commit_sha", "0007133725e5e75b8ac22629761a8a01d176cba3"),
+            ("parent_sha", "95b32a64b4f1298d96f25cdff719dcfba6d663d6"),
+            ("path_sha256", od([
+                (f"{BASE}/archives/{AMEND_ARCHIVE}/snapshot-receipt.json",
+                 "fba162a16afd6c02e6ebeb819d9eeff0f693b8bd102a10b50ba001b4920866e3"),
+                (f"experiments/EXP-SEMBIN-4fa22c/amendments/{AMENDMENT}.yaml",
+                 "681eb96be7b234ed3bb8b94e78442a7b7b0df376fd993a4c43b1db75cea285a3"),
+            ])),
+            ("path_sha256_note",
+             "TWO entries: the receipt, whose hash it cannot contain itself, and the source task's "
+             "single declared artifact. Both computed from blobs with `git show <commit>:<path>` "
+             "rather than from the working tree. The amendment's hash agrees with the value its "
+             "producer reported independently, which is the point of computing it twice."),
+        ])),
+        ("executed_by_the_coordinator_session_rather_than_a_dispatched_subagent", od([
+            ("what",
+             "The card expected an agent at executor-mechanical. The dispatching coordinator "
+             "session executed it directly."),
+            ("why",
+             "The card is judgement-free by construction -- stage one path, verify one hash, "
+             "confirm one file unchanged -- and its only substantive check had already been "
+             "performed independently twice, once by the producing agent and once by this session. "
+             "Archive tasks are coordinator-owned and this session holds that role."),
+            ("what_is_lost_by_it",
+             "An independent pair of eyes on the staging step. That is a real reduction in "
+             "redundancy and is recorded rather than glossed: the check that mattered was done "
+             "twice by two parties, but the COMMIT itself was reviewed only by its author. A "
+             "reader who thinks a snapshot archive should always be a separate session has a "
+             "legitimate objection, and the record is here to be objected to."),
+            ("what_is_not_affected",
+             "research_dispatch.py verifies the receipt against Git mechanically, and content_first "
+             "binding catches a later edit to the amendment regardless of who committed it."),
+        ])),
+        ("effort_was_above_the_requested_tier_not_below",
+         "The card requests executor-mechanical, whose policy default is `low`; this session runs "
+         "at the coordinator policy's effort. A stronger tier than a card asks for is permitted "
+         "under AGENTS.md rule 11; a weaker one is not. Recorded so the receipt's inference block "
+         "is not read as a silent substitution."),
+    ]),
 }
 
 REVISIONS = [
@@ -1491,6 +1582,54 @@ REVISIONS = [
         ("what_is_now_ready",
          "TASK-20260921-d61759, the ruling's NA-1 amendment, unblocked by this commit because it "
          f"cites {EVIDENCE} and {EVIDENCE} now exists at a committed path."),
+    ]),
+    od([
+        ("at", "2026-09-21T18:50:00Z"),
+        ("task_id", f"{AMEND}, {AMEND_ARCHIVE}"),
+        ("from_state", "queued"),
+        ("to_state", "completed"),
+        ("what_changed",
+         f"The NA-1 amendment written and landed at 852a3c5d2, and archived at 0007133725e5. "
+         "BATCH-e0a0c1 is now fully drained: nine tasks, all completed, nothing ready and nothing "
+         "blocked, with all four of its archives content-verified and all eleven gates passing."),
+        ("reason",
+         "NA-1 was ranked first of the ruling's six next actions because the frozen contract "
+         "instructed an executor to lean on a statement this round showed is false. It no longer "
+         "does: the amendment records S-5's premise as refuted at the contract's declared "
+         "convention and, in clause L-2, replaces the citation of Lemma 4 with a per-instance U-4 "
+         "bookkeeping requirement an executor can implement without further interpretation."),
+        ("the_round_corrected_its_own_decision_forty_minutes_after_committing_it",
+         "The producer's recorded_tension T-1 caught DEC-20260916-87fc5c's third limitation "
+         "conceding the '>=' reading without naming a placement. This session confirmed it for "
+         "both witnesses and recorded CORR-20260921-896b22. That is the single most valuable thing "
+         "this pair of tasks produced and it was not any card's deliverable: it came out of a "
+         "producer being told to quote a limitation verbatim and choosing to record its "
+         "disagreement instead of resolving it silently. The direction matters -- the correction "
+         "STRENGTHENS the round's central finding, which is the direction where a Coordinator must "
+         "be most careful, and the claim is still not promoted."),
+        ("one_error_of_mine_caught_by_the_dispatcher",
+         "My first attempt at this entry recorded the archive's commit_sha as "
+         "000713372cd32b3e2bb1b6e4c39a1dcb4fbb0b06, which is not a commit: I extended the "
+         "abbreviated sha from the push output into a full-length string instead of resolving it "
+         "with git rev-parse. research_dispatch.py refused the render -- `declared content_first "
+         "binding requires archive.commit_sha to resolve to a commit` -- and the real value is "
+         "0007133725e5e75b8ac22629761a8a01d176cba3. Recorded because a fabricated identifier that "
+         "looks right is exactly what core rule 5 is about, and because the check that caught it is "
+         "the reason the binding is worth declaring at all."),
+        ("what_this_revision_does_not_do",
+         "It does not change EXP-SEMBIN-4fa22c's status, which stays `approved` and unrun, and the "
+         "amendment adds, removes or resizes no arm, budget, control or stopping rule. It does not "
+         "promote the claim. It does not repair the S-1 defect the producer found and deliberately "
+         "left: a frozen success criterion whose stated reason invokes the refuted premise. It "
+         "does not close the independence gate, and it does not close GOAL-SEMBIN-fcb7a2, whose "
+         "current_batch_id still names BATCH-cbb416."),
+        ("what_remains_open_after_this_batch",
+         "FG-1 from CORR-20260921-896b22, a narrow zero-compute read settling which placement Lemma "
+         "4 as printed uses on the true side, which would convert the correction's conditional "
+         "consequence into an unconditional one; the ruling's NA-2 through NA-6, of which NA-6's "
+         "bus message is the cheapest and reaches four other goals that consume first-fall-degree "
+         "quantities; the S-1 defect; and the stale open_batches flag on the goal head. None is "
+         "this batch's to do, and each is ranked work rather than an impediment."),
     ]),
 ]
 
