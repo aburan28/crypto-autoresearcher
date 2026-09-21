@@ -1,0 +1,215 @@
+--- a/examples/koblitz_rank_fixture.rs
++++ b/examples/koblitz_rank_fixture.rs
+@@ -676,7 +676,27 @@
+     }
+ }
+ 
++// Common ARM carryless-product port; both IC and rho use the same guard.
++#[inline]
++fn arm_pmull_enabled() -> bool {
++    #[cfg(target_arch = "aarch64")]
++    { std::arch::is_aarch64_feature_detected!("aes") }
++    #[cfg(not(target_arch = "aarch64"))]
++    { false }
++}
++
++#[cfg(target_arch = "aarch64")]
++#[target_feature(enable = "aes")]
++unsafe fn arm_pmull_product(left: u64, right: u64) -> u128 {
++    std::arch::aarch64::vmull_p64(left, right)
++}
++
+ fn square_raw_dispatched(curve: &KoblitzCurve, value: u64) -> u64 {
++    #[cfg(target_arch = "aarch64")]
++    if arm_pmull_enabled() {
++        // SAFETY: the runtime guard proves the required PMULL feature.
++        return reduce_raw(curve, unsafe { arm_pmull_product(value, value) });
++    }
+     #[cfg(target_arch = "x86_64")]
+     if pclmul_enabled() {
+         if curve.n == 53 && n53_fast_reduction_enabled() && fused_pcl_n53_enabled() {
+@@ -832,6 +852,7 @@
+ }
+ 
+ fn field_mul_backend() -> &'static str {
++    if arm_pmull_enabled() { return "aarch64_pmull"; }
+     if pclmul_enabled() {
+         "x86_64_pclmulqdq"
+     } else {
+@@ -840,6 +861,7 @@
+ }
+ 
+ fn field_square_backend(curve: &KoblitzCurve) -> &'static str {
++    if arm_pmull_enabled() { return "aarch64_pmull"; }
+     if pclmul_enabled() {
+         "x86_64_pclmulqdq"
+     } else if curve.n <= 31 {
+@@ -875,6 +897,11 @@
+ }
+ 
+ fn mul_raw_dispatched(curve: &KoblitzCurve, left: u64, right: u64) -> u64 {
++    #[cfg(target_arch = "aarch64")]
++    if arm_pmull_enabled() {
++        // SAFETY: the runtime guard proves the required PMULL feature.
++        return reduce_raw(curve, unsafe { arm_pmull_product(left, right) });
++    }
+     #[cfg(target_arch = "x86_64")]
+     if pclmul_enabled() {
+         if curve.n == 53 && n53_fast_reduction_enabled() && fused_pcl_n53_enabled() {
+@@ -4663,3 +4690,52 @@
+         );
+     }
+ }
++
++#[cfg(all(test, target_arch = "aarch64"))]
++mod cold_arm_port_tests {
++    use super::*;
++    fn bitwise_product(a: u64, b: u64) -> u128 {
++        let mut p = 0u128;
++        for i in 0..64 { if (b >> i) & 1 != 0 { p ^= (a as u128) << i; } }
++        p
++    }
++    fn bitwise_reduce(curve: &KoblitzCurve, mut p: u128) -> u64 {
++        let mut modulus = 1u128 << curve.n;
++        for &term in &curve.curve.irreducible.low_terms { modulus ^= 1u128 << term; }
++        for i in (curve.n..128).rev() {
++            if (p >> i) & 1 != 0 { p ^= modulus << (i - curve.n); }
++        }
++        p as u64
++    }
++    #[test]
++    fn pmull_matches_independent_bitwise_edges_and_corpus() {
++        assert!(arm_pmull_enabled(), "this ARM fairness gate requires available PMULL");
++        let edge = [0, 1, u64::MAX, 1u64 << 63, (1u64 << 53)-1, (1u64 << 13)-1, 0xaaaaaaaaaaaaaaaa, 0x5555555555555555];
++        for &a in &edge { for &b in &edge {
++            assert_eq!(unsafe { arm_pmull_product(a,b) }, bitwise_product(a,b));
++        }}
++        let mut x = 0x8a5cd789635d2dffu64;
++        for _ in 0..256 {
++            x ^= x << 13; x ^= x >> 7; x ^= x << 17;
++            let y = x.rotate_left(29) ^ 0x6a09e667f3bcc909;
++            assert_eq!(unsafe { arm_pmull_product(x,y) }, bitwise_product(x,y));
++            assert_eq!(unsafe { arm_pmull_product(x,x) }, bitwise_product(x,x));
++        }
++    }
++    #[test]
++    fn reduced_n13_n53_operations_match_independent_bitwise_oracle() {
++        assert!(arm_pmull_enabled());
++        for n in [13u32,53] {
++            let curve = KoblitzCurve::new(0,n).unwrap();
++            let mask = (1u64 << n)-1;
++            let mut x = 0xd1b54a32d192ed03u64;
++            for i in 0..256 {
++                x ^= x << 13; x ^= x >> 7; x ^= x << 17;
++                let a = if i == 0 {0} else if i == 1 {mask} else {x & mask};
++                let b = x.rotate_left(17) & mask;
++                assert_eq!(mul_raw(&curve,a,b),bitwise_reduce(&curve,bitwise_product(a,b)));
++                assert_eq!(square_raw(&curve,a),bitwise_reduce(&curve,bitwise_product(a,a)));
++            }
++        }
++    }
++}
+--- a/examples/koblitz_rho_fixture.rs
++++ b/examples/koblitz_rho_fixture.rs
+@@ -176,7 +176,27 @@
+     wide as u64
+ }
+ 
++// Common ARM carryless-product port; both IC and rho use the same guard.
++#[inline]
++fn arm_pmull_enabled() -> bool {
++    #[cfg(target_arch = "aarch64")]
++    { std::arch::is_aarch64_feature_detected!("aes") }
++    #[cfg(not(target_arch = "aarch64"))]
++    { false }
++}
++
++#[cfg(target_arch = "aarch64")]
++#[target_feature(enable = "aes")]
++unsafe fn arm_pmull_product(left: u64, right: u64) -> u128 {
++    std::arch::aarch64::vmull_p64(left, right)
++}
++
+ fn raw_square(curve: &KoblitzCurve, value: u64) -> u64 {
++    #[cfg(target_arch = "aarch64")]
++    if arm_pmull_enabled() {
++        // SAFETY: the runtime guard proves the required PMULL feature.
++        return raw_reduce(curve, unsafe { arm_pmull_product(value, value) });
++    }
+     if curve.n <= 31 {
+         let mut wide = value;
+         wide = (wide | (wide << 16)) & 0x0000_ffff_0000_ffff;
+@@ -197,6 +217,11 @@
+ }
+ 
+ fn raw_mul_field(curve: &KoblitzCurve, left: u64, right: u64) -> u64 {
++    #[cfg(target_arch = "aarch64")]
++    if arm_pmull_enabled() {
++        // SAFETY: the runtime guard proves the required PMULL feature.
++        return raw_reduce(curve, unsafe { arm_pmull_product(left, right) });
++    }
+     if curve.n <= 31 {
+         let mut product = 0u64;
+         let mut value = right;
+@@ -903,6 +928,8 @@
+         "lambda":lambda,
+         "quotient_mode":mode.name(),
+         "arithmetic_backend":"packed_u64_polynomial_basis",
++        "field_multiplication_backend":if arm_pmull_enabled() {"aarch64_pmull"} else {"portable_sparse_carryless"},
++        "field_squaring_backend":if arm_pmull_enabled() {"aarch64_pmull"} else {"portable_bit_interleave"},
+         "automorphism_size":match mode {
+             Quotient::Ordinary => 1,
+             Quotient::Negation => 2,
+@@ -1053,3 +1080,52 @@
+         }
+     }
+ }
++
++#[cfg(all(test, target_arch = "aarch64"))]
++mod cold_arm_port_tests {
++    use super::*;
++    fn bitwise_product(a: u64, b: u64) -> u128 {
++        let mut p = 0u128;
++        for i in 0..64 { if (b >> i) & 1 != 0 { p ^= (a as u128) << i; } }
++        p
++    }
++    fn bitwise_reduce(curve: &KoblitzCurve, mut p: u128) -> u64 {
++        let mut modulus = 1u128 << curve.n;
++        for &term in &curve.curve.irreducible.low_terms { modulus ^= 1u128 << term; }
++        for i in (curve.n..128).rev() {
++            if (p >> i) & 1 != 0 { p ^= modulus << (i - curve.n); }
++        }
++        p as u64
++    }
++    #[test]
++    fn pmull_matches_independent_bitwise_edges_and_corpus() {
++        assert!(arm_pmull_enabled(), "this ARM fairness gate requires available PMULL");
++        let edge = [0, 1, u64::MAX, 1u64 << 63, (1u64 << 53)-1, (1u64 << 13)-1, 0xaaaaaaaaaaaaaaaa, 0x5555555555555555];
++        for &a in &edge { for &b in &edge {
++            assert_eq!(unsafe { arm_pmull_product(a,b) }, bitwise_product(a,b));
++        }}
++        let mut x = 0x8a5cd789635d2dffu64;
++        for _ in 0..256 {
++            x ^= x << 13; x ^= x >> 7; x ^= x << 17;
++            let y = x.rotate_left(29) ^ 0x6a09e667f3bcc909;
++            assert_eq!(unsafe { arm_pmull_product(x,y) }, bitwise_product(x,y));
++            assert_eq!(unsafe { arm_pmull_product(x,x) }, bitwise_product(x,x));
++        }
++    }
++    #[test]
++    fn reduced_n13_n53_operations_match_independent_bitwise_oracle() {
++        assert!(arm_pmull_enabled());
++        for n in [13u32,53] {
++            let curve = KoblitzCurve::new(0,n).unwrap();
++            let mask = (1u64 << n)-1;
++            let mut x = 0xd1b54a32d192ed03u64;
++            for i in 0..256 {
++                x ^= x << 13; x ^= x >> 7; x ^= x << 17;
++                let a = if i == 0 {0} else if i == 1 {mask} else {x & mask};
++                let b = x.rotate_left(17) & mask;
++                assert_eq!(raw_mul_field(&curve,a,b),bitwise_reduce(&curve,bitwise_product(a,b)));
++                assert_eq!(raw_square(&curve,a),bitwise_reduce(&curve,bitwise_product(a,a)));
++            }
++        }
++    }
++}
