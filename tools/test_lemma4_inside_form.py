@@ -98,6 +98,102 @@ class TestTheGeReadingScopeNote(unittest.TestCase):
         self.assertEqual(least_degree_in_ideal(witness_system(), fake=True), 1)
 
 
+class TestTheGeReadingVoidsOnlyOnePlacement(unittest.TestCase):
+    """The `>=` void is narrower than this program first recorded it.
+
+    `DEC-20260916-87fc5c`'s third limitation says flatly that the refutation is
+    "void under the literal '>=' reading printed in 2015/984, under which the
+    inequality holds and is empty". `AMD-EXP-SEMBIN-4fa22c-20260921-lemma4`'s
+    `recorded_tension` T-1 flagged that the Nagao reader's own table disagrees,
+    and declined to adjudicate. These tests adjudicate it arithmetically.
+
+    The void covers the placement with `S_fe` INSIDE the true system and NOT the
+    placement with it OUTSIDE. Both readings and both placements are pinned for
+    both witnesses, so the four-way table cannot drift again: it is the table,
+    and not any one cell of it, that the scope statement has to match.
+
+    What these tests do NOT settle is a textual question -- which placement
+    Lemma 4 as printed uses on the true side. That is read off a frozen source,
+    not computed here.
+    """
+
+    WITNESSES = (
+        ("A", [frozenset({(2, 1)}), frozenset({(1, 1), (1, 0)})], 2),
+        ("B", [WITNESS_F1, WITNESS_F2], 3),
+    )
+
+    def test_the_ge_void_does_not_reach_the_outside_placement(self):
+        for name, gens, n in self.WITNESSES:
+            with self.subTest(witness=name):
+                fake = first_fall_degree(gens + field_equations(n), fake=True, n=n)
+                inside = least_degree_in_ideal(gens + field_equations(n), fake=False, n=n) + 1
+                outside = least_degree_in_ideal(gens, fake=False, n=n) + 1
+                self.assertEqual(fake, 2)
+                # Inside: collapses onto d'_F, so the inequality holds and is empty.
+                self.assertEqual(inside, 2)
+                # Outside: still strictly above, so the refutation survives `>=`.
+                self.assertEqual(outside, 3)
+                self.assertGreater(outside, fake)
+
+    def test_the_outside_value_is_exact_and_not_merely_an_upper_bound(self):
+        """This is the load-bearing step, and the one a bound could have faked.
+
+        `least_degree_in_ideal` searches cofactors only to a fixed degree, so it
+        returns an UPPER bound: a longer search can only find something smaller.
+        A smaller value for the outside placement would drag `d_F` down to 2 and
+        void the refutation after all, so the whole finding rests on 2 being the
+        exact least degree rather than the least degree found so far.
+
+        For witness A it is exact, by an argument short enough to check by hand.
+        Every generator of `(X^2 Y, XY + X)` is divisible by `X`, hence so is
+        every element of the ideal, so nothing of degree 0 is in it. Degree 1
+        would need `X` itself, which would need `g_1 X Y + g_2 (Y + 1) = 1`;
+        modulo `Y + 1` that reads `g_1 X = 1`, impossible in a polynomial ring.
+        So the least degree is at least 2, and `f_2 = X(Y + 1)` attains it.
+        """
+        f1, f2 = frozenset({(2, 1)}), frozenset({(1, 1), (1, 0)})
+        gens = [f1, f2]
+        self.assertEqual(least_degree_in_ideal(gens, fake=False, n=2), 2)
+
+        # Widening the cofactor search cannot find anything smaller.
+        for bound in (2, 4, 6):
+            self.assertEqual(
+                least_degree_in_ideal(gens, fake=False, n=2, cofactor_degree_bound=bound),
+                2,
+                msg=f"least ideal degree moved at cofactor bound {bound}",
+            )
+
+        # Every element of the ideal is divisible by X, checked directly over a
+        # spanning set rather than argued: no product has a monomial free of X.
+        for g in gens:
+            for m in monomials_up_to(4, 2):
+                prod = poly_mul_mono(g, m)
+                for mono in prod:
+                    self.assertGreaterEqual(
+                        mono[0], 1, msg=f"{mono} in the ideal is not divisible by X"
+                    )
+
+    def test_the_equality_reading_refutes_both_placements(self):
+        """Stated alongside so the two readings cannot be conflated.
+
+        Under equality the refutation reaches both placements; under `>=` it
+        reaches one. A scope note that names a reading without naming the
+        placement is therefore underdetermined, which is how T-1 arose.
+        """
+        for name, gens, n in self.WITNESSES:
+            with self.subTest(witness=name):
+                fake = first_fall_degree(gens + field_equations(n), fake=True, n=n)
+                for label, system in (
+                    ("inside", gens + field_equations(n)),
+                    ("outside", gens),
+                ):
+                    self.assertGreater(
+                        first_fall_degree(system, fake=False, n=n),
+                        fake,
+                        msg=f"equality reading held for witness {name} {label}",
+                    )
+
+
 class TestTheFailureIsNotPathological(unittest.TestCase):
     def test_a_substantial_fraction_of_random_pairs_violate_it(self):
         """A floor, not an exact count -- the point is that it is not rare.
