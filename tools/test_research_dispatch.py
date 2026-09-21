@@ -1620,3 +1620,125 @@ class ForwardQueueTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class UnlandedProducerOutputTests(unittest.TestCase):
+    """The report added after CORR-20260921-942a62.
+
+    Producer deliverables live in one working tree until a later archival task
+    commits them, and that task runs in a later turn of a session that may not
+    exist. Two blind source reads and a run at `completed_valid` were lost that
+    way. The exposure is now named in the plan while the machine still exists.
+    """
+
+    def _repo(self, temporary: str):
+        root = Path(temporary)
+
+        def git(*arguments: str) -> str:
+            return subprocess.run(
+                ["git", "-C", str(root), *arguments],
+                check=True, stdout=subprocess.PIPE, text=True,
+            ).stdout.strip()
+
+        git("init", "-q", "-b", "main")
+        git("config", "user.email", "t@example.com")
+        git("config", "user.name", "Test")
+        (root / "seed.txt").write_text("seed\n")
+        git("add", "seed.txt")
+        git("commit", "-q", "-m", "seed")
+        return root, git
+
+    def test_reports_a_producer_artifact_that_exists_but_is_not_at_head(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root, _ = self._repo(temporary)
+            worker = task("WORK", 50)
+            archive = archive_task("ARCHIVE", [worker])
+            path = root / worker["artifact_paths"][0]
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("produced but never committed\n")
+            plan = dispatch.select(
+                queue(worker, archive),
+                repository_verifier=dispatch.GitRepositoryVerifier(root),
+            )
+            rows = plan.get("unlanded_producer_output")
+            self.assertEqual([row["id"] for row in rows], ["WORK"])
+            self.assertEqual(rows[0]["unlanded"], [worker["artifact_paths"][0]])
+            self.assertIn("producer_landing.py", rows[0]["remedy"])
+            self.assertIn("Unlanded producer output", dispatch.markdown(plan))
+
+    def test_silent_when_the_artifact_is_committed(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root, git = self._repo(temporary)
+            worker = task("WORK", 50)
+            archive = archive_task("ARCHIVE", [worker])
+            rel = worker["artifact_paths"][0]
+            path = root / rel
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("landed\n")
+            git("add", rel)
+            git("commit", "-q", "-m", "land WORK")
+            plan = dispatch.select(
+                queue(worker, archive),
+                repository_verifier=dispatch.GitRepositoryVerifier(root),
+            )
+            self.assertNotIn("unlanded_producer_output", plan)
+            self.assertNotIn("Unlanded producer output", dispatch.markdown(plan))
+
+    def test_silent_when_the_producer_has_written_nothing_yet(self) -> None:
+        """An unstarted producer is not an exposure and must not be reported."""
+        with tempfile.TemporaryDirectory() as temporary:
+            root, _ = self._repo(temporary)
+            worker = task("WORK", 50)
+            plan = dispatch.select(
+                queue(worker, archive_task("ARCHIVE", [worker])),
+                repository_verifier=dispatch.GitRepositoryVerifier(root),
+            )
+            self.assertNotIn("unlanded_producer_output", plan)
+
+    def test_archive_receipts_are_not_reported(self) -> None:
+        """An archive's own receipt is committed BY the archive; it is not a leak."""
+        with tempfile.TemporaryDirectory() as temporary:
+            root, _ = self._repo(temporary)
+            worker = task("WORK", 50)
+            archive = archive_task("ARCHIVE", [worker])
+            for rel in (worker["artifact_paths"][0], archive["artifact_paths"][0]):
+                path = root / rel
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("x\n")
+            plan = dispatch.select(
+                queue(worker, archive),
+                repository_verifier=dispatch.GitRepositoryVerifier(root),
+            )
+            self.assertEqual(
+                [row["id"] for row in plan["unlanded_producer_output"]], ["WORK"]
+            )
+
+    def test_tree_state_does_not_perturb_the_plan_hash(self) -> None:
+        """The reason the report sits OUTSIDE the digest.
+
+        Run manifests record `dispatch_plan_sha256`. If unlanded output changed
+        the hash, re-deriving it later would mismatch for reasons unrelated to
+        the plan -- a false integrity alarm of the kind CORR-20260915-654160
+        records.
+        """
+        with tempfile.TemporaryDirectory() as temporary:
+            root, _ = self._repo(temporary)
+            worker = task("WORK", 50)
+            archive = archive_task("ARCHIVE", [worker])
+            verifier = dispatch.GitRepositoryVerifier(root)
+            clean = dispatch.select(queue(worker, archive), repository_verifier=verifier)
+            path = root / worker["artifact_paths"][0]
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("now dirty\n")
+            dirty = dispatch.select(
+                queue(worker, archive),
+                repository_verifier=dispatch.GitRepositoryVerifier(root),
+            )
+            self.assertEqual(clean["plan_sha256"], dirty["plan_sha256"])
+            self.assertIn("unlanded_producer_output", dirty)
+
+    def test_a_verifier_without_the_capability_reports_nothing(self) -> None:
+        """Backwards compatible: FakeGitVerifier and None must keep working."""
+        worker = task("WORK", 50)
+        plan = dispatch.select(queue(worker, archive_task("ARCHIVE", [worker])))
+        self.assertNotIn("unlanded_producer_output", plan)

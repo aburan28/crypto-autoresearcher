@@ -93,16 +93,38 @@ GOAL_HEAD_SHARED_NOTE = (
     "(docs/concurrent-goal-lanes.md, CORR-20260915-654160)."
 )
 
+# WIDENED after CORR-20260921-942a62. Both cards originally declared three files
+# apiece and both readers filed far more -- seventeen and twelve -- because a
+# reader that checks its own claim writes a recheck, and a reader that distrusts a
+# frozen extraction re-extracts the PDF. All of it was lost with the machine,
+# INCLUDING the recheck that carried the counterexample to Lemma 4's inside form,
+# which was the single most valuable thing either read produced.
+#
+# tools/producer_landing.py commits the DECLARED set and nothing else, on purpose.
+# So an undeclared artifact is an unlanded artifact, and the declaration has to
+# anticipate what a reader legitimately produces rather than record the minimum.
+# These names are therefore REQUIRED OUTPUT PATHS in the cards below, not a guess
+# at what might appear: a reader that has nothing to put in recheck.py writes the
+# file saying so, which is a cheaper convention than a per-file negotiation.
+#
+# `--check` still sweeps each write_scope for anything undeclared, so a reader
+# that files beyond even this set is visible before the turn ends.
 nagao_artifacts = [
     f"{NAGAO_DIR}/report.md",
     f"{NAGAO_DIR}/statement-map.json",
     f"{NAGAO_DIR}/attestation.yaml",
+    f"{NAGAO_DIR}/recheck.py",
+    f"{NAGAO_DIR}/recheck.out",
+    f"{NAGAO_DIR}/reextract.md",
 ]
 
 semaev_artifacts = [
     f"{SEMAEV_DIR}/report.md",
     f"{SEMAEV_DIR}/statement-map.json",
     f"{SEMAEV_DIR}/attestation.yaml",
+    f"{SEMAEV_DIR}/recheck.py",
+    f"{SEMAEV_DIR}/recheck.out",
+    f"{SEMAEV_DIR}/reextract.md",
 ]
 
 # The ruling task DRAFTS; the ledger archive WRITES THE OFFICIAL DECISION and
@@ -387,10 +409,28 @@ tasks.append(od([
             "with what confidence; the hypotheses each carries; and a `could_not_determine` list.",
             "attestation.yaml -- what you read (exact paths), that you did not read blind_from, "
             "your verdict per joint, and the J-5 control's outcome.",
+            "recheck.py + recheck.out -- an EXECUTABLE check of whatever claim in your "
+            "report carries the most weight, and its captured output. If your finding is a "
+            "counterexample, this is the file that makes it survive you: the last reader to "
+            "run this card produced one and it was lost with the machine "
+            "(CORR-20260921-942a62), and the Coordinator had to rebuild it from scratch. "
+            "If nothing in your report is mechanically checkable, write both files saying "
+            "so and why -- an empty required file is a cheaper convention than a "
+            "negotiation.",
+            "reextract.md -- if you re-extract the PDF because you distrust the frozen "
+            "markdown, the result and what differed. READ inputs/NAGAO-2013-549/"
+            "errata-extraction-20260921.md FIRST: that package orphans 63 of its 73 large "
+            "operators, so Lemma 2's GRADED monomial-order hypothesis reads as a vacuous "
+            "per-variable one in paper_fulltext.md, and paper_fulltext.pymupdf.txt beside "
+            "it is intact. If the errata answers your extraction question, record that "
+            "here instead of re-doing it.",
         ]),
         ("artifact_paths_note",
-         "Three files, all inside " + NAGAO_DIR + ". Create nothing outside it and check with "
-         "`git status --porcelain` before reporting done."),
+         "SIX files, all inside " + NAGAO_DIR + ". Create nothing outside it and check with "
+         "`git status --porcelain` before reporting done. Every one of the six is REQUIRED: "
+         "the Coordinator lands exactly the declared set on your return "
+         "(tools/producer_landing.py), so a file you produce and do not declare is a file "
+         "that is not committed, and an undeclared artifact is what was lost last time."),
         ("blindness", od([
             ("blind_from", BLIND_FROM),
             ("why",
@@ -412,7 +452,8 @@ tasks.append(od([
             ("maximum_runs", 0),
         ])),
         ("completion_gate", [
-            "all three artifacts exist under the write scope",
+            "all SIX declared artifacts exist under the write scope -- the Coordinator lands "
+            "exactly the declared set, so an undeclared file is an uncommitted file",
             "J-1, J-2, J-3 and the J-5 control each have an answer or an explicit "
             "'cannot determine, because ...'",
             "the attestation names every path read and asserts blind_from was respected",
@@ -496,6 +537,18 @@ tasks.append(od([
             "`could_not_determine` list.",
             "attestation.yaml -- paths read, blind_from respected, verdict per sub-joint, control "
             "outcome.",
+            "recheck.py + recheck.out -- an EXECUTABLE check of whichever claim in your report "
+            "carries the most weight, and its captured output. The last reader to run this card "
+            "produced rechecks and they were lost with the machine (CORR-20260921-942a62); a "
+            "finding that exists only as prose does not survive its session. If nothing in your "
+            "report is mechanically checkable, write both files saying so and why.",
+            "reextract.md -- if you re-extract the PDF because you distrust the frozen markdown, "
+            "the result and what differed. inputs/NAGAO-2013-549/errata-extraction-20260921.md "
+            "records a CONFIRMED case of this in the sibling package: 63 of 73 large operators "
+            "detached from their operands, so a graded hypothesis reads as a vacuous one. "
+            "SEMAEV-2015-310 was audited and shows no operator detachment, but it does show "
+            "line-splitting, so check any formula you rely on against the PDF and record the "
+            "outcome here either way.",
         ]),
         ("blindness", od([
             ("blind_from", BLIND_FROM),
@@ -513,7 +566,8 @@ tasks.append(od([
             ("maximum_runs", 0),
         ])),
         ("completion_gate", [
-            "all three artifacts exist under the write scope",
+            "all SIX declared artifacts exist under the write scope -- the Coordinator lands "
+            "exactly the declared set, so an undeclared file is an uncommitted file",
             "every sub-joint and the J-5 control has an answer or an explicit "
             "'cannot determine, because ...'",
             "the attestation names every path read and asserts blind_from was respected",
@@ -806,6 +860,39 @@ REVISIONS = [
          "eight paths. Both readers are now unblocked and the read plan they are blind FROM is a "
          "fixed, hash-bound object."),
     ]),
+    od([
+        ("at", "2026-09-21T14:30:00Z"),
+        ("task_id", f"{READ_NAGAO}, {READ_SEMAEV}"),
+        ("from_state", "queued"),
+        ("to_state", "queued"),
+        ("what_changed",
+         "artifact_paths widened from three files to six on each card, with the two new "
+         "deliverables (recheck.py + recheck.out, reextract.md) stated as REQUIRED and the "
+         "completion gate updated from 'all three' to 'all SIX'."),
+        ("reason",
+         "BOTH CARDS ALREADY RAN ONCE AND THEIR OUTPUT WAS LOST (CORR-20260921-942a62). They are "
+         "queued here because the queue edits recording their execution were lost along with the "
+         "artifacts, not because they were never dispatched. This revision is the one thing that "
+         "attempt teaches which can be fixed before the next: each card declared three files and "
+         "each reader filed far more -- seventeen and twelve -- including the recheck that carried "
+         "the counterexample to Lemma 4's inside form, which was the most valuable single artifact "
+         "either read produced. tools/producer_landing.py commits the DECLARED set and nothing "
+         "else, by design, so under the new mechanism those extras would STILL have been lost. "
+         "Declaring them is what closes that."),
+        ("what_this_revision_does_not_do",
+         "It does not change either card's objective, joints, questions, blindness, budget or "
+         "inference, and it does not touch the read plan. The scientific content of the round is "
+         "unchanged and its prior is still the one recorded before any reader ran, so the "
+         "re-dispatch inherits the round's independence in full. It also does not pretend the "
+         "first attempt did not happen: the correction records it, and no artifact from it is "
+         "cited anywhere."),
+        ("cost_stated_plainly",
+         "A reader with nothing mechanically checkable now has to write two files saying so. That "
+         "is a real if small tax on every future run of these cards, accepted because the "
+         "alternative -- negotiating the declared set per reader, after the fact -- is what "
+         "produced an undeclared-artifact dispatch error on the first attempt and a total loss on "
+         "the second."),
+    ]),
 ]
 
 for _task in tasks:
@@ -914,7 +1001,23 @@ queue = od([
     ("tasks", tasks),
 ])
 
-path = pathlib.Path(BASE) / "dispatch_queue.json"
-path.parent.mkdir(parents=True, exist_ok=True)
+# Resolve against the REPOSITORY ROOT, never the caller's cwd. `BASE` is a
+# repository-relative path, and `mkdir(parents=True)` made a wrong cwd silently
+# succeed: run from inside the batch directory this wrote a nested
+# BATCH-e0a0c1/coordination/goals/.../dispatch_queue.json, reported success, and
+# left the real queue untouched -- so a widened declaration looked applied and
+# was not. A builder that cannot find its own repository must fail, not guess.
+def _repository_root() -> pathlib.Path:
+    for candidate in [pathlib.Path(__file__).resolve(),
+                      *pathlib.Path(__file__).resolve().parents]:
+        if (candidate / "AGENTS.md").exists() and (candidate / ".git").exists():
+            return candidate
+    raise SystemExit("cannot locate the repository root above this build script")
+
+
+path = _repository_root() / BASE / "dispatch_queue.json"
+if not path.parent.is_dir():
+    raise SystemExit(f"{path.parent} does not exist; refusing to create a queue "
+                     f"directory from a path that may be wrong")
 path.write_text(json.dumps(queue, indent=1) + "\n")
-print(f"wrote {path} with {len(tasks)} tasks")
+print(f"wrote {path.relative_to(_repository_root())} with {len(tasks)} tasks")
