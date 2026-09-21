@@ -1,0 +1,197 @@
+id: IDEA-20260921-0d2a43
+related_question: RQ-KIC-7502b9
+title: Conditional backward pair support for factor-base and decomposition co-design
+class: algorithm
+claim: >-
+  Exact backward support clauses derived from a target-independent point-pair
+  sum table may reject partial three- or four-point selector assignments
+  earlier than the existing positive relative-Frobenius support. A factor
+  base selected for coverage and conditional support sparsity may improve
+  held-out cost per verified decomposition; direct exact MITM remains the
+  mandatory comparator and may dominate SAT.
+mechanism: >-
+  For an exact point base B, precompute once the charged table
+  R_B(s)={(b,c) in B^2:b+c=s}, retaining signs, repeated points,
+  identity sums, subgroup labels and all orbit/frame selectors. For an S4
+  three-summand query Q and a partial SAT assignment alpha, derive the
+  exact still-allowed point domain A_alpha for P1 and pair domain E_alpha
+  for (P2,P3). The assignment has support precisely when there exist
+  p in A_alpha and (b,c) in E_alpha cap R_B(Q-p). If this intersection is
+  empty, add a no-good clause on a validated subset of alpha's selector
+  literals; if every support forces one selector value, propagate that
+  value. Recompute/watch affected domains as SAT branches, counting all
+  bitset intersections and target transforms as solve work. At S5 four
+  summands, the analogous exact condition is that the still-allowed left
+  pair-sum set intersects Q minus the still-allowed right pair-sum set.
+  This conditional negative and singleton reasoning is stronger than the
+  existing positive relative-frame support, which installs an existential
+  pair state, Frobenius mux and root match but does not establish these
+  partial-domain no-support clauses. The table is target-independent;
+  Q-specific Q-p or Q-s transforms are per-query costs, not hidden SAT
+  preprocessing. Search a predeclared set of equal-size bases using a
+  training score combining exact relation coverage, the frequency of
+  early empty/unique conditional support, preprocessing and total solve
+  time. Freeze the selected B before confirmation targets. Every SAT
+  answer is decoded to original points and verified by full group addition.
+novelty_status: unverified
+citations:
+  - ref: examples/koblitz_s5_sat_instance.rs at source commit 09cd8ce98457e2d7b36ad81bc7e7ff53a52b2921
+    provenance: internal
+    claim: Current S5 code already installs positive regular representative-pair/relative-shift support, canonical intermediate bits, a Frobenius mux and an existential match.
+    verified_by: coordinator
+  - ref: EV-FROB-b6e1e9 and analysis/frobenius-orbit-union/README.md
+    provenance: internal
+    claim: Preliminary m=2 orbit-union measurements do not establish a wall-time win; a WDSat binary model escaped its declared profile, so syntactic shift compression needs independent model replay.
+    verified_by: coordinator
+  - ref: https://eprint.iacr.org/2015/319.pdf
+    provenance: retrieved
+    claim: Auxiliary S3 links are a relevant prior construction; this proposal's incremental claim is conditional exact backward propagation and joint base selection.
+    verified_by: coordinator
+assumptions:
+  - The point table is constructed from the exact admitted B, never from x coordinates alone; B and the group/subgroup rule are fixed before each target batch.
+  - Domain extraction from a partial SAT assignment over orbit, frame, sign and exceptional selectors is exact, or safely overapproximates allowed points when used for pruning.
+  - Learned clauses are admitted only after an independently replayable support-empty certificate; an approximate bitset filter may guide branching but not justify UNSAT.
+  - The same repeated-summand policy applies to SAT, support tables and exact MITM; at-most-three includes an independently counted two-point branch.
+  - Any S5 extension uses the already-implemented relative-frame positive support as a direct same-base control.
+proof_search_map:
+  bottleneck: >-
+    Whether conditional support emptiness appears early enough to repay
+    pair-table construction, per-target joins, bitset maintenance and
+    proof/certificate replay.
+  baseline_embedding:
+    parameter_slice: >-
+      Exhaustive n=7 correctness first; then K1/F_2^19, exactly three
+      summands, fixed 152-point/four-orbit bases and S4, with optional
+      four-summand S5 extension. The frozen base has 6224/6909 exact-three
+      and 6257/6909 at-most-three quotient-target coverage.
+    reproduction_check: >-
+      Independently replay n=7 all-point sums and n=19 frozen-base
+      exact-three/two-point counts; compare the new propagator, an otherwise
+      identical SAT instance with propagation off, and exact MITM on
+      precisely the same B and target set.
+  observation_collision:
+    observable: Pair-sum support count or early SAT conflict.
+    distinct_preimage_search: >-
+      Construct bases with equal pair-sum histograms but different
+      conditional selector domains and relation coverage; replay each
+      no-good against all completions at n=7 to detect a false conflict.
+      Also compare a random group-label permutation preserving table
+      cardinalities to see whether a signal comes from real group addition.
+  constructive_transforms:
+    - transform: Index exact ordered point pairs by their full group sum and selector domains.
+      proposed_object: Reusable, target-independent pair-support table with charged build and RSS.
+      predicted_gain: Fast detection of zero or unique conditional support under partial assignments.
+    - transform: Emit verified no-good and forced-selector clauses from conditional table intersections.
+      proposed_object: Lazy SAT propagator for S4, and then S5 if the S4 gate passes.
+      predicted_gain: More branches closed before the last point selector than positive support alone.
+    - transform: Choose B using training coverage plus charged conditional-pruning and solve metrics.
+      proposed_object: Frozen factor-base/decomposition pair for held-out evaluation.
+      predicted_gain: A better finite coverage/time/RSS Pareto point than coverage-only selection.
+  quantifier_order: >-
+    Freeze candidate bases, target partition, repeated-point policy, solver
+    seeds, build accounting and caps; build each target-independent table;
+    select one B using training targets; for each unseen Q perform and charge
+    its support joins; verify every original-group witness. No Q-specific
+    base changes or prebuilt Q joins are allowed.
+  method_ceiling:
+    strongest_certifiable_claim: >-
+      Exact n=7 clause soundness and a finite held-out n=19 cost/coverage
+      frontier result; no general complexity or generic ECDLP claim.
+    nearby_object_control: >-
+      Exact direct MITM with the same pair table and B, plus SAT with
+      backward propagation disabled and S5's existing positive
+      relative-frame support. A random relabeling of group outputs with
+      preserved marginal table sizes probes proves-too-much behavior.
+  proof_obligations:
+    - claim: Every emitted no-good clause is implied by the exact group relation and current point-domain constraints.
+      responsibility: Show that an empty overapproximate support set rules out every completion; independently enumerate n=7 completions and check every emitted clause.
+    - claim: Every forced selector retains all valid solutions, including repeated and exceptional points.
+      responsibility: Prove singleton support with exact domains, then replay point witnesses under both signs and all orbit frames.
+    - claim: Smallest formal obligation is support-empty clause soundness.
+      responsibility: >-
+        A Lean finite-group lemma should state that if no triple from
+        A_alpha x E_alpha sums to Q, the conjunction defining alpha
+        contradicts the relation. Formalization of the SAT-selector-to-domain
+        map is the explicit missing dependency before code-level certification.
+  not_applicable_reason: null
+predictions:
+  - metric: Early-prune fraction, nodes closed by validated support clauses before the third point selector is fixed.
+    direction: increase
+    minimum_effect: At least 10 percentage points over SAT with the same B and branching but conditional support disabled.
+  - metric: End-to-end CPU seconds per verified exact-three relation, including table construction amortized over the declared target batch and all Q-specific joins.
+    direction: decrease
+    minimum_effect: At least 20 percent versus both propagation-off SAT and exact same-B MITM, with uncertainty intervals.
+  - metric: Held-out exact-three and at-most-three coverage at matched 152-point cardinality.
+    direction: nondecrease
+    minimum_effect: At least the frozen-pool coverage if the selected B is claimed to dominate; otherwise report its measured cost/coverage tradeoff.
+minimal_test:
+  design: >-
+    First enumerate every point and target on a small n=7 Koblitz curve,
+    including true SAT and true UNSAT cases, then enumerate representative
+    partial assignments and validate every learned clause by direct group
+    search. For n=19 freeze a deterministic set comprising the prior
+    four-orbit base, equal-size random four-orbit bases from the same
+    declared pool, and any predeclared structured bases with exactly the
+    same admitted point count. Freeze selection/confirmation target split,
+    solver seeds, time/RSS caps and amortization batch. Rank candidates
+    using training exact-three coverage and total charged query cost;
+    choose one B. On held-out Q compare conditional-support SAT,
+    propagation-off SAT and exact MITM using the identical B and pair
+    table. Include a separate exact-two branch for at-most-three claims.
+    In a second tier only if the S4 gate is favorable, compare S5 four-point
+    conditional support against the existing positive relative-frame
+    support on the same base. Replay CNF/XOR models and exact group sums;
+    a cap yields UNKNOWN, never UNSAT.
+  controls:
+    - Exact same-B MITM using the same ordered point-pair table and charged per-Q joins.
+    - SAT with conditional clauses off and an otherwise identical encoding, solver and branching policy.
+    - Existing S5 positive relative-frame support for the optional four-point tier.
+    - Frozen four-orbit base, matched-size random orbit bases, and predeclared structured bases.
+    - Randomized group-output labels preserving marginal pair-table cardinalities, with full exact-group replay.
+    - Exhaustive n=7 SAT/UNSAT, repeated-point, exceptional point and clause-soundness controls.
+  required_metrics:
+    - Exact admitted B points, orbit count, pair-table entries, sum-bucket histogram and subgroup/exception counts.
+    - Train and held-out exact-two, exact-three, at-most-three and optional exact-four coverage with symmetry weights.
+    - Table build, target join, CNF/XOR encoding, SAT solve, MITM solve and verification CPU/wall time; amortization batch and peak RSS.
+    - Conflicts, decisions, early-prune rate, first-conflict depth, no-good sizes, forced selectors and per-query bitset intersections.
+    - SAT, independently checked UNSAT, UNKNOWN, timeout, crash, invalid model and rejected-clause counts.
+falsification_conditions:
+  - Any learned clause removes an n=7 group-valid decomposition, or n=19 model replay finds a false SAT/UNSAT result.
+  - Conditional clauses do not reach the preregistered early-pruning threshold over propagation-off SAT on identical B.
+  - Charged pair-table and Q-specific join costs make the SAT arm slower or more memory-intensive without a compensating coverage advantage over exact MITM.
+  - Training-selected pruning gains disappear on holdout or appear equally under the group-output relabeling null.
+confounders:
+  - A target-specific pair join can itself solve the query; credit it to MITM/query preprocessing if it does so.
+  - A smaller SAT formula or lower marginal pair-support count need not reduce wall time.
+  - Orbit/frame and point-sign aliasing can create false empty domains unless domain extraction is exact or safely overapproximated.
+  - The preliminary m=2 one-hot/binary shift result is not an n>=3 validation and was not an independent preregistered run.
+interpretation_limits:
+  - This is a fixed-domain, target-independent base with target-dependent query propagation, not a claim of full translation invariance.
+  - Positive relative-frame pair support already exists; only conditional backward/no-support propagation and joint base selection are proposed here.
+  - Exact MITM may dominate because it consumes the same support table directly; SAT has to earn any extra machinery in full end-to-end cost.
+  - A finite n=19 signal does not imply a generic ECDLP exponent gain or a cryptographic-key result.
+heuristic_assumptions:
+  - id: H-PAIR-1
+    statement: >-
+      Bases selected for frequent early empty/unique conditional support
+      on training targets retain that pruning profile on held-out public Q.
+    rigorous_support: >-
+      No transfer theorem is claimed. The support predicate and no-good
+      soundness are exact finite-group facts; the favorable frequency is
+      distributional and unproved.
+    validation_plan: >-
+      Report holdout distributions of first-conflict depth, support-bucket
+      size and query time across equal-size base controls and an
+      orbit-preserving target permutation null.
+target_complexity:
+  time_exponent: No new asymptotic exponent asserted.
+  memory_exponent: No new asymptotic exponent asserted.
+  best_known: Exact same-B MITM is the direct decomposition baseline; current positive relative-frame support is the S5 SAT baseline.
+  hidden_overhead: Pair-table construction, ordered-pair storage, Q-specific joins, domain bitsets, clause validation, SAT search, witness replay and exceptional branches.
+  tradeoff_note: More pair-table memory may buy early pruning, but MITM can spend the same memory; compare time, memory and target data together.
+estimated_cost:
+  implementation: Moderate to high; requires an exact selector-domain interface, watched support table and independent clause checker.
+  compute: Exhaustive n=7 correctness rung, bounded n=19 train/holdout comparison, optional S5 extension only after a favorable gate; Coordinator freezes run counts and caps.
+dominated_by: Unresolved; exact same-B MITM may dominate the SAT arm and is explicitly on the frontier pending full time-memory-data measurement.
+sota_delta: 0 proven exponent improvement; finite relative time, RSS, pruning and coverage deltas are unmeasured before the frozen test.
+recommended_priority: high
