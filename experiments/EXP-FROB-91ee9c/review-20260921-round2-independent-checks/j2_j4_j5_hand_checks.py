@@ -180,8 +180,8 @@ assert split_c4_m1 / split_object_m1 == Fraction(10078, 10060)
 assert eqdeg_c4_m1 / eqdeg_object_m1 == Fraction(123832, 117990)
 # This constant cancels exactly in the spread ratio, so C3's and C4's
 # capacity to show a strictly smaller spread reduces entirely to whether
-# the ONE finest (argmin) partition collides more on the control than on
-# the object -- a single collide/don't-collide comparison, not a richer
+# the ONE finest (argmin) partition collides more on the object than on
+# the control -- a single collide/don't-collide comparison, not a richer
 # statistic.
 
 

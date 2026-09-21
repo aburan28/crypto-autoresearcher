@@ -649,11 +649,8 @@ denominator), which cancels exactly in any max/min spread ratio. **This
 means the entire load-bearing content of whether C3 or C4 CAN show a
 strictly smaller spread than the object, on these two-point-spread cells,
 reduces entirely to whether the argmin (finest) partition shows MORE
-collisions on the matched control than on the object arm** (extra
-collisions shrink `p_m`, raise that partition's `cost_ratio_neg`, and so
-shrink the max/min `spread` — exactly what C2's collision did on
-`FROB-SPLIT-q11n5` above) — exactly the quantity J4 (below) checks
-directly. This is derived from
+collisions on the object arm than on the matched control** — exactly the
+quantity J4 (below) checks directly. This is derived from
 specification.yaml's own text and the raw numbers alone, before opening any
 `blind_from` file; it is a fact about how the `spread` metric interacts
 with the C3/C4 constructions specifically, not a report-derived reading.
@@ -752,7 +749,7 @@ finding is genuinely new, not merely a re-read.
   difference. This means BOTH C3's and C4's capacity to show a strictly
   smaller spread than the object, on these two-achievable-partition cells,
   reduces entirely to whether the SINGLE finest (argmin) partition shows
-  more collisions on the control than on the object — a single
+  more collisions on the object than on the control — a single
   collide/don't-collide comparison per (cell, control, seed), not a richer
   statistic.
 
