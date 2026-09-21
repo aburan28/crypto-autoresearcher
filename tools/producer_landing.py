@@ -278,17 +278,23 @@ def land(repo: Path, queue_path: Path, queue: dict, task_id: str,
         print("\n--dry-run: nothing staged, nothing committed.")
         return 0
 
+    # Landing runs in the same turn the Coordinator may be staging its own
+    # unrelated work. Judge only what THIS `git add` staged, undo only that on
+    # abort, and commit by pathspec so the rest of the index is left as found.
+    def staged_paths() -> set[str]:
+        out = git(repo, "diff", "--cached", "--name-only")
+        return {line for line in out.splitlines() if line.strip()}
+
+    before = staged_paths()
     git(repo, "add", "--", *to_land)
-    staged = [
-        line for line in
-        git(repo, "diff", "--cached", "--name-only").splitlines() if line.strip()
-    ]
-    unexpected = sorted(set(staged) - set(to_land))
+    newly_staged = sorted(staged_paths() - before)
+    unexpected = sorted(set(newly_staged) - set(to_land))
     if unexpected:
-        git(repo, "reset", "-q", "HEAD", "--", *staged)
+        git(repo, "reset", "-q", "HEAD", "--", *newly_staged)
         raise SystemExit(
             "staging picked up paths this task did not declare, so nothing was "
-            "committed and the index was reset:\n  " + "\n  ".join(unexpected)
+            "committed and those paths were unstaged again:\n  "
+            + "\n  ".join(unexpected)
         )
 
     message = (
@@ -308,7 +314,7 @@ def land(repo: Path, queue_path: Path, queue: dict, task_id: str,
             f"\nDeclared but absent at landing time ({len(missing)}):\n"
             + "".join(f"  - {rel}\n" for rel in missing)
         )
-    git(repo, "commit", "-q", "-m", message)
+    git(repo, "commit", "-q", "-m", message, "--", *to_land)
     head = git(repo, "rev-parse", "--short", "HEAD").strip()
     print(f"\ncommitted {head}")
 
