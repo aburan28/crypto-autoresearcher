@@ -836,6 +836,129 @@ EXECUTED = {
          "2015/984 had dropped a locality hypothesis; the definition at NAGAO-2013-549 "
          "paper_fulltext.md :180 shows `local polynomial` names the ambient ring). Zero runs."),
     ]),
+    READ_NAGAO: od([
+        ("state", "completed"),
+        ("outcome",
+         "Completed 2026-09-21 at epoch 2, re-dispatched after the first attempt's package was "
+         "destroyed uncommitted with the machine (CORR-20260921-942a62). Six declared artifacts "
+         "filed and landed at c31504e97 the moment the reader returned. Zero runs, zero "
+         "measurements. J-1 holds and the match is 2013/549's LEMMA 2, not its Lemma 3 -- "
+         "matching on number would have found an unrelated statement about deg(wd(m)), which is "
+         "exactly the failure the card's match-on-content constraint anticipated. J-2 holds: "
+         "Lemma 2 is proved and its induction is well-founded under a graded order. J-3 BREAKS -- "
+         "the derivation requires the field equations as MEMBERS of the true system, which Lemma 4 "
+         "does not supply, and the reader filed a second counterexample (f_1 = X^2 Y, "
+         "f_2 = XY + X over F_2[X,Y]: d'_F = 2, d_F = 3). The J-5 proves-too-much control PASSES. "
+         "The reader additionally reports that this batch's INSIDE-versus-OUTSIDE distinction is "
+         "INERT on the fake side, which if it stands means the campaign's recorded residual was "
+         "drawn in the wrong place; the Coordinator reproduced both that claim and the "
+         "counterexample in tools/lemma4_inside_form.py, which the reader never read, and pinned "
+         "them in tools/test_lemma4_inside_form.py. Ruling at TASK-20260916-a8e5b5."),
+        ("disclosed_independence_qualifications",
+         "The reader's own attestation, not a Coordinator finding: the J-1 answer LEAKED from an "
+         "in-scope, program-authored document -- inputs/NAGAO-2013-549/errata-extraction-20260921.md "
+         "names Lemma 2, and the card directed the reader to read it first. The reader derived the "
+         "match independently by enumerating statements and matching content, and recorded the leak "
+         "rather than claiming a blindness it did not have. J-1 is therefore corroboration; the "
+         "blind bought its real value on J-2 and J-3. It also read CORR-20260916-96f47d only after "
+         "building its counterexample, and saw the sibling directory's file names via `ls` without "
+         "opening any file in it. Both disclosed."),
+    ]),
+    READ_SEMAEV: od([
+        ("state", "completed"),
+        ("outcome",
+         "Completed 2026-09-21 at epoch 2, re-dispatched for the same reason as its sibling. Six "
+         "declared artifacts filed and landed at c0a107514. Zero runs, zero measurements. J-4a "
+         "answered WITH A RECORDED AMBIGUITY the card told it not to resolve by choosing: the "
+         "campaign consumes Semaev's 4.5 first-fall-degree result through Nagao's Propositions 2 "
+         "and 5, and NO record of this campaign cites 2015/310 directly at all -- the statement "
+         "exists only as unanchored prose in a `mechanism` field. J-4b: the argument proves the "
+         "FAKE degree of the NON-TERMINAL links only, by a uniform witness, which the reader is "
+         "careful to call a genuine strength of quantifier order rather than dress up. J-4c BREAKS "
+         "in three separable components -- quantity, coverage (t-2 of t-1 equations, so one is "
+         "uncovered at every t and the count is zero at t = 2, which Assumption 1's range "
+         "includes), and quantifier. The J-5 proves-too-much control FAILS: the paper supplies its "
+         "own known-false object at 4.5.1 and the argument runs there unchanged because k appears "
+         "nowhere in it. Ruling at TASK-20260916-a8e5b5."),
+    ]),
+    READS_SNAPSHOT: od([
+        ("state", "completed"),
+        ("outcome",
+         "Completed 2026-09-21 at commit 4b7edadfbd42489f1a120157c1d29558fa992cce. Staged exactly "
+         "its own receipt and nothing else, because the twelve source artifacts were already "
+         "committed by tools/producer_landing.py when each reader returned. That inverts the "
+         "historical order deliberately and is the CORR-20260921-942a62 remedy: the gap between "
+         "production and archival is what destroyed this round's first attempt. content_first "
+         "verifies the declared hashes at HEAD rather than against a changed-path set, so the "
+         "binding is unaffected by the inversion."),
+        ("archive_binding", od([
+            ("commit_sha", "4b7edadfbd42489f1a120157c1d29558fa992cce"),
+            ("parent_sha", "d67aa9e61cb675f6dc67196b7a01bb17ac634e17"),
+            ("path_sha256", od([
+                # The receipt's own hash, which it cannot contain itself.
+                (f"{BASE}/archives/{READS_SNAPSHOT}/snapshot-receipt.json",
+                 "e8db5c325c32af4908a2121873aaa4720967f8a8564e30e884f9c06912182864"),
+            ] + list(zip(nagao_artifacts, [
+                "9a90c0a338ff8debedad4f89308f21d8668c7b9fb4a716733a5cff87ce6f5317",
+                "3b5b93f7541011df6c6260bcd2b6c527c78177b030953587cd42db14e313b2cc",
+                "d167a49b867b1c9c4272f9c952370bb892e6688deeca8606cc0c0d6557175921",
+                "5398d1745bbc01c8a2db337c19ca585b9ca6571f64f80a025cceee653b6e55ee",
+                "e8fa485a1bd917ed8f51f1dba0889be1a4a9096cc9422501a4655e403209204c",
+                "56aa696d494ef6f66871879504a8c9370be7118d4f4ea0922f5f6002a8ce794d",
+            ], strict=True)) + list(zip(semaev_artifacts, [
+                "d6ac3d96ff8604a246550d002fb9976580d7f751275e20f0ea7b7c903ce534ac",
+                "f78faf3849c6f1ebe56f89243a63c403856726937c63b81108e5fd8a9dfc771b",
+                "3d1a92cf56ed986ddca02f3a9687c1b20b773801b6de4563fda1ef9e290e5707",
+                "bfc84f94e164ad7ecf266549aa73208029a8272a65a11ecd082fee23cf085bba",
+                "b83a413e042adee1a5f41d2aeb3d9ca63542822dd51c44d206d8c2458b02e116",
+                "2e1443502d229e8b41f8691388d8711a5d975b64019f6ca33b82ac20673714ea",
+            ], strict=True)))),
+            ("path_sha256_note",
+             "THIRTEEN entries: the receipt plus twelve reader artifacts, six per reader. Six and "
+             "not three because the cards were widened after the first attempt produced six and "
+             "lost the three it had not declared. Unlike the opening archive, nothing bound here "
+             "is allowed to change: a filed report is immutable, which is why this archive binds "
+             "content_first and that one binds content_at_commit."),
+        ])),
+    ]),
+    RULING: od([
+        ("state", "completed"),
+        ("outcome",
+         "Completed 2026-09-21. Both declared artifacts filed and landed at 757ac827f. Zero runs. "
+         "THREE OF SIX PRIORS REFUTED, and one of the three confirmations was not a live "
+         "prediction: P-1's answer was already in the goal head's own criterion-4 status line "
+         "before the plan was written. P-4 -- the prior the predecessor Coordinator named as "
+         "load-bearing and said it would rather lose -- is REFUTED on three independently "
+         "sufficient grounds, the sharpest being that the distinction it is built on does not "
+         "exist, so as written it asserts that one statement is both licensed and not licensed. "
+         "P-5 refuted: the Semaev quantifier order is the STRONGEST available, the opposite of "
+         "what the plan guessed, and the real gap is quantity and coverage. No joint went "
+         "unowned. J-5 SPLITS -- the Nagao half's proves-too-much control passes and the Semaev "
+         "half FAILS. Inertness ruled established. EV-SEMBIN-1ca3c8 is produced, resting only on "
+         "the counterexample certificates and the inertness measurement and explicitly NOT on the "
+         "textual reads."),
+        ("escalation_honoured_without_softening",
+         "The card's escalation condition fired, and the ruling records the finding at full "
+         "strength while leaving the CLAIM un-promoted: review-breakthrough at max is undegradable "
+         "and unservable in this checkout, and no servable tier was substituted for it. The GOAL "
+         "stays active with IMP-SEMBIN-FCB7A2-LEMMA4-TIER recorded against the claim rather than "
+         "the campaign, drafted as text for the ledger archive to apply. The ruling also states "
+         "concretely what a session with a second resolvable backend must do to promote it."),
+        ("completion_gate_reported_NOT_satisfied",
+         "RECORDED AS COMPLETED WITH ITS GATE OPEN, deliberately, and the distinction matters. The "
+         "gate item `tools/check_review_independence.py raises no problem against the round` is "
+         "UNSATISFIABLE for this round: of the six problems the checker reports, two are properties "
+         "of an IMMUTABLE plan -- J-5 double-owned, and proves_too_much.objects left empty -- so no "
+         "fix to the tool and no permitted edit can ever turn them green. The ruling adjudicated all "
+         "six, classified four as checker limitations and two as genuine procedure deviations, "
+         "specified the checker fix WITH the negative tests that must keep failing, and declined to "
+         "apply it. It recommends leaving the empty control field exactly as it is: an unfilled "
+         "required control is the thing that check exists to find, and it found it. The task is "
+         "complete in substance -- every deliverable filed, every joint and prior scored, every "
+         "checker problem adjudicated -- and reporting the gate as met would have destroyed the only "
+         "information the failure carries. Its successor is NOT unblocked on a pretence: "
+         "TASK-20260916-d4fb62 inherits an open gate and must say so."),
+    ]),
 }
 
 REVISIONS = [
@@ -892,6 +1015,39 @@ REVISIONS = [
          "alternative -- negotiating the declared set per reader, after the fact -- is what "
          "produced an undeclared-artifact dispatch error on the first attempt and a total loss on "
          "the second."),
+    ]),
+    od([
+        ("at", "2026-09-21T15:40:00Z"),
+        ("task_id", READS_SNAPSHOT),
+        ("from_state", "queued"),
+        ("to_state", "completed"),
+        ("what_changed",
+         "Both reads and their snapshot archive recorded as executed in EXECUTED, with the "
+         "archive's commit, parent and thirteen path hashes bound."),
+        ("reason",
+         "The widened cards ran at epoch 2 and both filed all six declared artifacts. Each set was "
+         "landed by tools/producer_landing.py at the moment its reader returned -- c31504e97 and "
+         "c0a107514 -- so for the first time in this round the output was in the repository before "
+         "anything could take the machine away. The re-claim used the "
+         "`--supersedes-lost-completion` path added to tools/goal_lanes.py, which refuses unless "
+         "the declared artifacts are verifiably absent, so the epoch-1 completions could not have "
+         "been overwritten by mistake."),
+        ("the_ordering_inversion_this_records",
+         "The archive commit stages only its receipt, because the artifacts it binds were already "
+         "committed. Every previous archive in this batch created the files it bound. That change "
+         "is deliberate and is the correction's remedy, but it has a cost worth stating where a "
+         "later reader will meet it: the archive commit is no longer where you learn when an "
+         "artifact first existed, and a reader reconstructing the timeline must read the landing "
+         "commit instead. The receipt says so in its own "
+         "`the_source_artifacts_were_ALREADY_COMMITTED_when_this_archive_ran` block."),
+        ("what_this_revision_does_not_do",
+         "It records no verdict. Both readers broke their joints -- J-3 on the derivation, J-4c on "
+         "the statement-versus-argument gap -- and the Semaev reader's proves-too-much control "
+         "FAILED, which is the strongest single result of the round. None of that is a program "
+         "conclusion until TASK-20260916-a8e5b5 composes the joints and a ledger archive commits "
+         "the decision. In particular the reader's report that this batch's inside-versus-outside "
+         "residual was drawn on the inert side is a claim the Coordinator has reproduced "
+         "arithmetically and has NOT yet ruled on."),
     ]),
 ]
 
