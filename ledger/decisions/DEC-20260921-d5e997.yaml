@@ -1,0 +1,250 @@
+coordinator_decision:
+  id: DEC-20260921-d5e997
+  context: >-
+    Second /review-evidence round on EXP-FROB-91ee9c, executing the
+    review_plan committed in ledger/handoffs/TASK-20260921-1dba2a.yaml, on
+    the COMBINED evidence of RUN-FROB-91ee9c-7119f2 (round 1,
+    EV-FROB-2fe225/DEC-20260921-3678fc: inconclusive, missing data on the
+    informative curve) and the new RUN-FROB-91ee9c-51bc02 (executed under
+    protocol_amendment DEC-20260921-e81e25, NA-1 of DEC-20260921-3678fc),
+    which completes the C2/C3/C4 control battery on the SECOND, informative
+    eligible object curve of FROB-SPLIT-q11n5 (A=1,B=2,N=10061) and
+    FROB-EQDEG-q19n5 (A=1,B=1,N=117991) -- the curves where the object arm
+    actually varies (I=2055/451, I=6152/861). Full analysis, including a
+    blind rederivation of every spread and strictly-smaller verdict from
+    metrics.json's raw (p_m, U_neg) pairs alone, recorded BEFORE any
+    blind_from producer artifact (report.md, cost-model.json,
+    implementation.py, checker.py, aggregate.py,
+    work/checker-report.json) was opened, is appended as "Round 2" in
+    experiments/EXP-FROB-91ee9c/analysis.md. Review attestation for the
+    blind_rederivation and all five owned joints (J1-J5) is in
+    experiments/EXP-FROB-91ee9c/review-20260921-round2-attestation.yaml. A
+    written (not executed -- see procedure_deviations) independent check
+    script is at
+    experiments/EXP-FROB-91ee9c/review-20260921-round2-independent-checks/j2_j4_j5_hand_checks.py.
+
+  decision: weaken
+
+  target_ids:
+    - EXP-FROB-91ee9c
+    - H-FROB-d93575
+    - EV-FROB-576872
+    - TASK-20260921-1dba2a
+
+  rationale:
+    - >-
+      J1 (holds): both (cell, curve) targets reached status `ok`; the
+      object arm was recomputed from scratch and matched
+      RUN-FROB-91ee9c-7119f2's recorded curve-index-1 values exactly on both
+      cells, independently re-derived from metrics.json's raw `measured`
+      pairs before report.md was opened. checker.py is pure stdlib, imports
+      no driver code (grep-confirmed), and its independent recomputation
+      agrees with the driver's on every check (work/checker-report.json,
+      0 mismatches across 12 reverifications per cell, both cells).
+    - >-
+      J2 (holds, exactly): every cost_ratio_neg and spread value was
+      independently recomputed by hand from the raw (p_m, U_neg) pairs in
+      metrics.json's `measured` object, BEFORE opening report.md or
+      cost-model.json, and matches those artifacts' stated numbers in all 24
+      checks performed. Zero discrepancy.
+    - >-
+      J4: collision counts (block_sizes, prod_tuple_count, distinct_targets)
+      independently confirmed from the raw metrics.json fields for every ok
+      partition, every arm, both cells. This CORRECTS this handoff's own
+      coordinator_prior, which claimed C2's colliding [2,2] partition has
+      "smaller block products than the object/C3/C4 ... on BOTH cells":
+      true for FROB-SPLIT-q11n5 (block product 36 < 100) but FALSE for
+      FROB-EQDEG-q19n5 (block product 576 > 300) -- caught from the raw
+      data before opening any blind_from file.
+    - >-
+      J3 (the load-bearing joint): success_criterion clause (6), read
+      verbatim, requires ALL of C2, C3 and C4 to show STRICTLY SMALLER
+      spread than the object arm, in EVERY completed cell. Measured:
+      FROB-SPLIT-q11n5 -- C2 smaller (4365/1936 < 2055/451); C3 EQUAL to
+      object (2055/451, both seeds); C4 EQUAL to object (2055/451, both
+      seeds). FROB-EQDEG-q19n5 -- C2 LARGER than object (24632/2223 >
+      6152/861); C3 EQUAL to object (6152/861, both seeds); C4 EQUAL to
+      object (6152/861, both seeds). Clause (6) is NOT MET in either cell,
+      on real, non-degenerate data (every arm's spread is genuinely >1 in
+      both cells, unlike round 1's vacuous spread=1 case on curve index 0).
+      Falsification clause (c) ("any of C2, C3 or C4 shows a spread greater
+      than or equal to the object's") is literally TRIGGERED in both cells.
+    - >-
+      The required proves_too_much test (PTM-2) was applied before ruling.
+      PTM-2(i) (does C2 also trivially match the object, indicating no
+      general discriminating power?) does NOT fire: C2 diverges genuinely on
+      both cells (smaller on SPLIT, larger on EQDEG). PTM-2(ii) (does the
+      collision-count pattern reverse so that smaller constructions collide
+      LESS, consistent with a pure scale-artifact story -- the plan's own
+      named firing condition?) fires PARTIALLY: on FROB-SPLIT-q11n5 the
+      smaller construction (C2) collides MORE than the larger
+      (object/C3/C4), arguing against a scale-artifact reading; on
+      FROB-EQDEG-q19n5 the pattern REVERSES -- the larger construction (C2)
+      collides while the smaller (object/C3/C4) does not, which IS the
+      named PTM-2 firing signature. This is a genuinely mixed,
+      cell-dependent outcome, NOT the clean uniform pass this handoff's own
+      coordinator_prior predicted.
+    - >-
+      An additional structural fact, independent of PTM-2 and derived
+      directly from specification.yaml's own C3 design text: the m=1
+      (coarsest) endpoint of `spread` is algebraically FORCED to equal the
+      object's for any cardinality-matched control (exactly for C3; up to a
+      canceling scalar for C4), in every cell, regardless of any structural
+      difference, because a single slot's p_1 has no possibility of a
+      collision effect. This means C3's/C4's capacity to show a strictly
+      smaller spread reduces entirely to a single collide/don't-collide
+      comparison at the one finest achievable partition per (cell, control,
+      seed) -- bounding how much information any observed tie can carry,
+      independent of the PTM-2(ii) cell-dependence above.
+    - >-
+      Given (a) a genuine, non-vacuous falsification-clause trigger on real
+      data (materially different from round 1's missing-data impediment),
+      (b) a partial, cell-dependent proves-too-much complication preventing
+      a clean, uniform "attributable to Frobenius structure" reading, and
+      (c) AGENTS.md's binding rule that `reject_scoped` is forbidden on a
+      single, unreplicated, `empirical_only` run regardless of signal
+      cleanliness -- the evidence supports WEAKEN, not `reject_scoped`,
+      `support`, or a second `inconclusive`. Recording `inconclusive` again
+      would mischaracterize what was measured: this round's recheck DID
+      exercise the comparison round 1 could not (on the correct, informative
+      curve, in both cells) and it did NOT confirm clause (6); treating that
+      as "no verdict" a second time would understate an available honest
+      finding (AGENTS.md rule 9), not exercise caution.
+    - >-
+      Claim tier toy; strength preliminary (capped by specification.yaml's
+      own replication.plan text: cross-curve replication absent, since only
+      ONE informative curve per cell was tested); proof_status
+      empirical_only (the structural forced-tie argument bounds the
+      STRENGTH of the evidence, it does not itself certify or derive the
+      underlying structural claim false); certificate_refs empty and
+      justified (certificate.kind=none on both runs, no solve/relation
+      claimed).
+    - >-
+      Per this handoff's constraints and DEC-20260921-3678fc's own NA-5/PD-1:
+      because this decision does not reach `reject_scoped` or `support` at
+      strength `replicated`/`strong`, the plan's own formal escalation
+      trigger is not met. An independent adversarial pass on this specific
+      finding is nonetheless recommended as a next_action, given the
+      corrected coordinator_prior premise and the non-obvious structural
+      argument this round adds.
+
+  evidence_refs:
+    - EV-FROB-576872
+    - EV-FROB-2fe225
+    - experiments/EXP-FROB-91ee9c/analysis.md
+    - experiments/EXP-FROB-91ee9c/review-20260921-round2-attestation.yaml
+    - experiments/EXP-FROB-91ee9c/review-20260921-round2-independent-checks/j2_j4_j5_hand_checks.py
+    - experiments/EXP-FROB-91ee9c/runs/TASK-20260921-51bc02/report.md
+    - experiments/EXP-FROB-91ee9c/runs/TASK-20260921-51bc02/metrics.json
+    - experiments/EXP-FROB-91ee9c/runs/TASK-20260921-51bc02/manifest.yaml
+    - experiments/EXP-FROB-91ee9c/runs/TASK-20260921-51bc02/work/checker-report.json
+    - experiments/EXP-FROB-91ee9c/runs/TASK-20260921-51bc02/checker.py
+    - experiments/EXP-FROB-91ee9c/amendments/DEC-20260921-e81e25.yaml
+    - ledger/decisions/DEC-20260921-3678fc.yaml
+    - ledger/handoffs/TASK-20260921-1dba2a.yaml
+
+  limitations:
+    - >-
+      This decision does not close the slot-count-axis diagnostic
+      (RQ-FROB-7d8dd4), does not assert the partition-lattice effect is
+      structurally distinct from cardinality/dimension is false, and does
+      not license any attack, speedup, solve-cost ranking, or security
+      consequence for any curve -- it weakens exactly clause (6)/(c) of
+      H-FROB-d93575, on the two tested (cell, curve) pairs, at the frozen
+      combinatorial cost model.
+    - >-
+      Evidence strength is capped at `preliminary` by specification.yaml's
+      own replication.plan text (no cross-curve replication of the
+      informative-curve comparison); a future run with a second informative
+      curve per cell, if the object-curve pool permits one, could raise or
+      lower this.
+    - >-
+      J4's collision-count/PTM-2 finding is mixed and cell-dependent; this
+      decision does not explain WHY FROB-SPLIT-q11n5 and FROB-EQDEG-q19n5
+      show opposite block-product/collision patterns.
+    - >-
+      The m=1-forced-tie structural argument is new to this round and has
+      not itself been independently checked by a second reviewer (PD-1:
+      single coordinator-subagent session, per this experiment's own prior
+      rounds' declared departure, TASK-20260921-da0399 and
+      TASK-20260921-e107c8).
+    - >-
+      C5 (ker Tr identity) and success clauses (1)-(5) are unchanged by this
+      round and remain holding as recorded in EV-FROB-2fe225; this decision
+      concerns only clause (6) and falsification clause (c).
+    - >-
+      FROB-NOLATTICE-q13n5's second curve and FROB-EXT-q13n7 remain out of
+      scope (per DEC-20260921-e81e25 and SR-4 respectively).
+    - >-
+      Per AGENTS.md "Review architecture" procedure_deviations PD-1 on
+      TASK-20260921-1dba2a (matching TASK-20260921-da0399's and
+      TASK-20260921-e107c8's own declared departure), this round dispatched
+      a single coordinator subagent owning all five joints as sequenced
+      steps, not five independently-owned agent sessions.
+
+  next_actions:
+    - >-
+      NA-1 (coordinator): given the corrected coordinator_prior premise
+      (J4) and the non-obvious, load-bearing m=1-forced-tie structural
+      argument this round adds, dispatch an independent review-adversarial
+      pass (Validator + Red Team, per AGENTS.md rule 3/12 and this
+      experiment's own PD-1 pattern) specifically re-examining J3/J4/PTM-2's
+      mixed, cell-dependent finding, before any further consequence (a new
+      hypothesis, a redesigned metric, or a knowledge promotion) is drawn
+      from this weaken decision. This is recommended out of caution; it is
+      not the formal escalation the plan's own trigger
+      (reject_scoped/support at replicated/strong) requires, since that
+      trigger is not met by a `weaken` decision at `preliminary` strength.
+    - >-
+      NA-2 (coordinator): dispatch, via idea-generator, a follow-up idea
+      exploring the resource_check reading recorded in EV-FROB-576872's
+      obstruction block -- either (a) a redesigned spread-type statistic
+      that isolates the fine-partition collision-count comparison directly,
+      rather than a max/min ratio whose coarse endpoint is pinned by
+      construction for cardinality-matched controls, or (b) a search for an
+      object curve/cell whose achievable partition lattice yields more than
+      two `ok` partitions on the informative curve, so that `spread` reflects
+      more than one collide/don't-collide data point. Per AGENTS.md's
+      Closure gate, a resource candidate enters the ranking on its own
+      merits and changes no status by existing.
+    - >-
+      NA-3 (coordinator, dispatching session): run
+      tools/check_review_independence.py against
+      ledger/handoffs/TASK-20260921-1dba2a.yaml and
+      experiments/EXP-FROB-91ee9c/review-20260921-round2-attestation.yaml
+      before treating this round as complete, per AGENTS.md "Review
+      architecture."
+    - >-
+      NA-4 (coordinator, dispatching session): merge origin/main into the
+      working branch, then run the isolated ledger archive under
+      TASK-20260921-a6d41b staging exactly
+      experiments/EXP-FROB-91ee9c/analysis.md,
+      experiments/EXP-FROB-91ee9c/review-20260921-round2-attestation.yaml,
+      experiments/EXP-FROB-91ee9c/review-20260921-round2-independent-checks/j2_j4_j5_hand_checks.py,
+      ledger/evidence/EV-FROB-576872.yaml,
+      ledger/decisions/DEC-20260921-d5e997.yaml, and
+      ledger/hypotheses/H-FROB-d93575.yaml (status field only), then push and
+      open or refresh a PR against main naming these records.
+    - >-
+      NA-5 (coordinator): if any future round on H-FROB-d93575 reaches
+      support or reject_scoped at strength >= replicated/strong, escalate to
+      a full multi-agent independence-checked review round per this
+      decision's PD-1 limitation, rather than a second single-session round.
+
+  knowledge_promotion:
+    promoted: []
+    not_warranted: >-
+      Decision is `weaken` at strength `preliminary`, not `support` or
+      `reject_scoped` on `replicated`/`strong` evidence, so the mandatory
+      promotion gate is not triggered. The m=1-forced-tie structural
+      observation (how the `spread` metric interacts with cardinality-matched
+      controls on two-achievable-partition cells) is a genuinely reusable
+      methodological note for this experiment family, but promoting it now
+      as a standalone KN-TECH/KN-OPEN entry is premature: it has not been
+      independently checked by a second reviewer (PD-1) and its scope
+      (whether it generalizes beyond these two specific cells) is untested.
+      NA-1's independent adversarial pass is the right point to revisit
+      promotion, once (and if) the observation survives independent review.
+
+  decided_by: coordinator
+  decided_at: '2026-09-21'
