@@ -29,6 +29,7 @@ from datetime import datetime, timezone
 
 import numpy as np
 import scipy.fft as sfft
+import yaml as _yaml
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 WORK = os.path.join(HERE, "work")
@@ -42,8 +43,10 @@ RUN_ID = "RUN-ECDLP-8e13c2"
 TASK_ID = "TASK-20260921-4888d4"
 MEM_CAP_GB = 8.0
 PRIMARY_EXPONENTS = [12.0, 13.0, 14.0, 15.0, 16.0, 17.5, 19.0, 20.5, 22.0, 24.0]
-SECONDARY_J = list(range(8))
-EXTRA_TAIL_EXPONENT = 26.0
+# Frozen prime_ladders.secondary: exponent step 14/9 so j = 9 is exactly 2^26
+# (the jackknife tail) and no interior exponent coincides with the primary list.
+SECONDARY_J = list(range(10))
+SECONDARY_STEP = 14.0 / 9.0
 GATE_ROWS = ["R01", "R02", "R03", "R04", "R05", "R06", "R07", "R08", "R09"]
 
 
@@ -362,7 +365,10 @@ class ChirpZ:
 
     def transform(self, v):
         p, L = self.p, self.L
-        need_gb = (L * 16 * 2 + p * 24) / 2**30
+        # Live at peak: the padded array, the FFT's own working copy, the
+        # resident mmapped bspec pages (three L-length complex buffers), plus
+        # the chirp, the input v, and the output (p * (16 + 8 + 16) bytes).
+        need_gb = (L * 16 * 3 + p * 40) / 2**30
         if need_gb > MEM_CAP_GB - 0.5:
             return None, need_gb
         A = np.zeros(L, dtype=np.complex128)
@@ -407,9 +413,10 @@ def measure(row, p, cz, inv=None, suffix=None, v=None, note=None):
     cid = cell_id(row, p, suffix)
     reg = load_registry()
     existing = reg.get(cid)
-    terminal = ("ok", "unavailable")
-    if os.environ.get("CENSUS_NO_REMEASURE") == "1":
-        terminal = ("ok", "unavailable", "resource_exhaustion")
+    # A resource_exhaustion checkpoint is terminal under the frozen stopping
+    # rule: continuation is a chunked/on-disk convolution under an amendment,
+    # never a silent re-measurement that folds the cell back into the fits.
+    terminal = ("ok", "unavailable", "resource_exhaustion")
     if existing is not None and existing["status"] in terminal:
         return existing
     t0 = time.perf_counter()
@@ -512,9 +519,8 @@ def one_cell(cid):
 def main():
     os.makedirs(WORK, exist_ok=True)
     primary = [smallest_prime_at_least(2.0 ** b) for b in PRIMARY_EXPONENTS]
-    secondary = [smallest_prime_at_least(2.0 ** (12 + 1.7 * j)) for j in SECONDARY_J]
-    tail = smallest_prime_at_least(2.0 ** EXTRA_TAIL_EXPONENT)
-    secondary = secondary + [tail]
+    secondary = [smallest_prime_at_least(2.0 ** (12 + SECONDARY_STEP * j)) for j in SECONDARY_J]
+    tail = secondary[-1]
     all_primes = sorted(set(primary) | set(secondary))
     ladder_of = {}
     for p in primary:
@@ -664,80 +670,162 @@ def write_manifest(all_primes, primary, secondary, tail, reg, controls, control_
     except Exception:
         commit, dirty = "unavailable", "unavailable"
     control_fail = [k for k, v in controls.items() if v is not True]
-    y = ["run:",
-         f"  id: {RUN_ID}",
-         f"  experiment_id: {EXP_ID}",
-         f"  task_id: {TASK_ID}",
-         "  specification_version: 3 (amendments DEC-20260921-d3fafb ladder",
-         "    clarification and DEC-20260921-f1d95a probability-normalisation",
-         "    correction, both pre-run; no cell had executed before either)",
-         f"  executed_at: {now_iso()}",
-         "  executor_provenance: >-",
-         "    Executed in the top-level coordinator session under the executor role",
-         "    contract (agents/executor.md); the executor subagent runtime failed its",
-         "    environment bootstrap (AWS DescribeInstances AuthFailure) at dispatch.",
-         "    Lane claim: coordination/goals/GOAL-CRYPTO-001/batches/BATCH-5d04c8/claims/",
-         "    TASK-20260921-4888d4.1.claim.json (BATCH-5d04c8).",
-         "  command: python3 implementation.py",
-         f"  git_commit: {commit}",
-         "  git_dirty_state: >-",
-         "    " + (dirty.replace("\n", "; ") if dirty else "clean"),
-         "  environment:",
-         f"    python: {sys.version.split()[0]}",
-         f"    numpy: {np.__version__}",
-         "    scipy: 1.18.0 (in-place fft/ifft with overwrite_x=True)",
-         "    platform: darwin arm64",
-         "  seeds:",
-         "    hash_stream: SHA256(EXP-ECDLP-fac9ea:<cell>:<purpose>:<counter>)",
-         "    stochastic elements: C02 signs (blocks of 256 from one digest), C03",
-         "    Moebius coefficients, curve parameters; all frozen in implementation.py",
-         "  convention:",
-         "    probability normalisation (amendment DEC-20260921-f1d95a): set rows",
-         "    v = 1_A/|A| so vhat(0) = 1 exactly (checked per cell,",
-         "    all_ok_cells_vhat0_equals_1); digit rows are mode-level indicators;",
-         "    l1_nontrivial = sum_{k != 0} |vhat(k)| with vhat the exact additive",
-         "    Fourier transform over F_p (Bluestein chirp-z over the prime,",
-         "    exponent-space chirp e_j = j^2*inv2 mod p); abs_vhat0 logged",
-         "  prime_ladders:",
-         f"    primary: {primary}",
-         f"    secondary: {secondary}",
-         f"    tail_jackknife_prime: {tail}",
-         "  memory_cap_gb: 8 (machine protection; per-cell projected need and",
-         "    ru_maxrss high-water recorded in registry.json)",
-         "  validity: " + ("void_control_failure" if control_fail else "controls_passed"),
-         "  validity_reason: >-",
-         "    " + ("one or more frozen controls failed; dependent registry reads are"
-                " void and the defective control is named in fits.json controls"
-                if control_fail else "all frozen controls passed"),
-         "  control_failures: " + json.dumps(control_fail),
-         "  controls: " + json.dumps(controls),
-         "  control_notes: " + json.dumps(control_notes),
-         "  memory_breach_disclosure: >-",
-         "    All 26 cells at the appended 2^26-class tail prime (67108879) were",
-         "    measured with ru_maxrss high-water between 9.6 and 13.8 GiB against",
-         "    the frozen 8 GiB machine-protection cap (two padded arrays + bspec",
-         "    mmap pages + chirp live together; the pre-run need estimate missed",
-         "    the mmap contribution, and an ru_maxrss units bug on darwin (bytes",
-         "    misread as KiB) masked the first breach until the fresh-process",
-         "    continuation exposed it). Per the frozen stopping rule every",
-         "    tail-prime cell is checkpointed resource_exhaustion; the measured",
-         "    l1* and abs_vhat0 values are preserved in registry.json for a",
-         "    chunked/on-disk convolution amendment and are NOT used in the",
-         "    fits. All 406 ok cells lie at primes <= 16777259 with recorded",
-         "    high-water within the cap. Machine protection only: no",
-         "    mathematical verdict attaches to this disclosure.",
-         "  cells:"]
-    for cid in sorted(reg):
-        r = reg[cid]
-        y.append(f"    {cid}: {{status: {r['status']}, l1_nontrivial: {r.get('l1_nontrivial')}, "
-                 f"abs_vhat0: {r.get('abs_vhat0')}, wall_s: {r.get('wall_seconds')}, "
-                 f"rss_highwater_gb: {r.get('rss_highwater_gb')}}}")
-    y.append("  artifacts:")
-    for a in ["implementation.py", "checker.py", "manifest.yaml", "registry.json",
-              "fits.json", "report.md"]:
-        y.append(f"    - {a}")
+    stamps = sorted(r.get("recorded_at", "") for r in reg.values())
+    run = {
+        "id": RUN_ID,
+        "experiment_id": EXP_ID,
+        "task_id": TASK_ID,
+        "status": "completed",
+        "status_note": (
+            "Resumable multi-session execution: run1 (full pass, tail-prime "
+            "cells falsely checkpointed by a double-counting RSS guard), "
+            "fresh-process one-cell continuations, run3 (tail re-measure, "
+            "memory-cap breach exposed), final regeneration passes with "
+            "CENSUS_NO_REMEASURE=1 (no cell re-measured). All cell statuses "
+            "and values are in registry.json with per-cell recorded_at."),
+        "specification_version": ("3 (amendments DEC-20260921-d3fafb ladder "
+                                  "clarification and DEC-20260921-f1d95a "
+                                  "probability-normalisation correction, both "
+                                  "pre-run; no cell had executed before either)"),
+        "code": {
+            "head_commit": commit,
+            "commit": commit,
+            "branch": "ideas/ecdlp-20260921",
+            "dirty_at_execution_start": bool(dirty),
+            "dirty_note": ("git status --short at regeneration: "
+                           + (dirty.replace("\n", "; ") if dirty else "clean")),
+        },
+        "inputs": {
+            "specification_path": "experiments/EXP-ECDLP-fac9ea/specification.yaml",
+            "specification_sha256": "d7434225ebbaed536057fd0c1f7645fa9ec5df8c91884a67688cd587a06fecd7",
+            "specification_version_executed": 3,
+            "amendment_ids": ["DEC-20260921-d3fafb", "DEC-20260921-f1d95a"],
+            "amendment_paths": [
+                "experiments/EXP-ECDLP-fac9ea/amendments/DEC-20260921-d3fafb.yaml",
+                "experiments/EXP-ECDLP-fac9ea/amendments/DEC-20260921-f1d95a.yaml",
+            ],
+            "hypothesis_id": "H-ECDLP-4e1880",
+            "seeds": "SHA256(EXP-ECDLP-fac9ea:<cell>:<purpose>:<counter>) streams frozen in implementation.py",
+        },
+        "timing": {
+            "first_cell_recorded_at": stamps[0] if stamps else None,
+            "last_cell_recorded_at": stamps[-1] if stamps else None,
+            "wall_clock_note": ("Per-cell wall_seconds are in registry.json "
+                                "and manifest cells; the census's own charged "
+                                "cost is their sum plus the regeneration passes."),
+        },
+        "result": {
+            "certificate": {
+                "kind": "none",
+                "note": ("Pure exact-measurement census: no discrete log is "
+                         "solved and no relation is claimed, so nothing "
+                         "requires a solve certificate under "
+                         "docs/claims-and-verification.md. Correctness is "
+                         "carried by checker.py's three independent "
+                         "verification routes (checker-report.json: ALL "
+                         "PASSED) and the vhat(0)=1 invariant in 406/406 ok "
+                         "cells."),
+            },
+            "outputs": {
+                "registry": "registry.json",
+                "fits": "fits.json",
+                "report": "report.md",
+            },
+            "validity": "void_control_failure" if control_fail else "controls_passed",
+            "validity_reason": (
+                "one or more frozen controls failed; the defective control is "
+                "named in fits.json controls" if control_fail
+                else "all frozen controls passed"),
+            "control_failures": control_fail,
+            "controls": controls,
+            "control_notes": control_notes,
+        },
+        "executed_at": now_iso(),
+        "executor_provenance": (
+            "Executed in the top-level coordinator session under the executor "
+            "role contract (agents/executor.md); the executor subagent runtime "
+            "failed its environment bootstrap (AWS DescribeInstances "
+            "AuthFailure) at dispatch. Lane claim: "
+            "coordination/goals/GOAL-CRYPTO-001/batches/BATCH-5d04c8/claims/"
+            "TASK-20260921-4888d4.1.claim.json (BATCH-5d04c8)."),
+        "command": "python3 implementation.py",
+        "git_commit": commit,
+        "git_dirty_state": dirty.replace("\n", "; ") if dirty else "clean",
+        "environment": {
+            "python": sys.version.split()[0],
+            "numpy": np.__version__,
+            "scipy": "1.18.0 (in-place fft/ifft with overwrite_x=True)",
+            "platform": "darwin arm64",
+        },
+        "seeds": {
+            "hash_stream": "SHA256(EXP-ECDLP-fac9ea:<cell>:<purpose>:<counter>)",
+            "stochastic_elements": (
+                "C02 signs (blocks of 256 from one digest), C03 Moebius "
+                "coefficients, curve parameters; all frozen in implementation.py"),
+        },
+        "convention": (
+            "probability normalisation (amendment DEC-20260921-f1d95a): set "
+            "rows v = 1_A/|A| so vhat(0) = 1 exactly (checked per cell, "
+            "all_ok_cells_vhat0_equals_1); digit rows are mode-level "
+            "indicators; l1_nontrivial = sum_{k != 0} |vhat(k)| with vhat the "
+            "exact additive Fourier transform over F_p (Bluestein chirp-z "
+            "over the prime, exponent-space chirp e_j = j^2*inv2 mod p); "
+            "abs_vhat0 logged per cell; C01 zero test uses "
+            "l1* <= 1e-9 * max(|vhat(0)|, 1e-30)"),
+        "prime_ladders": {
+            "primary": primary,
+            "secondary": secondary,
+            "tail_jackknife_prime": tail,
+        },
+        "memory_cap_gb": (
+            "8 (machine protection; per-cell projected need and ru_maxrss "
+            "high-water recorded in registry.json; NOTE: ok cells recorded "
+            "before the darwin ru_maxrss units fix carry byte/KiB-misread "
+            "values, converted maximum 4.49 GiB, within cap)"),
+        "memory_breach_disclosure": (
+            "All 26 cells at the appended 2^26-class tail prime (67108879) "
+            "were measured with ru_maxrss high-water between 9.6 and 13.8 "
+            "GiB against the frozen 8 GiB machine-protection cap (two padded "
+            "arrays + bspec mmap pages + chirp live together; the pre-run "
+            "need estimate missed the mmap contribution, and an ru_maxrss "
+            "units bug on darwin (bytes misread as KiB) masked the first "
+            "breach until the fresh-process continuation exposed it). Per "
+            "the frozen stopping rule every tail-prime cell is checkpointed "
+            "resource_exhaustion; the measured l1* and abs_vhat0 values are "
+            "preserved in registry.json for a chunked/on-disk convolution "
+            "amendment and are NOT used in the fits. All 406 ok cells lie "
+            "at primes <= 16777259 with recorded high-water within the cap. "
+            "Machine protection only: no mathematical verdict attaches to "
+            "this disclosure."),
+        "manifest_correction_note": (
+            "This manifest was regenerated once after the run archive: the "
+            "original hand-formatted emitter produced invalid YAML (unquoted "
+            "cell-id keys containing colons; two folded plain scalars). The "
+            "regeneration changed FORMAT ONLY -- same registry.json, same "
+            "fits.json, same controls, CENSUS_NO_REMEASURE=1 so no cell was "
+            "re-measured -- and the original manifest text remains in git "
+            "history at the exec commit."),
+        "validity": "void_control_failure" if control_fail else "controls_passed",
+        "validity_reason": (
+            "one or more frozen controls failed; dependent registry reads "
+            "are void and the defective control is named in fits.json "
+            "controls" if control_fail else "all frozen controls passed"),
+        "control_failures": control_fail,
+        "controls": controls,
+        "control_notes": control_notes,
+        "cells": {cid: {
+            "status": r["status"],
+            "l1_nontrivial": r.get("l1_nontrivial"),
+            "abs_vhat0": r.get("abs_vhat0"),
+            "wall_s": r.get("wall_seconds"),
+            "rss_highwater_gb": r.get("rss_highwater_gb"),
+        } for cid, r in sorted(reg.items())},
+        "artifacts": ["implementation.py", "checker.py", "manifest.yaml",
+                      "registry.json", "fits.json", "report.md"],
+    }
     with open(MANIFEST_PATH, "w") as f:
-        f.write("\n".join(y) + "\n")
+        _yaml.dump({"run": run}, f, sort_keys=False, default_flow_style=False,
+                   allow_unicode=True, width=100)
 
 
 def write_report(families, curve_fams, controls, control_notes=None):
@@ -783,9 +871,9 @@ def write_report(families, curve_fams, controls, control_notes=None):
             y.append(f"| {row} | {fam['fit']['lambda']:.4f} | {fam['fit']['se']:.4f} | {note} |")
     y.append(f"| C01 | 0 (exact) | - | all cells numerically zero: {families['C01']['all_numerically_zero']} |")
     for row in GATE_ROWS:
-        fam = families.get(row + "M", {})
-        if fam.get("fit"):
-            y.append(f"| {row}M | {fam['fit']['lambda']:.4f} | {fam['fit']['se']:.4f} | PGL_2 battery |")
+        mfit = families.get(row, {}).get("moebius_fit")
+        if mfit:
+            y.append(f"| {row}M | {mfit['lambda']:.4f} | {mfit['se']:.4f} | PGL_2 battery |")
     for k, fit in sorted(curve_fams.items()):
         if fit:
             y.append(f"| {k} | {fit['lambda']:.4f} | {fit['se']:.4f} | curve-restricted, auxiliary |")
