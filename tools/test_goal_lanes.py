@@ -387,10 +387,6 @@ class CliTests(unittest.TestCase):
             self.assertIn("open", run("lanes", GOAL).stdout)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class CompletedReleaseBindsArtifactsTests(unittest.TestCase):
     """A completed release asserts the work was DONE, so it binds what was produced.
 
@@ -570,3 +566,7 @@ class SupersedeLostCompletionTests(unittest.TestCase):
                          ttl_minutes=30, now=T0,
                          lost_completion_reason="output lost with its machine")
         self.assertEqual(release_path.read_bytes(), before)
+
+
+if __name__ == "__main__":
+    unittest.main()
