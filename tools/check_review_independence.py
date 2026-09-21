@@ -184,21 +184,38 @@ def _load(path: str):
         return {"__error__": str(exc).splitlines()[0]}
 
 
+#: A round's plan is spelled `review_plan` by the template and `read_plan` by
+#: zero-compute rounds whose joints are readings of external sources. The two are
+#: the same object and this tool checks the same things of both; the alias exists
+#: because a committed plan is immutable, so a round that chose the other spelling
+#: cannot be brought into line by editing it. Refusing it reported a naming
+#: difference as "no review_plan block", which is the least informative failure
+#: available and which no reader of that message would diagnose.
+PLAN_KEYS = ("review_plan", "read_plan")
+ADDENDUM_KEYS = ("review_plan_addendum", "read_plan_addendum")
+
+
 def _plan_of(doc) -> dict | None:
-    """A plan may be given as a handoff record or as a bare review_plan."""
+    """A plan may be given as a handoff record or as a bare plan."""
     if not isinstance(doc, dict):
         return None
-    if isinstance(doc.get("review_plan"), dict):
-        return doc["review_plan"]
+    for key in PLAN_KEYS:
+        if isinstance(doc.get(key), dict):
+            return doc[key]
     handoff = doc.get("handoff")
-    if isinstance(handoff, dict) and isinstance(handoff.get("review_plan"), dict):
-        return handoff["review_plan"]
+    if isinstance(handoff, dict):
+        for key in PLAN_KEYS:
+            if isinstance(handoff.get(key), dict):
+                return handoff[key]
     return None
 
 
 def _addendum_of(doc) -> dict | None:
-    if isinstance(doc, dict) and isinstance(doc.get("review_plan_addendum"), dict):
-        return doc["review_plan_addendum"]
+    if not isinstance(doc, dict):
+        return None
+    for key in ADDENDUM_KEYS:
+        if isinstance(doc.get(key), dict):
+            return doc[key]
     return None
 
 
