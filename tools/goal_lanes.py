@@ -308,6 +308,7 @@ def claim_task(
     include_refs: bool = True,
     now: _dt.datetime | None = None,
     force: bool = False,
+    lost_completion_reason: str | None = None,
 ) -> Path:
     if not TASK_ID.match(task_id):
         raise LaneError(f"{task_id!r} is not a TASK-YYYYMMDD-<6hex> identifier")
@@ -332,11 +333,45 @@ def claim_task(
             f"expires {current['expires_at']}, seen via {current['sources'].get('claim')}); "
             "wait for expiry, ask for a release on the bus, or --force with a recorded reason"
         )
+    superseded_completion = None
     if current and current["status"] == "released" and current["release"].get("outcome") == "completed":
-        raise LaneError(
-            f"{task_id} was released as completed by {current['owner']} (epoch {current['epoch']}); "
-            "a completed task is not re-claimable -- the Coordinator archives it"
-        )
+        # The rule is right: a completed task is archived, not re-run. It has one
+        # blind spot, found the hard way (CORR-20260921-942a62) -- a completion
+        # whose OUTPUT NO LONGER EXISTS. The release was accurate when written and
+        # is immutable, but "the Coordinator archives it" is then impossible,
+        # because there is nothing to archive, and the task is stuck terminal
+        # forever while its objective is unmet.
+        #
+        # So the exception is narrow and SELF-VERIFYING: it checks that the
+        # declared artifacts really are absent before allowing the re-claim, which
+        # is what stops the flag from being a way to redo work that exists.
+        if not lost_completion_reason:
+            raise LaneError(
+                f"{task_id} was released as completed by {current['owner']} "
+                f"(epoch {current['epoch']}); a completed task is not re-claimable -- "
+                "the Coordinator archives it.\n\n"
+                "If the completion's OUTPUT WAS LOST and there is nothing to "
+                "archive, re-claim with supersedes_lost_completion=<reason>; the "
+                "absence is verified before the claim is written."
+            )
+        declared = list(tasks[task_id].get("artifact_paths", []))
+        present = [rel for rel in declared if (root / rel).exists()]
+        if present:
+            raise LaneError(
+                f"refusing to supersede {task_id}'s completion: "
+                f"{len(present)} of its {len(declared)} declared artifact(s) DO exist:\n  "
+                + "\n  ".join(present)
+                + "\n\nThis flag is for a completion whose output was destroyed. "
+                "Work that exists is archived, not re-run."
+            )
+        superseded_completion = {
+            "epoch": current["epoch"],
+            "owner": current["owner"],
+            "released_at": current["release"].get("released_at"),
+            "bound_artifact_count": len(current["release"].get("artifact_sha256") or {}),
+            "declared_artifacts_now_absent": declared,
+            "reason": lost_completion_reason,
+        }
     epoch = (history[-1]["epoch"] + 1) if history else 1
     payload = {
         "schema": CLAIM_SCHEMA,
@@ -354,6 +389,7 @@ def claim_task(
             if current else None
         ),
         "forced": bool(force and current and current["status"] == "live"),
+        "supersedes_lost_completion": superseded_completion,
     }
     path = root / claims_prefix(root, queue_path) / f"{task_id}.{epoch}.claim.json"
     write_once(path, payload)
@@ -568,6 +604,7 @@ def cmd_claim(args: argparse.Namespace) -> int:
         root, queue, args.task, owner=args.as_addr, ttl_minutes=args.ttl_minutes,
         session=args.session, branch=args.branch, worktree=args.worktree,
         include_refs=not args.local_only, force=args.force,
+        lost_completion_reason=args.supersedes_lost_completion,
     )
     print(f"claimed {args.task} -> {path.relative_to(root)}")
     if args.publish:
@@ -721,6 +758,11 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--ttl-minutes", type=int, required=True, help="claim expiry; size to the task's budget")
     p.add_argument("--session"); p.add_argument("--branch"); p.add_argument("--worktree")
     p.add_argument("--force", action="store_true", help="supersede a LIVE claim (recorded as forced)")
+    p.add_argument("--supersedes-lost-completion", metavar="REASON", default=None,
+                   help="re-claim a task released as completed whose OUTPUT NO LONGER "
+                        "EXISTS. The absence of every declared artifact is verified "
+                        "before the claim is written, so this cannot re-run work that "
+                        "exists. The reason is recorded in the claim.")
     _common(p, needs_owner=True); p.set_defaults(func=cmd_claim)
 
     p = sub.add_parser("release", help="end your own claim with an outcome")

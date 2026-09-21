@@ -488,3 +488,85 @@ class CompletedReleaseBindsArtifactsTests(unittest.TestCase):
             (self.root / BATCH_DIR / "claims" / f"{PRODUCER}.1.release.json").read_text()
         )
         self.assertEqual(release["artifact_sha256"][rel], "f" * 64)
+
+
+class SupersedeLostCompletionTests(unittest.TestCase):
+    """Re-claiming a completion whose output was destroyed.
+
+    "A completed task is archived, not re-claimed" is right, and has one blind
+    spot found the hard way (CORR-20260921-942a62): when the output no longer
+    exists there is nothing to archive, and the task is stuck terminal forever
+    with its objective unmet.
+    """
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.repo = Repo(Path(self._tmp.name))
+        self.root = self.repo.a
+        self.queue = Repo.queue(self.root)
+        self.rel = f"{BATCH_DIR}/tasks/{PRODUCER}/report.json"
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def _complete(self, with_artifact: bool) -> None:
+        lanes.claim_task(self.root, self.queue, PRODUCER, owner="coord-a",
+                         ttl_minutes=30, now=T0)
+        hashes = {}
+        if with_artifact:
+            path = self.root / self.rel
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("{}\n")
+            hashes = {self.rel: hashlib.sha256(path.read_bytes()).hexdigest()}
+        lanes.release_task(self.root, self.queue, PRODUCER, owner="coord-a",
+                           outcome="completed", artifact_sha256=hashes, now=T0)
+
+    def test_a_completed_task_is_not_reclaimable_without_the_flag(self):
+        self._complete(with_artifact=False)
+        with self.assertRaises(lanes.LaneError) as cm:
+            lanes.claim_task(self.root, self.queue, PRODUCER, owner="coord-b",
+                             ttl_minutes=30, now=T0)
+        self.assertIn("not re-claimable", str(cm.exception))
+        self.assertIn("supersedes_lost_completion", str(cm.exception))
+
+    def test_reclaim_succeeds_when_the_output_is_genuinely_gone(self):
+        self._complete(with_artifact=False)
+        path = lanes.claim_task(
+            self.root, self.queue, PRODUCER, owner="coord-b", ttl_minutes=30, now=T0,
+            lost_completion_reason="VM replaced between turns; artifacts never committed",
+        )
+        claim = json.loads(path.read_text())
+        self.assertEqual(claim["epoch"], 2)
+        lost = claim["supersedes_lost_completion"]
+        self.assertEqual(lost["epoch"], 1)
+        self.assertEqual(lost["owner"], "coord-a")
+        self.assertEqual(lost["bound_artifact_count"], 0)
+        self.assertEqual(lost["declared_artifacts_now_absent"], [self.rel])
+        self.assertIn("VM replaced", lost["reason"])
+
+    def test_refused_when_the_output_still_exists(self):
+        """The check that stops this being a way to redo work that exists."""
+        self._complete(with_artifact=True)
+        with self.assertRaises(lanes.LaneError) as cm:
+            lanes.claim_task(
+                self.root, self.queue, PRODUCER, owner="coord-b", ttl_minutes=30, now=T0,
+                lost_completion_reason="I would simply like to run it again",
+            )
+        message = str(cm.exception)
+        self.assertIn("DO exist", message)
+        self.assertIn("archived, not re-run", message)
+
+    def test_an_ordinary_claim_records_no_superseded_completion(self):
+        path = lanes.claim_task(self.root, self.queue, PRODUCER, owner="coord-a",
+                                ttl_minutes=30, now=T0)
+        self.assertIsNone(json.loads(path.read_text())["supersedes_lost_completion"])
+
+    def test_the_immutable_release_is_not_touched(self):
+        """The completion was accurate when written and stays exactly as written."""
+        self._complete(with_artifact=False)
+        release_path = self.root / BATCH_DIR / "claims" / f"{PRODUCER}.1.release.json"
+        before = release_path.read_bytes()
+        lanes.claim_task(self.root, self.queue, PRODUCER, owner="coord-b",
+                         ttl_minutes=30, now=T0,
+                         lost_completion_reason="output lost with its machine")
+        self.assertEqual(release_path.read_bytes(), before)
