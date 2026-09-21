@@ -799,11 +799,11 @@ EXECUTED = {
              "the commit named here is not the commit that created the records it binds."),
             ("path_sha256", od([
                 (f"{BASE}/archives/{LEDGER}/ledger-receipt.json",
-                 "679e952becb07245de9b3b7ce20c8a37445a2892d8381b7b45b9c056644c5f32"),
+                 "b39d3ae3bade102b7d41044ed4cb2a9a365834f10de2c20b12dce782a8e8aed2"),
                 (f"ledger/evidence/{EVIDENCE}.yaml",
                  "bae577859c95303cbd4914c244b2cd8d13dc879837430e715583515d68e74c9d"),
                 (f"ledger/decisions/{DECISION}.yaml",
-                 "eda1fa6018a8740933d4fe5c0ccf2cd1164a6a42ccb549da73a711bb86143136"),
+                 "8394e85d5adb5560ffbd9abf9cb2e4aa18d332f5b8ee6742517b4c66bcfe0957"),
                 (f"experiments/{EXP}/analysis.md",
                  "e134e8bc33ebd66f348f8c0c83965272a8df1abbf6b745b9997be56fed5f5d90"),
                 (f"{BASE}/{COMPOSE}/scored-priors.json",
@@ -811,16 +811,17 @@ EXECUTED = {
                 (f"{BASE}/{COMPOSE}/evidence-draft.yaml",
                  "bae577859c95303cbd4914c244b2cd8d13dc879837430e715583515d68e74c9d"),
                 (f"{BASE}/{COMPOSE}/decision-draft.yaml",
-                 "eda1fa6018a8740933d4fe5c0ccf2cd1164a6a42ccb549da73a711bb86143136"),
+                 "8394e85d5adb5560ffbd9abf9cb2e4aa18d332f5b8ee6742517b4c66bcfe0957"),
             ])),
             ("path_sha256_note",
              "SEVEN entries: the receipt, the two official ledger records, and the four "
              "artifacts the source task declared (the analysis, the scored priors, and both "
-             "drafts). All computed from git blobs."),
+             "drafts). All computed from git blobs. DEC/decision-draft hashes rebound under "
+             "CORR-20260921-0c1e2c after a pre-merge schema repair added verified_by."),
             ("the_binding_CRYPTOGRAPHICALLY_confirms_the_zero_divergence_claim",
              "evidence-draft.yaml hashes to bae577859c95... and ledger/evidence/"
              "EV-SEMBIN-c6e9ad.yaml hashes to the SAME value; decision-draft.yaml and "
-             "ledger/decisions/DEC-20260921-2c62d7.yaml likewise both hash to eda1fa601... "
+             "ledger/decisions/DEC-20260921-2c62d7.yaml likewise both hash to 8394e85d5... "
              "So 'the official records are byte-identical to the composition's drafts' is not "
              "the archiving session's assertion about its own work -- it is two pairs of "
              "equal hashes in this binding, checkable by anyone against commit 73f807a81. "
