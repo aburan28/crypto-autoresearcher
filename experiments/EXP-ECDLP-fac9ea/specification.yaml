@@ -1,0 +1,348 @@
+experiment:
+  id: EXP-ECDLP-fac9ea
+  hypothesis_id: H-ECDLP-4e1880
+  proposal_id: IDEA-20260921-6a29df
+  source_idea_ids: [IDEA-20260921-6a29df]
+  question_id: RQ-CRYPTO-001
+  goal_id: GOAL-CRYPTO-001
+  version: 1
+  title: >-
+    Lambda-registry census: exact additive-FFT measurement of
+    ||vhat||_1 scaling exponents for the frozen registry of coordinate
+    statistics over two prime ladders, with per-statistic two-sided gate
+    verdicts for the branching-window lane (lambda > 1/4 learning route;
+    lambda >= 1/6 n^{1/3}-corner floor).
+  status: approved
+  assigned_to: executor
+  approved_by: coordinator
+  approval_decision: DEC-20260921-4d1b40
+  approval_basis: >-
+    AGENTS.md standing user authorization of 2026-09-06 ("all is approved.
+    ideas/experiments should be always approved") supplies user approval;
+    the Coordinator supplies the protocol-completeness check, which this
+    contract passes (controls, metrics, seeds, stopping and invalidation
+    rules, artifacts, write scope all non-null). Resource limits are
+    advisory per docs/research-budget-policy.md; only the 8 GiB memory
+    ceiling is machine protection.
+  recorded_at: '2026-09-21'
+  inference:
+    requested_policy: executor-implementation
+    runtime: null
+    resolved_model_id: null
+    model_verified: false
+    reasoning_effort: null
+    fallback_used: false
+    degraded_requirements: []
+    session_identity: null
+    provenance_note: >-
+      Contract designed in the top-level coordinator session on 2026-09-21;
+      the dedicated coordinator subagent runtime failed its environment
+      bootstrap (AWS DescribeInstances AuthFailure) at dispatch, so the
+      conversion ran in-session under Coordinator authority with the
+      substitution recorded here and in DEC-20260921-4d1b40. The executor's
+      own runtime identity is recorded by its run manifest, not here.
+  scale_relevance:
+    tier: toy
+    justification: >-
+      Exact ladders p in [2^12, 2^26]; the measured exponents feed gate
+      statements that are themselves necessary conditions on asymptotic
+      constructions. No crypto-scale or deployed-curve claim.
+    correspondence: >-
+      lambda is exactly computable at every ladder point (no sampling
+      correspondence needed); the only transfer is the HEUR-1 ladder
+      extrapolation, stated with its two-ladder and jackknife guards.
+  heuristic_under_test: HEUR-1 (ladder extrapolation regularity); HEUR-2
+    (gate composition soundness) -- both defined in H-ECDLP-4e1880.
+
+  statistic_registry:
+    note: >-
+      FROZEN. No row may be added, removed, or redefined after any cell
+      outcome. Every row is a function v: F_p -> C, L2-normalised
+      (||v||_2 = 1) before the transform. The transform is the exact
+      additive Fourier transform over F_p,
+      vhat(k) = sum_{x in F_p} v(x) e^{-2*pi*i*k*x/p},
+      computed by Bluestein chirp-z over the prime p. A composite-length
+      surrogate DFT or a transform over the log coordinate INVALIDATES the
+      run (see invalidation_rules).
+    rows:
+      - id: R01
+        name: interval indicator
+        construction: >-
+          v(x) = 1/sqrt(L) for x in {0,1,...,L-1}, 0 otherwise, with
+          L = p div 8 (the leading p/8 integers in canonical order).
+      - id: R02
+        name: AP indicator
+        construction: >-
+          v(x) = 1/sqrt(L) for x in {a0 + j*d mod p : 0 <= j < L},
+          a0 = 0, d = 3, L = p div 8.
+      - id: R03
+        name: digit-sum base 2 (popcount) -- REPRODUCTION ROW
+        construction: >-
+          v(x) = (popcount(canonical integer encoding of x) - mu_p) /
+          sigma_p where mu_p, sigma_p are the exact mean and standard
+          deviation of popcount over x in [0, p-1], so ||v||_2 = 1 exactly.
+          This is the reproduction row for the committed KN-FIND-ffe1df
+          L1-growth measurement (~ p^{0.39}); the manifest must record the
+          comparison against that record's stated construction.
+      - id: R04
+        name: digit-sum base 3
+        construction: >-
+          v(x) = (digitsum_3(x) - mu_p)/sigma_p, centred and normalised
+          exactly as R03.
+      - id: R05
+        name: digit-sum base 10
+        construction: v(x) = (digitsum_10(x) - mu_p)/sigma_p, as R03.
+      - id: R06
+        name: multiplicative-coset indicator, index 3
+        construction: >-
+          H = the index-3 subgroup of F_p^* (cubes; requires
+          p = 1 mod 3, else row records 'unavailable' for that prime with
+          the congruence certificate); g = the lexicographically first
+          element of F_p^* that is not a cube (canonical integer order);
+          v(x) = 1/sqrt(|gH|) * 1_{x in gH} (x = 0 excluded, recorded).
+      - id: R07
+        name: multiplicative-coset indicator, index 5
+        construction: as R06 with index 5 (requires p = 1 mod 5).
+      - id: R08
+        name: multiplicative-coset indicator, index 2 (quadratic residues)
+        construction: >-
+          v(x) = 1/sqrt(|QR|) * 1_{x a nonzero quadratic residue};
+          the Weil square-root-cancellation prior predicts lambda near 0.
+      - id: R09
+        name: low-bit mask
+        construction: >-
+          v(x) = ((x mod 2^8) - mu_p)/sigma_p with exact mean/variance
+          over x in [0, p-1], normalised as R03.
+      - id: C01
+        name: all-ones (analytic endpoint control)
+        construction: >-
+          v(x) = 1/sqrt(p) for all x. Only the k = 0 coefficient is
+          nonzero (|vhat(0)| = sqrt(p)), so under the frozen nontrivial
+          convention ||vhat||_1^* = 0 exactly and the row must read
+          lambda = 0 at every prime; any other reading voids the census.
+      - id: C02
+        name: random-sign null (Parseval control)
+        construction: >-
+          v(x) = s_x/sqrt(p), s_x in {+1,-1} drawn from the frozen hash
+          stream SHA256(EXP-ECDLP-fac9ea:C02:sign:<counter>) with
+          rejection-free bit mapping; must read lambda ~ 1/2 + o(1).
+          Re-run with a second independent seed set (seed set B) as the
+          seed-insensitivity replication.
+      - id: C03
+        name: PGL_2 reparametrisation battery (per-statistic control)
+        construction: >-
+          For each non-control row R01-R09, one random Moebius map
+          M(x) = (a*x + b)/(c*x + d) mod p with ad - bc a nonzero residue,
+          (a,b,c,d) drawn from the frozen hash stream
+          SHA256(EXP-ECDLP-fac9ea:C03:moebius:<row>:<counter>); row
+          v_M = v composed with M (undefined inputs mapped to the v value
+          of the pole image, recorded). lambda(v_M) must read within fit
+          error of lambda(v), else the row is marked artifactual and voided
+          from the gate table.
+
+  prime_ladders:
+    primary: >-
+      Dyadic ladder, 10 primes: for each exponent b in the frozen list
+      [12, 13, 14, 15, 16, 17.5, 19, 20.5, 22, 24, 26] rounded DOWN to the
+      list length 10 (exactly: b in {12, 13, 14, 15, 16, 17.5, 19, 20.5,
+      22, 24} is 10 values; the 2^26 point is added from the secondary
+      ladder below so the full span 2^12..2^26 is covered) -- the prime for
+      each b is the smallest prime >= 2^b, found by deterministic
+      trial-division scan in canonical order; the found primes are frozen
+      in the manifest before any transform runs.
+    secondary: >-
+      1.5x-spaced ladder, at least 8 primes spanning 2^12..2^26, chosen as
+      the smallest prime >= 2^{12 + 1.7*j} for j = 0..7 (deterministic,
+      frozen in the manifest); includes the largest point 2^26-class prime
+      used for the jackknife tail check.
+    curve_dependent_rows: >-
+      Coset rows R06-R08 restricted to x(E(F_p)) (the curve-restriction
+      variant logged beside the full-F_p variant): 3 curves per prime,
+      y^2 = x^3 + A*x + B with (A, B) drawn from the frozen hash stream
+      SHA256(EXP-ECDLP-fac9ea:curve:<prime>:<counter>), accepted iff the
+      discriminant is nonzero; full generation data logged.
+
+  inputs:
+    statistics: the frozen statistic_registry above.
+    ladders: the frozen prime_ladders above.
+    gates: >-
+      IDEA-20260904-f68c7f (D) conversion threshold lambda > 1/4;
+      IDEA-20260920-b6ad24 (A3) corner condition lambda >= 1/6 with floor
+      T >= n^{(4-2*lambda)/11} for lambda <= 1/6; both cited as committed
+      records, re-derived blind by checker.py (HEUR-2).
+    reproduction_target: >-
+      KN-FIND-ffe1df's committed digit-sum L1-growth measurement
+      (~ p^{0.39}) via the R03 row; band [0.36, 0.42].
+
+  controls:
+    - C01 all-ones: >-
+        lambda = 0 exactly under the k!=0-restricted
+        convention; any other reading voids the census.
+    - C02 random-sign: >-
+        lambda ~ 1/2 + o(1) within fit error; run twice
+        (seed sets A and B).
+    - C03 PGL_2 battery: >-
+        every non-control row must be Moebius-stable
+        within fit error or be voided as artifactual.
+    - R03 reproduction: >-
+        digit-sum base 2 in [0.36, 0.42] or the census is
+        void as defective (infrastructure outcome, not evidence).
+
+  independent_variables:
+    - statistic row (frozen registry)
+    - prime p (frozen ladders)
+    - ladder spacing (dyadic vs 1.5x) -- tests HEUR-1
+    - seed set (A vs B) on C02 and R03 -- seed-insensitivity replication
+
+  primary_metrics:
+    - >-
+      FROZEN CONVENTION (fixed before any run, never switched): the
+      measured quantity is the NONTRIVIAL additive L1 norm
+      ||vhat||_1^* = sum over k != 0 of |vhat(k)|, where vhat is the exact
+      additive Fourier transform over F_p of the L2-normalised statistic v.
+      Rationale, on record: the gate quantity eps of IDEA-20260920-b6ad24
+      is a max over NONTRIVIAL characters, so the k = 0 term is outside the
+      gate; and under an all-k convention every positive-mean indicator
+      row would read lambda >= 1/2 from the k = 0 mass alone (|vhat(0)| =
+      sqrt(p)*mean(v)), collapsing the census. Under the frozen
+      convention the analytic endpoints are exact: C01 (all-ones) reads
+      lambda = 0 (every nontrivial coefficient is 0), C02 (random signs)
+      reads lambda = 1/2 + o(1) (Parseval level). The manifest reports
+      ||vhat(0)| separately per cell so the all-k value is reconstructible;
+      the gate column uses ONLY the frozen nontrivial convention.
+    - fitted lambda(v) with standard error, per row, from least squares of
+      log||vhat||_1^* on log p over the primary ladder.
+    - gate verdict per row: >-
+        corner_open_and_learning_open (lambda > 1/4) |
+        corner_open_learning_blocked (1/6 <= lambda <= 1/4) | floor_blocked
+        (lambda < 1/6) | artifactual (C03 deviation) | unresolved (HEUR-1
+        failure) | unavailable (congruence/structure absence, with
+        certificate).
+
+  secondary_metrics:
+    - residuals and residual trend statistic per row; jackknife on the
+      largest prime.
+    - two-ladder agreement (dyadic vs 1.5x) per row.
+    - seed-set agreement (A vs B) on C02 and R03.
+    - per-cell transform wall time and peak RSS (the census's own charged
+      cost, measured with the manifest instrumentation).
+
+  seeds_and_replication:
+    - >-
+      Every stochastic element (C02 signs, C03 Moebius maps, curve
+      parameters) drawn from SHA256(EXP-ECDLP-fac9ea:<cell>:<purpose>:<counter>)
+      streams, frozen in this specification before any run; the census is
+      otherwise deterministic.
+    - >-
+      Replication plan: the full ladder runs once (maximum_runs: 1,
+      scientific cells frozen); C02 and R03 re-run with seed set B;
+      checker.py re-derives 3 spot cells (one small-prime cell by naive
+      O(p^2) DFT, one mid cell by a second independent chirp-z
+      implementation, and the gate algebra blind from the two cited
+      records' statements).
+
+  budget:
+    enforcement: advisory
+    wall_clock_seconds_per_run: null
+    total_cpu_hours: null
+    maximum_memory_gb: 8
+    maximum_runs: 1
+    maximum_workers: 4
+
+  stage_estimates:
+    - id: ladder_and_registry_freeze
+      wall_clock_seconds: null
+      cpu_hours: null
+      maximum_memory_gb: 1
+      parallel_shards: 1
+    - id: transform_census
+      wall_clock_seconds: null
+      cpu_hours: null
+      maximum_memory_gb: 8
+      parallel_shards: 4
+    - id: fits_and_gate_table
+      wall_clock_seconds: null
+      cpu_hours: null
+      maximum_memory_gb: 1
+      parallel_shards: 1
+    - id: checker_rederivations
+      wall_clock_seconds: null
+      cpu_hours: null
+      maximum_memory_gb: 4
+      parallel_shards: 1
+
+  stopping_rules:
+    - >-
+      First failed control (C01, C02, R03 reproduction outside their bands)
+      halts dependent registry reads and preserves all evidence already
+      produced; the run is marked void with the defective control named.
+    - >-
+      Memory above 8 GiB checkpoints the cell as resource_exhaustion with
+      an exact continuation pointer; machine protection only, no
+      mathematical verdict and no research spending cap.
+    - >-
+      No registry row, ladder prime, convention, or seed change after any
+      cell outcome; all changes are additive protocol_amendments under
+      experiments/EXP-ECDLP-fac9ea/amendments/.
+    - >-
+      All frozen cells appear in the manifest including unavailable and
+      void statuses; no cell is silently dropped.
+
+  invalidation_rules:
+    - A composite-length surrogate DFT substituted for the exact
+      prime-field additive transform.
+    - Unnormalised statistics, or a normalisation change after any cell
+      outcome.
+    - A convention switch on the L1 sum (all-k vs k!=0) after any cell
+      outcome.
+    - A PGL_2-artifactual row left in the gate table.
+    - Any gate verdict stated as sufficient rather than necessary.
+    - A PGL_2-conjugated row's reading hidden rather than recorded.
+
+  tail_checks:
+    - >-
+      Jackknife on the largest-prime point per row (HEUR-1 guard): the
+      largest point must not be a systematic outlier.
+    - >-
+      Residual trend per row: no monotone residual trend across the
+      ladder.
+    - >-
+      The two-ladder comparison is reported per row, not pooled.
+
+  success_criterion: >-
+    The single census run completes all frozen cells (registry rows x
+    ladders, controls, curve-restriction variants, with unavailable
+    statuses and their certificates where structure is absent), all four
+    controls pass (C01 exact 0, C02 in the 1/2 band on both seed sets,
+    C03 PGL_2-stable for every non-control row, R03 reproduction in
+    [0.36, 0.42]), every registry row carries a gate verdict or an
+    explicit unavailable/artifactual/unresolved status, the checker
+    re-derivations agree (spot cells to 1e-9 relative; gate algebra
+    character-identical), and the two-ladder and jackknife guards pass for
+    every fitted row. The band-census consequence is then recorded either
+    way: a new lambda > 1/4 inhabitant names the successor construction
+    step; an all-lambda-<=-1/4 outcome (except R03) records the scoped
+    negative with synthetic-statistic-design as the named successor.
+  falsification_criterion: >-
+    Within this toy boundary the measurement is void (infrastructure
+    outcome, never mathematical evidence) if any control fails or the
+    transform/convention invariant is violated. HEUR-1 is falsified
+    per-row by two-ladder disagreement beyond fit error, a monotone
+    residual trend, or a jackknife outlier on the largest prime (that row
+    is recorded unresolved). HEUR-2 is falsified by checker disagreement
+    on the blind gate-algebra re-derivation (all gate verdicts withdrawn
+    in a superseding record). The hypothesis's prediction that interval
+    and AP rows read lambda <= 0.05 is falsified if they read materially
+    higher with passing controls -- which would itself be recorded as an
+    unexpected observation naming a successor measurement.
+
+  required_artifacts:
+    - experiments/EXP-ECDLP-fac9ea/runs/TASK-20260921-4888d4/implementation.py
+    - experiments/EXP-ECDLP-fac9ea/runs/TASK-20260921-4888d4/checker.py
+    - experiments/EXP-ECDLP-fac9ea/runs/TASK-20260921-4888d4/manifest.yaml
+    - experiments/EXP-ECDLP-fac9ea/runs/TASK-20260921-4888d4/registry.json
+    - experiments/EXP-ECDLP-fac9ea/runs/TASK-20260921-4888d4/fits.json
+    - experiments/EXP-ECDLP-fac9ea/runs/TASK-20260921-4888d4/report.md
+
+  write_scope:
+    - experiments/EXP-ECDLP-fac9ea/runs/TASK-20260921-4888d4/
