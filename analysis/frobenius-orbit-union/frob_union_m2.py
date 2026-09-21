@@ -380,7 +380,7 @@ def summarize(res):
     rows = res['rows']
     def mean(key, flt=lambda r: True):
         v = [r[key] for r in rows if flt(r) and key in r]
-        return sum(v) / len(v) if v else float('nan')
+        return sum(v) / len(v) if v else None
     out = []
     n = res['n']
     for label, flt in (('all', lambda r: True), ('UNSAT', lambda r: not r['gt_sat']), ('SAT', lambda r: r['gt_sat'])):
