@@ -43,10 +43,13 @@ RUN_ID = "RUN-ECDLP-8e13c2"
 TASK_ID = "TASK-20260921-4888d4"
 MEM_CAP_GB = 8.0
 PRIMARY_EXPONENTS = [12.0, 13.0, 14.0, 15.0, 16.0, 17.5, 19.0, 20.5, 22.0, 24.0]
-# Frozen prime_ladders.secondary: exponent step 14/9 so j = 9 is exactly 2^26
-# (the jackknife tail) and no interior exponent coincides with the primary list.
-SECONDARY_J = list(range(10))
-SECONDARY_STEP = 14.0 / 9.0
+# Secondary ladder as executed under amendment DEC-20260921-d3fafb: the eight
+# frozen formula primes (smallest prime >= 2^{12 + 1.7*j}, j = 0..7) plus the
+# appended smallest prime >= 2^26, which is the jackknife tail. This list is
+# the one registry.json, fits.json and manifest.yaml record.
+SECONDARY_J = list(range(8))
+SECONDARY_STEP = 1.7
+EXTRA_TAIL_EXPONENT = 26.0
 GATE_ROWS = ["R01", "R02", "R03", "R04", "R05", "R06", "R07", "R08", "R09"]
 
 
@@ -520,7 +523,8 @@ def main():
     os.makedirs(WORK, exist_ok=True)
     primary = [smallest_prime_at_least(2.0 ** b) for b in PRIMARY_EXPONENTS]
     secondary = [smallest_prime_at_least(2.0 ** (12 + SECONDARY_STEP * j)) for j in SECONDARY_J]
-    tail = secondary[-1]
+    tail = smallest_prime_at_least(2.0 ** EXTRA_TAIL_EXPONENT)
+    secondary = secondary + [tail]
     all_primes = sorted(set(primary) | set(secondary))
     ladder_of = {}
     for p in primary:
