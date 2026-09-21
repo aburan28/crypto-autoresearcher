@@ -84,6 +84,21 @@ class TestLandingCommitsExactlyTheDeclaredSet(LandingHarness):
         tracked = run_git(self.repo, "ls-tree", "-r", "--name-only", "HEAD")
         self.assertNotIn("scratch.tmp", tracked)
 
+    def test_leaves_unrelated_pre_staged_work_alone(self):
+        """Landing runs mid-turn, beside whatever the Coordinator has staged.
+
+        That work is neither swept into the landing commit nor unstaged by it:
+        the commit holds exactly the declared set and the index keeps the rest.
+        """
+        q = self.write_queue([PRODUCER])
+        self.produce(*PRODUCER["artifact_paths"], "ledger/corr.yaml")
+        run_git(self.repo, "add", "ledger/corr.yaml")
+        self.assertEqual(self.land(q, PRODUCER["id"]), 0)
+        committed = run_git(self.repo, "show", "--name-only", "--format=", "HEAD").split()
+        self.assertEqual(sorted(committed), sorted(PRODUCER["artifact_paths"]))
+        self.assertEqual(run_git(self.repo, "diff", "--cached", "--name-only").split(),
+                         ["ledger/corr.yaml"])
+
     def test_commit_message_names_the_task_and_says_it_is_not_an_archive(self):
         q = self.write_queue([PRODUCER])
         self.produce(*PRODUCER["artifact_paths"])
@@ -215,10 +230,6 @@ class TestCheckMode(LandingHarness):
         self.assertEqual(rows[0]["missing"], ["work/t1/data.json"])
 
 
-if __name__ == "__main__":
-    unittest.main(verbosity=2)
-
-
 class TestUndeclaredOutputInScope(LandingHarness):
     """A producer that writes more than it declared is still exposed.
 
@@ -265,3 +276,7 @@ class TestUndeclaredOutputInScope(LandingHarness):
         rows = producer_landing.landing_status(
             self.repo, producer_landing.load_queue(q))
         self.assertEqual(rows[0]["undeclared_in_scope"], [])
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)
